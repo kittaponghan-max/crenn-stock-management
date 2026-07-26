@@ -9,9 +9,8 @@
       "purpose": "any"
     }
   ],
-  "start_url": "/",
-  "background_color": "#ffffff",
+  "start_url": ".",
   "display": "standalone",
-  "scope": "/",
+  "background_color": "#ffffff",
   "theme_color": "#4285f4"
 }
