@@ -4,8 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: './', // เพิ่มบรรทัดนี้เพื่อให้แอปหาไฟล์ CSS/JS เจอไม่ว่าจะอยู่ที่ URL ไหน
+  base: '/',
   build: {
     outDir: 'dist',
+    assetsDir: 'assets'
   }
 })
