@@ -1,0 +1,5 @@
+{
+  "name": "CRENN Stock Management",
+  "description": "A weekly raw material stock checking form for cafes, tracking minimum stock, MOQ, and suppliers.",
+  "requestFramePermissions": []
+}

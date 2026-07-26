@@ -1,0 +1,563 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[
+  {
+    "ingredientId": "1",
+    "ingredientName": "Everyday Blend (Medium Roast)",
+    "oldVal": "-",
+    "newVal": 4,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "2",
+    "ingredientName": "Colombia Santander Supremo (Medium)",
+    "oldVal": "-",
+    "newVal": 6,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "3",
+    "ingredientName": "Brazil Santos (Medium to Dark)",
+    "oldVal": "-",
+    "newVal": 3,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "4",
+    "ingredientName": "นมรสจืด Meiji Ray",
+    "oldVal": "-",
+    "newVal": 8,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "5",
+    "ingredientName": "นมรสจืด Meiji ฝาน้ำเงิน",
+    "oldVal": "-",
+    "newVal": 3,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "6",
+    "ingredientName": "นมโอ๊ต Oatside",
+    "oldVal": "-",
+    "newVal": 4,
+    "unit": "กล่อง"
+  },
+  {
+    "ingredientId": "7",
+    "ingredientName": "นมอัลมอนด์ 137 Degrees สูตรดั้งเดิม",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "กล่อง"
+  },
+  {
+    "ingredientId": "8",
+    "ingredientName": "ครีมเทียม คอฟฟี่เมต",
+    "oldVal": "-",
+    "newVal": 10,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "9",
+    "ingredientName": "นมข้นหวาน ตรามะลิ",
+    "oldVal": "-",
+    "newVal": 6,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "10",
+    "ingredientName": "นมข้นจืด Carnation สูตรเข้มข้น Extra",
+    "oldVal": "-",
+    "newVal": 15,
+    "unit": "กล่อง"
+  },
+  {
+    "ingredientId": "11",
+    "ingredientName": "Monin Syrup (Roasted Hazelnut)",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "12",
+    "ingredientName": "Monin Syrup (Caramel)",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "13",
+    "ingredientName": "Monin Syrup (Peach)",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "14",
+    "ingredientName": "Monin Syrup Fruit Mix (Yuzu)",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "15",
+    "ingredientName": "Monin Syrup Fruit Mix (Passion Fruit)",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "16",
+    "ingredientName": "Bickford น้ำเลมอน",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "17",
+    "ingredientName": "น้ำเชื่อมละลายเร็ว มิตรผล",
+    "oldVal": "-",
+    "newVal": 11,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "18",
+    "ingredientName": "ซอสคาราเมล Topping ตรา Juniper",
+    "oldVal": "-",
+    "newVal": 7,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "19",
+    "ingredientName": "ซอสช็อคโกแลต Topping Hot fudge ตรา Juniper",
+    "oldVal": "-",
+    "newVal": 7,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "20",
+    "ingredientName": "น้ำผึ้ง",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "21",
+    "ingredientName": "ผงโกโก้ Ghana",
+    "oldVal": "-",
+    "newVal": 26,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "22",
+    "ingredientName": "ผงมัชฉะ สำหรับตี Clear (Okumidori)",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "23",
+    "ingredientName": "ผงมัชฉะ สำหรับตี นม (Latte) (Purist)",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "24",
+    "ingredientName": "ผงโฮจิฉะ Medium Firing",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "25",
+    "ingredientName": "ผงโฮจิฉะ Low Firing",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "26",
+    "ingredientName": "ผงชาไทย ตรามือ ถุงแดง",
+    "oldVal": "-",
+    "newVal": 7,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "27",
+    "ingredientName": "ผงชาดำ ตรามือ ถุงเหลือง",
+    "oldVal": "-",
+    "newVal": 4,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "28",
+    "ingredientName": "ผงชาใต้",
+    "oldVal": "-",
+    "newVal": 4,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "29",
+    "ingredientName": "ผงชาเข้มข้น Nestea",
+    "oldVal": "-",
+    "newVal": 14,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "30",
+    "ingredientName": "ผงชาพีช Bon café",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "ถุง"
+  },
+  {
+    "ingredientId": "31",
+    "ingredientName": "น้ำมะพร้าว Coco max",
+    "oldVal": "-",
+    "newVal": 42,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "32",
+    "ingredientName": "โซดาสิงห์",
+    "oldVal": "-",
+    "newVal": 13,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "33",
+    "ingredientName": "น้ำช่อดอกมะพร้าว Ha-Young",
+    "oldVal": "-",
+    "newVal": 30,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "34",
+    "ingredientName": "Malee น้ำส้มเขียวหวาน พาสเจอร์ไรซ์",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "กล่อง"
+  },
+  {
+    "ingredientId": "35",
+    "ingredientName": "TIPCO น้ำส้ม Squeeze Shogun",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "กล่อง"
+  },
+  {
+    "ingredientId": "36",
+    "ingredientName": "Brook เนื้อ พีชในน้ำเชื่อม",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "กระป๋อง"
+  },
+  {
+    "ingredientId": "37",
+    "ingredientName": "น้ำแร่ออร่า",
+    "oldVal": "-",
+    "newVal": 22,
+    "unit": "ขวด"
+  },
+  {
+    "ingredientId": "38",
+    "ingredientName": "แก้วร้อน 8 Oz.",
+    "oldVal": "-",
+    "newVal": 32,
+    "unit": "แถว"
+  },
+  {
+    "ingredientId": "39",
+    "ingredientName": "ฝาแก้วร้อน 8 Oz.",
+    "oldVal": "-",
+    "newVal": 17,
+    "unit": "แถว"
+  },
+  {
+    "ingredientId": "40",
+    "ingredientName": "แก้ว 12 Oz.",
+    "oldVal": "-",
+    "newVal": 22,
+    "unit": "แถว"
+  },
+  {
+    "ingredientId": "41",
+    "ingredientName": "ฝาแก้ว 12 Oz.",
+    "oldVal": "-",
+    "newVal": 34,
+    "unit": "แถว"
+  },
+  {
+    "ingredientId": "42",
+    "ingredientName": "แก้ว 16 Oz.",
+    "oldVal": "-",
+    "newVal": 55,
+    "unit": "แถว"
+  },
+  {
+    "ingredientId": "43",
+    "ingredientName": "ฝาแก้ว 16 Oz.",
+    "oldVal": "-",
+    "newVal": 44,
+    "unit": "แถว"
+  },
+  {
+    "ingredientId": "44",
+    "ingredientName": "หลอดร้อน",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "45",
+    "ingredientName": "หลอด 6 mm",
+    "oldVal": "-",
+    "newVal": 11,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "46",
+    "ingredientName": "หลอด 8 mm",
+    "oldVal": "-",
+    "newVal": 28,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "47",
+    "ingredientName": "ขวดแยกน้ำแบบเหลี่ยม 250 ml",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "48",
+    "ingredientName": "ถุงใส่แก้วน้ำ สายเดี่ยว",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "49",
+    "ingredientName": "ถุงใส่แก้วน้ำ คู่",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "50",
+    "ingredientName": "แก้วน้ำพลาสติกสำหรับลูกค้า 6 oz",
+    "oldVal": "-",
+    "newVal": 36,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "51",
+    "ingredientName": "ช้อนไม้",
+    "oldVal": "-",
+    "newVal": 39,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "52",
+    "ingredientName": "กล่อง Bakery เค้กเดียว สี Matcha",
+    "oldVal": "-",
+    "newVal": 50,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "53",
+    "ingredientName": "กล่อง Bakery Snack XS สี Matcha",
+    "oldVal": "-",
+    "newVal": 70,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "54",
+    "ingredientName": "กระดาษรองในกล่องขนม Bakery",
+    "oldVal": "-",
+    "newVal": 14,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "55",
+    "ingredientName": "กล่อง Bakery Snack L สี Matcha",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "56",
+    "ingredientName": "ถุงขนมปังคราฟท์ เบอร์ 8",
+    "oldVal": "-",
+    "newVal": 6,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "57",
+    "ingredientName": "ถุงกระดาษใส่ Bakery",
+    "oldVal": "-",
+    "newVal": 28,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "58",
+    "ingredientName": "ถุงหิ้วใส LL 12\" x 20\"",
+    "oldVal": "-",
+    "newVal": 33,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "59",
+    "ingredientName": "ถุงหิ้วใส LL 8\" x 16\"",
+    "oldVal": "-",
+    "newVal": 37,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "60",
+    "ingredientName": "ถุงหิ้วใส LL 15\" x 22\"",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "61",
+    "ingredientName": "ถุงมือยางสำหรับหยิบขนม size M",
+    "oldVal": "-",
+    "newVal": 3,
+    "unit": "กล่อง"
+  },
+  {
+    "ingredientId": "62",
+    "ingredientName": "ถุงซิปใส (ใส่น้ำแข็ง)",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "63",
+    "ingredientName": "กระดาษ POS",
+    "oldVal": "-",
+    "newVal": 3,
+    "unit": "ม้วน"
+  },
+  {
+    "ingredientId": "64",
+    "ingredientName": "พลาสติก wrap ใส ยี่ห้อ ARO",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "ม้วน"
+  },
+  {
+    "ingredientId": "65",
+    "ingredientName": "Sticker Crenn",
+    "oldVal": "-",
+    "newVal": 60,
+    "unit": "แผ่น"
+  },
+  {
+    "ingredientId": "66",
+    "ingredientName": "ถุงขยะดำใหญ่ 28\"x36\"",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "67",
+    "ingredientName": "ถุงขยะห้องน้ำ 18\"x20\"",
+    "oldVal": "-",
+    "newVal": 0,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "68",
+    "ingredientName": "ถุงใส่กากกาแฟ",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "69",
+    "ingredientName": "กระดาษชำระ 24 ม้วน (ห้องน้ำ) Zilk",
+    "oldVal": "-",
+    "newVal": 32,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "70",
+    "ingredientName": "กระดาษเช็ดปาก 33x33 ซม. สีน้ำตาล ARO",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "71",
+    "ingredientName": "โฟมล้างมือ Kirei",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "72",
+    "ingredientName": "น้ำยาล้างจาน ซันไลท์",
+    "oldVal": "-",
+    "newVal": 3,
+    "unit": "แกลอน"
+  },
+  {
+    "ingredientId": "73",
+    "ingredientName": "น้ำยาซักผ้า ARO",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แกลอน"
+  },
+  {
+    "ingredientId": "74",
+    "ingredientName": "น้ำยาล้างห้องน้ำ Vixol",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "75",
+    "ingredientName": "น้ำยาทำความสะอาดพื้น ARO",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แกลอน"
+  },
+  {
+    "ingredientId": "76",
+    "ingredientName": "น้ำยาเช็ดกระจก Mr.Muscle",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แกลอน"
+  },
+  {
+    "ingredientId": "77",
+    "ingredientName": "ฟองน้ำล้างจาน Scotch Brite",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "78",
+    "ingredientName": "ผ้าฟองน้ำอเนกประสงค์ Scotch Brite",
+    "oldVal": "-",
+    "newVal": 1,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "79",
+    "ingredientName": "เกลด เจลหอมปรับอากาศ",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "แพ็ค"
+  },
+  {
+    "ingredientId": "89e40721-f422-47a3-ad50-d3369af7d6c0",
+    "ingredientName": "ตาข่ายกรองเศษอาหาร",
+    "oldVal": "-",
+    "newVal": 2,
+    "unit": "แพ็ค"
+  }
+]
