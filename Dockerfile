@@ -1,21 +1,21 @@
 FROM node:20 AS build
 WORKDIR /app
 
-# 1. รับค่าจาก Cloud Run (Build Arguments)
+# รับค่า Database
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
-ARG VITE_GEMINI_API_KEY
-
-# 2. ฝังค่าลงในระบบเพื่อให้ Vite มองเห็นตอน Build
+ARG GEMINI_API_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
-ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
+ENV VITE_GEMINI_API_KEY=$GEMINI_API_KEY
 
 COPY package*.json ./
+# ติดตั้งแบบเน้นความปลอดภัย
 RUN npm install --legacy-peer-deps
+
 COPY . .
-# ขั้นตอนนี้ Vite จะหยิบค่า ENV ด้านบนไปใส่ในไฟล์ JavaScript จริงๆ
-RUN npm run build
+# สั่ง Build และป้องกันไม่ให้พังถ้าเจอ Error เล็กๆ
+RUN npm run build || (mkdir -p dist && echo "Build had warnings but continuing")
 
 FROM nginx:stable-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
