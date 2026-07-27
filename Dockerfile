@@ -10,15 +10,15 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 ENV VITE_GEMINI_API_KEY=$GEMINI_API_KEY
 
 COPY package*.json ./
-# ติดตั้งแบบเน้นความปลอดภัย
 RUN npm install --legacy-peer-deps
-
 COPY . .
-# สั่ง Build และป้องกันไม่ให้พังถ้าเจอ Error เล็กๆ
-RUN npm run build || (mkdir -p dist && echo "Build had warnings but continuing")
+# ต้อง Build ให้ผ่านจริงๆ ห้ามข้ามแล้วครับ
+RUN npm run build
 
 FROM nginx:stable-alpine
+# ก๊อปปี้ไฟล์แอปไปที่ Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
-RUN printf 'server {\n    listen 80;\n    location / {\n        root /usr/share/nginx/html;\n        index index.html;\n        try_files \$uri \$uri/ /index.html;\n    }\n}' > /etc/nginx/conf.d/default.conf
+# เขียนไฟล์ Config แบบปลอดภัย
+RUN echo "server { listen 80; location / { root /usr/share/nginx/html; index index.html; try_files \$uri \$uri/ /index.html; } }" > /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
