@@ -6,7 +6,6 @@ export default defineConfig({
   base: '/',
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
-    sourcemap: false
+    emptyOutDir: true
   }
 })
