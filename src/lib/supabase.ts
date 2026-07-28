@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-api-js';
+import { createClient } from '@supabase/supabase-js';
 
 // ตรวจสอบว่าชื่อตัวแปรต้องมี VITE_ นำหน้า และใช้ import.meta.env
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
