@@ -17,6 +17,7 @@
     "recharts": "^2.12.7",
     "clsx": "^2.1.1",
     "xlsx": "^0.18.5",
+    "html-to-image": "^1.11.11",
     "tailwind-merge": "^2.5.2",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.5.4"
