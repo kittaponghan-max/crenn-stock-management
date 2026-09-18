@@ -9,10 +9,28 @@ interface WasteReportProps {
   ingredients: Ingredient[];
   wasteLogs: WasteLogEntry[];
   currentUser: string;
-  onSave: (log: Omit<WasteLogEntry, 'id' | 'timestamp'>) => void;
+  onSave: (log: Omit<WasteLogEntry, 'id' | 'timestamp'> | Omit<WasteLogEntry, 'id' | 'timestamp'>[]) => void;
   onUpdate?: (id: string, updates: Partial<WasteLogEntry>) => void;
   onBack: () => void;
 }
+
+export interface WasteFormItem {
+  tempId: string;
+  ingredientId: string;
+  quantity: number | '';
+  cause: string;
+  solution: string;
+  imageUrl: string;
+}
+
+const createNewItem = (): WasteFormItem => ({
+  tempId: Math.random().toString(36).substring(2, 9),
+  ingredientId: '',
+  quantity: 1,
+  cause: '',
+  solution: '',
+  imageUrl: ''
+});
 
 export function WasteReport({ department, ingredients, wasteLogs, currentUser, onSave, onUpdate, onBack }: WasteReportProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -20,24 +38,84 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   const [selectedLog, setSelectedLog] = useState<WasteLogEntry | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({ cause: '', solution: '' });
-  const [formData, setFormData] = useState<{
-    date: string;
-    ingredientId: string;
-    quantity: number;
-    cause: string;
-    solution: string;
-    imageUrl: string;
-  }>({
-    date: format(new Date(), 'yyyy-MM-dd'),
-    ingredientId: '',
-    quantity: 1,
-    cause: '',
-    solution: '',
-    imageUrl: ''
-  });
   
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [entryDate, setEntryDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [wasteItems, setWasteItems] = useState<WasteFormItem[]>([createNewItem()]);
+
+  // Always resolve the freshest log from wasteLogs state
+  const activeSelectedLog = useMemo(() => {
+    if (!selectedLog) return null;
+    return wasteLogs.find(l => l.id === selectedLog.id) || selectedLog;
+  }, [selectedLog, wasteLogs]);
+
+  // Keep editFormData strictly in sync with the selected item and reset edit mode on item change
+  useEffect(() => {
+    if (selectedLog) {
+      const current = wasteLogs.find(l => l.id === selectedLog.id) || selectedLog;
+      setEditFormData({
+        cause: current.cause || '',
+        solution: current.solution || ''
+      });
+      setIsEditing(false);
+    }
+  }, [selectedLog?.id]);
+
+  const handleOpenLogDetail = (log: WasteLogEntry) => {
+    setSelectedLog(log);
+    setEditFormData({
+      cause: log.cause || '',
+      solution: log.solution || ''
+    });
+    setIsEditing(false);
+  };
+
+  const handleCloseLogDetail = () => {
+    setSelectedLog(null);
+    setIsEditing(false);
+    setEditFormData({ cause: '', solution: '' });
+  };
+
+  const handleStartEdit = () => {
+    const current = activeSelectedLog || selectedLog;
+    if (!current) return;
+    setEditFormData({
+      cause: current.cause || '',
+      solution: current.solution || ''
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    const current = activeSelectedLog || selectedLog;
+    if (current) {
+      setEditFormData({
+        cause: current.cause || '',
+        solution: current.solution || ''
+      });
+    }
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    const current = activeSelectedLog || selectedLog;
+    if (!current) return;
+    const trimmedCause = editFormData.cause.trim();
+    const trimmedSolution = editFormData.solution.trim();
+
+    if (!trimmedCause) {
+      alert('กรุณาระบุสาเหตุที่เสียหาย');
+      return;
+    }
+
+    if (onUpdate) {
+      await onUpdate(current.id, {
+        cause: trimmedCause,
+        solution: trimmedSolution
+      });
+      setSelectedLog(prev => prev ? { ...prev, cause: trimmedCause, solution: trimmedSolution } : null);
+      setIsEditing(false);
+    }
+  };
 
   // Retrieve Bakery configuration options
   const bakeryOptions = useMemo(() => {
@@ -103,7 +181,70 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [wasteLogs, department]);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const getItemUnit = (ingredientId: string) => {
+    if (!ingredientId) return '-';
+    if (department === 'Bakery') {
+      const matchType = bakeryOptions.types?.find(t => t.id === ingredientId);
+      const matchTarget = bakeryOptions.targets?.find(t => t.id === ingredientId);
+      const matchMenu = bakeryOptions.menus?.find(t => t.id === ingredientId);
+      if (matchType) return matchType.unit;
+      if (matchTarget) return matchTarget.unit;
+      if (matchMenu) return matchMenu.unit;
+    }
+    const ingredient = ingredients.find(i => i.id === ingredientId);
+    return ingredient?.unit || '-';
+  };
+
+  const resolveItemInfo = (ingredientId: string) => {
+    let name = '';
+    let unit = '-';
+
+    if (department === 'Bakery') {
+      const matchType = bakeryOptions.types?.find(t => t.id === ingredientId);
+      const matchTarget = bakeryOptions.targets?.find(t => t.id === ingredientId);
+      const matchMenu = bakeryOptions.menus?.find(t => t.id === ingredientId);
+
+      if (matchType) {
+        name = matchType.name;
+        unit = matchType.unit;
+      } else if (matchTarget) {
+        name = matchTarget.name;
+        unit = matchTarget.unit;
+      } else if (matchMenu) {
+        name = matchMenu.name;
+        unit = matchMenu.unit;
+      } else {
+        const ingredient = ingredients.find(i => i.id === ingredientId);
+        if (ingredient) {
+          name = ingredient.name;
+          unit = ingredient.unit;
+        }
+      }
+    } else {
+      const ingredient = ingredients.find(i => i.id === ingredientId);
+      if (ingredient) {
+        name = ingredient.name;
+        unit = ingredient.unit;
+      }
+    }
+
+    return { name, unit };
+  };
+
+  const handleAddItem = () => {
+    setWasteItems(prev => [...prev, createNewItem()]);
+  };
+
+  const handleRemoveItem = (tempId: string) => {
+    if (wasteItems.length <= 1) return;
+    setWasteItems(prev => prev.filter(i => i.tempId !== tempId));
+  };
+
+  const handleItemChange = (tempId: string, field: keyof WasteFormItem, value: any) => {
+    setWasteItems(prev => prev.map(item => item.tempId === tempId ? { ...item, [field]: value } : item));
+  };
+
+  const handleItemImageUpload = (tempId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -134,89 +275,86 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
           ctx?.drawImage(img, 0, 0, width, height);
           
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          setFormData(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+          setWasteItems(prev => prev.map(item => item.tempId === tempId ? { ...item, imageUrl: compressedDataUrl } : item));
         };
         img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
-  const selectedUnit = useMemo(() => {
-    if (department === 'Bakery') {
-      const id = formData.ingredientId;
-      const matchType = bakeryOptions.types?.find(t => t.id === id);
-      const matchTarget = bakeryOptions.targets?.find(t => t.id === id);
-      const matchMenu = bakeryOptions.menus?.find(t => t.id === id);
-      if (matchType) return matchType.unit;
-      if (matchTarget) return matchTarget.unit;
-      if (matchMenu) return matchMenu.unit;
+  const handleRemoveItemImage = (tempId: string) => {
+    setWasteItems(prev => prev.map(item => item.tempId === tempId ? { ...item, imageUrl: '' } : item));
+  };
+
+  const handleOpenForm = () => {
+    if (wasteItems.length === 0) {
+      setWasteItems([createNewItem()]);
     }
-    const ingredient = ingredients.find(i => i.id === formData.ingredientId);
-    return ingredient?.unit || '-';
-  }, [formData.ingredientId, department, bakeryOptions, ingredients]);
+    setIsFormOpen(true);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    let id = formData.ingredientId;
-    let name = '';
-    let unit = '-';
-
-    if (department === 'Bakery') {
-      const matchType = bakeryOptions.types?.find(t => t.id === id);
-      const matchTarget = bakeryOptions.targets?.find(t => t.id === id);
-      const matchMenu = bakeryOptions.menus?.find(t => t.id === id);
-
-      if (matchType) {
-        name = matchType.name;
-        unit = matchType.unit;
-      } else if (matchTarget) {
-        name = matchTarget.name;
-        unit = matchTarget.unit;
-      } else if (matchMenu) {
-        name = matchMenu.name;
-        unit = matchMenu.unit;
-      } else {
-        const ingredient = ingredients.find(i => i.id === id);
-        if (ingredient) {
-          name = ingredient.name;
-          unit = ingredient.unit;
-        }
-      }
-    } else {
-      const ingredient = ingredients.find(i => i.id === id);
-      if (!ingredient) return;
-      name = ingredient.name;
-      unit = ingredient.unit;
-    }
-
-    if (!name) return;
-
-    onSave({
-      date: formData.date,
-      department,
-      ingredientId: id,
-      ingredientName: name,
-      quantity: formData.quantity,
-      unit: unit,
-      cause: formData.cause,
-      solution: formData.solution,
-      imageUrl: formData.imageUrl,
-      recorderName: currentUser
-    });
-
-    setFormData({
-      date: format(new Date(), 'yyyy-MM-dd'),
-      ingredientId: '',
-      quantity: 1,
-      cause: '',
-      solution: '',
-      imageUrl: ''
-    });
+  const handleCloseForm = () => {
     setIsFormOpen(false);
   };
 
-  const selectedIngredient = ingredients.find(i => i.id === formData.ingredientId);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const entriesToSave: Omit<WasteLogEntry, 'id' | 'timestamp'>[] = [];
+
+    for (let i = 0; i < wasteItems.length; i++) {
+      const item = wasteItems[i];
+      if (!item.ingredientId) {
+        alert(`กรุณาเลือกรายการสินค้าสำหรับรายการที่ ${i + 1}`);
+        return;
+      }
+      const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(String(item.quantity));
+      if (isNaN(qty) || qty <= 0) {
+        alert(`กรุณาระบุจำนวนที่เสียให้ถูกต้องสำหรับรายการที่ ${i + 1}`);
+        return;
+      }
+      if (!item.cause.trim()) {
+        alert(`กรุณาระบุสาเหตุสำหรับรายการที่ ${i + 1}`);
+        return;
+      }
+      if (!item.solution.trim()) {
+        alert(`กรุณาระบุวิธีแก้ไขปัญหาสำหรับรายการที่ ${i + 1}`);
+        return;
+      }
+
+      const { name, unit } = resolveItemInfo(item.ingredientId);
+      if (!name) {
+        alert(`ไม่พบข้อมูลรายการสำหรับรายการที่ ${i + 1}`);
+        return;
+      }
+
+      entriesToSave.push({
+        date: entryDate,
+        department,
+        ingredientId: item.ingredientId,
+        ingredientName: name,
+        quantity: qty,
+        unit: unit,
+        cause: item.cause.trim(),
+        solution: item.solution.trim(),
+        imageUrl: item.imageUrl || undefined,
+        recorderName: currentUser
+      });
+    }
+
+    if (entriesToSave.length === 0) {
+      alert('กรุณากรอกข้อมูลรายการของเสียอย่างน้อย 1 รายการ');
+      return;
+    }
+
+    onSave(entriesToSave);
+
+    setEntryDate(format(new Date(), 'yyyy-MM-dd'));
+    setWasteItems([createNewItem()]);
+    setIsFormOpen(false);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -235,8 +373,8 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
         </div>
         
         <button
-          onClick={() => setIsFormOpen(true)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-medium shadow-md hover:shadow-lg transition-all ${
+          onClick={handleOpenForm}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-medium shadow-md hover:shadow-lg transition-all cursor-pointer ${
             department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
           }`}
         >
@@ -246,229 +384,327 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       </div>
 
       {isFormOpen && (
-        <div className="bg-white rounded-xl shadow-xl border border-slate-200/80 overflow-hidden mb-8 max-w-3xl mx-auto animate-in zoom-in-95 duration-200">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200/60 flex justify-between items-center">
-            <h3 className="font-bold text-[14px] text-slate-800 flex items-center gap-1.5">
-              <AlertTriangle className="text-amber-500" size={16} />
-              บันทึกของเสียใหม่ (New Waste Entry)
-            </h3>
-            <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:bg-slate-100 p-1 rounded-md transition-colors cursor-pointer">
-              <X size={16} />
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden mb-8 max-w-4xl mx-auto animate-in zoom-in-95 duration-200">
+          <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200/80 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className={department === 'Bar' ? 'text-red-500' : 'text-amber-500'} size={18} />
+              <h3 className="font-bold text-sm sm:text-base text-slate-800">
+                บันทึกของเสียใหม่ (New Waste Entry)
+              </h3>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 ml-1">
+                {wasteItems.length} รายการ
+              </span>
+            </div>
+            <button 
+              type="button" 
+              onClick={handleCloseForm} 
+              className="text-slate-400 hover:bg-slate-200 hover:text-slate-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+            >
+              <X size={18} />
             </button>
           </div>
           
-          <form onSubmit={handleSubmit} className="p-4 sm:p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">วันที่ (Date)</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.date}
-                    onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none font-medium transition-all"
-                  />
-                </div>
-                
-                <div>
-                  {department === 'Bakery' ? (
-                    <>
-                      <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">รายการสัญจรจากแผนงานเบเกอรี่ (Bakery Product)</label>
-                      <select
-                        required
-                        value={formData.ingredientId}
-                        onChange={e => setFormData({ ...formData, ingredientId: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-amber-50/30 border border-amber-300/80 rounded-lg focus:ring-2 focus:ring-orange-500/25 outline-none text-xs md:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
-                      >
-                        <option value="" className="text-slate-500 font-bold">--เลือก ชนิดแป้ง, รายการ, หรือ เมนู--</option>
-                        
-                        {bakeryOptions.types && bakeryOptions.types.length > 0 && (
-                          <optgroup label="🥖 ชนิดแป้ง (Type)" className="font-bold text-[11.5px] text-amber-700 bg-amber-50/40">
-                            {bakeryOptions.types.map(opt => (
-                              <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
-                                {opt.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-
-                        {bakeryOptions.targets && bakeryOptions.targets.length > 0 && (
-                          <optgroup label="🥞 รายการ (Target Item)" className="font-bold text-[11.5px] text-emerald-700 bg-emerald-50/40">
-                            {bakeryOptions.targets.map(opt => (
-                              <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
-                                {opt.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-
-                        {bakeryOptions.menus && bakeryOptions.menus.length > 0 && (
-                          <optgroup label="🧁 เมนู (Menu)" className="font-bold text-[11.5px] text-blue-700 bg-blue-50/40">
-                            {bakeryOptions.menus.map(opt => (
-                              <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
-                                {opt.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                    </>
-                  ) : (
-                    <>
-                      <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">รายการ (Item)</label>
-                      <select
-                        required
-                        value={formData.ingredientId}
-                        onChange={e => setFormData({ ...formData, ingredientId: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/25 outline-none text-xs md:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
-                      >
-                        <option value="" className="text-slate-500">-- เลือกรายการ --</option>
-                        {deptIngredients.map(ing => (
-                          <option key={ing.id} value={ing.id} className="text-xs">{ing.name} {ing.brand ? `(${ing.brand})` : ''}</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">จำนวนที่เสีย</label>
-                    <input
-                      type="number"
-                      required
-                      min="0.01"
-                      step="any"
-                      value={formData.quantity}
-                      onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none font-bold font-mono transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">หน่วยนับ</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={selectedUnit}
-                      className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs md:text-sm text-slate-600 font-bold text-center cursor-not-allowed uppercase"
-                    />
-                  </div>
-                </div>
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
+            {/* Common Date Header & Quick Add */}
+            <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-bold text-slate-600 tracking-wider uppercase min-w-max">
+                  📅 วันที่ (Date):
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={entryDate}
+                  onChange={e => setEntryDate(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-orange-500/25 outline-none transition-all shadow-sm"
+                />
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">สาเหตุ (Cause)</label>
-                  <textarea
-                    required
-                    rows={2}
-                    placeholder="ระบุสาเหตุที่ชัดเจน เช่น หมดอายุ, ตกหล่น, ชำรุด"
-                    value={formData.cause}
-                    onChange={e => setFormData({ ...formData, cause: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">วิธีแก้ไขปัญหา (Solution / Action taken)</label>
-                  <textarea
-                    required
-                    rows={2}
-                    placeholder="วิธีการที่ใช้แก้ไขปัญหาในครั้งนี้"
-                    value={formData.solution}
-                    onChange={e => setFormData({ ...formData, solution: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-2.5 flex items-center gap-1.5">
-                📷 แนบรูปภาพของเสีย (ออฟชั่น)
-              </label>
-              
-              {formData.imageUrl ? (
-                <div className="relative inline-block border-2 border-slate-200 rounded-xl overflow-hidden shadow-sm group">
-                  <img src={formData.imageUrl} alt="Waste preview" className="w-28 h-28 object-cover" />
-                  <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, imageUrl: '' })}
-                      className="bg-white/95 hover:bg-white text-red-600 shadow-md rounded-lg px-2 py-1 text-[10px] font-bold transition-all flex items-center gap-0.5 active:scale-95 duration-150 cursor-pointer"
-                    >
-                      <X size={12} /> ลบรูปภาพ
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, imageUrl: '' })}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white shadow-md rounded-full p-1 hover:bg-red-700 transition-colors md:hidden"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-row gap-3 items-stretch">
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="flex-1 max-w-[160px] py-2.5 px-3 border border-dashed border-amber-300 rounded-xl bg-amber-50/15 hover:bg-amber-50/30 cursor-pointer transition-all text-amber-800 flex flex-col items-center justify-center gap-1 outline-none group hover:scale-[1.01] active:scale-95 duration-150 focus-within:ring-2 focus-within:ring-amber-500/30"
-                  >
-                    <div className="p-1.5 bg-amber-100 rounded-full text-amber-600 group-hover:bg-amber-200/70 transition-colors flex items-center justify-center">
-                      <Camera size={16} />
-                    </div>
-                    <span className="text-[11px] font-black text-center">ถ่ายภาพโดยตรง</span>
-                    <span className="text-[9.5px] text-amber-600/70 font-semibold">คลิกเพื่อใช้งานกล้อง</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 max-w-[160px] py-2.5 px-3 border border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100/60 cursor-pointer transition-all text-slate-700 flex flex-col items-center justify-center gap-1 outline-none group hover:scale-[1.01] active:scale-95 duration-150 focus-within:ring-2 focus-within:ring-slate-500/30"
-                  >
-                    <div className="p-1.5 bg-slate-150 rounded-full text-slate-500 group-hover:bg-slate-200 transition-colors flex items-center justify-center">
-                      <Upload size={16} />
-                    </div>
-                    <span className="text-[11px] font-black text-center">อัปโหลดรูปภาพ</span>
-                    <span className="text-[9.5px] text-slate-500/70 font-semibold">อัปโหลดไฟล์ในเครื่อง</span>
-                  </button>
-                </div>
-              )}
-
-              <input 
-                type="file" 
-                accept="image/*"
-                capture="environment"
-                className="hidden" 
-                ref={cameraInputRef} 
-                onChange={handleImageUpload}
-              />
-              <input 
-                type="file" 
-                accept="image/*"
-                className="hidden" 
-                ref={fileInputRef} 
-                onChange={handleImageUpload}
-              />
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button
                 type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="px-4 py-1.5 text-slate-500 font-bold hover:bg-slate-100 rounded-lg text-xs md:text-sm transition-colors cursor-pointer"
+                onClick={handleAddItem}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-all cursor-pointer ${
+                  department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
+                }`}
               >
-                ยกเลิก
+                <Plus size={15} />
+                เพิ่มรายการของเสีย
               </button>
-              <button
-                type="submit"
-                className="px-4.5 py-1.5 bg-slate-800 text-white font-bold hover:bg-slate-900 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1.5 shadow-sm hover:shadow active:scale-95 duration-150 cursor-pointer"
-              >
-                <Save size={15} />
-                บันทึกรายการของเสีย
-              </button>
+            </div>
+
+            {/* List of Items */}
+            <div className="space-y-4">
+              {wasteItems.map((item, index) => {
+                const itemUnit = getItemUnit(item.ingredientId);
+                return (
+                  <div 
+                    key={item.tempId} 
+                    className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-slate-300 transition-all relative"
+                  >
+                    {/* Item Card Header */}
+                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-black px-2.5 py-1 rounded-lg ${
+                          department === 'Bar' 
+                            ? 'bg-red-100 text-red-700' 
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          รายการที่ {index + 1}
+                        </span>
+                        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+                          (สาเหตุและวิธีแก้ไขปัญหาแยกเฉพาะรายการนี้)
+                        </span>
+                      </div>
+
+                      {wasteItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.tempId)}
+                          className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                          title="ลบรายการนี้"
+                        >
+                          <Trash2 size={14} />
+                          <span>ลบรายการนี้</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Left: Item selection, quantity, and photo */}
+                      <div className="space-y-3">
+                        <div>
+                          {department === 'Bakery' ? (
+                            <>
+                              <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                                รายการสัญจรจากแผนงานเบเกอรี่ (Bakery Product) <span className="text-red-500">*</span>
+                              </label>
+                              <select
+                                required
+                                value={item.ingredientId}
+                                onChange={e => handleItemChange(item.tempId, 'ingredientId', e.target.value)}
+                                className="w-full px-2.5 py-1.5 bg-amber-50/30 border border-amber-300/80 rounded-lg focus:ring-2 focus:ring-orange-500/25 outline-none text-xs md:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+                              >
+                                <option value="" className="text-slate-500 font-bold">--เลือก ชนิดแป้ง, รายการ, หรือ เมนู--</option>
+                                
+                                {bakeryOptions.types && bakeryOptions.types.length > 0 && (
+                                  <optgroup label="🥖 ชนิดแป้ง (Type)" className="font-bold text-[11.5px] text-amber-700 bg-amber-50/40">
+                                    {bakeryOptions.types.map(opt => (
+                                      <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
+                                        {opt.name}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+
+                                {bakeryOptions.targets && bakeryOptions.targets.length > 0 && (
+                                  <optgroup label="🥞 รายการ (Target Item)" className="font-bold text-[11.5px] text-emerald-700 bg-emerald-50/40">
+                                    {bakeryOptions.targets.map(opt => (
+                                      <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
+                                        {opt.name}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+
+                                {bakeryOptions.menus && bakeryOptions.menus.length > 0 && (
+                                  <optgroup label="🧁 เมนู (Menu)" className="font-bold text-[11.5px] text-blue-700 bg-blue-50/40">
+                                    {bakeryOptions.menus.map(opt => (
+                                      <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
+                                        {opt.name}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                              </select>
+                            </>
+                          ) : (
+                            <>
+                              <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                                รายการ (Item) <span className="text-red-500">*</span>
+                              </label>
+                              <select
+                                required
+                                value={item.ingredientId}
+                                onChange={e => handleItemChange(item.tempId, 'ingredientId', e.target.value)}
+                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/25 outline-none text-xs md:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+                              >
+                                <option value="" className="text-slate-500">-- เลือกรายการ --</option>
+                                {deptIngredients.map(ing => (
+                                  <option key={ing.id} value={ing.id} className="text-xs">{ing.name} {ing.brand ? `(${ing.brand})` : ''}</option>
+                                ))}
+                              </select>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                              จำนวนที่เสีย <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              min="0.01"
+                              step="any"
+                              value={item.quantity}
+                              onChange={e => handleItemChange(item.tempId, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
+                              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none font-bold font-mono transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                              หน่วยนับ
+                            </label>
+                            <input
+                              type="text"
+                              readOnly
+                              value={itemUnit}
+                              className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs md:text-sm text-slate-600 font-bold text-center cursor-not-allowed uppercase"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Photo attachment for this item */}
+                        <div>
+                          <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1.5 flex items-center gap-1.5">
+                            📷 แนบรูปภาพของเสีย (ออฟชั่น)
+                          </label>
+                          
+                          {item.imageUrl ? (
+                            <div className="relative inline-block border border-slate-200 rounded-xl overflow-hidden shadow-sm group">
+                              <img src={item.imageUrl} alt="Waste preview" className="w-24 h-24 object-cover" />
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveItemImage(item.tempId)}
+                                  className="bg-white/95 hover:bg-white text-red-600 shadow-md rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95 duration-150 cursor-pointer"
+                                >
+                                  <X size={13} /> ลบรูป
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItemImage(item.tempId)}
+                                className="absolute -top-1 -right-1 bg-red-500 text-white shadow-md rounded-full p-1 hover:bg-red-700 transition-colors md:hidden cursor-pointer"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-row gap-2 items-stretch">
+                              <button
+                                type="button"
+                                onClick={() => document.getElementById(`camera-input-${item.tempId}`)?.click()}
+                                className="flex-1 py-2 px-2.5 border border-dashed border-amber-300 rounded-xl bg-amber-50/20 hover:bg-amber-50/50 cursor-pointer transition-all text-amber-800 flex items-center justify-center gap-1.5 outline-none hover:scale-[1.01] active:scale-95 duration-150"
+                              >
+                                <Camera size={14} className="text-amber-600" />
+                                <span className="text-[11px] font-bold">ถ่ายภาพ</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => document.getElementById(`file-input-${item.tempId}`)?.click()}
+                                className="flex-1 py-2 px-2.5 border border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100/80 cursor-pointer transition-all text-slate-700 flex items-center justify-center gap-1.5 outline-none hover:scale-[1.01] active:scale-95 duration-150"
+                              >
+                                <Upload size={14} className="text-slate-500" />
+                                <span className="text-[11px] font-bold">อัปโหลดรูป</span>
+                              </button>
+                            </div>
+                          )}
+
+                          <input 
+                            id={`camera-input-${item.tempId}`}
+                            type="file" 
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden" 
+                            onChange={e => handleItemImageUpload(item.tempId, e)}
+                          />
+                          <input 
+                            id={`file-input-${item.tempId}`}
+                            type="file" 
+                            accept="image/*"
+                            className="hidden" 
+                            onChange={e => handleItemImageUpload(item.tempId, e)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Right: Cause and Solution specific to this item */}
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                            สาเหตุ (Cause) <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            required
+                            rows={3}
+                            placeholder="ระบุสาเหตุที่ชัดเจน เช่น หมดอายุ, ตกหล่น, ชำรุด"
+                            value={item.cause}
+                            onChange={e => handleItemChange(item.tempId, 'cause', e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                            วิธีแก้ไขปัญหา (Solution / Action Taken) <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            required
+                            rows={3}
+                            placeholder="วิธีการที่ใช้แก้ไขปัญหาในครั้งนี้"
+                            value={item.solution}
+                            onChange={e => handleItemChange(item.tempId, 'solution', e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add More Items Button */}
+            <button
+              type="button"
+              onClick={handleAddItem}
+              className={`w-full py-3 border-2 border-dashed rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow ${
+                department === 'Bar'
+                  ? 'border-red-200 bg-red-50/30 text-red-600 hover:bg-red-50/60 hover:border-red-400'
+                  : 'border-orange-200 bg-orange-50/30 text-orange-600 hover:bg-orange-50/60 hover:border-orange-400'
+              }`}
+            >
+              <Plus size={18} />
+              <span>เพิ่มรายการของเสียอีกรายการ (+ Add Another Item)</span>
+            </button>
+
+            {/* Bottom Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-slate-100 pt-4">
+              <div className="text-xs font-bold text-slate-500">
+                รวมทั้งหมด <span className="text-slate-800 font-black">{wasteItems.length}</span> รายการ
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl text-xs md:text-sm transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className={`px-5 py-2 text-white font-bold rounded-xl text-xs md:text-sm transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-95 duration-150 cursor-pointer ${
+                    department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'
+                  }`}
+                >
+                  <Save size={16} />
+                  <span>บันทึกรายการของเสีย ({wasteItems.length} รายการ)</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -487,7 +723,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
               <div 
                 key={log.id} 
                 className="p-4 sm:p-6 hover:bg-slate-50 transition-colors cursor-pointer"
-                onClick={() => setSelectedLog(log)}
+                onClick={() => handleOpenLogDetail(log)}
               >
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                   {log.imageUrl ? (
@@ -578,10 +814,10 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       )}
 
       {/* Detail Modal */}
-      {selectedLog && (
+      {activeSelectedLog && (
         <div 
           className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          onClick={() => setSelectedLog(null)}
+          onClick={handleCloseLogDetail}
         >
           <div 
             className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
@@ -590,31 +826,31 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
             <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-slate-800">รายละเอียดรายการของเสีย</h3>
               <button 
-                onClick={() => setSelectedLog(null)}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+                onClick={handleCloseLogDetail}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="flex flex-col md:flex-row gap-6">
-                {selectedLog.imageUrl && (
+                {activeSelectedLog.imageUrl && (
                   <div className="w-full md:w-1/3 shrink-0">
                     <img 
-                      src={selectedLog.imageUrl} 
+                      src={activeSelectedLog.imageUrl} 
                       alt="Waste item" 
                       className="w-full h-auto aspect-square object-cover rounded-xl border border-slate-200 cursor-zoom-in" 
-                      onClick={() => setSelectedImage(selectedLog.imageUrl || null)}
+                      onClick={() => setSelectedImage(activeSelectedLog.imageUrl || null)}
                       referrerPolicy="no-referrer"
                     />
                   </div>
                 )}
                 <div className="flex-1 space-y-4">
                   <div>
-                    <h4 className="text-xl font-bold text-slate-800">{selectedLog.ingredientName}</h4>
+                    <h4 className="text-xl font-bold text-slate-800">{activeSelectedLog.ingredientName}</h4>
                     <div className="text-slate-500 font-medium flex items-center gap-2 mt-1">
                       <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-md">
-                        เสียหาย: {selectedLog.quantity} {selectedLog.unit}
+                        เสียหาย: {activeSelectedLog.quantity} {activeSelectedLog.unit}
                       </span>
                     </div>
                   </div>
@@ -622,11 +858,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                   <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
                     <div>
                       <span className="text-slate-500 block mb-1">วันที่บันทึก</span>
-                      <span className="font-semibold text-slate-800">{format(new Date(selectedLog.date), 'dd/MM/yyyy')}</span>
+                      <span className="font-semibold text-slate-800">{format(new Date(activeSelectedLog.date), 'dd/MM/yyyy')}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block mb-1">ผู้บันทึก</span>
-                      <span className="font-semibold text-slate-800">{selectedLog.recorderName}</span>
+                      <span className="font-semibold text-slate-800">{activeSelectedLog.recorderName}</span>
                     </div>
                   </div>
                 </div>
@@ -641,10 +877,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                     <textarea 
                       value={editFormData.cause}
                       onChange={(e) => setEditFormData({ ...editFormData, cause: e.target.value })}
-                      className="w-full bg-white border border-orange-200 rounded-lg p-2 text-slate-700 outline-none focus:ring-2 focus:ring-orange-500/50 min-h-[80px]"
+                      placeholder="ระบุสาเหตุที่เสียหาย"
+                      className="w-full bg-white border border-orange-200 rounded-lg p-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-orange-500/50 min-h-[80px] text-sm"
                     />
                   ) : (
-                    <p className="text-slate-700 whitespace-pre-wrap">{selectedLog.cause}</p>
+                    <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">{activeSelectedLog.cause || '-'}</p>
                   )}
                 </div>
                 
@@ -656,10 +893,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                     <textarea 
                       value={editFormData.solution}
                       onChange={(e) => setEditFormData({ ...editFormData, solution: e.target.value })}
-                      className="w-full bg-white border border-blue-200 rounded-lg p-2 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[80px]"
+                      placeholder="ระบุวิธีการแก้ไขปัญหา"
+                      className="w-full bg-white border border-blue-200 rounded-lg p-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[80px] text-sm"
                     />
                   ) : (
-                    <p className="text-slate-700 whitespace-pre-wrap">{selectedLog.solution}</p>
+                    <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">{activeSelectedLog.solution || '-'}</p>
                   )}
                 </div>
               </div>
@@ -668,20 +906,16 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
               {isEditing ? (
                 <>
                   <button 
-                    onClick={() => setIsEditing(false)}
-                    className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors"
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer"
                   >
                     ยกเลิก
                   </button>
                   <button 
-                    onClick={() => {
-                      if (onUpdate) {
-                        onUpdate(selectedLog.id, editFormData);
-                        setSelectedLog({ ...selectedLog, ...editFormData });
-                        setIsEditing(false);
-                      }
-                    }}
-                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors"
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
                   >
                     บันทึก
                   </button>
@@ -690,19 +924,18 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                 <>
                   {onUpdate && (
                     <button 
-                      onClick={() => {
-                        setEditFormData({ cause: selectedLog.cause, solution: selectedLog.solution });
-                        setIsEditing(true);
-                      }}
-                      className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center gap-2"
+                      type="button"
+                      onClick={handleStartEdit}
+                      className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
                     >
                       <Edit2 size={16} />
                       แก้ไข
                     </button>
                   )}
                   <button 
-                    onClick={() => setSelectedLog(null)}
-                    className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors"
+                    type="button"
+                    onClick={handleCloseLogDetail}
+                    className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer"
                   >
                     ปิด
                   </button>
