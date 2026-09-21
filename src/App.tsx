@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch } from './types';
 import { IngredientForm } from './components/IngredientForm';
 import { StockTable } from './components/StockTable';
@@ -21,9 +22,9 @@ import { WasteReport } from './components/WasteReport';
 import { RnDReport } from './components/RnDReport';
 import { PurchasingReport } from './components/PurchasingReport';
 import { UserSettings } from './components/UserSettings';
-import { Plus, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp } from 'lucide-react';
+import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
-import { cn } from './lib/utils';
+import { cn, generateUUID, isValidUUID } from './lib/utils';
 import { supabase } from './lib/supabase';
 import { DEFAULT_LINE_NOTIFY_SETTINGS, sendLineNotification } from './lib/lineNotify';
 import { DEFAULT_DISCORD_NOTIFY_SETTINGS, sendDiscordNotification } from './lib/discordNotify';
@@ -269,9 +270,13 @@ const INITIAL_INGREDIENTS: Ingredient[] = [
 ];
 
 export default function App() {
-  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions } | null>(null);
+  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(null);
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [importPreviewData, setImportPreviewData] = useState<Ingredient[] | null>(null);
+  const [editingPreviewIngredientIdx, setEditingPreviewIngredientIdx] = useState<number | null>(null);
+  const [stockImportPreviewData, setStockImportPreviewData] = useState<any | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [stockRecord, setStockRecord] = useState<StockRecord>({});
   const [history, setHistory] = useState<StockRecord[]>([]);
   const [future, setFuture] = useState<StockRecord[]>([]);
@@ -318,12 +323,22 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
-    try { localStorage.setItem('cafe-stock-record', JSON.stringify(stockRecord)); } catch (e) { console.warn('localStorage error', e); }
-  }, [stockRecord]);
+    try { 
+      localStorage.setItem(`cafe-stock-record-${user?.branch || 'Rayong'}`, JSON.stringify(stockRecord)); 
+      if (user?.branch === 'Rayong' || !user?.branch) {
+        localStorage.setItem('cafe-stock-record', JSON.stringify(stockRecord)); 
+      }
+    } catch (e) { console.warn('localStorage error', e); }
+  }, [stockRecord, user?.branch]);
 
   useEffect(() => {
-    try { localStorage.setItem('cafe-ingredients-v4', JSON.stringify(ingredients)); } catch (e) { console.warn('localStorage error', e); }
-  }, [ingredients]);
+    try { 
+      localStorage.setItem(`cafe-ingredients-v4-${user?.branch || 'Rayong'}`, JSON.stringify(ingredients)); 
+      if (user?.branch === 'Rayong' || !user?.branch) {
+        localStorage.setItem('cafe-ingredients-v4', JSON.stringify(ingredients)); 
+      }
+    } catch (e) { console.warn('localStorage error', e); }
+  }, [ingredients, user?.branch]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -392,7 +407,7 @@ export default function App() {
         ]);
 
         if (ingError) {
-          console.error("Supabase Fetch Error (Ingredients):", ingError);
+          console.warn("Supabase Fetch Error (Ingredients):", ingError);
           setDbStatus('offline');
         } else {
           setDbStatus('connected');
@@ -413,24 +428,10 @@ export default function App() {
             department: ing.department
           })));
         } else {
-          const savedIng = localStorage.getItem(`cafe-ingredients-v4-${branch}`) || localStorage.getItem('cafe-ingredients-v4');
+          const savedIng = localStorage.getItem(`cafe-ingredients-v4-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-ingredients-v4') : null);
           const parsedIng = savedIng ? JSON.parse(savedIng) : INITIAL_INGREDIENTS;
           setIngredients(parsedIng);
-          if (parsedIng.length > 0) {
-            await supabase.from('ingredients').insert(parsedIng.map((ing: any) => ({ branch: branch,
-              id: ing.id,
-              name: ing.name,
-              brand: ing.brand,
-              size_per_unit: ing.sizePerUnit,
-              min_stock: ing.minStock,
-              min_order: ing.minOrder,
-              supplier: ing.supplier,
-              unit: ing.unit,
-              category: ing.category,
-              image: ing.image,
-              department: ing.department || 'Bar'
-            })));
-          }
+          
         }
 
         if (stockData && stockData.length > 0) {
@@ -445,7 +446,7 @@ export default function App() {
           });
           setStockRecord(newStockRecord);
         } else {
-          const savedStock = localStorage.getItem(`cafe-stock-record-${branch}`) || localStorage.getItem('cafe-stock-record');
+          const savedStock = localStorage.getItem(`cafe-stock-record-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-stock-record') : null);
           if (savedStock) {
             const parsedStock = JSON.parse(savedStock);
             setStockRecord(parsedStock);
@@ -454,9 +455,9 @@ export default function App() {
               for (const ingId in parsedStock[dateKey]) {
                 const val = parsedStock[dateKey][ingId];
                 if (typeof val === 'number') {
-                  stockInserts.push({ branch: user?.branch, record_date: dateKey, ingredient_id: ingId, remaining: val });
+                  stockInserts.push({ branch: user?.branch || 'Rayong', record_date: dateKey, ingredient_id: ingId, remaining: val });
                 } else if (val) {
-                  stockInserts.push({ branch: user?.branch, 
+                  stockInserts.push({ branch: user?.branch || 'Rayong', 
                     record_date: dateKey, 
                     ingredient_id: ingId, 
                     stock_in: val.in ?? null, 
@@ -466,7 +467,7 @@ export default function App() {
                 }
               }
             }
-            if (stockInserts.length > 0) await supabase.from('stock_records').insert(stockInserts);
+            
           }
         }
 
@@ -481,9 +482,9 @@ export default function App() {
             userName: r.user_name || '-'
           }));
           setReceivingRecords(formatted);
-          try { localStorage.setItem('cafe-receiving-records', JSON.stringify(formatted)); } catch (e) { console.warn('localStorage error', e); }
+          if (user?.branch === 'Rayong' || !user?.branch) { try { localStorage.setItem('cafe-receiving-records', JSON.stringify(formatted)); } catch (e) { console.warn('localStorage error', e); } }
         } else {
-          const savedRec = localStorage.getItem(`cafe-receiving-records-${branch}`) || localStorage.getItem('cafe-receiving-records');
+          const savedRec = localStorage.getItem(`cafe-receiving-records-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-receiving-records') : null);
           if (savedRec) {
             const parsedRec = JSON.parse(savedRec);
             setReceivingRecords(parsedRec);
@@ -525,20 +526,11 @@ export default function App() {
             details: l.details
           })));
         } else {
-          const savedLogs = localStorage.getItem(`cafe-audit-logs-${branch}`) || localStorage.getItem('cafe-audit-logs');
+          const savedLogs = localStorage.getItem(`cafe-audit-logs-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-audit-logs') : null);
           if (savedLogs) {
             const parsedLogs = JSON.parse(savedLogs);
             setLogs(parsedLogs);
-            if (parsedLogs.length > 0) {
-              await supabase.from('audit_logs').insert(parsedLogs.map((l: any) => ({ branch: branch,
-                id: l.id,
-                timestamp: l.timestamp,
-                user_email: l.userEmail,
-                user_role: l.userRole,
-                action: l.action,
-                details: l.details
-              })));
-            }
+            
           }
         }
 
@@ -552,24 +544,11 @@ export default function App() {
             ...c.data
           })));
         } else {
-          const savedChecklist = localStorage.getItem(`cafe-checklist-records-${branch}`) || localStorage.getItem('cafe-checklist-records');
+          const savedChecklist = localStorage.getItem(`cafe-checklist-records-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-checklist-records') : null);
           if (savedChecklist) {
             const parsedChecklist = JSON.parse(savedChecklist);
             setChecklistRecords(parsedChecklist);
-            if (parsedChecklist.length > 0) {
-              await supabase.from('checklist_records').insert(parsedChecklist.map((c: any) => {
-                const { timestamp, type, reportDate, reporterName, id, ...data } = c;
-                return {
-                  branch,
-                  id: id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
-                  timestamp,
-                  type,
-                  report_date: reportDate,
-                  reporter_name: reporterName,
-                  data
-                };
-              }));
-            }
+            
           }
         }
         
@@ -589,13 +568,13 @@ export default function App() {
             recorderName: w.recorder_name
           })));
         } else {
-          const savedWasteLogs = localStorage.getItem(`cafe-waste-logs-${branch}`) || localStorage.getItem('cafe-waste-logs');
+          const savedWasteLogs = localStorage.getItem(`cafe-waste-logs-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-waste-logs') : null);
           if (savedWasteLogs) {
             const parsedWaste = JSON.parse(savedWasteLogs);
             setWasteLogs(parsedWaste);
             if (parsedWaste.length > 0) {
               await supabase.from('waste_logs').insert(parsedWaste.map((w: any) => ({ branch: branch,
-                id: w.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
+                id: w.id && isValidUUID(w.id) ? w.id : generateUUID(),
                 timestamp: w.timestamp || new Date().toISOString(),
                 date: w.date,
                 department: w.department,
@@ -631,29 +610,11 @@ export default function App() {
             recorderName: r.recorder_name
           })));
         } else {
-          const savedRnD = localStorage.getItem(`cafe-rnd-reports-${branch}`) || localStorage.getItem('cafe-rnd-reports');
+          const savedRnD = localStorage.getItem(`cafe-rnd-reports-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-rnd-reports') : null);
           if (savedRnD) {
             const parsedRnD = JSON.parse(savedRnD);
             setRnDReports(parsedRnD);
-            if (parsedRnD.length > 0) {
-               await supabase.from('rnd_reports').insert(parsedRnD.map((r: any) => ({ branch: branch,
-                 id: r.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
-                 timestamp: r.timestamp || new Date().toISOString(),
-                 date: r.date,
-                 menu_name_th: r.menuNameTH,
-                 menu_name_en: r.menuNameEN,
-                 product_looks: r.productLooks,
-                 component: r.component,
-                 taste: JSON.stringify(r.taste || ['']),
-                 flavor: JSON.stringify(r.flavor || ['']),
-                 taste_result: JSON.stringify(r.tasteResult || ['']),
-                 improvements: JSON.stringify(r.improvements || ['']),
-                 commenter_name: r.commenterName,
-                 image_url: r.imageUrl,
-                 image_urls: JSON.stringify(r.imageUrls || []),
-                 recorder_name: r.recorderName
-               })));
-            }
+            
           }
         }
 
@@ -665,24 +626,16 @@ export default function App() {
             user: h.user_name,
             data: h.plan_data
           }));
-          try { localStorage.setItem('bakeryPlanHistory', JSON.stringify(formattedHistory)); } catch (e) { console.warn('localStorage error', e); }
+          try { localStorage.setItem(`bakeryPlanHistory-${branch}`, JSON.stringify(formattedHistory)); localStorage.setItem('bakeryPlanHistory', JSON.stringify(formattedHistory)); } catch (e) { console.warn('localStorage error', e); }
           if (formattedHistory.length > 0) {
             try { localStorage.setItem('bakeryPlanData', JSON.stringify(formattedHistory[0].data)); } catch (e) { console.warn('localStorage error', e); } // Load latest as current
             try { localStorage.setItem('bakeryPlanLastSaved', JSON.stringify({ date: formattedHistory[0].savedAt, user: formattedHistory[0].user })); } catch (e) { console.warn('localStorage error', e); }
           }
         } else {
-           const historyStr = localStorage.getItem('bakeryPlanHistory');
+           const historyStr = branch === 'Rayong' ? localStorage.getItem('bakeryPlanHistory') : null;
            if (historyStr) {
              const parsedHistory = JSON.parse(historyStr);
-             if (parsedHistory.length > 0) {
-               await supabase.from('bakery_plan_records').insert(parsedHistory.map((h: any) => ({ branch: branch,
-                  week_key: h.weekKey,
-                  week_label: h.weekLabel,
-                  saved_at: h.savedAt,
-                  user_name: h.user || 'Admin',
-                  plan_data: h.data
-               })));
-             }
+             
            }
         }
 
@@ -756,7 +709,7 @@ export default function App() {
           await supabase.from('app_settings').upsert(settingsInserts.map(s => ({ ...s, branch: user?.branch })));
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.warn('Error loading data:', error);
         setDbStatus('offline');
       } finally {
         setIsLoading(false);
@@ -785,7 +738,7 @@ export default function App() {
         };
         
         // Attempt to insert into app_backups table
-        const { error } = await supabase.from('app_backups').insert({ branch: user?.branch,
+        const { error } = await supabase.from('app_backups').insert({ branch: user?.branch || 'Rayong',
           id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
           created_at: new Date().toISOString(),
           data: backupPayload
@@ -794,7 +747,7 @@ export default function App() {
         if (error) {
           console.warn('Backup to app_backups failed (table might missing), falling back to audit_logs:', error.message);
           // Fallback to audit_logs if app_backups doesn't exist
-          await supabase.from('audit_logs').insert({ branch: user?.branch,
+          await supabase.from('audit_logs').insert({ branch: user?.branch || 'Rayong',
             id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
             timestamp: new Date().toISOString(),
             user_email: 'system@automation',
@@ -806,7 +759,7 @@ export default function App() {
           console.log('Automated local backup to app_backups successful.');
         }
       } catch (err) {
-        console.error('Automated Backup Exception:', err);
+        console.warn('Automated Backup Exception:', err);
       }
     };
 
@@ -821,81 +774,118 @@ export default function App() {
     };
   }, []);
 
-  const addWasteLog = async (log: Omit<WasteLogEntry, 'id' | 'timestamp'>) => {
-    const newLog: WasteLogEntry = {
+  const addWasteLog = async (logOrLogs: Omit<WasteLogEntry, 'id' | 'timestamp'> | Omit<WasteLogEntry, 'id' | 'timestamp'>[]) => {
+    const logs = Array.isArray(logOrLogs) ? logOrLogs : [logOrLogs];
+    if (logs.length === 0) return;
+
+    const newLogs: WasteLogEntry[] = logs.map(log => ({
       ...log,
-      id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
+      id: generateUUID(),
       timestamp: new Date().toISOString()
-    };
+    }));
     
     setWasteLogs(prev => {
-      const updated = [newLog, ...prev].slice(0, 500); // keep history
-      if (user?.branch) {
-        try { try { localStorage.setItem(`cafe-waste-logs-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
+      const updated = [...newLogs, ...prev].slice(0, 500); // keep history
+      const currentBranch = user?.branch || 'Rayong';
+      try {
+        localStorage.setItem(`cafe-waste-logs-${currentBranch}`, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('localStorage error, trying without bulky images', e);
+        try {
+          const stripped = updated.map(l => ({ ...l, imageUrl: l.imageUrl && l.imageUrl.length > 50000 ? undefined : l.imageUrl }));
+          localStorage.setItem(`cafe-waste-logs-${currentBranch}`, JSON.stringify(stripped));
+        } catch (e2) {
+          console.warn('localStorage full');
+        }
       }
-      try { try { localStorage.setItem('cafe-waste-logs', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
+      if (currentBranch === 'Rayong') {
+        try { localStorage.setItem('cafe-waste-logs', JSON.stringify(updated)); } catch (e) {}
+      }
       return updated;
     });
 
     if (supabase) {
-      await supabase.from('waste_logs').insert({ branch: user?.branch,
-        id: newLog.id,
-        timestamp: newLog.timestamp,
-        date: newLog.date,
-        department: newLog.department,
-        ingredient_id: newLog.ingredientId,
-        ingredient_name: newLog.ingredientName,
-        quantity: newLog.quantity,
-        unit: newLog.unit,
-        cause: newLog.cause,
-        solution: newLog.solution,
-        image_url: newLog.imageUrl,
-        recorder_name: newLog.recorderName
-      });
+      const { error } = await supabase.from('waste_logs').insert(
+        newLogs.map(newLog => ({
+          branch: user?.branch || 'Rayong',
+          id: newLog.id,
+          timestamp: newLog.timestamp,
+          date: newLog.date,
+          department: newLog.department,
+          ingredient_id: newLog.ingredientId,
+          ingredient_name: newLog.ingredientName,
+          quantity: newLog.quantity,
+          unit: newLog.unit,
+          cause: newLog.cause,
+          solution: newLog.solution,
+          image_url: newLog.imageUrl,
+          recorder_name: newLog.recorderName
+        }))
+      );
+      if (error) {
+        console.error("Supabase waste_logs insert error:", error);
+        throw new Error(error.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล Supabase');
+      }
     }
 
-    addLog(`บันทึกของเสีย (${log.department})`, `บันทึกของเสีย ${log.ingredientName} จำนวน ${log.quantity} ${log.unit}`);
+    if (newLogs.length === 1) {
+      addLog(`บันทึกของเสีย (${newLogs[0].department})`, `บันทึกของเสีย ${newLogs[0].ingredientName} จำนวน ${newLogs[0].quantity} ${newLogs[0].unit}`);
+    } else {
+      const summaryNames = newLogs.map(l => `${l.ingredientName} (${l.quantity} ${l.unit})`).join(', ');
+      addLog(`บันทึกของเสีย (${newLogs[0].department})`, `บันทึกของเสีย ${newLogs.length} รายการ: ${summaryNames}`);
+    }
 
-    // LINE Notification
-    sendLineNotification(
-      `\n🗑️ [รายงานของเสีย - ${newLog.department}]\n` +
-      `👤 ผู้บันทึก: ${newLog.recorderName}\n` +
-      `📦 วัตถุดิบ: ${newLog.ingredientName}\n` +
-      `🔢 จำนวน: ${newLog.quantity} ${newLog.unit}\n` +
-      `⚠️ สาเหตุ: ${newLog.cause}` +
-      (newLog.solution ? `\n💡 แนวทางแก้ไข: ${newLog.solution}` : ''),
-      'notifyOnWaste'
-    );
+    // LINE and Discord notifications
+    for (const newLog of newLogs) {
+      sendLineNotification(
+        `\n🗑️ [รายงานของเสีย - ${newLog.department}]\n` +
+        `👤 ผู้บันทึก: ${newLog.recorderName}\n` +
+        `📦 วัตถุดิบ: ${newLog.ingredientName}\n` +
+        `🔢 จำนวน: ${newLog.quantity} ${newLog.unit}\n` +
+        `⚠️ สาเหตุ: ${newLog.cause}` +
+        (newLog.solution ? `\n💡 แนวทางแก้ไข: ${newLog.solution}` : ''),
+        'notifyOnWaste'
+      );
 
-    // Discord Notification
-    sendDiscordNotification(
-      `🗑️ **[รายงานของเสีย - ${newLog.department}]**\n` +
-      `👤 ผู้บันทึก: ${newLog.recorderName}\n` +
-      `📦 วัตถุดิบ: ${newLog.ingredientName}\n` +
-      `🔢 จำนวน: ${newLog.quantity} ${newLog.unit}\n` +
-      `⚠️ สาเหตุ: ${newLog.cause}` +
-      (newLog.solution ? `\n💡 แนวทางแก้ไข: ${newLog.solution}` : ''),
-      'notifyOnWaste'
-    );
+      sendDiscordNotification(
+        `🗑️ **[รายงานของเสีย - ${newLog.department}]**\n` +
+        `👤 ผู้บันทึก: ${newLog.recorderName}\n` +
+        `📦 วัตถุดิบ: ${newLog.ingredientName}\n` +
+        `🔢 จำนวน: ${newLog.quantity} ${newLog.unit}\n` +
+        `⚠️ สาเหตุ: ${newLog.cause}` +
+        (newLog.solution ? `\n💡 แนวทางแก้ไข: ${newLog.solution}` : ''),
+        'notifyOnWaste'
+      );
+    }
   };
 
   const updateWasteLog = async (id: string, updates: Partial<WasteLogEntry>) => {
     setWasteLogs(prev => {
       const updated = prev.map(log => log.id === id ? { ...log, ...updates } : log);
-      if (user?.branch) {
-        try { try { localStorage.setItem(`cafe-waste-logs-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
+      const currentBranch = user?.branch || 'Rayong';
+      try {
+        localStorage.setItem(`cafe-waste-logs-${currentBranch}`, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('localStorage error', e);
       }
-      try { try { localStorage.setItem('cafe-waste-logs', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
+      if (currentBranch === 'Rayong') {
+        try { localStorage.setItem('cafe-waste-logs', JSON.stringify(updated)); } catch (e) {}
+      }
       return updated;
     });
 
-    if (supabase) {
-      const updateData: any = {};
-      if (updates.cause !== undefined) updateData.cause = updates.cause;
-      if (updates.solution !== undefined) updateData.solution = updates.solution;
-      
-      if (Object.keys(updateData).length > 0) {
-        await supabase.from('waste_logs').update(updateData).eq('id', id);
+    if (supabase && isValidUUID(id)) {
+      try {
+        const updateData: any = {};
+        if (updates.cause !== undefined) updateData.cause = updates.cause;
+        if (updates.solution !== undefined) updateData.solution = updates.solution;
+        
+        if (Object.keys(updateData).length > 0) {
+          const { error } = await supabase.from('waste_logs').update(updateData).eq('id', id).eq('branch', user?.branch || 'Rayong');
+          if (error) console.error("Supabase update waste log error:", error);
+        }
+      } catch (err) {
+        console.error("Failed to update waste log in Supabase:", err);
       }
     }
   };
@@ -912,12 +902,12 @@ export default function App() {
       if (user?.branch) {
         try { try { localStorage.setItem(`cafe-rnd-reports-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
       }
-      try { try { localStorage.setItem('cafe-rnd-reports', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
+      if (user?.branch === 'Rayong' || !user?.branch) { try { try { localStorage.setItem('cafe-rnd-reports', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); } }
       return updated;
     });
 
     if (supabase) {
-      await supabase.from('rnd_reports').insert({ branch: user?.branch,
+      await supabase.from('rnd_reports').insert({ branch: user?.branch || 'Rayong',
         id: newReport.id,
         timestamp: newReport.timestamp,
         date: newReport.date,
@@ -968,7 +958,7 @@ export default function App() {
       if (user?.branch) {
         try { try { localStorage.setItem(`cafe-rnd-reports-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
       }
-      try { try { localStorage.setItem('cafe-rnd-reports', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); }
+      if (user?.branch === 'Rayong' || !user?.branch) { try { try { localStorage.setItem('cafe-rnd-reports', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } } catch(e) { console.warn('localStorage full'); } }
       return updated;
     });
 
@@ -987,7 +977,7 @@ export default function App() {
         image_url: updatedData.imageUrl,
         image_urls: JSON.stringify(updatedData.imageUrls || []),
         recorder_name: updatedData.recorderName
-      }).eq('id', id);
+      }).eq('id', id).eq('branch', user?.branch || 'Rayong');
     }
 
     addLog(`แก้ไข R&D Report`, `อัปเดตเมนู: ${updatedData.menuNameTH} / ${updatedData.menuNameEN}`);
@@ -1038,12 +1028,12 @@ export default function App() {
       if (user?.branch) {
         try { localStorage.setItem(`cafe-audit-logs-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
       }
-      try { localStorage.setItem('cafe-audit-logs', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
+      if (user?.branch === 'Rayong' || !user?.branch) { try { localStorage.setItem('cafe-audit-logs', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } }
       return updated;
     });
     
     if (supabase) {
-      await supabase.from('audit_logs').insert({ branch: user?.branch,
+      await supabase.from('audit_logs').insert({ branch: user?.branch || 'Rayong',
         id: newLog.id,
         timestamp: newLog.timestamp,
         user_email: newLog.userEmail,
@@ -1061,12 +1051,12 @@ export default function App() {
       if (user?.branch) {
         try { localStorage.setItem(`cafe-receiving-records-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
       }
-      try { localStorage.setItem('cafe-receiving-records', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
+      if (user?.branch === 'Rayong' || !user?.branch) { try { localStorage.setItem('cafe-receiving-records', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } }
       return updated;
     });
     
     if (supabase) {
-      const { error } = await supabase.from('receiving_records').insert({ branch: user?.branch,
+      const { error } = await supabase.from('receiving_records').insert({ branch: user?.branch || 'Rayong',
         id: newRecord.id,
         receive_date: newRecord.date,
         ingredient_id: newRecord.ingredientId,
@@ -1079,7 +1069,7 @@ export default function App() {
       if (error) {
         console.warn("Inserting receiving record with user_name column failed, retrying without user_name...", error);
         // Fallback: Retry inserting without user_name column
-        const { error: retryError } = await supabase.from('receiving_records').insert({ branch: user?.branch,
+        const { error: retryError } = await supabase.from('receiving_records').insert({ branch: user?.branch || 'Rayong',
           id: newRecord.id,
           receive_date: newRecord.date,
           ingredient_id: newRecord.ingredientId,
@@ -1088,7 +1078,7 @@ export default function App() {
           expiry_date: newRecord.expiryDate || null
         });
         if (retryError) {
-          console.error("Inserting receiving record completely failed:", retryError);
+          console.warn("Inserting receiving record completely failed:", retryError);
         }
       }
     }
@@ -1171,7 +1161,7 @@ export default function App() {
       if (user?.branch) {
         try { localStorage.setItem(`cafe-receiving-records-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
       }
-      try { localStorage.setItem('cafe-receiving-records', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
+      if (user?.branch === 'Rayong' || !user?.branch) { try { localStorage.setItem('cafe-receiving-records', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } }
       return updated;
     });
     
@@ -1203,7 +1193,7 @@ export default function App() {
 
       if (supabase) {
         if (currentObj.in === undefined && currentObj.out === undefined && currentObj.remaining === undefined) {
-           supabase.from('stock_records').delete().match({ record_date: dateKey, ingredient_id: record.ingredientId }).then();
+           supabase.from('stock_records').delete().match({ record_date: dateKey, ingredient_id: record.ingredientId, branch: user?.branch || 'Rayong' }).then();
         } else {
            supabase.from('stock_records').upsert({ branch: user?.branch || 'Rayong',
             record_date: dateKey,
@@ -1237,7 +1227,7 @@ export default function App() {
     });
 
     if (supabase) {
-      await supabase.from('receiving_records').delete().eq('id', id);
+      await supabase.from('receiving_records').delete().eq('id', id).eq('branch', user?.branch || 'Rayong');
     }
   };
 
@@ -1247,7 +1237,7 @@ export default function App() {
     setIsFormOpen(false);
     
     if (supabase) {
-      await supabase.from('ingredients').insert({ branch: user?.branch,
+      await supabase.from('ingredients').insert({ branch: user?.branch || 'Rayong',
         id: ingredient.id,
         name: ingredient.name,
         brand: ingredient.brand,
@@ -1280,7 +1270,7 @@ export default function App() {
         category: updatedIngredient.category,
         image: updatedIngredient.image,
         department: updatedIngredient.department
-      }).eq('id', updatedIngredient.id);
+      }).eq('id', updatedIngredient.id).eq('branch', user?.branch || 'Rayong');
     }
   };
 
@@ -1290,7 +1280,7 @@ export default function App() {
     setIngredients(prev => prev.filter(i => i.id !== id));
     
     if (supabase) {
-      await supabase.from('ingredients').delete().eq('id', id);
+      await supabase.from('ingredients').delete().eq('id', id).eq('branch', user?.branch || 'Rayong');
     }
   };
 
@@ -1310,12 +1300,297 @@ export default function App() {
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      alert(`เลือกไฟล์ ${file.name} แล้ว (ฟังก์ชันการนำเข้าข้อมูลกำลังอยู่ในระหว่างการพัฒนา)`);
-      // Reset input
-      e.target.value = '';
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!jsonData || jsonData.length === 0) {
+        alert('ไม่พบข้อมูลในไฟล์ Excel (หรืออาจจะเป็นไฟล์เปล่า)');
+        e.target.value = '';
+        return;
+      }
+
+      // 1. Identify which mode of import we should run by inspecting the keys of the first row.
+      const firstRowKeys = Object.keys(jsonData[0] || {});
+      const hasStockColumns = firstRowKeys.some(key => {
+        const lowerKey = key.toLowerCase();
+        const hasIn = lowerKey.includes('เข้า') || lowerKey.includes('in');
+        const hasOut = lowerKey.includes('เบิก') || lowerKey.includes('out');
+        const hasRemaining = (lowerKey.includes('คงเหลือ') || lowerKey.includes('เหลือ') || lowerKey.includes('remain')) && !lowerKey.includes('ขั้นต่ำ') && !lowerKey.includes('min');
+        return hasIn || hasOut || hasRemaining;
+      });
+
+      const mapColumn = (row: any, thNames: string[], enNames: string[]) => {
+        const keys = Object.keys(row);
+        for (const key of keys) {
+           const cleanKey = key.trim().toLowerCase();
+           if (thNames.some(th => th.trim().toLowerCase() === cleanKey) || enNames.some(en => en.trim().toLowerCase() === cleanKey)) {
+             return String(row[key]);
+           }
+        }
+        return '';
+      };
+
+      if (hasStockColumns) {
+        // --- MODE A: STOCK RECORD COUNT IMPORT ---
+        let parsedRecordsCount = 0;
+        const skippedNewIngredients: string[] = [];
+        const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
+        const weekDays = Array.from({ length: daysCount }).map((_, i) => addDays(dateRange.start, i));
+        
+        const updatedStockRecords = { ...stockRecord };
+        const upsertsToDb: any[] = [];
+
+        for (let i = 0; i < jsonData.length; i++) {
+          const row: any = jsonData[i];
+          const name = mapColumn(row, ['รายการสินค้า', 'ชื่อสินค้า', 'ชื่อรายการสินค้า', 'วัตถุดิบ'], ['name', 'Item Name']);
+          if (!name) continue;
+
+          // Find matching ingredient in state
+          const matchedIngredient = ingredients.find(ing => 
+            ing.name.trim().toLowerCase() === name.trim().toLowerCase()
+          );
+
+          if (!matchedIngredient) continue;
+
+          const rowKeys = Object.keys(row);
+
+          weekDays.forEach(day => {
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const dayFormatted_dM = format(day, 'd/M');       // e.g. "27/7"
+            const dayFormatted_ddMM = format(day, 'dd/MM');   // e.g. "27/07"
+            const dayAbbrevEng = format(day, 'EEE').toUpperCase(); // e.g. "MON"
+
+            let inValue: number | undefined = undefined;
+            let outValue: number | undefined = undefined;
+            let remainingValue: number | undefined = undefined;
+
+            rowKeys.forEach(key => {
+              const cleanKey = key.trim().toUpperCase();
+              
+              // Column headers are usually: "MON 27/7 เข้า", "27/7 เบิก", etc.
+              const matchesDate = cleanKey.includes(dayFormatted_dM) || cleanKey.includes(dayFormatted_ddMM);
+              const matchesDayName = cleanKey.includes(dayAbbrevEng);
+
+              if (matchesDate || (firstRowKeys.length < 15 && matchesDayName)) {
+                const valStr = String(row[key]).trim();
+                const numVal = parseFloat(valStr);
+
+                if (!isNaN(numVal)) {
+                  if (cleanKey.includes('เข้า') || cleanKey.includes('IN')) {
+                    inValue = numVal;
+                  } else if (cleanKey.includes('เบิก') || cleanKey.includes('OUT')) {
+                    outValue = numVal;
+                  } else if (cleanKey.includes('คงเหลือ') || cleanKey.includes('เหลือ') || cleanKey.includes('REMAINING') || cleanKey.includes('REMAIN')) {
+                    remainingValue = numVal;
+                  }
+                }
+              }
+            });
+
+            if (inValue !== undefined || outValue !== undefined || remainingValue !== undefined) {
+              if (!updatedStockRecords[dateKey]) {
+                updatedStockRecords[dateKey] = {};
+              }
+
+              const currentObj = { ...(updatedStockRecords[dateKey][matchedIngredient.id] || {}) };
+              
+              if (inValue !== undefined) currentObj.in = inValue;
+              if (outValue !== undefined) currentObj.out = outValue;
+              if (remainingValue !== undefined) currentObj.remaining = remainingValue;
+
+              updatedStockRecords[dateKey][matchedIngredient.id] = currentObj;
+              parsedRecordsCount++;
+
+              upsertsToDb.push({
+                branch: user?.branch || 'Rayong',
+                record_date: dateKey,
+                ingredient_id: matchedIngredient.id,
+                stock_in: currentObj.in ?? null,
+                stock_out: currentObj.out ?? null,
+                remaining: currentObj.remaining ?? null
+              });
+            }
+          });
+        }
+
+        if (parsedRecordsCount > 0) {
+          setStockImportPreviewData({ updatedStockRecords, parsedRecordsCount, upsertsToDb, skippedNewIngredients });
+        } else {
+          alert('ไม่พบข้อมูลยอดสต็อกของวันที่ตรงกับสัปดาห์นี้ในไฟล์ กรุณาตรวจสอบวันที่และชื่อรายการสินค้าในตาราง Excel ของท่าน');
+        }
+
+      } else {
+        // --- MODE B: INGREDIENTS MASTER LIST IMPORT ---
+        let newIngredients: Ingredient[] = [];
+
+        for (let i = 0; i < jsonData.length; i++) {
+          const row: any = jsonData[i];
+          
+          const name = mapColumn(row, ['ชื่อสินค้า', 'ชื่อรายการสินค้า', 'รายการสินค้า', 'วัตถุดิบ'], ['name', 'Item Name']);
+          if (!name) continue; // ข้ามถ้าไม่มีชื่อสินค้า
+
+          const brand = mapColumn(row, ['ยี่ห้อ'], ['brand', 'Brand']);
+          const sizePerUnit = mapColumn(row, ['ขนาด/หน่วย', 'ขนาดบรรจุ'], ['sizePerUnit', 'Size/Unit', 'size']);
+          
+          const minStockStr = mapColumn(row, ['คงเหลือขั้นต่ำ', 'จำนวนคงเหลือขั้นต่ำ'], ['minStock', 'Min Stock']);
+          const minStock = parseFloat(minStockStr) || 0;
+          
+          const minOrderStr = mapColumn(row, ['สั่งซื้อขั้นต่ำ', 'จำนวนสั่งซื้อขั้นต่ำ'], ['minOrder', 'Min Order']);
+          const minOrder = parseFloat(minOrderStr) || 0;
+          
+          const supplier = mapColumn(row, ['ผู้จัดจำหน่าย', 'ชื่อผู้จัดจำหน่าย'], ['supplier', 'Supplier']);
+          const unit = mapColumn(row, ['หน่วย', 'หน่วยนับ'], ['unit', 'Unit']) || 'ชิ้น';
+          const category = mapColumn(row, ['หมวดหมู่'], ['category', 'Category']) || 'อื่นๆ';
+          const image = mapColumn(row, ['รูปภาพ', 'ลิงก์รูปภาพ'], ['image', 'Image', 'Image URL']);
+          
+          const departmentStr = mapColumn(row, ['แผนก'], ['department', 'Department']);
+          let department: 'Bar' | 'Bakery' | 'Kitchen' = 'Bar';
+          if (departmentStr.toLowerCase().includes('bakery') || departmentStr.includes('ครัว') || departmentStr.includes('เบเกอรี่')) {
+            department = 'Bakery';
+          } else if (departmentStr.toLowerCase().includes('kitchen') || departmentStr.includes('อาหาร')) {
+            department = 'Kitchen';
+          }
+
+          const newId = `ing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+          newIngredients.push({
+            id: newId,
+            name,
+            brand,
+            sizePerUnit,
+            minStock,
+            minOrder,
+            supplier,
+            unit,
+            category,
+            image,
+            department,
+          });
+        }
+
+        if (newIngredients.length > 0) {
+          setImportPreviewData(newIngredients);
+        } else {
+          alert('ไม่พบข้อมูลวัตถุดิบที่ถูกต้องในไฟล์ หรือไม่มีคอลัมน์ "ชื่อสินค้า"');
+        }
+      }
+
+    } catch (error) {
+      console.error('Error parsing excel:', error);
+      alert('เกิดข้อผิดพลาดในการอ่านไฟล์ กรุณาตรวจสอบว่าไฟล์ถูกต้องและไม่ได้ถูกเข้ารหัส');
+    }
+
+    // Reset input value so upload can be triggered again with the same file
+    e.target.value = '';
+  };
+
+  
+  const handleConfirmStockImport = async () => {
+    if (!stockImportPreviewData) return;
+    const { updatedStockRecords, parsedRecordsCount, upsertsToDb, skippedNewIngredients } = stockImportPreviewData;
+
+    setStockRecord(updatedStockRecords);
+    addLog('นำเข้ายอดสต็อกรายสัปดาห์', `นำเข้าข้อมูลยอดสต็อก ${parsedRecordsCount} รายการจากไฟล์ Excel`);
+    if (supabase && upsertsToDb.length > 0) {
+      const { error } = await supabase.from('stock_records').upsert(upsertsToDb, {
+        onConflict: 'record_date,ingredient_id,branch'
+      });
+      if (error) {
+        console.error('Supabase stock upsert error:', error);
+        alert(`นำเข้าสำเร็จบนหน้าจอชั่วคราว แต่บันทึกลงฐานข้อมูลล้มเหลว: ${error.message}`);
+      } else {
+        alert(`นำเข้ายอดสต็อกสำเร็จจำนวน ${parsedRecordsCount} รายการ และบันทึกลงฐานข้อมูลแล้ว` + (skippedNewIngredients.length > 0 ? `\n\nคำเตือน: ข้ามรายการ ${skippedNewIngredients.length} รายการ (${skippedNewIngredients.slice(0, 3).join(', ')}${skippedNewIngredients.length > 3 ? '...' : ''}) เนื่องจากยังไม่มีรายชื่อในระบบ กรุณาใช้ปุ่ม "โหลดเทมเพลต" เพื่อเพิ่มวัตถุดิบใหม่ก่อน` : ''));
+      }
+    } else {
+      alert(`นำเข้ายอดสต็อกสำเร็จจำนวน ${parsedRecordsCount} รายการ (บันทึกในเครื่องชั่วคราว)` + (skippedNewIngredients.length > 0 ? `\n\nคำเตือน: ข้ามรายการ ${skippedNewIngredients.length} รายการเนื่องจากไม่มีในระบบ กรุณาเพิ่มวัตถุดิบในระบบก่อน` : ''));
+    }
+    setStockImportPreviewData(null);
+  };
+
+  const handleDeletePreviewItem = (indexToDelete: number) => {
+    if (importPreviewData) {
+      setImportPreviewData(importPreviewData.filter((_, idx) => idx !== indexToDelete));
+      if (editingPreviewIngredientIdx === indexToDelete) {
+        setEditingPreviewIngredientIdx(null);
+      } else if (editingPreviewIngredientIdx !== null && editingPreviewIngredientIdx > indexToDelete) {
+        setEditingPreviewIngredientIdx(editingPreviewIngredientIdx - 1);
+      }
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importPreviewData) return;
+    const newIngredients = importPreviewData;
+    
+    // Calculate days for the current week's date range to initialize default stock counts to 0
+    const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
+    const weekDays = Array.from({ length: daysCount }).map((_, i) => addDays(dateRange.start, i));
+    
+    const updatedStockRecords = { ...stockRecord };
+    const defaultStockDb: any[] = [];
+    newIngredients.forEach(ing => {
+      weekDays.forEach(day => {
+        const dateKey = format(day, 'yyyy-MM-dd');
+        if (!updatedStockRecords[dateKey]) {
+          updatedStockRecords[dateKey] = {};
+        }
+        updatedStockRecords[dateKey][ing.id] = { in: 0, out: 0, remaining: 0 };
+        
+        defaultStockDb.push({
+          branch: user?.branch || 'Rayong',
+          record_date: dateKey,
+          ingredient_id: ing.id,
+          stock_in: 0,
+          stock_out: 0,
+          remaining: 0
+        });
+      });
+    });
+
+    // Insert into state and db
+    setIngredients(prev => [...prev, ...newIngredients]);
+    addLog('นำเข้าข้อมูลวัตถุดิบ', `นำเข้าข้อมูลจำนวน ${newIngredients.length} รายการ`);
+    
+    if (supabase) {
+      const insertData = newIngredients.map(ing => ({
+        branch: user?.branch || 'Rayong',
+        id: ing.id,
+        name: ing.name,
+        brand: ing.brand,
+        size_per_unit: ing.sizePerUnit,
+        min_stock: ing.minStock,
+        min_order: ing.minOrder,
+        supplier: ing.supplier,
+        unit: ing.unit,
+        category: ing.category,
+        image: ing.image,
+        department: ing.department
+      }));
+      
+      const { error } = await supabase.from('ingredients').insert(insertData);
+      if (error) {
+        console.error('Error saving imported ingredients:', error);
+        setImportError('เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล');
+      } else {
+        if (defaultStockDb.length > 0) {
+          const { error: stockError } = await supabase.from('stock_records').insert(defaultStockDb);
+          if (stockError) {
+            console.error('Error saving default stock records:', stockError);
+          }
+        }
+        setImportPreviewData(null);
+        alert(`นำเข้าข้อมูลวัตถุดิบสำเร็จ ${newIngredients.length} รายการ (เริ่มตั้งค่าสต็อกเริ่มต้นเป็น 0 ทุกวันในสัปดาห์นี้)`);
+      }
+    } else {
+      setImportPreviewData(null);
     }
   };
 
@@ -1349,7 +1624,7 @@ export default function App() {
 
       if (supabase) {
         if (currentObj.in === undefined && currentObj.out === undefined && currentObj.remaining === undefined) {
-          supabase.from('stock_records').delete().match({ record_date: dateKey, ingredient_id: ingredientId }).then();
+          supabase.from('stock_records').delete().match({ record_date: dateKey, ingredient_id: ingredientId, branch: user?.branch || 'Rayong' }).then();
         } else {
           supabase.from('stock_records').upsert({ branch: user?.branch || 'Rayong',
             record_date: dateKey,
@@ -1408,7 +1683,7 @@ export default function App() {
     });
     
     if (supabase) {
-      await supabase.from('stock_records').delete().eq('record_date', dateKey).in('ingredient_id', targetIds);
+      await supabase.from('stock_records').delete().eq('record_date', dateKey).in('ingredient_id', targetIds).eq('branch', user?.branch || 'Rayong');
     }
   };
 
@@ -1439,7 +1714,7 @@ export default function App() {
     });
     
     if (supabase) {
-      await supabase.from('stock_records').delete().eq('ingredient_id', ingredientId).in('record_date', weekDays);
+      await supabase.from('stock_records').delete().eq('ingredient_id', ingredientId).in('record_date', weekDays).eq('branch', user?.branch || 'Rayong');
     }
   };
 
@@ -1509,7 +1784,7 @@ export default function App() {
           currentIn = currentVal.in || 0;
           currentOut = currentVal.out || 0;
         }
-        return { branch: user?.branch,
+        return { branch: user?.branch || 'Rayong',
           record_date: dateKey,
           ingredient_id: ingredientId,
           stock_in: currentIn,
@@ -1524,7 +1799,7 @@ export default function App() {
           { onConflict: 'record_date,ingredient_id,branch' }
         );
         if (error) {
-          console.error("Upsert error:", error);
+          console.warn("Upsert error:", error);
           alert(`เกิดข้อผิดพลาดในการบันทึก: ${error.message}`);
           return;
         }
@@ -1572,14 +1847,14 @@ export default function App() {
       if (user?.branch) {
         try { localStorage.setItem(`cafe-checklist-records-${user.branch}`, JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
       }
-      try { localStorage.setItem('cafe-checklist-records', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); }
+      if (user?.branch === 'Rayong' || !user?.branch) { try { localStorage.setItem('cafe-checklist-records', JSON.stringify(updated)); } catch (e) { console.warn('localStorage error', e); } }
       return updated;
     });
     addLog(`${type} สำหรับบาร์`, `บันทึกรายการตรวจสอบ ${type} เรียบร้อยแล้ว เมื่อ ${format(new Date(), 'HH:mm')}`);
     
     if (supabase) {
       const { timestamp, type: recordType, reportDate, reporterName, id, userEmail, ...recordData } = newRecord;
-      await supabase.from('checklist_records').insert({ branch: user?.branch,
+      await supabase.from('checklist_records').insert({ branch: user?.branch || 'Rayong',
         id,
         timestamp,
         type: recordType,
@@ -1620,9 +1895,9 @@ export default function App() {
       for (const ingId in newStockRecord[dateKey]) {
         const val = newStockRecord[dateKey][ingId];
         if (typeof val === 'number') {
-          stockInserts.push({ branch: user?.branch, record_date: dateKey, ingredient_id: ingId, remaining: val });
+          stockInserts.push({ branch: user?.branch || 'Rayong', record_date: dateKey, ingredient_id: ingId, remaining: val });
         } else if (val) {
-          stockInserts.push({ branch: user?.branch, 
+          stockInserts.push({ branch: user?.branch || 'Rayong', 
             record_date: dateKey, 
             ingredient_id: ingId, 
             stock_in: val.in ?? null, 
@@ -1634,7 +1909,7 @@ export default function App() {
     }
     
     // Delete all existing records and insert new ones
-    await supabase.from('stock_records').delete().neq('ingredient_id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('stock_records').delete().eq('branch', user?.branch || 'Rayong');
     if (stockInserts.length > 0) {
       await supabase.from('stock_records').insert(stockInserts);
     }
@@ -1667,7 +1942,7 @@ export default function App() {
 
 
   const exportExcel = async () => {
-    const XLSX = await import('xlsx');
+    
     const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
     const weekDays = Array.from({ length: daysCount }).map((_, i) => addDays(dateRange.start, i));
     
@@ -1776,7 +2051,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Print Header */}
       <div className="print-header">
-        <h1>Cafe Stock Manager - Weekly Report</h1>
+        <h1>Cafe Management - Weekly Report</h1>
         <p>Date: {format(dateRange.start, 'MMM d, yyyy')} - {format(dateRange.end, 'MMM d, yyyy')}</p>
       </div>
 
@@ -1786,7 +2061,13 @@ export default function App() {
           <div className="flex items-center gap-3">
             <Logo className="rounded-[4px] shadow-sm py-1.5 px-3" textClassName="text-xl" showSubtitle={false} />
             <div className="flex items-center gap-4">
-              <h1 className="font-bold tracking-tight leading-tight text-slate-100 text-[16px] hidden sm:block">Cafe Stock Manager</h1>
+              <h1 className="font-bold tracking-tight leading-tight text-slate-100 text-[16px] hidden sm:block">Cafe Management</h1>
+              {user?.branch && (
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-200 text-xs font-semibold border border-indigo-500/30">
+                  <MapPin size={12} className="text-indigo-400" />
+                  สาขา: {user.branch === 'Rayong' ? 'ระยอง' : user.branch === 'Bangkok' ? 'กทม.' : user.branch}
+                </div>
+              )}
               <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/50 border border-slate-700/50">
                 <div className={`w-2 h-2 rounded-full ${
                   dbStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' :
@@ -2396,9 +2677,47 @@ export default function App() {
                   <button
                     onClick={handleImportExcel}
                     className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:bg-emerald-500 transition-all shadow-sm transform hover:scale-105 active:scale-95 border border-emerald-500"
+                    title="นำเข้าวัตถุดิบจากไฟล์ Excel"
                   >
                     <FileUp size={14} strokeWidth={3} />
                     Import Excel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      
+                      const ws = XLSX.utils.json_to_sheet([
+                        { 
+                          'ชื่อสินค้า': 'เมล็ดกาแฟคั่วกลาง', 
+                          'ยี่ห้อ': 'Crenn', 
+                          'หมวดหมู่': 'เมล็ดกาแฟ',
+                          'ขนาด/หน่วย': '1000',
+                          'หน่วย': 'g',
+                          'คงเหลือขั้นต่ำ': 2000,
+                          'สั่งซื้อขั้นต่ำ': 5000,
+                          'ผู้จัดจำหน่าย': 'Supplier A',
+                          'แผนก': 'Bar',
+                          'รูปภาพ': ''
+                        },
+                        { 
+                          'ชื่อสินค้า': 'แป้งเค้ก', 
+                          'ยี่ห้อ': 'ตราพัด', 
+                          'หมวดหมู่': 'แป้ง',
+                          'ขนาด/หน่วย': '1',
+                          'หน่วย': 'ถุง',
+                          'คงเหลือขั้นต่ำ': 5,
+                          'สั่งซื้อขั้นต่ำ': 10,
+                          'ผู้จัดจำหน่าย': 'Supplier B',
+                          'แผนก': 'Bakery',
+                          'รูปภาพ': ''
+                        }
+                      ]);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, "Template");
+                      XLSX.writeFile(wb, "Ingredient_Template.xlsx");
+                    }}
+                    className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-[12px] font-bold hover:bg-slate-200 transition-all shadow-sm transform hover:scale-105 active:scale-95 border border-slate-300"
+                  >
+                    โหลดเทมเพลต (Template)
                   </button>
                   <div className="relative">
                     <button
@@ -2513,6 +2832,224 @@ export default function App() {
           onClose={() => setEditingIngredient(null)}
         />
       )}
+
+      
+      {/* Stock Import Preview Modal */}
+      {stockImportPreviewData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <FileUp className="text-emerald-500" />
+                ยืนยันการนำเข้าสต็อก
+              </h2>
+              <button 
+                onClick={() => setStockImportPreviewData(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-full hover:bg-slate-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-slate-600 mb-4">
+                พบข้อมูลยอดสต็อกของสัปดาห์นี้ทั้งหมด <span className="font-bold text-emerald-600">{stockImportPreviewData.parsedRecordsCount}</span> รายการ
+              </p>
+              {stockImportPreviewData.skippedNewIngredients?.length > 0 && (
+                <div className="p-4 bg-amber-50 text-amber-800 rounded-xl mb-4 text-sm">
+                  <p className="font-bold mb-1">คำเตือน: ข้ามไป {stockImportPreviewData.skippedNewIngredients.length} รายการ</p>
+                  <p>ไม่พบรายชื่อในระบบ กรุณาเพิ่มวัตถุดิบลงในระบบก่อนนำเข้าสต็อก (รายการที่ถูกข้าม: {stockImportPreviewData.skippedNewIngredients.slice(0, 3).join(', ')}{stockImportPreviewData.skippedNewIngredients.length > 3 ? '...' : ''})</p>
+                </div>
+              )}
+              <p className="text-sm text-slate-500">
+                ต้องการนำเข้าข้อมูลนี้เพื่ออัปเดตตารางหลักใช่หรือไม่?
+              </p>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+              <button 
+                onClick={() => setStockImportPreviewData(null)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={handleConfirmStockImport}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center gap-2 shadow-lg shadow-emerald-500/30"
+              >
+                <Check size={18} strokeWidth={3} />
+                ยืนยันนำเข้าสต็อก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Preview Modal */}
+      {importPreviewData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <FileUp className="text-emerald-500" />
+                ยืนยันการนำเข้าข้อมูลวัตถุดิบ
+              </h2>
+              <button 
+                onClick={() => setImportPreviewData(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-full hover:bg-slate-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-slate-600 mb-4 text-sm">
+                พบรายการวัตถุดิบทั้งหมด <span className="font-bold text-emerald-600">{importPreviewData.length}</span> รายการ ตรวจสอบความถูกต้องและปรับแต่งข้อมูลก่อนยืนยันนำเข้า
+              </p>
+              
+              <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white shadow-inner">
+                <table className="w-full text-left text-sm border-collapse min-w-[1100px]">
+                  <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-sm">
+                    <tr>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[200px]">รายการสินค้า</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[120px]">ยี่ห้อ</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[130px]">หมวดหมู่</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[120px]">ขนาด</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[100px]">หน่วยนับ</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 text-right min-w-[100px]">คงเหลือขั้นต่ำ</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 text-right min-w-[100px]">สั่งซื้อขั้นต่ำ</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[160px]">ผู้จัดจำหน่าย</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[100px]">แผนก</th>
+                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 text-center min-w-[100px] sticky right-0 bg-slate-100 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">การจัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {importPreviewData.slice(0, 100).map((ing, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                        <td className="p-3 text-slate-800 font-medium truncate max-w-[250px]" title={ing.name}>
+                          {ing.name}
+                        </td>
+                        <td className="p-3 text-slate-600 truncate max-w-[120px]" title={ing.brand || ''}>
+                          {ing.brand || <span className="text-slate-300">-</span>}
+                        </td>
+                        <td className="p-3 text-slate-600">
+                          {ing.category}
+                        </td>
+                        <td className="p-3 text-slate-600">
+                          {ing.sizePerUnit}
+                        </td>
+                        <td className="p-3 text-slate-600 font-medium">
+                          {ing.unit}
+                        </td>
+                        <td className="p-3 text-slate-600 text-right font-mono font-medium">
+                          {ing.minStock}
+                        </td>
+                        <td className="p-3 text-slate-600 text-right font-mono font-medium">
+                          {ing.minOrder}
+                        </td>
+                        <td className="p-3 text-slate-600 truncate max-w-[180px]" title={ing.supplier || ''}>
+                          {ing.supplier || <span className="text-slate-300">-</span>}
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide shadow-sm border ${
+                            ing.department === 'Bar' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            ing.department === 'Bakery' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            ing.department === 'Kitchen' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            {ing.department}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] transition-colors">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => setEditingPreviewIngredientIdx(idx)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+                              title="แก้ไขรายละเอียด"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePreviewItem(idx)}
+                              className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
+                              title="ลบรายการนี้"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importPreviewData.length > 100 && (
+                  <div className="p-4 text-center text-sm text-slate-500 bg-slate-50 border-t border-slate-200">
+                    ... และอีก {importPreviewData.length - 100} รายการ (แสดงตัวอย่าง 100 รายการแรก)
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0">
+              <button 
+                onClick={() => setImportPreviewData(null)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={handleConfirmImport}
+                className="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
+              >
+                <FileUp size={18} />
+                ยืนยันการนำเข้าข้อมูล ({importPreviewData.length} รายการ)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingPreviewIngredientIdx !== null && importPreviewData && (
+        <IngredientForm
+          initialData={importPreviewData[editingPreviewIngredientIdx]}
+          defaultDepartment={importPreviewData[editingPreviewIngredientIdx].department as any}
+          onSubmit={(updatedIng) => {
+            setImportPreviewData(prev => {
+              if (!prev) return null;
+              const copy = [...prev];
+              copy[editingPreviewIngredientIdx] = {
+                ...updatedIng,
+                id: importPreviewData[editingPreviewIngredientIdx].id // Preserve id
+              };
+              return copy;
+            });
+            setEditingPreviewIngredientIdx(null);
+          }}
+          onClose={() => setEditingPreviewIngredientIdx(null)}
+        />
+      )}
+
+      {/* Import Error Modal */}
+      {importError && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={32} />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">เกิดข้อผิดพลาด</h2>
+              <p className="text-slate-600 mb-6">{importError}</p>
+              <button 
+                onClick={() => setImportError(null)}
+                className="w-full px-5 py-2.5 rounded-xl font-bold bg-slate-800 text-white hover:bg-slate-700 transition-colors"
+              >
+                ตกลง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
