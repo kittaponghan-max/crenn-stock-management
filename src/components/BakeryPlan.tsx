@@ -250,7 +250,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
           });
         }
       } catch (err) {
-        console.error("Failed to fetch bakery settings from Supabase:", err);
+        console.warn("Failed to fetch bakery settings from Supabase:", err);
       }
     };
 
@@ -476,7 +476,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
         'notifyOnBakeryPlan'
       );
     } catch (e) {
-      console.error('Failed to save bakery plan history', e);
+      console.warn('Failed to save bakery plan history', e);
     }
     
     if (onSave) {
@@ -543,7 +543,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
       }
       setIsSettingsOpen(false);
     } catch (err: any) {
-      console.error(err);
+      console.warn(err);
       setSaveSettingsError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     } finally {
       setIsSavingSettings(false);
@@ -1809,19 +1809,23 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                       <PlusCircle size={14} /> เพิ่มรายการ
                     </button>
                   </h4>
+                  <p className="text-xs text-slate-500 mb-4 pb-4 border-b border-slate-100">
+                    กำหนดการแปลงจากรายการที่ตัด (Target Item) ไปเป็นชื่อเมนู (Menu)
+                  </p>
+                  
                   <div className="border border-slate-200 rounded-lg overflow-hidden w-full overflow-x-auto">
-                    <table className="min-w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-slate-50 text-slate-600">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-600 font-medium whitespace-nowrap">
                         <tr>
-                          <th className="px-2 py-3 border-b border-slate-200 w-10"></th>
-                          <th className="px-2 py-3 border-b border-slate-200">จากรายการ (Target Item)</th>
-                          <th className="px-2 py-3 border-b border-slate-200 w-48 text-center">เมนู (Menu)</th>
+                          <th className="px-2 py-3 border-b border-slate-200 w-[5%] min-w-[48px] text-center"></th>
+                          <th className="px-3 py-3 border-b border-slate-200 w-[48%] min-w-[200px]">จากรายการ (Target Item)</th>
+                          <th className="px-3 py-3 border-b border-slate-200 w-[47%] min-w-[200px]">เมนู (Menu)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {tempItemSettings.map((setting) => (
                           <tr key={setting.id} className="hover:bg-slate-50 flex-col sm:table-row">
-                            <td className="px-2 py-2 text-center">
+                            <td className="px-2 py-2 text-center w-[5%] min-w-[48px]">
                               <button 
                                 onClick={() => setTempItemSettings(prev => prev.filter(s => s.id !== setting.id))}
                                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
@@ -1830,11 +1834,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                                 <Trash2 size={16} />
                               </button>
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-3 py-2">
                               <select 
                                 value={setting.targetItem}
                                 onChange={(e) => setTempItemSettings(prev => prev.map(s => s.id === setting.id ? { ...s, targetItem: e.target.value } : s))}
-                                className="w-full text-sm border-slate-200 rounded-md focus:ring-amber-500 py-1.5 px-2 bg-white"
+                                className="w-full text-sm border-slate-200 rounded-md focus:ring-amber-500 py-1.5 px-3 bg-white"
                               >
                                 <option value="">เลือกจากรายการที่ตัด...</option>
                                 {Array.from(new Set(tempCuttingSettings.map(m => m.target).filter(Boolean))).map(opt => (
@@ -1842,12 +1846,12 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                                 ))}
                               </select>
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-3 py-2">
                               <input 
                                 type="text"
                                 value={setting.menu}
                                 onChange={(e) => setTempItemSettings(prev => prev.map(s => s.id === setting.id ? { ...s, menu: e.target.value } : s))}
-                                className="w-full text-sm border-slate-200 rounded-md focus:ring-amber-500 py-1.5 px-2 text-center bg-white"
+                                className="w-full text-sm border-slate-200 rounded-md focus:ring-amber-500 py-1.5 px-3 bg-white"
                                 placeholder="เช่น ครัวซองค์เนยสด"
                               />
                             </td>
