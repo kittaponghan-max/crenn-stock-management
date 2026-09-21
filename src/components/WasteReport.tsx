@@ -1,16 +1,16 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Ingredient, WasteLogEntry } from '../types';
 import { format } from 'date-fns';
-import { Trash2, Plus, X, Upload, Save, AlertTriangle, AlertCircle, Camera, Edit2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Trash2, Plus, X, Upload, Save, AlertTriangle, AlertCircle, Camera, Edit2, CheckCircle2, Loader2 } from 'lucide-react';
+import { cn, generateUUID } from '../lib/utils';
 
 interface WasteReportProps {
   department: 'Bar' | 'Bakery';
   ingredients: Ingredient[];
   wasteLogs: WasteLogEntry[];
   currentUser: string;
-  onSave: (log: Omit<WasteLogEntry, 'id' | 'timestamp'> | Omit<WasteLogEntry, 'id' | 'timestamp'>[]) => void;
-  onUpdate?: (id: string, updates: Partial<WasteLogEntry>) => void;
+  onSave: (log: Omit<WasteLogEntry, 'id' | 'timestamp'> | Omit<WasteLogEntry, 'id' | 'timestamp'>[]) => Promise<void> | void;
+  onUpdate?: (id: string, updates: Partial<WasteLogEntry>) => Promise<void> | void;
   onBack: () => void;
 }
 
@@ -24,7 +24,7 @@ export interface WasteFormItem {
 }
 
 const createNewItem = (): WasteFormItem => ({
-  tempId: Math.random().toString(36).substring(2, 9),
+  tempId: generateUUID(),
   ingredientId: '',
   quantity: 1,
   cause: '',
@@ -34,6 +34,9 @@ const createNewItem = (): WasteFormItem => ({
 
 export function WasteReport({ department, ingredients, wasteLogs, currentUser, onSave, onUpdate, onBack }: WasteReportProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedLog, setSelectedLog] = useState<WasteLogEntry | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -197,7 +200,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
   const resolveItemInfo = (ingredientId: string) => {
     let name = '';
-    let unit = '-';
+    let unit = 'ชิ้น';
 
     if (department === 'Bakery') {
       const matchType = bakeryOptions.types?.find(t => t.id === ingredientId);
@@ -228,6 +231,16 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       }
     }
 
+    if (!name) {
+      const matchAny = ingredients.find(i => i.id === ingredientId || i.name === ingredientId);
+      if (matchAny) {
+        name = matchAny.name;
+        unit = matchAny.unit || unit;
+      } else {
+        name = ingredientId;
+      }
+    }
+
     return { name, unit };
   };
 
@@ -252,8 +265,8 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+          const MAX_WIDTH = 600;
+          const MAX_HEIGHT = 600;
           let width = img.width;
           let height = img.height;
 
@@ -274,7 +287,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
           setWasteItems(prev => prev.map(item => item.tempId === tempId ? { ...item, imageUrl: compressedDataUrl } : item));
         };
         img.src = reader.result as string;
@@ -289,6 +302,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   };
 
   const handleOpenForm = () => {
+    setFormError(null);
     if (wasteItems.length === 0) {
       setWasteItems([createNewItem()]);
     }
@@ -296,64 +310,65 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   };
 
   const handleCloseForm = () => {
+    if (isSaving) return;
     setIsFormOpen(false);
+    setFormError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
     const entriesToSave: Omit<WasteLogEntry, 'id' | 'timestamp'>[] = [];
 
     for (let i = 0; i < wasteItems.length; i++) {
       const item = wasteItems[i];
       if (!item.ingredientId) {
-        alert(`กรุณาเลือกรายการสินค้าสำหรับรายการที่ ${i + 1}`);
+        setFormError(`กรุณาเลือกรายการสินค้าสำหรับรายการที่ ${i + 1}`);
         return;
       }
       const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(String(item.quantity));
       if (isNaN(qty) || qty <= 0) {
-        alert(`กรุณาระบุจำนวนที่เสียให้ถูกต้องสำหรับรายการที่ ${i + 1}`);
-        return;
-      }
-      if (!item.cause.trim()) {
-        alert(`กรุณาระบุสาเหตุสำหรับรายการที่ ${i + 1}`);
-        return;
-      }
-      if (!item.solution.trim()) {
-        alert(`กรุณาระบุวิธีแก้ไขปัญหาสำหรับรายการที่ ${i + 1}`);
+        setFormError(`กรุณาระบุจำนวนที่เสียให้ถูกต้องสำหรับรายการที่ ${i + 1}`);
         return;
       }
 
       const { name, unit } = resolveItemInfo(item.ingredientId);
-      if (!name) {
-        alert(`ไม่พบข้อมูลรายการสำหรับรายการที่ ${i + 1}`);
-        return;
-      }
+      const finalName = name || item.ingredientId;
 
       entriesToSave.push({
         date: entryDate,
         department,
         ingredientId: item.ingredientId,
-        ingredientName: name,
+        ingredientName: finalName,
         quantity: qty,
-        unit: unit,
-        cause: item.cause.trim(),
-        solution: item.solution.trim(),
+        unit: unit || 'ชิ้น',
+        cause: item.cause.trim() || '-',
+        solution: item.solution.trim() || '-',
         imageUrl: item.imageUrl || undefined,
         recorderName: currentUser
       });
     }
 
     if (entriesToSave.length === 0) {
-      alert('กรุณากรอกข้อมูลรายการของเสียอย่างน้อย 1 รายการ');
+      setFormError('กรุณากรอกข้อมูลรายการของเสียอย่างน้อย 1 รายการ');
       return;
     }
 
-    onSave(entriesToSave);
-
-    setEntryDate(format(new Date(), 'yyyy-MM-dd'));
-    setWasteItems([createNewItem()]);
-    setIsFormOpen(false);
+    try {
+      setIsSaving(true);
+      await onSave(entriesToSave);
+      setSaveSuccessMsg(`บันทึกรายการของเสียสำเร็จ ${entriesToSave.length} รายการ เรียบร้อยแล้ว`);
+      setEntryDate(format(new Date(), 'yyyy-MM-dd'));
+      setWasteItems([createNewItem()]);
+      setIsFormOpen(false);
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Failed to save waste report:', err);
+      setFormError(`เกิดข้อผิดพลาดในการบันทึก: ${err?.message || 'ไม่สามารถส่งข้อมูลไปยังฐานข้อมูลได้ กรุณาลองใหม่อีกครั้ง'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -515,6 +530,16 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                                     ))}
                                   </optgroup>
                                 )}
+
+                                {deptIngredients && deptIngredients.length > 0 && (
+                                  <optgroup label="📦 วัตถุดิบในครัว/เบเกอรี่ (Ingredients)" className="font-bold text-[11.5px] text-slate-700 bg-slate-100/70">
+                                    {deptIngredients.map(ing => (
+                                      <option key={ing.id} value={ing.id} className="text-slate-800 font-medium text-xs">
+                                        {ing.name} {ing.brand ? `(${ing.brand})` : ''}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
                               </select>
                             </>
                           ) : (
@@ -635,12 +660,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                       <div className="space-y-3">
                         <div>
                           <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
-                            สาเหตุ (Cause) <span className="text-red-500">*</span>
+                            สาเหตุ (Cause)
                           </label>
                           <textarea
-                            required
                             rows={3}
-                            placeholder="ระบุสาเหตุที่ชัดเจน เช่น หมดอายุ, ตกหล่น, ชำรุด"
+                            placeholder="ระบุสาเหตุ เช่น หมดอายุ, ตกหล่น, ชำรุด, อบไหม้ (หรือใส่ -)"
                             value={item.cause}
                             onChange={e => handleItemChange(item.tempId, 'cause', e.target.value)}
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
@@ -649,12 +673,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                         
                         <div>
                           <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
-                            วิธีแก้ไขปัญหา (Solution / Action Taken) <span className="text-red-500">*</span>
+                            วิธีแก้ไขปัญหา (Solution / Action Taken) <span className="text-slate-400 font-normal text-[10px]">(ไม่บังคับ)</span>
                           </label>
                           <textarea
-                            required
                             rows={3}
-                            placeholder="วิธีการที่ใช้แก้ไขปัญหาในครั้งนี้"
+                            placeholder="วิธีการที่ใช้แก้ไขปัญหาในครั้งนี้ (หากไม่มีสามารถเว้นว่างได้)"
                             value={item.solution}
                             onChange={e => handleItemChange(item.tempId, 'solution', e.target.value)}
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
@@ -681,6 +704,13 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
               <span>เพิ่มรายการของเสียอีกรายการ (+ Add Another Item)</span>
             </button>
 
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs md:text-sm text-red-700 font-bold">
+                <AlertCircle size={18} className="text-red-500 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
             {/* Bottom Actions */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-slate-100 pt-4">
               <div className="text-xs font-bold text-slate-500">
@@ -691,22 +721,46 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                 <button
                   type="button"
                   onClick={handleCloseForm}
-                  className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl text-xs md:text-sm transition-colors cursor-pointer"
+                  disabled={isSaving}
+                  className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl text-xs md:text-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className={`px-5 py-2 text-white font-bold rounded-xl text-xs md:text-sm transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-95 duration-150 cursor-pointer ${
+                  disabled={isSaving}
+                  className={`px-5 py-2.5 text-white font-bold rounded-xl text-xs md:text-sm transition-all flex items-center gap-2 shadow-md hover:shadow-lg active:scale-95 duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'
                   }`}
                 >
-                  <Save size={16} />
-                  <span>บันทึกรายการของเสีย ({wasteItems.length} รายการ)</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>กำลังบันทึกข้อมูล...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>บันทึกรายการของเสีย ({wasteItems.length} รายการ)</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Success Banner */}
+      {saveSuccessMsg && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 text-sm text-emerald-800 font-bold shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+            <span>{saveSuccessMsg}</span>
+          </div>
+          <button onClick={() => setSaveSuccessMsg(null)} className="text-emerald-500 hover:text-emerald-800">
+            <X size={18} />
+          </button>
         </div>
       )}
 
