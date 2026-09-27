@@ -280,7 +280,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         {/* HEADER SECTION (top to bottom order) */}
         <div className="flex flex-col items-center pt-2 sm:pt-4 z-10">
           {/* 1. Brand Name — "CRENN" */}
-          <h1 className="text-white text-[38px] sm:text-[42px] font-black tracking-widest text-center select-none drop-shadow-sm leading-none">
+          <h1 className="text-black text-[38px] sm:text-[42px] font-black tracking-widest text-center select-none leading-none">
             CRENN
           </h1>
 
@@ -290,7 +290,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           </div>
 
           {/* 3. Section Label — "MEMBER LOGIN" */}
-          <h2 className="text-white text-[15px] font-bold tracking-[0.18em] uppercase text-center drop-shadow-sm">
+          <h2 className="text-black text-[15px] font-bold tracking-[0.18em] uppercase text-center">
             MEMBER LOGIN
           </h2>
         </div>
