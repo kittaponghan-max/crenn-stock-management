@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Home, 
   Package, 
@@ -26,7 +26,10 @@ import {
   FileText,
   UserCheck,
   ShieldCheck,
-  Building
+  Building,
+  Coffee,
+  ChefHat,
+  LayoutGrid
 } from 'lucide-react';
 import { UserRole } from './LoginForm';
 import { AppPermissions, ReceivingRecord, WasteLogEntry } from '../types';
@@ -86,16 +89,21 @@ export const HomePage: React.FC<HomePageProps> = ({
   );
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState<boolean>(false);
 
+  // Department filter state: 'All' (ทั้งหมด) | 'Bar' (บาร์) | 'Bakery' (ครัว)
+  const [selectedDepartment, setSelectedDepartment] = useState<'All' | 'Bar' | 'Bakery'>('All');
+  const [isDepartmentDropdownOpen, setIsDepartmentDropdownOpen] = useState<boolean>(false);
+
   // Notifications Modal
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
 
   // Settings / Status Modal
   const [isStatusModalOpen, setIsStatusModalOpen] = useState<boolean>(false);
 
-  // Flyout container ref for outside click handling
+  // Refs for outside click handling
   const railContainerRef = useRef<HTMLDivElement>(null);
+  const headerFiltersRef = useRef<HTMLDivElement>(null);
 
-  // Close flyouts on click outside
+  // Close flyouts and header dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -103,6 +111,14 @@ export const HomePage: React.FC<HomePageProps> = ({
         !railContainerRef.current.contains(event.target as Node)
       ) {
         setActiveFlyout(null);
+      }
+      if (
+        headerFiltersRef.current &&
+        !headerFiltersRef.current.contains(event.target as Node)
+      ) {
+        setIsMonthDropdownOpen(false);
+        setIsBranchDropdownOpen(false);
+        setIsDepartmentDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -119,10 +135,11 @@ export const HomePage: React.FC<HomePageProps> = ({
         .toUpperCase()
     : 'AD';
 
-  // Critical stock alert items (5–8 items)
-  const alertItems: AlertItem[] = [
+  // Comprehensive stock alert items by department
+  const allAlertItems: AlertItem[] = [
+    // Bar critical items
     {
-      id: '1',
+      id: 'bar-1',
       name: 'Everyday Blend (Medium Roast)',
       status: 'outOfStock',
       statusLabel: 'หมดสต็อก',
@@ -132,7 +149,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bar'
     },
     {
-      id: '2',
+      id: 'bar-2',
       name: 'Colombia Santander Supremo (Medium)',
       status: 'outOfStock',
       statusLabel: 'หมดสต็อก',
@@ -142,7 +159,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bar'
     },
     {
-      id: '3',
+      id: 'bar-3',
       name: 'นมอัลมอนด์ 137 Degrees',
       status: 'outOfStock',
       statusLabel: 'หมดสต็อก',
@@ -152,7 +169,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bar'
     },
     {
-      id: '4',
+      id: 'bar-4',
       name: 'ผงโฮจิฉะ Medium Firing',
       status: 'outOfStock',
       statusLabel: 'หมดสต็อก',
@@ -162,8 +179,90 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bar'
     },
     {
-      id: '5',
-      name: 'น้ำเลมอน (หลัก)',
+      id: 'bar-5',
+      name: 'Brazil Santos (Medium to Dark)',
+      status: 'outOfStock',
+      statusLabel: 'หมดสต็อก',
+      badgeBg: 'bg-[#FEE2E2]',
+      badgeText: 'text-[#EF4444]',
+      remainingText: 'คงเหลือ 0 ถุง (ขั้นต่ำ 6 ถุง)',
+      department: 'Bar'
+    },
+    {
+      id: 'bar-6',
+      name: 'แก้ว 16 Oz. (FC)',
+      status: 'lowStock',
+      statusLabel: 'ใกล้หมด',
+      badgeBg: 'bg-[#FEF3C7]',
+      badgeText: 'text-[#F59E0B]',
+      remainingText: 'คงเหลือ 6 แถว (ขั้นต่ำ 15 แถว)',
+      department: 'Bar'
+    },
+    {
+      id: 'bar-7',
+      name: 'Monin Syrup (Vanilla)',
+      status: 'lowStock',
+      statusLabel: 'ใกล้หมด',
+      badgeBg: 'bg-[#FEF3C7]',
+      badgeText: 'text-[#F59E0B]',
+      remainingText: 'คงเหลือ 1 ขวด (ขั้นต่ำ 2 ขวด)',
+      department: 'Bar'
+    },
+    {
+      id: 'bar-8',
+      name: 'ซอสคาราเมล Topping ตรา Juniper',
+      status: 'lowStock',
+      statusLabel: 'ใกล้หมด',
+      badgeBg: 'bg-[#FEF3C7]',
+      badgeText: 'text-[#F59E0B]',
+      remainingText: 'คงเหลือ 2 ขวด (ขั้นต่ำ 4 ขวด)',
+      department: 'Bar'
+    },
+
+    // Bakery critical items
+    {
+      id: 'bakery-1',
+      name: 'ช็อกโกแลต Callebaut 70.5%',
+      status: 'outOfStock',
+      statusLabel: 'หมดสต็อก',
+      badgeBg: 'bg-[#FEE2E2]',
+      badgeText: 'text-[#EF4444]',
+      remainingText: 'คงเหลือ 0 ถุง (ขั้นต่ำ 2 ถุง)',
+      department: 'Bakery'
+    },
+    {
+      id: 'bakery-2',
+      name: 'ยีสต์สด SAF (ก้อน 500g)',
+      status: 'outOfStock',
+      statusLabel: 'หมดสต็อก',
+      badgeBg: 'bg-[#FEE2E2]',
+      badgeText: 'text-[#EF4444]',
+      remainingText: 'คงเหลือ 0 ก้อน (ขั้นต่ำ 4 ก้อน)',
+      department: 'Bakery'
+    },
+    {
+      id: 'bakery-3',
+      name: 'กลิ่นวานิลลา Vanilla bean paste',
+      status: 'outOfStock',
+      statusLabel: 'หมดสต็อก',
+      badgeBg: 'bg-[#FEE2E2]',
+      badgeText: 'text-[#EF4444]',
+      remainingText: 'คงเหลือ 0 กระปุก (ขั้นต่ำ 1 กระปุก)',
+      department: 'Bakery'
+    },
+    {
+      id: 'bakery-4',
+      name: 'อัลมอนด์สไลด์ ตรากิเลน',
+      status: 'outOfStock',
+      statusLabel: 'หมดสต็อก',
+      badgeBg: 'bg-[#FEE2E2]',
+      badgeText: 'text-[#EF4444]',
+      remainingText: 'คงเหลือ 0 ถุง (ขั้นต่ำ 1 ถุง)',
+      department: 'Bakery'
+    },
+    {
+      id: 'bakery-5',
+      name: 'น้ำเลมอน (หลัก) Ital lemon',
       status: 'lowStock',
       statusLabel: 'ใกล้หมด',
       badgeBg: 'bg-[#FEF3C7]',
@@ -172,8 +271,8 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bakery'
     },
     {
-      id: '6',
-      name: 'วิปครีม Debic',
+      id: 'bakery-6',
+      name: 'วิปครีม Debic (1 ลิตร)',
       status: 'lowStock',
       statusLabel: 'ใกล้หมด',
       badgeBg: 'bg-[#FEF3C7]',
@@ -182,7 +281,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bakery'
     },
     {
-      id: '7',
+      id: 'bakery-7',
       name: 'แป้งเค้ก ตราพัด',
       status: 'lowStock',
       statusLabel: 'ใกล้หมด',
@@ -192,35 +291,109 @@ export const HomePage: React.FC<HomePageProps> = ({
       department: 'Bakery'
     },
     {
-      id: '8',
-      name: 'แก้ว 16 Oz. (FC)',
+      id: 'bakery-8',
+      name: 'เนยมีลเมทเค็ม Mealmate',
       status: 'lowStock',
       statusLabel: 'ใกล้หมด',
       badgeBg: 'bg-[#FEF3C7]',
       badgeText: 'text-[#F59E0B]',
-      remainingText: 'คงเหลือ 6 แถว (ขั้นต่ำ 15 แถว)',
-      department: 'Bar'
+      remainingText: 'คงเหลือ 1 กล่อง (ขั้นต่ำ 3 ชิ้น)',
+      department: 'Bakery'
     }
   ];
 
-  // Stock counts according to specs
-  const displayOutOfStock = outOfStockCount > 0 ? outOfStockCount : 9;
-  const displayLowStock = lowStockCount > 0 ? lowStockCount : 26;
-  const totalItems = 134;
-  const normalItems = Math.max(0, totalItems - displayOutOfStock - displayLowStock); // ~99 items
-  const idleItems = 0;
+  // Dynamic alert items filtered by selected department
+  const displayedAlertItems = useMemo(() => {
+    if (selectedDepartment === 'Bar') {
+      return allAlertItems.filter(item => item.department === 'Bar');
+    }
+    if (selectedDepartment === 'Bakery') {
+      return allAlertItems.filter(item => item.department === 'Bakery');
+    }
+    // 'All' - balanced top 8 items across both departments
+    return [
+      allAlertItems.find(i => i.id === 'bar-1')!,
+      allAlertItems.find(i => i.id === 'bakery-1')!,
+      allAlertItems.find(i => i.id === 'bar-2')!,
+      allAlertItems.find(i => i.id === 'bakery-2')!,
+      allAlertItems.find(i => i.id === 'bar-3')!,
+      allAlertItems.find(i => i.id === 'bakery-5')!,
+      allAlertItems.find(i => i.id === 'bakery-6')!,
+      allAlertItems.find(i => i.id === 'bar-6')!,
+    ].filter(Boolean);
+  }, [selectedDepartment]);
 
-  const normalPercent = Math.round((normalItems / totalItems) * 100);
-  const outPercent = Math.round((displayOutOfStock / totalItems) * 100);
-  const lowPercent = Math.round((displayLowStock / totalItems) * 100);
-  const idlePercent = 0;
+  // Reactive Stock counts and percentages according to active department filter
+  const stats = useMemo(() => {
+    if (selectedDepartment === 'Bar') {
+      const total = 53;
+      const out = 5;
+      const low = 11;
+      const normal = total - out - low; // 37
+      const idle = 0;
+      return {
+        total,
+        out,
+        low,
+        normal,
+        idle,
+        normalPercent: Math.round((normal / total) * 100),
+        outPercent: Math.round((out / total) * 100),
+        lowPercent: Math.round((low / total) * 100),
+        idlePercent: 0,
+        description: 'วัตถุดิบแผนกบาร์เครื่องดื่มทั้งหมด 53 รายการ',
+        subtextOut: 'ต้องเติมบาร์ด่วนก่อนเริ่มรอบถัดไป',
+        subtextLow: 'บาร์: ต่ำกว่าเกณฑ์สต็อกขั้นต่ำ'
+      };
+    } else if (selectedDepartment === 'Bakery') {
+      const total = 81;
+      const out = 4;
+      const low = 15;
+      const normal = total - out - low; // 62
+      const idle = 0;
+      return {
+        total,
+        out,
+        low,
+        normal,
+        idle,
+        normalPercent: Math.round((normal / total) * 100),
+        outPercent: Math.round((out / total) * 100),
+        lowPercent: Math.round((low / total) * 100),
+        idlePercent: 0,
+        description: 'วัตถุดิบแผนกเบเกอรี่และครัวทั้งหมด 81 รายการ',
+        subtextOut: 'ต้องเติมครัวด่วนสำหรับแผนอบขนม',
+        subtextLow: 'ครัว: ต่ำกว่าเกณฑ์สต็อกขั้นต่ำ'
+      };
+    } else {
+      const total = 134;
+      const out = outOfStockCount > 0 ? outOfStockCount : 9;
+      const low = lowStockCount > 0 ? lowStockCount : 26;
+      const normal = Math.max(0, total - out - low); // 99
+      const idle = 0;
+      return {
+        total,
+        out,
+        low,
+        normal,
+        idle,
+        normalPercent: Math.round((normal / total) * 100),
+        outPercent: Math.round((out / total) * 100),
+        lowPercent: Math.round((low / total) * 100),
+        idlePercent: 0,
+        description: 'วัตถุดิบ บาร์ 53 รายการ / ครัว 81 รายการ',
+        subtextOut: 'ต้องเติมด่วนก่อนเริ่มรอบถัดไป',
+        subtextLow: 'ต่ำกว่าเกณฑ์สต็อกขั้นต่ำ (Min Stock)'
+      };
+    }
+  }, [selectedDepartment, outOfStockCount, lowStockCount]);
 
-  // Donut chart calculations (circumference = 2 * pi * r = 2 * 3.14159 * 70 = 439.82)
+  // Donut chart calculations based on current reactive stats
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
-  const normalStroke = (normalPercent / 100) * circumference;
-  const outStroke = (outPercent / 100) * circumference;
-  const lowStroke = (lowPercent / 100) * circumference;
+  const normalStroke = (stats.normalPercent / 100) * circumference;
+  const outStroke = (stats.outPercent / 100) * circumference;
+  const lowStroke = (stats.lowPercent / 100) * circumference;
 
   // Offset calculations for donut segments
   const outOffset = -normalStroke;
@@ -928,7 +1101,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
 
           {/* Right Header: Filters, Notification, Date */}
-          <div className="flex items-center flex-wrap gap-2.5">
+          <div ref={headerFiltersRef} className="flex items-center flex-wrap gap-2.5">
             {/* Filter Pill 1: [📅 เดือนนี้ ▼] */}
             <div className="relative">
               <button
@@ -936,6 +1109,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onClick={() => {
                   setIsMonthDropdownOpen(!isMonthDropdownOpen);
                   setIsBranchDropdownOpen(false);
+                  setIsDepartmentDropdownOpen(false);
                 }}
                 className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
               >
@@ -973,6 +1147,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onClick={() => {
                   setIsBranchDropdownOpen(!isBranchDropdownOpen);
                   setIsMonthDropdownOpen(false);
+                  setIsDepartmentDropdownOpen(false);
                 }}
                 className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
               >
@@ -1018,6 +1193,83 @@ export const HomePage: React.FC<HomePageProps> = ({
               )}
             </div>
 
+            {/* Filter Pill 3: [🏢 แผนก: ทั้งหมด / บาร์ / ครัว ▼] */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDepartmentDropdownOpen(!isDepartmentDropdownOpen);
+                  setIsBranchDropdownOpen(false);
+                  setIsMonthDropdownOpen(false);
+                }}
+                className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
+              >
+                {selectedDepartment === 'All' && <LayoutGrid size={15} className="text-[#5A8A88]" />}
+                {selectedDepartment === 'Bar' && <Coffee size={15} className="text-[#5A8A88]" />}
+                {selectedDepartment === 'Bakery' && <ChefHat size={15} className="text-[#5A8A88]" />}
+                <span>
+                  {selectedDepartment === 'All' ? 'ทั้งหมด' : selectedDepartment === 'Bar' ? 'บาร์' : 'ครัว'}
+                </span>
+                <ChevronDown size={14} className="text-[#6B8F8E]" />
+              </button>
+
+              {isDepartmentDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-4 py-1 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
+                    เลือกแผนกที่ต้องการดู
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDepartment('All');
+                      setIsDepartmentDropdownOpen(false);
+                    }}
+                    className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
+                      selectedDepartment === 'All' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <LayoutGrid size={14} className="text-[#5A8A88]" />
+                      <span>ทั้งหมด (All)</span>
+                    </div>
+                    {selectedDepartment === 'All' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDepartment('Bar');
+                      setIsDepartmentDropdownOpen(false);
+                    }}
+                    className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
+                      selectedDepartment === 'Bar' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Coffee size={14} className="text-[#5A8A88]" />
+                      <span>บาร์ (Bar)</span>
+                    </div>
+                    {selectedDepartment === 'Bar' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDepartment('Bakery');
+                      setIsDepartmentDropdownOpen(false);
+                    }}
+                    className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
+                      selectedDepartment === 'Bakery' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ChefHat size={14} className="text-[#5A8A88]" />
+                      <span>ครัว (Bakery)</span>
+                    </div>
+                    {selectedDepartment === 'Bakery' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Notification Bell Icon (#5A8A88) */}
             <button
               type="button"
@@ -1043,7 +1295,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
           {/* Card 1: หมดสต็อก (Top accent 4px Red #EF4444) */}
           <div
-            onClick={() => onNavigate('barStock')}
+            onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
             className="bg-white rounded-[16px] p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] border-t-4 border-[#EF4444] flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
@@ -1056,10 +1308,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
             <div className="mt-3">
               <div className="text-[38px] lg:text-[40px] font-extrabold text-[#2D4A49] leading-none">
-                {displayOutOfStock}
+                {stats.out}
               </div>
               <div className="text-[12px] text-red-500 font-medium mt-1">
-                ต้องเติมด่วนก่อนเริ่มรอบถัดไป
+                {stats.subtextOut}
               </div>
             </div>
           </div>
@@ -1079,17 +1331,17 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
             <div className="mt-3">
               <div className="text-[38px] lg:text-[40px] font-extrabold text-[#2D4A49] leading-none">
-                {displayLowStock}
+                {stats.low}
               </div>
               <div className="text-[12px] text-amber-600 font-medium mt-1">
-                ต่ำกว่าเกณฑ์สต็อกขั้นต่ำ (Min Stock)
+                {stats.subtextLow}
               </div>
             </div>
           </div>
 
           {/* Card 3: รายการรวม (Top accent 4px Teal #5A8A88) */}
           <div
-            onClick={() => onNavigate('barStock')}
+            onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
             className="bg-white rounded-[16px] p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] border-t-4 border-[#5A8A88] flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
@@ -1102,10 +1354,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
             <div className="mt-3">
               <div className="text-[38px] lg:text-[40px] font-extrabold text-[#2D4A49] leading-none">
-                {totalItems}
+                {stats.total}
               </div>
               <div className="text-[12px] text-[#6B8F8E] font-medium mt-1">
-                วัตถุดิบ บาร์ {53} รายการ / ครัว {81} รายการ
+                {stats.description}
               </div>
             </div>
           </div>
@@ -1121,11 +1373,11 @@ export const HomePage: React.FC<HomePageProps> = ({
             {/* Title & Settings Icon */}
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-[18px] lg:text-[20px] font-bold text-[#2D4A49]">
-                สถานะสต็อก
+                สถานะสต็อก {selectedDepartment !== 'All' ? `(${selectedDepartment === 'Bar' ? 'แผนกบาร์' : 'แผนกครัว'})` : ''}
               </h2>
               <button
                 type="button"
-                onClick={() => onNavigate('barStock')}
+                onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
                 className="w-10 h-10 rounded-full hover:bg-white/60 flex items-center justify-center text-[#5A8A88] transition-colors cursor-pointer"
                 title="ตัวกรองและมุมมองสต็อก"
               >
@@ -1191,7 +1443,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {/* Donut Center Label */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
                   <span className="text-[34px] font-black text-[#2D4A49] leading-none tracking-tight">
-                    {totalItems}
+                    {stats.total}
                   </span>
                   <span className="text-[13px] font-medium text-[#6B8F8E] mt-1">
                     รายการ
@@ -1208,8 +1460,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <span className="font-semibold text-[#2D4A49]">สินค้าปกติ</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-bold text-[#2D4A49]">{normalItems}</span>
-                    <span className="text-[#6B8F8E] text-xs ml-1.5">({normalPercent}%)</span>
+                    <span className="font-bold text-[#2D4A49]">{stats.normal}</span>
+                    <span className="text-[#6B8F8E] text-xs ml-1.5">({stats.normalPercent}%)</span>
                   </div>
                 </div>
 
@@ -1220,8 +1472,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <span className="font-semibold text-[#2D4A49]">หมดสต็อก</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-bold text-[#EF4444]">{displayOutOfStock}</span>
-                    <span className="text-[#6B8F8E] text-xs ml-1.5">({outPercent}%)</span>
+                    <span className="font-bold text-[#EF4444]">{stats.out}</span>
+                    <span className="text-[#6B8F8E] text-xs ml-1.5">({stats.outPercent}%)</span>
                   </div>
                 </div>
 
@@ -1232,8 +1484,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <span className="font-semibold text-[#2D4A49]">ใกล้หมด</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-bold text-[#F59E0B]">{displayLowStock}</span>
-                    <span className="text-[#6B8F8E] text-xs ml-1.5">({lowPercent}%)</span>
+                    <span className="font-bold text-[#F59E0B]">{stats.low}</span>
+                    <span className="text-[#6B8F8E] text-xs ml-1.5">({stats.lowPercent}%)</span>
                   </div>
                 </div>
 
@@ -1244,8 +1496,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <span className="font-semibold text-[#2D4A49]">สต็อกนิ่ง</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-bold text-[#2D4A49]">{idleItems}</span>
-                    <span className="text-[#6B8F8E] text-xs ml-1.5">({idlePercent}%)</span>
+                    <span className="font-bold text-[#2D4A49]">{stats.idle}</span>
+                    <span className="text-[#6B8F8E] text-xs ml-1.5">({stats.idlePercent}%)</span>
                   </div>
                 </div>
               </div>
@@ -1256,7 +1508,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <span>อัปเดตข้อมูลล่าสุดจากการตรวจนับตามรอบ</span>
               <button
                 type="button"
-                onClick={() => onNavigate('barDailyCount')}
+                onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryDailyCount' : 'barDailyCount')}
                 className="font-semibold text-[#5A8A88] hover:underline cursor-pointer"
               >
                 บันทึกการนับสต็อกวันนี้ &rsaquo;
@@ -1274,13 +1526,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span>รายการที่ต้องดำเนินการ</span>
                 </h2>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-red-50 text-[#EF4444] font-bold">
-                  {alertItems.length} รายการ
+                  {displayedAlertItems.length} รายการ
                 </span>
               </div>
 
               {/* Critical Items List (5–8 items) */}
               <div className="divide-y divide-slate-100">
-                {alertItems.map((item) => (
+                {displayedAlertItems.map((item) => (
                   <div
                     key={item.id}
                     onClick={() => onNavigate(item.department === 'Bar' ? 'barStock' : 'bakeryStock')}
@@ -1310,7 +1562,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
               <button
                 type="button"
-                onClick={() => onNavigate('barStock')}
+                onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
                 className="text-[#5A8A88] hover:text-[#2D4A49] text-[13px] font-bold flex items-center gap-1 transition-colors cursor-pointer min-h-[44px]"
               >
                 <span>ดูทั้งหมด</span>
