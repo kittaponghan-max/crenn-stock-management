@@ -30,6 +30,8 @@ import { DEFAULT_LINE_NOTIFY_SETTINGS, sendLineNotification } from './lib/lineNo
 import { DEFAULT_DISCORD_NOTIFY_SETTINGS, sendDiscordNotification } from './lib/discordNotify';
 
 import { Logo } from './components/Logo';
+import { HomeScreen } from './components/HomeScreen';
+import { BottomNav } from './components/BottomNav';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -2056,6 +2058,7 @@ export default function App() {
       </div>
 
       {/* Header */}
+      {activeTab !== 'home' && (
       <header className="bg-slate-800 text-white shadow-lg sticky top-0 z-[60] border-b border-slate-700">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-18 flex items-center justify-between py-3">
           <div className="flex items-center gap-3">
@@ -2132,9 +2135,10 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+      <main className={activeTab === 'home' ? "w-full pb-10" : "max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24"}>
         {activeTab !== 'home' && (
           <div className="mb-6">
             <button 
@@ -2148,364 +2152,18 @@ export default function App() {
         )}
 
         {activeTab === 'home' ? (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            
-            {/* Dashboard Summary Card */}
-            {(hasPermission('dashboardBar') || hasPermission('dashboardBakery')) && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <LayoutDashboard className="text-blue-600" size={24} />
-                    ภาพรวมสต็อก (Dashboard)
-                  </h2>
-                  <p className="text-slate-500 text-sm mt-1">สรุปสถานะสินค้าคงคลังปัจจุบัน</p>
-                </div>
-                <button 
-                  onClick={() => setActiveTab('dashboard')}
-                  className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
-                >
-                  ดูรายละเอียดทั้งหมด
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="bg-red-100 p-3 rounded-full text-red-600">
-                    <PackageCheck size={24} />
-                  </div>
-                  <div>
-                    <p className="text-red-600 text-sm font-bold mb-1">สินค้าหมดสต็อก</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-red-700">{stockSummary.outOfStock}</span>
-                      <span className="text-red-500 text-sm font-medium">รายการ</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-4">
-                  <div className="bg-orange-100 p-3 rounded-full text-orange-600">
-                    <ClipboardCheck size={24} />
-                  </div>
-                  <div>
-                    <p className="text-orange-600 text-sm font-bold mb-1">สินค้าใกล้หมด (ต่ำกว่าขั้นต่ำ)</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-orange-700">{stockSummary.lowStock}</span>
-                      <span className="text-orange-500 text-sm font-medium">รายการ</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Record Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-2">
-                  <TableProperties className="text-indigo-500" size={20} />
-                  บันทึกข้อมูล (Data Entry)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {hasPermission('stockTableBar') && (
-                    <button 
-                      onClick={() => setActiveTab('barStock')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <TableProperties size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">สรุปจำนวน Stock บาร์</h4>
-                      <p className="text-blue-100 text-xs text-center">บันทึกและจัดการสต็อกสำหรับบาร์</p>
-                    </button>
-                  )}
-
-                  {hasPermission('stockTableBakery') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryStock')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <TableProperties size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">สรุปจำนวน Stock ครัว</h4>
-                      <p className="text-rose-100 text-xs text-center">บันทึกและจัดการสต็อกสำหรับครัว</p>
-                    </button>
-                  )}
-
-                  {hasPermission('bakeryPlan') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryPlan')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <Calendar size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">แผนงาน Bakery</h4>
-                      <p className="text-amber-100 text-xs text-center">บันทึกและจัดการแผนงาน Bakery</p>
-                    </button>
-                  )}
-
-                  {hasPermission('rndReport') && (
-                    <button 
-                      onClick={() => setActiveTab('rndReport')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <ChefHat size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">R&D Report</h4>
-                      <p className="text-purple-100 text-xs text-center">บันทึกข้อมูลและเทสเมนูใหม่ (New Menu)</p>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Reports Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-2">
-                  <FileUp className="text-emerald-500" size={20} />
-                  รายงาน (Reports)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {hasPermission('barReceiving') && (
-                    <button 
-                      onClick={() => setActiveTab('barReceiving')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <PackageCheck size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">รายงานตรวจรับวัตถุดิบ</h4>
-                      <p className="text-emerald-100 text-xs text-center">สำหรับบาร์ ประจำวัน</p>
-                    </button>
-                  )}
-
-                  {hasPermission('bakeryReceiving') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryReceiving')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <PackageCheck size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">รายงานตรวจรับวัตถุดิบ</h4>
-                      <p className="text-blue-100 text-xs text-center">สำหรับครัว ประจำวัน</p>
-                    </button>
-                  )}
-
-                  {hasPermission('dailyStockCountBar') && (
-                    <button 
-                      onClick={() => setActiveTab('barDailyCount')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <ClipboardCheck size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">รายงานตรวจนับสต็อก</h4>
-                      <p className="text-pink-100 text-xs text-center">สำหรับบาร์ ประจำวัน</p>
-                    </button>
-                  )}
-
-                  {hasPermission('dailyStockCountBakery') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryDailyCount')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <ClipboardCheck size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">รายงานตรวจนับสต็อก</h4>
-                      <p className="text-violet-100 text-xs text-center">สำหรับครัว ประจำวัน</p>
-                    </button>
-                  )}
-
-                  {hasPermission('checklistsBar') && (
-                    <button 
-                      onClick={() => setActiveTab('barChecklist')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <ClipboardList size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">Check-in & Check-out</h4>
-                      <p className="text-orange-100 text-xs text-center">บันทึกรายการตรวจสอบบาร์</p>
-                    </button>
-                  )}
-
-                  {hasPermission('checklistsBakery') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryChecklist')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-cyan-500 to-sky-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <ChefHat size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">Check-in & Check-out</h4>
-                      <p className="text-cyan-100 text-xs text-center">บันทึกรายการตรวจสอบครัว</p>
-                    </button>
-                  )}
-
-                  {hasPermission('dailyStockCountBar') && (
-                    <button 
-                      onClick={() => setActiveTab('barWasteLog')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <Trash2 size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">รายงานบันทึกของเสีย</h4>
-                      <p className="text-red-100 text-xs text-center">สำหรับบาร์ (Waste)</p>
-                    </button>
-                  )}
-
-                  {hasPermission('dailyStockCountBakery') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryWasteLog')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-stone-500 to-neutral-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <Trash2 size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">รายงานบันทึกของเสีย</h4>
-                      <p className="text-stone-100 text-xs text-center">สำหรับครัว (Waste)</p>
-                    </button>
-                  )}
-
-                  {hasPermission('purchasingReport') && (
-                    <button 
-                      onClick={() => setActiveTab('barPurchasing')}
-                      className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all text-white group sm:col-span-2"
-                    >
-                      <div className="bg-white/20 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                        <ShoppingCart size={32} />
-                      </div>
-                      <h4 className="text-lg font-bold mb-1 text-center">สรุปยอดสั่งซื้อ (Purchasing)</h4>
-                      <p className="text-indigo-100 text-xs text-center">สรุปจากการตรวจนับสต็อก</p>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Audit Log Section */}
-              <div className="space-y-4 lg:col-span-2">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-2">
-                  <History className="text-blue-500" size={20} />
-                  ประวัติย้อนหลัง
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {hasPermission('historyLogs') && (
-                    <button 
-                      onClick={() => setActiveTab('logs')}
-                      className="flex items-center gap-6 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
-                    >
-                      <div className="bg-blue-50 p-4 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform">
-                        <History size={32} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-bold text-slate-800 mb-1">ประวัติการแก้ไขข้อมูล</h4>
-                        <p className="text-slate-500 text-sm">ตรวจสอบประวัติการแก้ไข 120 รายการล่าสุด</p>
-                      </div>
-                      <div className="ml-auto p-2 bg-slate-50 rounded-full text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 transition-all">
-                        <ChevronRight size={20} />
-                      </div>
-                    </button>
-                  )}
-
-                  {hasPermission('historyChecklist') && (
-                    <button 
-                      onClick={() => setActiveTab('checklistHistory')}
-                      className="flex items-center gap-6 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
-                    >
-                      <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600 group-hover:scale-110 transition-transform">
-                        <ClipboardList size={32} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-bold text-slate-800 mb-1">ประวัติ Check-in & Check-out</h4>
-                        <p className="text-slate-500 text-sm">ตรวจสอบรายงานการตรวจสอบบาร์ย้อนหลัง</p>
-                      </div>
-                      <div className="ml-auto p-2 bg-slate-50 rounded-full text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all">
-                        <ChevronRight size={20} />
-                      </div>
-                    </button>
-                  )}
-
-                  {hasPermission('historyLogs') && (
-                    <button 
-                      onClick={() => setActiveTab('stockSubmitHistory')}
-                      className="flex items-center gap-6 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
-                    >
-                      <div className="bg-sky-50 p-4 rounded-2xl text-sky-600 group-hover:scale-110 transition-transform">
-                        <ClipboardList size={32} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-bold text-slate-800 mb-1">ประวัติรายงานนับสต็อก</h4>
-                        <p className="text-slate-500 text-sm">ตรวจสอบประวัติการส่งรายงานนับสต็อก</p>
-                      </div>
-                      <div className="ml-auto p-2 bg-slate-50 rounded-full text-slate-400 group-hover:text-sky-600 group-hover:bg-sky-50 transition-all">
-                        <ChevronRight size={20} />
-                      </div>
-                    </button>
-                  )}
-
-                  {hasPermission('historyWaste') && (
-                    <button 
-                      onClick={() => setActiveTab('barWaste')}
-                      className="flex items-center gap-6 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
-                    >
-                      <div className="bg-red-50 p-4 rounded-2xl text-red-600 group-hover:scale-110 transition-transform">
-                        <Trash2 size={32} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-bold text-slate-800 mb-1">รายงาน Waste เมล็ดกาแฟ</h4>
-                        <p className="text-slate-500 text-sm">สรุปปริมาณการใช้เมล็ดกาแฟรายวัน (Waste)</p>
-                      </div>
-                      <div className="ml-auto p-2 bg-slate-50 rounded-full text-slate-400 group-hover:text-red-600 group-hover:bg-red-50 transition-all">
-                        <ChevronRight size={20} />
-                      </div>
-                    </button>
-                  )}
-
-                  {hasPermission('historyReceiving') && (
-                    <button 
-                      onClick={() => setActiveTab('receivingHistory')}
-                      className="flex items-center gap-6 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
-                    >
-                      <div className="bg-emerald-50 p-4 rounded-2xl text-emerald-600 group-hover:scale-110 transition-transform">
-                        <Package size={32} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-bold text-slate-800 mb-1">ประวัติการรับวัตถุดิบ</h4>
-                        <p className="text-slate-500 text-sm">ตรวจสอบรายการรับวัตถุดิบย้อนหลัง</p>
-                      </div>
-                      <div className="ml-auto p-2 bg-slate-50 rounded-full text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-all">
-                        <ChevronRight size={20} />
-                      </div>
-                    </button>
-                  )}
-
-                  {hasPermission('bakeryPlan') && (
-                    <button 
-                      onClick={() => setActiveTab('bakeryPlanHistory')}
-                      className="flex items-center gap-6 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-amber-200 transition-all group"
-                    >
-                      <div className="bg-amber-50 p-4 rounded-2xl text-amber-600 group-hover:scale-110 transition-transform">
-                        <Calendar size={32} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-bold text-slate-800 mb-1">ประวัติแผนงาน Bakery</h4>
-                        <p className="text-slate-500 text-sm">ตรวจสอบแผนงานย้อนหลัง 24 สัปดาห์</p>
-                      </div>
-                      <div className="ml-auto p-2 bg-slate-50 rounded-full text-slate-400 group-hover:text-amber-600 group-hover:bg-amber-50 transition-all">
-                        <ChevronRight size={20} />
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <HomeScreen
+            user={user}
+            ingredients={ingredients}
+            stockRecord={stockRecord}
+            onNavigate={(tab) => setActiveTab(tab)}
+            onLogout={() => setUser(null)}
+            dbStatus={dbStatus === 'offline' ? 'offline' : dbStatus === 'connected' ? 'connected' : 'checking'}
+            onChangeBranch={(newBranch) => {
+              setUser(prev => prev ? { ...prev, branch: newBranch } : null);
+            }}
+            hasPermission={hasPermission}
+          />
         ) : activeTab === 'dashboard' ? (
           <Dashboard 
             ingredients={ingredients} 
@@ -3049,6 +2707,14 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Bottom Navigation */}
+      <BottomNav
+        activeTab={activeTab}
+        onNavigate={(tab) => setActiveTab(tab)}
+        onLogout={() => setUser(null)}
+        user={user}
+      />
 
     </div>
   );
