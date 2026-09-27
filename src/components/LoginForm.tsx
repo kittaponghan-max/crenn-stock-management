@@ -51,6 +51,35 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+
+  // Check Supabase connection
+  useEffect(() => {
+    let isMounted = true;
+    const checkConnection = async () => {
+      if (!supabase) {
+        if (isMounted) setSupabaseStatus('disconnected');
+        return;
+      }
+      try {
+        const { error } = await supabase.from('app_users').select('id').limit(1);
+        if (isMounted) {
+          if (!error || error.code === 'PGRST116' || error.code === '42P01') {
+            setSupabaseStatus('connected');
+          } else {
+            // Still reachable if response came back
+            setSupabaseStatus(error.message?.includes('Failed to fetch') ? 'disconnected' : 'connected');
+          }
+        }
+      } catch (err) {
+        if (isMounted) setSupabaseStatus('disconnected');
+      }
+    };
+    checkConnection();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Modals / Bottom sheets
   const [isBranchSheetOpen, setIsBranchSheetOpen] = useState<boolean>(false);
@@ -463,7 +492,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         </form>
 
         {/* FOOTER */}
-        <div className="flex flex-col items-center gap-2.5 pb-2 pt-3 z-10">
+        <div className="flex flex-col items-center gap-2 pb-1 pt-2 z-10">
           <span className="text-white text-[13px] font-medium drop-shadow-sm">
             Not a member?
           </span>
@@ -474,6 +503,26 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           >
             Create account
           </button>
+
+          {/* SUPABASE CONNECTION STATUS (Bottom-most line) */}
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
+                supabaseStatus === 'connected'
+                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                  : supabaseStatus === 'checking'
+                  ? 'bg-amber-300 animate-pulse'
+                  : 'bg-rose-400'
+              }`}
+            />
+            <span className="text-[11px] font-semibold tracking-wider text-white/90 drop-shadow-xs uppercase">
+              {supabaseStatus === 'connected'
+                ? 'SUPABASE CONNECTED'
+                : supabaseStatus === 'checking'
+                ? 'CONNECTING TO SUPABASE...'
+                : 'SUPABASE DISCONNECTED'}
+            </span>
+          </div>
         </div>
       </div>
 
