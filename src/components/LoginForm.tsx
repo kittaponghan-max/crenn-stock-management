@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Check, X, ShieldAlert, UserPlus } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AppUser as TypesAppUser, AppPermissions, Branch } from '../types';
 
-export type UserRole =
-  | 'Admin'
-  | 'Owner'
-  | 'Co-founder'
-  | 'Branch Manager'
-  | 'Head Baker'
-  | 'Senior Baker'
-  | 'Junior Baker'
-  | 'Barista'
-  | 'Barista Assistance'
-  | 'Cashier'
-  | 'Server/Runner'
+export type UserRole = 
+  | 'Admin' 
+  | 'Owner' 
+  | 'Co-founder' 
+  | 'Branch Manager' 
+  | 'Head Baker' 
+  | 'Senior Baker' 
+  | 'Junior Baker' 
+  | 'Barista' 
+  | 'Barista Assistance' 
+  | 'Cashier' 
+  | 'Server/Runner' 
   | 'Dishwasher/Cleaner';
 
 interface AppUser extends TypesAppUser {
@@ -25,171 +25,158 @@ interface LoginFormProps {
   onLogin: (user: { name: string; role: UserRole; permissions?: AppPermissions; branch: Branch }) => void;
 }
 
-const BRANCH_OPTIONS: { id: Branch; label: string; subLabel: string }[] = [
-  { id: 'Rayong', label: '📍 สาขาระยอง', subLabel: 'Rayong Branch' },
-  { id: 'Bangkok', label: '📍 สาขากรุงเทพฯ', subLabel: 'Bangkok Branch' },
-];
-
 export function LoginForm({ onLogin }: LoginFormProps) {
-  // Stored branch session/state
-  const [selectedBranch, setSelectedBranch] = useState<Branch | ''>(() => {
-    const saved = sessionStorage.getItem('crenn_selected_branch') || localStorage.getItem('crenn_selected_branch');
-    if (saved === 'Rayong' || saved === 'Bangkok') return saved;
-    return '';
-  });
-
-  const [username, setUsername] = useState<string>(() => {
-    return localStorage.getItem('crenn_remembered_username') || '';
-  });
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | ''>('');
+  const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [rememberMe, setRememberMe] = useState<boolean>(() => {
-    return localStorage.getItem('crenn_remember_me') === 'true';
-  });
-
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(false);
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [infoModal, setInfoModal] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [showUserDropdown, setShowUserDropdown] = useState<boolean>(false);
 
-  // Check Supabase connection
+  // Supabase read-only connection status
+  const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+
+  // Supabase status listener (READ-ONLY)
   useEffect(() => {
     let isMounted = true;
-    const checkConnection = async () => {
-      if (!supabase) {
-        if (isMounted) setSupabaseStatus('disconnected');
-        return;
-      }
-      try {
-        const { error } = await supabase.from('app_users').select('id').limit(1);
-        if (isMounted) {
-          if (!error || error.code === 'PGRST116' || error.code === '42P01') {
-            setSupabaseStatus('connected');
-          } else {
-            // Still reachable if response came back
-            setSupabaseStatus(error.message?.includes('Failed to fetch') ? 'disconnected' : 'connected');
-          }
+
+    if (!supabase) {
+      setSupabaseStatus('disconnected');
+      return;
+    }
+
+    setSupabaseStatus('connecting');
+
+    // READ connection status via supabase.auth.getSession()
+    supabase.auth.getSession()
+      .then(({ error: sessionError }) => {
+        if (!isMounted) return;
+        if (sessionError) {
+          console.warn('Supabase getSession status check:', sessionError);
+          setSupabaseStatus('disconnected');
+        } else {
+          setSupabaseStatus('connected');
         }
-      } catch (err) {
-        if (isMounted) setSupabaseStatus('disconnected');
-      }
-    };
-    checkConnection();
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('Supabase status check failed:', err);
+        setSupabaseStatus('disconnected');
+      });
+
+    // Also observe connection state changes via onAuthStateChange
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      if (!isMounted) return;
+      setSupabaseStatus('connected');
+    });
+
     return () => {
       isMounted = false;
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
 
-  // Modals / Bottom sheets
-  const [isBranchSheetOpen, setIsBranchSheetOpen] = useState<boolean>(false);
-  const [showUserSuggestions, setShowUserSuggestions] = useState<boolean>(false);
-  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState<boolean>(false);
-  const [isCreateAccountOpen, setIsCreateAccountOpen] = useState<boolean>(false);
-
-  // Create account form state
-  const [newName, setNewName] = useState<string>('');
-  const [newRole, setNewRole] = useState<UserRole>('Barista');
-  const [newPassword, setNewPassword] = useState<string>('');
-  const [createAccountMsg, setCreateAccountMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
-
-  // Fetch users whenever selected branch changes
+  // Fetch users when a branch is selected
   useEffect(() => {
     if (!selectedBranch) {
       setUsers([]);
       return;
     }
 
-    // Persist branch selection in session & local storage
-    sessionStorage.setItem('crenn_selected_branch', selectedBranch);
-    localStorage.setItem('crenn_selected_branch', selectedBranch);
+    let isMounted = true;
 
     const fetchUsers = async () => {
-      setIsLoadingUsers(true);
       if (supabase) {
         try {
-          const { data, error: supaErr } = await supabase
+          const { data, error: queryError } = await supabase
             .from('app_users')
             .select('*')
             .eq('branch', selectedBranch);
 
-          if (supaErr) {
-            console.warn('Supabase fetch user error:', supaErr);
-            loadFallbackUsers(selectedBranch);
+          if (!isMounted) return;
+
+          if (queryError) {
+            console.warn('Supabase fetch users error:', queryError);
+            loadFallbackUsers();
           } else if (data && data.length > 0) {
             setUsers(data as AppUser[]);
           } else {
-            // Seed defaults for branch
+            // Seed default users for this branch if empty
             const defaultUsers = [
               { name: 'Admin', role: 'Admin', password: 'Administrator', branch: selectedBranch },
               { name: 'Branch Manager', role: 'Branch Manager', password: '1234', branch: selectedBranch },
-              { name: 'Barista', role: 'Barista', password: '1234', branch: selectedBranch },
+              { name: 'Barista', role: 'Barista', password: '1234', branch: selectedBranch }
             ];
-            const { data: insertedUsers } = await supabase.from('app_users').insert(defaultUsers).select();
+            const { data: insertedUsers } = await supabase
+              .from('app_users')
+              .insert(defaultUsers)
+              .select();
+
+            if (!isMounted) return;
+
             if (insertedUsers && insertedUsers.length > 0) {
               setUsers(insertedUsers as AppUser[]);
             } else {
-              loadFallbackUsers(selectedBranch);
+              loadFallbackUsers();
             }
           }
-        } catch (e) {
-          console.warn('Error querying users:', e);
-          loadFallbackUsers(selectedBranch);
+        } catch (err) {
+          console.warn('Error querying users:', err);
+          if (isMounted) loadFallbackUsers();
         }
       } else {
-        loadFallbackUsers(selectedBranch);
+        loadFallbackUsers();
       }
-      setIsLoadingUsers(false);
     };
 
-    const loadFallbackUsers = (branch: Branch) => {
-      const saved = localStorage.getItem(`cafe-app-users-${branch}`);
+    const loadFallbackUsers = () => {
+      const saved = localStorage.getItem(`cafe-app-users-${selectedBranch}`);
       if (saved) {
         try {
-          setUsers(JSON.parse(saved));
-          return;
-        } catch (e) {
-          console.warn('Parse fallback users error', e);
+          const parsed = JSON.parse(saved);
+          setUsers(parsed);
+        } catch {
+          setUsers([]);
         }
+      } else {
+        const defaultUsers: AppUser[] = [
+          {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+            name: 'Admin',
+            role: 'Admin',
+            password: 'Administrator',
+            branch: selectedBranch
+          },
+          {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+            name: 'Branch Manager',
+            role: 'Branch Manager',
+            password: '1234',
+            branch: selectedBranch
+          },
+          {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+            name: 'Barista',
+            role: 'Barista',
+            password: '1234',
+            branch: selectedBranch
+          }
+        ];
+        setUsers(defaultUsers);
+        localStorage.setItem(`cafe-app-users-${selectedBranch}`, JSON.stringify(defaultUsers));
       }
-      const defaultUsers: AppUser[] = [
-        {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'user-admin',
-          name: 'Admin',
-          role: 'Admin',
-          password: 'Administrator',
-          branch,
-        },
-        {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'user-mgr',
-          name: 'Branch Manager',
-          role: 'Branch Manager',
-          password: '1234',
-          branch,
-        },
-        {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'user-barista',
-          name: 'Barista',
-          role: 'Barista',
-          password: '1234',
-          branch,
-        },
-      ];
-      setUsers(defaultUsers);
-      localStorage.setItem(`cafe-app-users-${branch}`, JSON.stringify(defaultUsers));
     };
 
     fetchUsers();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedBranch]);
-
-  // Validation: Login button activates only after all 3 fields are filled
-  const isFormValid = Boolean(selectedBranch !== '' && username.trim() !== '' && password.trim() !== '');
-
-  const handleSelectBranch = (branch: Branch) => {
-    setSelectedBranch(branch);
-    setIsBranchSheetOpen(false);
-    setError('');
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,7 +188,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     }
 
     if (!username.trim()) {
-      setError('กรุณากรอก Username (Please enter username)');
+      setError('กรุณากรอกหรือเลือกชื่อผู้ใช้ (Please enter username)');
       return;
     }
 
@@ -212,36 +199,31 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
     setIsSubmitting(true);
 
-    // Save or clear remembered username
-    if (rememberMe) {
-      localStorage.setItem('crenn_remember_me', 'true');
-      localStorage.setItem('crenn_remembered_username', username.trim());
-    } else {
-      localStorage.removeItem('crenn_remember_me');
-      localStorage.removeItem('crenn_remembered_username');
-    }
-
-    // Match user by name (case-insensitive) or match directly
-    const trimmedInput = username.trim().toLowerCase();
+    const query = username.trim().toLowerCase();
     const matchedUser = users.find(
       (u) =>
-        u.name.trim().toLowerCase() === trimmedInput ||
-        u.id.toLowerCase() === trimmedInput ||
-        `${u.name.toLowerCase()} (${u.role.toLowerCase()})` === trimmedInput
+        u.name.toLowerCase() === query ||
+        u.role.toLowerCase() === query ||
+        `${u.name} (${u.role})`.toLowerCase() === query ||
+        u.id === username.trim()
     );
 
     if (!matchedUser) {
-      setError('ไม่พบชื่อผู้ใช้นี้ในระบบสาขาที่เลือก (Username not found in selected branch)');
+      setError('ไม่พบบัญชีผู้ใช้ในสาขานี้ (User not found in this branch)');
       setIsSubmitting(false);
       return;
     }
 
     if (matchedUser.password === password) {
+      if (rememberMe) {
+        localStorage.setItem('crenn-last-branch', selectedBranch);
+        localStorage.setItem('crenn-last-username', matchedUser.name);
+      }
       onLogin({
         name: matchedUser.name,
         role: matchedUser.role,
         permissions: matchedUser.permissions,
-        branch: selectedBranch,
+        branch: selectedBranch
       });
     } else {
       setError('รหัสผ่านไม่ถูกต้อง (Invalid password)');
@@ -249,180 +231,146 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     }
   };
 
-  // Quick account creation handler
-  const handleCreateAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateAccountMsg(null);
-
-    const targetBranch = selectedBranch || 'Rayong';
-    if (!newName.trim() || !newPassword.trim()) {
-      setCreateAccountMsg({ type: 'error', text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง' });
-      return;
-    }
-
-    const newUserObj: AppUser = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10),
-      name: newName.trim(),
-      role: newRole,
-      password: newPassword.trim(),
-      branch: targetBranch,
-    };
-
-    if (supabase) {
-      const { data, error: insertErr } = await supabase.from('app_users').insert([newUserObj]).select();
-      if (insertErr) {
-        console.warn('Create user error in Supabase, using localStorage:', insertErr);
-      } else if (data && data.length > 0) {
-        newUserObj.id = data[0].id;
-      }
-    }
-
-    // Update state and local storage
-    const updated = [...users, newUserObj];
-    setUsers(updated);
-    localStorage.setItem(`cafe-app-users-${targetBranch}`, JSON.stringify(updated));
-
-    if (!selectedBranch) {
-      setSelectedBranch(targetBranch);
-    }
-    setUsername(newUserObj.name);
-    setPassword(newPassword.trim());
-    setCreateAccountMsg({ type: 'success', text: `สร้างบัญชี "${newUserObj.name}" สำเร็จ!` });
-
-    setTimeout(() => {
-      setIsCreateAccountOpen(false);
-      setCreateAccountMsg(null);
-      setNewName('');
-      setNewPassword('');
-    }, 1200);
-  };
-
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-0 sm:p-4 bg-gradient-to-b from-[#C5D5D3] to-[#7A9E9C] font-sans antialiased selection:bg-white/30 selection:text-[#2D4A49]">
-      {/* Mobile container (375x812 proportion or responsive full view) */}
-      <div className="w-full max-w-[390px] min-h-screen sm:min-h-[790px] sm:max-h-[850px] sm:rounded-[40px] bg-gradient-to-b from-[#C5D5D3] to-[#7A9E9C] sm:shadow-2xl sm:shadow-[#436765]/35 sm:border sm:border-white/30 flex flex-col justify-between p-6 sm:p-7 relative overflow-hidden">
+    <div
+      className="h-[100dvh] w-full flex flex-col justify-between items-center relative overflow-hidden font-sans select-none"
+      style={{
+        background: 'linear-gradient(180deg, #C5D5D3 0%, #7A9E9C 100%)'
+      }}
+    >
+      {/* Centered Mobile Container (Fitted within 1 viewport, 375x812 ratio or smaller screens) */}
+      <div className="w-full max-w-[375px] h-full flex flex-col justify-between items-center px-6 pt-5 pb-14 mx-auto z-10">
         
-        {/* Subtle decorative background glow */}
-        <div className="absolute -top-24 -right-24 w-60 h-60 bg-white/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* HEADER SECTION (top to bottom order) */}
-        <div className="flex flex-col items-center pt-2 sm:pt-4 z-10">
-          {/* 1. Brand Name — "CRENN" */}
-          <h1 className="text-black text-[38px] sm:text-[42px] font-black tracking-widest text-center select-none leading-none">
+        {/* HEADER SECTION (top to bottom) */}
+        <div className="w-full flex flex-col items-center shrink-0">
+          {/* 1. Brand Name — CRENN */}
+          <h1
+            className="text-black text-center font-black uppercase leading-none tracking-[0.25em]"
+            style={{
+              fontSize: 'clamp(28px, 6vh, 38px)',
+              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            }}
+          >
             CRENN
           </h1>
 
           {/* 2. White Circle Avatar */}
-          <div className="w-[84px] h-[84px] rounded-full bg-white flex items-center justify-center shadow-lg shadow-[#5A8A88]/20 my-4 sm:my-5 transition-transform hover:scale-105 duration-300">
-            <User className="w-11 h-11 text-[#7A9E9C]" strokeWidth={1.8} />
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.06)] my-2 sm:my-3">
+            <User size={30} className="text-[#7A9E9C] sm:w-8 sm:h-8" strokeWidth={2.2} />
           </div>
 
-          {/* 3. Section Label — "MEMBER LOGIN" */}
-          <h2 className="text-black text-[15px] font-bold tracking-[0.18em] uppercase text-center">
+          {/* 3. Section Label — MEMBER LOGIN */}
+          <h2
+            className="text-black font-bold uppercase text-center tracking-[0.15em] text-[13px] sm:text-[14px]"
+            style={{
+              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            }}
+          >
             MEMBER LOGIN
           </h2>
         </div>
 
-        {/* FORM SECTION */}
-        <form onSubmit={handleSubmit} className="w-full space-y-3.5 my-auto py-2 z-10">
-          {/* Field 1: Branch Dropdown Selector */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsBranchSheetOpen(true)}
-              className="w-full h-[52px] px-5 rounded-full bg-white/85 backdrop-blur-md flex items-center justify-between shadow-sm border border-white/40 hover:bg-white/95 focus:outline-none focus:ring-2 focus:ring-white/60 transition-all text-left group"
+        {/* FORM FIELDS (semi-transparent white, rounded pill inputs) */}
+        <form onSubmit={handleSubmit} className="w-full space-y-2.5 sm:space-y-3 my-auto py-1">
+          
+          {/* Field 1: Branch Dropdown */}
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <MapPin size={17} className="text-[#7A9E9C] shrink-0" />
+            </div>
+            <select
+              value={selectedBranch}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value as Branch);
+                setUsername('');
+                setError('');
+                setShowUserDropdown(false);
+              }}
+              className="w-full pl-10 pr-10 py-2.5 sm:py-3 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 border border-white/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#7A9E9C]/30 focus:border-white text-[13px] font-medium transition-all appearance-none cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
             >
-              <div className="flex items-center gap-3 overflow-hidden">
-                <MapPin className="w-5 h-5 text-[#7A9E9C] shrink-0" strokeWidth={2} />
-                {selectedBranch ? (
-                  <span className="text-[#5A8A88] font-bold text-[14px] truncate">
-                    {selectedBranch === 'Rayong' ? '📍 สาขาระยอง (Rayong Branch)' : '📍 สาขากรุงเทพฯ (Bangkok Branch)'}
-                  </span>
-                ) : (
-                  <span className="text-gray-400 font-normal text-[14px] truncate">
-                    Select Branch / เลือกสาขา
-                  </span>
-                )}
-              </div>
-              <ChevronDown className="w-5 h-5 text-[#7A9E9C] shrink-0 group-hover:translate-y-0.5 transition-transform" />
-            </button>
+              <option value="" disabled className="text-slate-400">
+                Select Branch / เลือกสาขา
+              </option>
+              <option value="Rayong" className="text-slate-800">
+                📍 สาขาระยอง (Rayong Branch)
+              </option>
+              <option value="Bangkok" className="text-slate-800">
+                📍 สาขากรุงเทพฯ (Bangkok Branch)
+              </option>
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#7A9E9C]">
+              <ChevronDown size={17} />
+            </div>
           </div>
 
-          {/* Field 2: Username input */}
-          <div className="relative">
-            <div className="w-full h-[52px] px-5 rounded-full bg-white/85 backdrop-blur-md flex items-center gap-3 shadow-sm border border-white/40 focus-within:bg-white focus-within:ring-2 focus-within:ring-white/60 transition-all">
-              <User className="w-5 h-5 text-[#7A9E9C] shrink-0" strokeWidth={2} />
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setError('');
-                }}
-                onFocus={() => {
-                  if (users.length > 0) setShowUserSuggestions(true);
-                }}
-                placeholder="Username"
-                className="w-full bg-transparent outline-none text-[#2D4A49] font-medium text-[14px] placeholder:text-gray-400"
-                autoCapitalize="none"
-                autoComplete="username"
-              />
-              {users.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowUserSuggestions(!showUserSuggestions)}
-                  className="p-1 text-[#7A9E9C] hover:text-[#5A8A88] transition-colors focus:outline-none"
-                  title="รายชื่อผู้ใช้ในสาขา"
-                >
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showUserSuggestions ? 'rotate-180' : ''}`} />
-                </button>
-              )}
+          {/* Field 2: Username */}
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <User size={17} className="text-[#7A9E9C] shrink-0" />
             </div>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setError('');
+              }}
+              onFocus={() => {
+                if (users.length > 0) setShowUserDropdown(true);
+              }}
+              placeholder="Username"
+              list="users-suggestions"
+              autoComplete="off"
+              className="w-full pl-10 pr-10 py-2.5 sm:py-3 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 placeholder-slate-400/90 border border-white/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#7A9E9C]/30 focus:border-white text-[13px] font-medium transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+            />
+            {users.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#7A9E9C] hover:text-[#5A8A88] focus:outline-none transition-colors"
+                title="Select user"
+              >
+                <ChevronDown size={16} className={`transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
+              </button>
+            )}
 
-            {/* Quick user suggestions popover */}
-            {showUserSuggestions && users.length > 0 && (
-              <>
-                <div
-                  className="fixed inset-0 z-20"
-                  onClick={() => setShowUserSuggestions(false)}
-                />
-                <div className="absolute left-0 right-0 top-[58px] z-30 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 p-2 max-h-48 overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between px-3 py-1 text-[11px] font-bold text-[#7A9E9C] uppercase tracking-wider">
-                    <span>สมาชิกในสาขา ({selectedBranch || 'All'})</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowUserSuggestions(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {users.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => {
-                        setUsername(u.name);
-                        setShowUserSuggestions(false);
-                        setError('');
-                      }}
-                      className="w-full px-3 py-2 text-left rounded-xl hover:bg-[#C5D5D3]/35 transition-colors flex items-center justify-between text-xs text-[#2D4A49]"
-                    >
-                      <span className="font-semibold">{u.name}</span>
-                      <span className="text-[10px] text-[#5A8A88] bg-[#C5D5D3]/40 px-2 py-0.5 rounded-full font-medium">
-                        {u.role}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
+            <datalist id="users-suggestions">
+              {users.map((u) => (
+                <option key={u.id} value={u.name}>
+                  {u.role}
+                </option>
+              ))}
+            </datalist>
+
+            {/* Quick dropdown for user selection */}
+            {showUserDropdown && users.length > 0 && (
+              <div className="absolute z-30 left-0 right-0 top-[calc(100%+4px)] bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/80 max-h-44 overflow-y-auto py-1 divide-y divide-slate-100">
+                {users.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      setUsername(u.name);
+                      setShowUserDropdown(false);
+                      setError('');
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-[#7A9E9C]/10 flex items-center justify-between text-xs text-slate-800 transition-colors"
+                  >
+                    <span className="font-semibold text-slate-800">{u.name}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                      {u.role}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Field 3: Password input */}
-          <div className="w-full h-[52px] px-5 rounded-full bg-white/85 backdrop-blur-md flex items-center gap-3 shadow-sm border border-white/40 focus-within:bg-white focus-within:ring-2 focus-within:ring-white/60 transition-all">
-            <Lock className="w-5 h-5 text-[#7A9E9C] shrink-0" strokeWidth={2} />
+          {/* Field 3: Password */}
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <Lock size={17} className="text-[#7A9E9C] shrink-0" />
+            </div>
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -431,40 +379,41 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                 setError('');
               }}
               placeholder="••••••••••"
-              className="w-full bg-transparent outline-none text-[#2D4A49] font-medium text-[14px] placeholder:text-gray-400 tracking-[0.15em]"
               autoComplete="current-password"
+              className="w-full pl-10 pr-10 py-2.5 sm:py-3 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 placeholder-slate-400 border border-white/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#7A9E9C]/30 focus:border-white text-[13px] font-medium tracking-wider transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="p-1 text-[#7A9E9C] hover:text-[#5A8A88] transition-colors focus:outline-none"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#7A9E9C] hover:text-[#5A8A88] focus:outline-none transition-colors"
+              title={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? (
-                <EyeOff className="w-5 h-5" strokeWidth={2} />
-              ) : (
-                <Eye className="w-5 h-5" strokeWidth={2} />
-              )}
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
 
-          {/* Below fields row: Remember me (Left) & Forgot password (Right) */}
-          <div className="flex items-center justify-between px-2 pt-0.5 text-[12px] text-white">
-            <label className="flex items-center gap-2 cursor-pointer select-none group">
+          {/* Row below fields */}
+          <div className="flex items-center justify-between px-2 pt-0.5 text-[11px] sm:text-[12px]">
+            {/* Left: Remember me checkbox */}
+            <label className="flex items-center gap-1.5 cursor-pointer select-none text-white">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded text-[#5A8A88] focus:ring-0 focus:ring-offset-0 border-white/60 bg-white/30 cursor-pointer accent-[#5A8A88]"
+                className="w-3.5 h-3.5 rounded border border-white/70 text-[#5A8A88] focus:ring-0 focus:ring-offset-0 bg-white/30 cursor-pointer"
               />
-              <span className="font-normal text-white drop-shadow-sm group-hover:text-white/90">
-                Remember me
-              </span>
+              <span>Remember me</span>
             </label>
+
+            {/* Right: Forgot password link */}
             <button
               type="button"
-              onClick={() => setIsForgotPasswordOpen(true)}
-              className="text-white hover:underline drop-shadow-sm font-normal text-[12px] cursor-pointer"
+              onClick={() =>
+                setInfoModal(
+                  'กรุณาติดต่อผู้ดูแลระบบ (Admin) หรือผู้จัดการสาขาเพื่อขอรีเซ็ตรหัสผ่าน\n\nPlease contact Admin or Branch Manager to reset password.'
+                )
+              }
+              className="text-white hover:text-white/80 font-medium underline-offset-2 hover:underline focus:outline-none"
             >
               Forgot password?
             </button>
@@ -472,291 +421,108 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
           {/* Error Message */}
           {error && (
-            <div className="px-4 py-2.5 rounded-full bg-rose-500/20 backdrop-blur-md border border-rose-200/40 text-white text-[12px] text-center font-medium shadow-sm animate-in fade-in duration-200">
+            <div className="text-rose-600 bg-white/95 backdrop-blur-sm border border-rose-200 text-[11px] font-semibold py-1.5 px-3 rounded-full text-center shadow-sm animate-pulse">
               {error}
             </div>
           )}
 
           {/* LOGIN BUTTON */}
-          <button
-            type="submit"
-            disabled={!isFormValid || isSubmitting}
-            className={`w-full h-[52px] rounded-full font-bold text-[16px] tracking-wide transition-all duration-200 flex items-center justify-center ${
-              isFormValid
-                ? 'bg-white text-[#5A8A88] shadow-lg shadow-[#5A8A88]/30 hover:shadow-xl hover:shadow-[#5A8A88]/40 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
-                : 'bg-white/60 text-[#5A8A88]/40 cursor-not-allowed shadow-none'
-            }`}
-          >
-            {isSubmitting ? 'Logging in...' : 'Login'}
-          </button>
+          <div className="pt-1.5 sm:pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2.5 sm:py-3 px-6 rounded-full bg-white text-[#5A8A88] font-bold text-[14px] sm:text-[15px] shadow-[0_4px_16px_rgba(90,138,136,0.35)] hover:shadow-[0_6px_20px_rgba(90,138,136,0.5)] hover:bg-white/95 active:scale-[0.99] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+            >
+              {isSubmitting ? 'Logging in...' : 'Login'}
+            </button>
+          </div>
         </form>
 
         {/* FOOTER */}
-        <div className="flex flex-col items-center gap-2 pb-1 pt-2 z-10">
-          <span className="text-white text-[13px] font-medium drop-shadow-sm">
+        <div className="w-full flex flex-col items-center gap-1.5 shrink-0 my-1">
+          <span className="text-white text-[12px] font-normal tracking-wide">
             Not a member?
           </span>
           <button
             type="button"
-            onClick={() => setIsCreateAccountOpen(true)}
-            className="w-full h-[48px] rounded-full border border-white text-white font-medium text-[14px] hover:bg-white/10 active:bg-white/20 transition-all flex items-center justify-center cursor-pointer select-none"
+            onClick={() =>
+              setInfoModal(
+                'กรุณาติดต่อฝ่ายบุคคลหรือผู้จัดการเพื่อขอรับสิทธิ์เข้าใช้งานระบบ\n\nPlease contact HR or Branch Manager to request an account.'
+              )
+            }
+            className="border border-white text-white bg-transparent rounded-full px-6 py-1.5 text-[12px] font-semibold hover:bg-white/10 active:bg-white/20 transition-all focus:outline-none tracking-wide"
           >
             Create account
           </button>
-
-          {/* SUPABASE CONNECTION STATUS (Bottom-most line) */}
-          <div className="pt-2 flex items-center justify-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
-                supabaseStatus === 'connected'
-                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
-                  : supabaseStatus === 'checking'
-                  ? 'bg-amber-300 animate-pulse'
-                  : 'bg-rose-400'
-              }`}
-            />
-            <span className="text-[11px] font-semibold tracking-wider text-white/90 drop-shadow-xs uppercase">
-              {supabaseStatus === 'connected'
-                ? 'SUPABASE CONNECTED'
-                : supabaseStatus === 'checking'
-                ? 'CONNECTING TO SUPABASE...'
-                : 'SUPABASE DISCONNECTED'}
-            </span>
-          </div>
         </div>
+
       </div>
 
-      {/* BRANCH DROPDOWN BOTTOM SHEET / MODAL */}
-      {isBranchSheetOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsBranchSheetOpen(false)}
-          />
-          <div className="relative w-full max-w-[390px] bg-white rounded-t-[32px] sm:rounded-[32px] p-6 shadow-2xl z-10 animate-in slide-in-from-bottom duration-250">
-            {/* Handle bar on mobile */}
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 sm:hidden" />
+      {/* SUPABASE STATUS BAR (bottom-most, fixed) */}
+      <aside
+        aria-label="Database Status"
+        className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center border-t border-white/10"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.25)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          padding: '6px 14px'
+        }}
+      >
+        <div className="flex items-center gap-1.5 text-white text-[11px] font-medium tracking-wide">
+          {/* White database icon on left */}
+          <Database size={12} className="text-white shrink-0 mr-1" />
 
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-[17px] font-bold text-[#2D4A49]">Select Branch / เลือกสาขา</h3>
-                <p className="text-[12px] text-gray-500">เลือกสาขาประจำการเพื่อเข้าสู่ระบบงาน</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBranchSheetOpen(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+          {/* STATE 1 — Connected */}
+          {supabaseStatus === 'connected' && (
+            <>
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E] shadow-[0_0_8px_#22C55E]"></span>
+              </span>
+              <span>Supabase &nbsp;●&nbsp; Connected</span>
+            </>
+          )}
 
-            <div className="space-y-3">
-              {BRANCH_OPTIONS.map((branch) => {
-                const isSelected = selectedBranch === branch.id;
-                return (
-                  <button
-                    key={branch.id}
-                    type="button"
-                    onClick={() => handleSelectBranch(branch.id)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
-                      isSelected
-                        ? 'border-[#5A8A88] bg-[#C5D5D3]/25 shadow-sm'
-                        : 'border-gray-200 hover:border-[#7A9E9C] hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isSelected ? 'bg-[#5A8A88] text-white' : 'bg-gray-100 text-[#7A9E9C]'
-                        }`}
-                      >
-                        <MapPin className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className={`font-bold text-[15px] ${isSelected ? 'text-[#5A8A88]' : 'text-gray-800'}`}>
-                          {branch.label}
-                        </div>
-                        <div className="text-xs text-gray-500">{branch.subLabel}</div>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-[#5A8A88] flex items-center justify-center text-white">
-                        <Check className="w-4 h-4" strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          {/* STATE 2 — Connecting */}
+          {supabaseStatus === 'connecting' && (
+            <>
+              <Loader2 size={12} className="animate-spin text-[#EAB308] mr-1 shrink-0" />
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="inline-flex rounded-full h-2 w-2 bg-[#EAB308] animate-pulse"></span>
+              </span>
+              <span>Supabase &nbsp;●&nbsp; Connecting...</span>
+            </>
+          )}
 
-            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-              <span>CRENN Artisan Bakery &amp; Cafe</span>
-              <span>2 Active Branches</span>
-            </div>
-          </div>
+          {/* STATE 3 — Disconnected */}
+          {supabaseStatus === 'disconnected' && (
+            <>
+              <span className="inline-flex rounded-full h-2 w-2 bg-[#EF4444] shadow-[0_0_8px_#EF4444] mr-1 shrink-0"></span>
+              <AlertTriangle size={12} className="text-red-300 mr-1 shrink-0" />
+              <span>Supabase &nbsp;●&nbsp; Disconnected</span>
+            </>
+          )}
         </div>
-      )}
+      </aside>
 
-      {/* FORGOT PASSWORD MODAL */}
-      {isForgotPasswordOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsForgotPasswordOpen(false)}
-          />
-          <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-[#C5D5D3]/40 flex items-center justify-center text-[#5A8A88]">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-[16px] text-[#2D4A49]">ลืมรหัสผ่าน?</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsForgotPasswordOpen(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* Info Modal / Notice Popup for Forgot Password / Create Account */}
+      {infoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-[#7A9E9C]/15 text-[#5A8A88] flex items-center justify-center mx-auto">
+              <User size={24} />
             </div>
-
-            <p className="text-xs text-gray-600 leading-relaxed mb-4">
-              หากลืมรหัสผ่านหรือเข้าสู่ระบบไม่ได้ โปรดติดต่อผู้จัดการสาขา (Branch Manager) หรือ Admin เพื่อรีเซ็ตรหัสผ่านของคุณ
-            </p>
-
-            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200/80 mb-5 space-y-1.5 text-xs">
-              <div className="font-semibold text-[#5A8A88]">Default Logins (หากยังไม่ได้เปลี่ยน):</div>
-              <div className="flex justify-between text-gray-600">
-                <span>Branch Manager:</span>
-                <span className="font-mono font-medium">1234</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Barista:</span>
-                <span className="font-mono font-medium">1234</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Admin:</span>
-                <span className="font-mono font-medium">Administrator</span>
-              </div>
+            <div className="text-slate-700 text-xs font-medium whitespace-pre-line leading-relaxed">
+              {infoModal}
             </div>
-
             <button
               type="button"
-              onClick={() => setIsForgotPasswordOpen(false)}
-              className="w-full h-11 rounded-full bg-[#5A8A88] text-white font-bold text-xs hover:bg-[#4A7270] transition-colors"
+              onClick={() => setInfoModal(null)}
+              className="w-full py-2.5 px-4 rounded-full bg-[#5A8A88] text-white font-semibold text-xs hover:bg-[#4d7775] transition-colors focus:outline-none"
             >
-              เข้าใจแล้ว
+              รับทราบ (OK)
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE ACCOUNT MODAL */}
-      {isCreateAccountOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsCreateAccountOpen(false)}
-          />
-          <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl z-10 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-[#C5D5D3]/40 flex items-center justify-center text-[#5A8A88]">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-[16px] text-[#2D4A49]">Create Account</h3>
-                  <p className="text-[11px] text-gray-500">สร้างบัญชีผู้ใช้ใหม่สำหรับสาขา</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCreateAccountOpen(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateAccount} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Branch (สาขา)</label>
-                <select
-                  value={selectedBranch || 'Rayong'}
-                  onChange={(e) => setSelectedBranch(e.target.value as Branch)}
-                  className="w-full h-11 px-3.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-[#5A8A88]/30"
-                >
-                  <option value="Rayong">📍 สาขาระยอง (Rayong Branch)</option>
-                  <option value="Bangkok">📍 สาขากรุงเทพฯ (Bangkok Branch)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Username / Name</label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="เช่น Somchai, Barista Beam"
-                  required
-                  className="w-full h-11 px-3.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-800 outline-none focus:ring-2 focus:ring-[#5A8A88]/30 placeholder:text-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Role (ตำแหน่งงาน)</label>
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as UserRole)}
-                  className="w-full h-11 px-3.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-[#5A8A88]/30"
-                >
-                  <option value="Barista">Barista</option>
-                  <option value="Senior Baker">Senior Baker</option>
-                  <option value="Junior Baker">Junior Baker</option>
-                  <option value="Head Baker">Head Baker</option>
-                  <option value="Branch Manager">Branch Manager</option>
-                  <option value="Cashier">Cashier</option>
-                  <option value="Server/Runner">Server/Runner</option>
-                  <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Owner">Owner</option>
-                  <option value="Co-founder">Co-founder</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="กำหนดรหัสผ่าน"
-                  required
-                  className="w-full h-11 px-3.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-800 outline-none focus:ring-2 focus:ring-[#5A8A88]/30 placeholder:text-gray-400"
-                />
-              </div>
-
-              {createAccountMsg && (
-                <div
-                  className={`p-2.5 rounded-xl text-center text-xs font-medium ${
-                    createAccountMsg.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                  }`}
-                >
-                  {createAccountMsg.text}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full h-11 rounded-full bg-[#5A8A88] text-white font-bold text-xs hover:bg-[#4A7270] transition-colors mt-2"
-              >
-                บันทึกสร้างบัญชี
-              </button>
-            </form>
           </div>
         </div>
       )}
