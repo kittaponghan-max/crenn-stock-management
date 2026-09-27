@@ -76,6 +76,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   // Navigation rail collapse state (Collapsed: 72px / Expanded: 220px)
   const [isRailExpanded, setIsRailExpanded] = useState<boolean>(true);
 
+  // Mobile menu drawer open state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
   // Active flyout sub-menu key
   const [activeFlyout, setActiveFlyout] = useState<
     'stock' | 'reports' | 'checkin' | 'bakery' | 'more' | null
@@ -411,15 +414,18 @@ export const HomePage: React.FC<HomePageProps> = ({
   ) => {
     if (key === 'home') {
       setActiveFlyout(null);
+      setIsMobileMenuOpen(false);
       return;
     }
     if (key === 'purchasing') {
       setActiveFlyout(null);
+      setIsMobileMenuOpen(false);
       onNavigate('barPurchasing');
       return;
     }
     if (key === 'rnd') {
       setActiveFlyout(null);
+      setIsMobileMenuOpen(false);
       onNavigate('rndReport');
       return;
     }
@@ -438,39 +444,53 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* 🗂️ SIDE NAVIGATION RAIL (Left Panel)     */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 md:hidden"
+          aria-hidden="true"
+        />
+      )}
+
       <aside
         ref={railContainerRef}
-        style={{
-          width: isRailExpanded ? '220px' : '72px',
-          background: 'linear-gradient(180deg, #2D4A49 0%, #3D6B69 100%)',
-          boxShadow: '4px 0 12px rgba(0,0,0,0.08)'
-        }}
-        className="shrink-0 min-h-screen flex flex-col justify-between transition-all duration-300 relative z-40 select-none"
+        className={`shrink-0 min-h-screen flex flex-col justify-between transition-all duration-300 z-50 select-none bg-gradient-to-b from-[#2D4A49] to-[#3D6B69] shadow-[4px_0_12px_rgba(0,0,0,0.08)] fixed inset-y-0 left-0 md:static md:translate-x-0 ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        } ${isRailExpanded ? 'w-[260px] md:w-[220px]' : 'w-[260px] md:w-[72px]'}`}
       >
         {/* Rail Top & Items */}
         <div className="w-full flex flex-col">
           {/* Rail Header (Top) */}
           <div className="px-3.5 pt-5 pb-4 border-b border-white/10 flex flex-col">
             <div className="flex items-center justify-between min-h-[48px]">
-              {/* Toggle Button (☰) */}
+              {/* Toggle Button for Tablet/Desktop (☰) */}
               <button
                 type="button"
                 onClick={() => setIsRailExpanded(!isRailExpanded)}
-                className="w-12 h-12 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer shrink-0"
+                className="hidden md:flex w-12 h-12 items-center justify-center text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer shrink-0"
                 aria-label="Toggle navigation rail"
                 title={isRailExpanded ? 'ยุบเมนู (Collapse)' : 'ขยายเมนู (Expand)'}
               >
                 <Menu size={22} />
               </button>
 
-              {/* CRENN Brand (Expanded only) */}
-              {isRailExpanded && (
-                <div className="flex-1 ml-2 overflow-hidden">
-                  <span className="text-white font-extrabold text-[18px] tracking-[0.22em] uppercase truncate block">
-                    CRENN
-                  </span>
-                </div>
-              )}
+              {/* Close Button for Mobile (X) */}
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="md:hidden w-11 h-11 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer shrink-0"
+                aria-label="Close menu"
+              >
+                <X size={22} />
+              </button>
+
+              {/* CRENN Brand (Always on mobile drawer, or expanded on md+) */}
+              <div className={`flex-1 ml-2 overflow-hidden ${isRailExpanded ? 'block' : 'md:hidden'}`}>
+                <span className="text-white font-extrabold text-[18px] tracking-[0.22em] uppercase truncate block">
+                  CRENN
+                </span>
+              </div>
             </div>
 
             {/* User Profile Summary */}
@@ -483,18 +503,16 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {userInitials}
               </div>
 
-              {isRailExpanded && (
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-white text-[14px] font-semibold truncate leading-tight">
-                    {user?.name || 'Admin'}
+              <div className={`flex flex-col min-w-0 flex-1 ${isRailExpanded ? 'block' : 'md:hidden'}`}>
+                <span className="text-white text-[14px] font-semibold truncate leading-tight">
+                  {user?.name || 'Admin'}
+                </span>
+                <div className="mt-1">
+                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold text-white tracking-wider uppercase bg-white/20 border border-white/10">
+                    {user?.role || 'ADMIN'}
                   </span>
-                  <div className="mt-1">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold text-white tracking-wider uppercase bg-white/20 border border-white/10">
-                      {user?.role || 'ADMIN'}
-                    </span>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -514,11 +532,9 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <Home size={20} className="text-white" />
               </div>
-              {isRailExpanded && (
-                <span className="ml-3 text-[14px] font-medium text-white tracking-wide truncate">
-                  หน้าหลัก
-                </span>
-              )}
+              <span className={`ml-3 text-[14px] font-medium text-white tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                หน้าหลัก
+              </span>
             </button>
 
             {/* 2. 📦 สต็อก */}
@@ -537,27 +553,22 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="w-8 h-8 flex items-center justify-center shrink-0">
                     <Package size={20} />
                   </div>
-                  {isRailExpanded && (
-                    <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                      สต็อก
-                    </span>
-                  )}
+                  <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                    สต็อก
+                  </span>
                 </div>
-                {isRailExpanded && (
-                  <ChevronRight 
-                    size={16} 
-                    className={`transition-transform duration-200 ${
-                      activeFlyout === 'stock' ? 'rotate-90 text-white' : 'text-white/40'
-                    }`} 
-                  />
-                )}
+                <ChevronRight 
+                  size={16} 
+                  className={`transition-transform duration-200 ${isRailExpanded ? 'inline' : 'md:hidden'} ${
+                    activeFlyout === 'stock' ? 'rotate-90 text-white' : 'text-white/40'
+                  }`} 
+                />
               </button>
 
               {/* Flyout Sub-menu: Stock */}
               {activeFlyout === 'stock' && (
                 <div
-                  style={{ left: isRailExpanded ? '228px' : '80px' }}
-                  className="fixed z-50 top-28 bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[210px] animate-in fade-in zoom-in-95 duration-150"
+                  className={`fixed z-50 top-28 ${isRailExpanded ? 'md:left-[228px]' : 'md:left-[80px]'} left-4 right-4 md:right-auto bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[210px] animate-in fade-in zoom-in-95 duration-150`}
                 >
                   <div className="px-3 py-1.5 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
                     จัดการสต็อกสินค้า
@@ -566,6 +577,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('barStock');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors cursor-pointer text-left"
@@ -577,6 +589,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('bakeryStock');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors cursor-pointer text-left"
@@ -604,27 +617,22 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="w-8 h-8 flex items-center justify-center shrink-0">
                     <ClipboardList size={20} />
                   </div>
-                  {isRailExpanded && (
-                    <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                      รายงาน
-                    </span>
-                  )}
+                  <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                    รายงาน
+                  </span>
                 </div>
-                {isRailExpanded && (
-                  <ChevronRight 
-                    size={16} 
-                    className={`transition-transform duration-200 ${
-                      activeFlyout === 'reports' ? 'rotate-90 text-white' : 'text-white/40'
-                    }`} 
-                  />
-                )}
+                <ChevronRight 
+                  size={16} 
+                  className={`transition-transform duration-200 ${isRailExpanded ? 'inline' : 'md:hidden'} ${
+                    activeFlyout === 'reports' ? 'rotate-90 text-white' : 'text-white/40'
+                  }`} 
+                />
               </button>
 
               {/* Flyout Sub-menu: Reports (Group 1: Daily, Group 2: History) */}
               {activeFlyout === 'reports' && (
                 <div
-                  style={{ left: isRailExpanded ? '228px' : '80px' }}
-                  className="fixed z-50 top-36 bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2.5 min-w-[270px] max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
+                  className={`fixed z-50 top-36 ${isRailExpanded ? 'md:left-[228px]' : 'md:left-[80px]'} left-4 right-4 md:right-auto bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2.5 min-w-[270px] max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150`}
                 >
                   {/* Group 1: Daily */}
                   <div className="px-3 py-1 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1 flex items-center justify-between">
@@ -765,27 +773,22 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="w-8 h-8 flex items-center justify-center shrink-0">
                     <CheckSquare size={20} />
                   </div>
-                  {isRailExpanded && (
-                    <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                      Check-in
-                    </span>
-                  )}
+                  <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                    Check-in
+                  </span>
                 </div>
-                {isRailExpanded && (
-                  <ChevronRight 
-                    size={16} 
-                    className={`transition-transform duration-200 ${
-                      activeFlyout === 'checkin' ? 'rotate-90 text-white' : 'text-white/40'
-                    }`} 
-                  />
-                )}
+                <ChevronRight 
+                  size={16} 
+                  className={`transition-transform duration-200 ${isRailExpanded ? 'inline' : 'md:hidden'} ${
+                    activeFlyout === 'checkin' ? 'rotate-90 text-white' : 'text-white/40'
+                  }`} 
+                />
               </button>
 
               {/* Flyout Sub-menu: Check-in */}
               {activeFlyout === 'checkin' && (
                 <div
-                  style={{ left: isRailExpanded ? '228px' : '80px' }}
-                  className="fixed z-50 top-48 bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[220px] animate-in fade-in zoom-in-95 duration-150"
+                  className={`fixed z-50 top-48 ${isRailExpanded ? 'md:left-[228px]' : 'md:left-[80px]'} left-4 right-4 md:right-auto bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[220px] animate-in fade-in zoom-in-95 duration-150`}
                 >
                   <div className="px-3 py-1.5 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
                     การตรวจเช็กประจำวัน
@@ -794,6 +797,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('barChecklist');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -805,6 +809,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('bakeryChecklist');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -816,6 +821,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('checklistHistory');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left border-t border-slate-100 mt-1"
@@ -837,11 +843,9 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <ShoppingCart size={20} />
               </div>
-              {isRailExpanded && (
-                <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                  Purchasing
-                </span>
-              )}
+              <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                Purchasing
+              </span>
             </button>
 
             {/* 6. 🧁 Bakery */}
@@ -860,27 +864,22 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="w-8 h-8 flex items-center justify-center shrink-0">
                     <Cake size={20} />
                   </div>
-                  {isRailExpanded && (
-                    <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                      Bakery
-                    </span>
-                  )}
+                  <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                    Bakery
+                  </span>
                 </div>
-                {isRailExpanded && (
-                  <ChevronRight 
-                    size={16} 
-                    className={`transition-transform duration-200 ${
-                      activeFlyout === 'bakery' ? 'rotate-90 text-white' : 'text-white/40'
-                    }`} 
-                  />
-                )}
+                <ChevronRight 
+                  size={16} 
+                  className={`transition-transform duration-200 ${isRailExpanded ? 'inline' : 'md:hidden'} ${
+                    activeFlyout === 'bakery' ? 'rotate-90 text-white' : 'text-white/40'
+                  }`} 
+                />
               </button>
 
               {/* Flyout Sub-menu: Bakery */}
               {activeFlyout === 'bakery' && (
                 <div
-                  style={{ left: isRailExpanded ? '228px' : '80px' }}
-                  className="fixed z-50 top-64 bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[230px] animate-in fade-in zoom-in-95 duration-150"
+                  className={`fixed z-50 top-64 ${isRailExpanded ? 'md:left-[228px]' : 'md:left-[80px]'} left-4 right-4 md:right-auto bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[230px] animate-in fade-in zoom-in-95 duration-150`}
                 >
                   <div className="px-3 py-1.5 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
                     แผนงานเบเกอรี่
@@ -889,6 +888,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('bakeryPlan');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -900,6 +900,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('bakeryPlanHistory');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -921,11 +922,9 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <FlaskConical size={20} />
               </div>
-              {isRailExpanded && (
-                <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                  R&D
-                </span>
-              )}
+              <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                R&D
+              </span>
             </button>
 
             {/* ─── Divider ─── */}
@@ -949,27 +948,22 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="w-8 h-8 flex items-center justify-center shrink-0">
                     <MoreHorizontal size={20} />
                   </div>
-                  {isRailExpanded && (
-                    <span className="ml-3 text-[14px] font-medium tracking-wide truncate">
-                      เพิ่มเติม
-                    </span>
-                  )}
+                  <span className={`ml-3 text-[14px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+                    เพิ่มเติม
+                  </span>
                 </div>
-                {isRailExpanded && (
-                  <ChevronRight 
-                    size={16} 
-                    className={`transition-transform duration-200 ${
-                      activeFlyout === 'more' ? 'rotate-90 text-white' : 'text-white/40'
-                    }`} 
-                  />
-                )}
+                <ChevronRight 
+                  size={16} 
+                  className={`transition-transform duration-200 ${isRailExpanded ? 'inline' : 'md:hidden'} ${
+                    activeFlyout === 'more' ? 'rotate-90 text-white' : 'text-white/40'
+                  }`} 
+                />
               </button>
 
               {/* Flyout Sub-menu: More */}
               {activeFlyout === 'more' && (
                 <div
-                  style={{ left: isRailExpanded ? '228px' : '80px' }}
-                  className="fixed z-50 bottom-24 bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[220px] animate-in fade-in zoom-in-95 duration-150"
+                  className={`fixed z-50 bottom-24 ${isRailExpanded ? 'md:left-[228px]' : 'md:left-[80px]'} left-4 right-4 md:right-auto bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-slate-100 p-2 min-w-[220px] animate-in fade-in zoom-in-95 duration-150`}
                 >
                   <div className="px-3 py-1.5 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
                     เมนูเพิ่มเติม
@@ -978,6 +972,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('userSettings');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -989,6 +984,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onNavigate('logs');
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -1000,6 +996,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       setIsBranchDropdownOpen(true);
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-[#F0F5F4] text-[#2D4A49] text-[13px] font-medium transition-colors text-left"
@@ -1012,6 +1009,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveFlyout(null);
+                      setIsMobileMenuOpen(false);
                       onLogout?.();
                     }}
                     className="w-full min-h-[48px] px-3 flex items-center gap-2.5 rounded-lg hover:bg-rose-50 text-rose-600 text-[13px] font-medium transition-colors text-left"
@@ -1030,55 +1028,55 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* ⚙️ ตั้งค่า */}
           <button
             type="button"
-            onClick={() => onNavigate('userSettings')}
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onNavigate('userSettings');
+            }}
             className="w-full min-h-[48px] px-3.5 flex items-center rounded-xl text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer text-left"
             title="ตั้งค่า (Settings)"
           >
             <div className="w-8 h-8 flex items-center justify-center shrink-0">
               <Settings size={18} />
             </div>
-            {isRailExpanded && (
-              <span className="ml-3 text-[13px] font-medium tracking-wide truncate">
-                ตั้งค่า
-              </span>
-            )}
+            <span className={`ml-3 text-[13px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+              ตั้งค่า
+            </span>
           </button>
 
           {/* 🚪 ออกจากระบบ */}
           <button
             type="button"
-            onClick={() => onLogout?.()}
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onLogout?.();
+            }}
             className="w-full min-h-[48px] px-3.5 flex items-center rounded-xl text-rose-200/80 hover:bg-rose-500/20 hover:text-rose-100 transition-all cursor-pointer text-left"
             title="ออกจากระบบ (Logout)"
           >
             <div className="w-8 h-8 flex items-center justify-center shrink-0">
               <LogOut size={18} />
             </div>
-            {isRailExpanded && (
-              <span className="ml-3 text-[13px] font-medium tracking-wide truncate">
-                ออกจากระบบ
-              </span>
-            )}
+            <span className={`ml-3 text-[13px] font-medium tracking-wide truncate ${isRailExpanded ? 'inline' : 'md:hidden'}`}>
+              ออกจากระบบ
+            </span>
           </button>
 
           {/* ──────────────── Divider & Supabase Connected */}
           <div className="pt-2 px-3">
-            {isRailExpanded ? (
-              <div className="flex items-center gap-2 text-white/80 text-[10px] tracking-wider uppercase font-medium">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
-                </span>
-                <span className="truncate">Supabase Connected</span>
-              </div>
-            ) : (
-              <div className="flex justify-center" title="Supabase Connected">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#22C55E]"></span>
-                </span>
-              </div>
-            )}
+            <div className={`items-center gap-2 text-white/80 text-[10px] tracking-wider uppercase font-medium ${isRailExpanded ? 'flex' : 'flex md:hidden'}`}>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
+              </span>
+              <span className="truncate">Supabase Connected</span>
+            </div>
+
+            <div className={`justify-center ${isRailExpanded ? 'hidden' : 'hidden md:flex'}`} title="Supabase Connected">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#22C55E]"></span>
+              </span>
+            </div>
           </div>
         </div>
       </aside>
@@ -1086,18 +1084,29 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* 📋 CONTENT AREA (Right of Rail)          */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#F0F5F4] p-6 lg:p-8 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#F0F5F4] p-4 sm:p-6 lg:p-8 xl:p-10 overflow-y-auto">
+        <div className="w-full xl:max-w-[1600px] xl:mx-auto flex flex-col">
         
         {/* CONTENT HEADER BAR */}
-        <header className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6">
-          {/* Left Header: Breadcrumb & Page Title */}
-          <div>
-            <div className="text-[13px] font-semibold text-[#6B8F8E] tracking-wide mb-1">
-              หน้าหลัก
+        <header className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6">
+          {/* Left Header: Breadcrumb & Page Title (with Mobile Hamburger) */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden w-11 h-11 flex items-center justify-center bg-white rounded-xl text-[#2D4A49] shadow-xs border border-slate-200/80 hover:bg-slate-50 transition-colors shrink-0"
+              aria-label="Open menu"
+            >
+              <Menu size={22} />
+            </button>
+            <div>
+              <div className="text-[12px] md:text-[13px] font-semibold text-[#6B8F8E] tracking-wide mb-0.5">
+                หน้าหลัก
+              </div>
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[#2D4A49] leading-tight tracking-tight">
+                Inventory Dashboard
+              </h1>
             </div>
-            <h1 className="text-[26px] lg:text-[28px] font-bold text-[#2D4A49] leading-tight tracking-tight">
-              Inventory Dashboard
-            </h1>
           </div>
 
           {/* Right Header: Filters, Notification, Date */}
@@ -1571,6 +1580,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </section>
 
+        </div>
         </div>
       </main>
 
