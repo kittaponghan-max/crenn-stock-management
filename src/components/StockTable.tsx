@@ -22,16 +22,17 @@ interface StockTableProps {
 
 export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock, onClearIngredientWeek, onClearDay, onDeleteIngredient, onEditIngredient, userRole, isReadOnly = false, }: StockTableProps) {
   const isAdmin = !isReadOnly && ['Admin', 'Branch Manager'].includes(userRole);
-  
-  
 
   const [visibleCols, setVisibleCols] = React.useState({
+    manage: true,
     brand: false,
     sizePerUnit: true,
     minStock: true,
     minOrder: true,
     supplier: false
   });
+
+  const showManageCol = isAdmin && visibleCols.manage;
 
   const weekDays = React.useMemo(() => {
     const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
@@ -42,8 +43,6 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
   const [itemToDelete, setItemToDelete] = useState<Ingredient | null>(null);
   const [itemToClear, setItemToClear] = useState<Ingredient | null>(null);
   const [dayToClear, setDayToClear] = useState<{ dateKey: string; label: string } | null>(null);
-
-
 
   // Auto-calculate remaining logic
   const computedStock = React.useMemo(() => {
@@ -102,9 +101,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
     return acc;
   }, {} as Record<string, Ingredient[]>);
 
-
   const baseColsCount = 
-    (isAdmin ? 1 : 0) + 
+    (showManageCol ? 1 : 0) + 
     2 + // รูป + รายการสินค้า
     (visibleCols.brand ? 1 : 0) +
     (visibleCols.sizePerUnit ? 1 : 0) +
@@ -115,36 +113,50 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
   return (
     <div className="space-y-2.5 w-full">
-      {/* Column Visibility Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-2.5 sm:px-4 rounded-[10px] border border-[#D4E4E3] shadow-[0_1px_4px_rgba(90,138,136,0.06)]">
+      {/* ROW 3 — Column Visibility Bar */}
+      <div className="flex flex-wrap sm:flex-nowrap gap-3 justify-between items-center bg-white p-2.5 sm:px-4 rounded-[10px] border border-[#D4E4E3] shadow-[0_1px_4px_rgba(90,138,136,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[13px] font-semibold text-[#6B8F8E]">แสดงคอลัมน์นี้:</span>
-          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+          <span className="text-[12px] font-semibold text-[#6B8F8E]">แสดง:</span>
+          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.brand} onChange={(e) => setVisibleCols(prev => ({...prev, brand: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ยี่ห้อ
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.sizePerUnit} onChange={(e) => setVisibleCols(prev => ({...prev, sizePerUnit: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ขนาด/หน่วย
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.minStock} onChange={(e) => setVisibleCols(prev => ({...prev, minStock: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             คงเหลือขั้นต่ำ
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.minOrder} onChange={(e) => setVisibleCols(prev => ({...prev, minOrder: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             สั่งซื้อขั้นต่ำ
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.supplier} onChange={(e) => setVisibleCols(prev => ({...prev, supplier: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ผู้จัดจำหน่าย
           </label>
         </div>
+
+        {isAdmin && (
+          <div className="flex items-center gap-3 pl-3 sm:border-l sm:border-[#D4E4E3] ml-auto sm:ml-0">
+            <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+              <input 
+                type="checkbox" 
+                checked={visibleCols.manage} 
+                onChange={(e) => setVisibleCols(prev => ({...prev, manage: e.target.checked}))} 
+                className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" 
+              />
+              จัดการ
+            </label>
+          </div>
+        )}
       </div>
 
-      {/* Day Selector Bar */}
+      {/* ROW 4 — Day Selector Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-[#2D4A49] text-white p-3 sm:px-4 rounded-xl shadow-xs">
-        <div className="flex items-center gap-2 text-[13px] font-semibold text-[#C5D5D3]">
+        <div className="flex items-center gap-2 text-[12px] font-normal text-[#C5D5D3]">
           <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse"></span>
           <span>เลือกวันที่ต้องการดู:</span>
         </div>
@@ -157,9 +169,9 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                 type="button"
                 onClick={() => {
                   if (tableContainerRef.current) {
-                    const baseOffset = 260;
+                    const baseOffset = (showManageCol ? 80 : 0) + 48 + 180;
                     tableContainerRef.current.scrollTo({
-                      left: baseOffset + (idx * 130),
+                      left: baseOffset + (idx * 160),
                       behavior: 'smooth'
                     });
                   }
@@ -178,24 +190,39 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
         </div>
       </div>
 
-      <div ref={tableContainerRef} className="overflow-auto max-h-[550px] md:max-h-[68vh] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
-      <table className="w-full min-w-max border-collapse relative">
+      {/* Table Container */}
+      <div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[550px] md:max-h-[68vh] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
+      <table className="w-full min-w-[700px] border-collapse relative table-fixed">
         <thead className="sticky top-0 z-40 shadow-sm">
           <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
-            {isAdmin && <th className="sticky left-0 z-50 px-1 py-2 w-[52px] sm:w-[60px] min-w-[52px] sm:min-w-[60px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[10px] font-semibold">จัดการ</th>}
-            <th className={cn("sticky z-50 px-1 py-2 text-center font-semibold tracking-wide w-[36px] sm:w-[45px] min-w-[36px] sm:min-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]", isAdmin ? "left-[52px] sm:left-[60px]" : "left-0")}>รูป</th>
-            <th className={cn("sticky z-50 px-2 py-2 text-left font-semibold tracking-wide w-[140px] sm:w-[170px] min-w-[140px] sm:min-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]", isAdmin ? "left-[88px] sm:left-[105px]" : "left-[36px] sm:left-[45px]")}>รายการสินค้า</th>
-            {visibleCols.brand && <th className="px-2 py-2 text-left font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]">ยี่ห้อ</th>}
-            {visibleCols.sizePerUnit && <th className="px-2 py-2 text-left font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]">ขนาด/หน่วย</th>}
-            {visibleCols.minStock && <th className="px-2 py-2 text-center font-semibold tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-[#2D4A49] border-r border-[#3D6B69] shadow-[4px_0_8px_-2px_rgba(0,0,0,0.2)] text-[10px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
-            {visibleCols.minOrder && <th className="px-2 py-2 text-center font-semibold tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-[#2D4A49] shadow-xl border-r border-[#3D6B69] text-[10px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
-            {visibleCols.supplier && <th className="px-2 py-2 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]">ผู้จัดจำหน่าย</th>}
+            {showManageCol && (
+              <th className="sticky left-0 z-50 px-1 py-2.5 w-[80px] min-w-[80px] max-w-[80px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[12px] font-semibold">
+                จัดการ
+              </th>
+            )}
+            <th className={cn(
+              "sticky z-50 px-1 py-2.5 text-center font-semibold tracking-wide w-[48px] min-w-[48px] max-w-[48px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]",
+              showManageCol ? "left-[80px]" : "left-0"
+            )}>
+              รูป
+            </th>
+            <th className={cn(
+              "sticky z-50 px-3 py-2.5 text-left font-semibold tracking-wide w-[200px] min-w-[180px] max-w-[280px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]",
+              showManageCol ? "left-[128px]" : "left-[48px]"
+            )}>
+              รายการสินค้า
+            </th>
+            {visibleCols.brand && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]">ยี่ห้อ</th>}
+            {visibleCols.sizePerUnit && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]">ขนาด/หน่วย</th>}
+            {visibleCols.minStock && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
+            {visibleCols.minOrder && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
+            {visibleCols.supplier && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]">ผู้จัดจำหน่าย</th>}
             {weekDays.map((day) => {
               const isToday = isSameDay(day, new Date());
 
               return (
                 <th key={day.toString()} data-is-today={isToday ? "true" : "false"} className={cn(
-                  "px-1 py-1 text-center font-semibold w-[130px] min-w-[130px] max-w-[130px] transition-colors border-r border-[#3D6B69] last:border-0 relative bg-[#5A8A88] text-white",
+                  "px-1 py-1.5 text-center font-semibold w-[160px] min-w-[160px] max-w-[160px] transition-colors border-r border-[#3D6B69] last:border-0 relative bg-[#5A8A88] text-white",
                   isToday ? "ring-2 ring-inset ring-white/40 shadow-inner font-bold" : ""
                 )}>
                   <button
@@ -203,15 +230,15 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       dateKey: format(day, 'yyyy-MM-dd'), 
                       label: `${format(day, 'EEE')} ${format(day, 'd/M')}` 
                     })}
-                    className="absolute top-1 right-1 w-6 h-6 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
                     title="ล้างข้อมูลของวันนี้"
                   >
                     <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform text-white" />
                   </button>
 
-                  <div className="text-[10px] uppercase font-bold text-white">{format(day, 'EEE')}</div>
-                  <div className="text-[9px] text-white/90 mb-0.5">{format(day, 'd/M')}</div>
-                  <div className="grid grid-cols-3 gap-0.5 text-[10px] bg-[#4A7A78] rounded px-0.5 py-0.5 text-white font-medium">
+                  <div className="text-[11px] uppercase font-bold text-white">{format(day, 'EEE')}</div>
+                  <div className="text-[10px] text-white/90 mb-1">{format(day, 'd/M')}</div>
+                  <div className="grid grid-cols-3 gap-1 text-[10px] bg-[#4A7A78] rounded px-1 py-0.5 text-white font-medium">
                     <div>เข้า</div>
                     <div>เบิก</div>
                     <div>เหลือ</div>
@@ -235,7 +262,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             <React.Fragment key={category}>
               <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                 <td colSpan={baseColsCount} className="p-0">
-                  <div className="sticky left-0 w-fit p-2 pl-3 font-semibold text-xs text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
+                  <div className="sticky left-0 w-fit p-2 pl-3 font-semibold text-[12px] text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
                     <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
                     {category}
                   </div>
@@ -246,35 +273,38 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   "group transition-colors border-b border-[#D4E4E3] hover:bg-[#E8F3F2]",
                   index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
                 )}>
-                  {isAdmin && (
-                    <td className="sticky left-0 z-20 p-1 w-[52px] sm:w-[60px] min-w-[52px] sm:min-w-[60px] border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print">
-                      <div className="flex items-center justify-center gap-0.5">
+                  {showManageCol && (
+                    <td className="sticky left-0 z-20 p-1 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print">
+                      <div className="flex items-center justify-center gap-1">
                         <button 
                           onClick={() => onEditIngredient(item)}
                           className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-md transition-all"
                           title="แก้ไข"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                         </button>
                         <button 
                           onClick={() => setItemToClear(item)}
                           className="p-1 text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#F0F5F4] rounded-md transition-all"
                           title="ล้างข้อมูลสัปดาห์นี้"
                         >
-                          <RotateCcw size={13} />
+                          <RotateCcw size={14} />
                         </button>
                         <button 
                           onClick={() => setItemToDelete(item)}
                           className="p-1 text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-md transition-all"
                           title="ลบ"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                       </div>
                     </td>
                   )}
-                  <td className={cn("sticky z-20 p-1 w-[36px] sm:w-[45px] min-w-[36px] sm:min-w-[45px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] text-center bg-inherit", isAdmin ? "left-[52px] sm:left-[60px]" : "left-0")}>
-                    <div className="w-[22px] h-[22px] rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]">
+                  <td className={cn(
+                    "sticky z-20 p-1 w-[48px] min-w-[48px] max-w-[48px] border-r border-[#D4E4E3] text-center bg-inherit",
+                    showManageCol ? "left-[80px]" : "left-0"
+                  )}>
+                    <div className="w-[28px] h-[28px] rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]">
                       {item.image ? (
                         <img 
                           src={item.image} 
@@ -284,41 +314,44 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           onClick={() => setSelectedImage(item.image!)}
                         />
                       ) : (
-                        <ShoppingCart size={12} className="text-[#A8BCBB]" />
+                        <ShoppingCart size={13} className="text-[#A8BCBB]" />
                       )}
                     </div>
                   </td>
-                  <td className={cn("sticky z-20 px-2.5 py-1.5 w-[140px] sm:w-[170px] min-w-[140px] sm:min-w-[170px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] bg-inherit shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]", isAdmin ? "left-[88px] sm:left-[105px]" : "left-[36px] sm:left-[45px]")}>
-                    <div className="truncate text-[12px] sm:text-[11px] font-semibold text-[#2D4A49]" title={item.name}>{item.name}</div>
+                  <td className={cn(
+                    "sticky z-20 px-3 py-2 w-[200px] min-w-[180px] max-w-[280px] border-r border-[#D4E4E3] bg-inherit shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]",
+                    showManageCol ? "left-[128px]" : "left-[48px]"
+                  )}>
+                    <div className="truncate text-[13px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
                   </td>
                   {visibleCols.brand && (
-                    <td className="px-2 py-1.5 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] bg-inherit hidden md:table-cell">
+                    <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal bg-inherit hidden md:table-cell">
                       <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-[10px] inline-block text-[#6B8F8E] font-medium truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
                         {item.brand || '-'}
                       </div>
                     </td>
                   )}
                   {visibleCols.sizePerUnit && (
-                    <td className="px-2 py-1.5 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
+                    <td className="px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal text-center bg-inherit truncate" title={item.sizePerUnit || '-'}>
                       {item.sizePerUnit || '-'}
                     </td>
                   )}
                   {visibleCols.minStock && (
-                    <td className="px-1 py-1.5 w-[70px] min-w-[70px] max-w-[70px] border-r border-[#D4E4E3] font-mono text-[10px] text-center bg-inherit">
-                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full text-[10px] font-bold border border-[#B8D4D2]">
+                    <td className="px-1 py-2 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center bg-inherit">
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-md text-[12px] font-medium border border-[#B8D4D2]">
                         {item.minStock} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.minOrder && (
-                    <td className="px-1 py-1.5 w-[70px] min-w-[70px] max-w-[70px] border-r border-[#D4E4E3] font-mono text-[10px] text-center bg-inherit">
-                      <span className="bg-[#FEF3C7] text-[#D97706] px-2 py-0.5 rounded-full text-[10px] font-bold border border-[#FDE68A]">
+                    <td className="px-1 py-2 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center bg-inherit">
+                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-2 py-0.5 rounded-md text-[12px] font-medium border border-[#FDE68A]">
                         {item.minOrder} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.supplier && (
-                    <td className="px-2 py-1.5 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] bg-inherit group/supplier relative" title={item.supplier}>
+                    <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal bg-inherit group/supplier relative" title={item.supplier}>
                       <div className="truncate text-[11px]">
                         {item.supplier.split(',').map((sup, idx, arr) => {
                           const isPrimary = sup.includes('(หลัก)');
@@ -345,15 +378,15 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       <td 
                         key={dateKey} 
                         className={cn(
-                          "p-1 w-[130px] min-w-[130px] max-w-[130px] border-r border-[#D4E4E3] text-center relative transition-colors",
+                          "p-1.5 w-[160px] min-w-[160px] max-w-[160px] border-r border-[#D4E4E3] text-center relative transition-colors",
                           isToday ? "bg-[#E8F3F2]/40" : ""
                         )}
                       >
-                        <div className="grid grid-cols-3 gap-0.5 items-center justify-center">
+                        <div className="grid grid-cols-3 gap-1 items-center justify-center">
                           <input
                             type="number"
                             min="0"
-                            className="w-full h-8 sm:h-7 text-center focus:outline-none font-mono tabular-nums text-xs sm:text-[10px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[13px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                             placeholder="0"
                             value={currentStockObj.in ?? ''}
                             onChange={(e) => {
@@ -365,7 +398,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           <input
                             type="number"
                             min="0"
-                            className="w-full h-8 sm:h-7 text-center focus:outline-none font-mono tabular-nums text-xs sm:text-[10px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[13px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                             placeholder="0"
                             value={currentStockObj.out ?? ''}
                             onChange={(e) => {
@@ -379,7 +412,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                               type="number"
                               min="0"
                               className={cn(
-                                "w-full h-8 sm:h-7 text-center focus:outline-none font-mono tabular-nums text-xs sm:text-[10px] rounded-md border transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
+                                "w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[13px] rounded-md border p-1 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
                                 isLowStock 
                                   ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-bold focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20" 
                                   : currentStockObj.isAutoCalculated 
@@ -429,7 +462,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
           )}
         </tbody>
       </table>
-
+      </div>
       {selectedImage && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -550,7 +583,6 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
