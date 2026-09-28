@@ -154,42 +154,6 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
         )}
       </div>
 
-      {/* ROW 4 — Day Selector Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-[#2D4A49] text-white p-3 sm:px-4 rounded-xl shadow-xs">
-        <div className="flex items-center gap-2 text-[12px] font-normal text-[#C5D5D3]">
-          <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse"></span>
-          <span>เลือกวันที่ต้องการดู:</span>
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          {weekDays.map((day, idx) => {
-            const isToday = isSameDay(day, new Date());
-            return (
-              <button
-                key={day.toString()}
-                type="button"
-                onClick={() => {
-                  if (tableContainerRef.current) {
-                    const baseOffset = (showManageCol ? 80 : 0) + 48 + 180;
-                    tableContainerRef.current.scrollTo({
-                      left: baseOffset + (idx * 160),
-                      behavior: 'smooth'
-                    });
-                  }
-                }}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all border active:scale-95",
-                  isToday 
-                    ? "bg-[#5A8A88] text-white border-[#7A9E9C] shadow-sm"
-                    : "bg-white/10 text-[#C5D5D3] border-white/10 hover:bg-white/20 hover:text-white"
-                )}
-              >
-                {format(day, 'EEE d/M')}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Table Container */}
       <div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[550px] md:max-h-[68vh] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
       <table className="w-full min-w-[700px] border-collapse relative table-fixed">
