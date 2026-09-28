@@ -2097,43 +2097,6 @@ export default function App() {
                 {user.role}
               </span>
             </div>
-            <div className="relative z-50">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsUserMenuOpen(!isUserMenuOpen);
-                }}
-                className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all ml-1"
-                title="Settings"
-              >
-                <Settings size={20} />
-              </button>
-
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-[#2D4A49]">
-                  {hasPermission('adminTools') && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTab('userSettings');
-                        setIsUserMenuOpen(false);
-                      }}
-                      className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium border-b border-[#D4E4E3]"
-                    >
-                      User Security Settings
-                      <Settings size={14} className="text-[#6B8F8E]" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setUser(null)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-[#EF4444] hover:bg-rose-50 transition-colors font-medium"
-                  >
-                    Log-out
-                    <LogOut size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </header>
@@ -2141,17 +2104,6 @@ export default function App() {
 
       {/* Main Content */}
       <main className={activeTab === 'home' ? "w-full pb-10" : "max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24"}>
-        {activeTab !== 'home' && (
-          <div className="mb-6">
-            <button 
-              onClick={() => setActiveTab('home')}
-              className="flex items-center gap-2 bg-white border border-[#D4E4E3] text-[#5A8A88] hover:bg-[#E8F3F2] px-4 py-2 rounded-lg text-[14px] font-bold transition-all shadow-xs"
-            >
-              <ChevronLeft size={18} className="text-[#5A8A88]" />
-              ย้อนกลับหน้าหลัก
-            </button>
-          </div>
-        )}
 
         {activeTab === 'home' ? (
           <HomeScreen
@@ -2239,10 +2191,24 @@ export default function App() {
           <UserSettings currentUser={user} onCurrentUserUpdated={setUser} branch={user?.branch} />
         ) : (
           <>
-            {/* Date Range Controls for Stock Recording */}
-            <div className="flex items-center justify-between mb-4 bg-white p-3 sm:px-4 rounded-xl shadow-[0_1px_4px_rgba(90,138,136,0.08)] border border-[#D4E4E3]">
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                <div className="flex items-center gap-2 bg-[#F0F5F4] rounded-lg p-1.5 border border-[#D4E4E3]">
+            {/* ROW 1 — Date + Navigation */}
+            <div className="flex items-center justify-between mb-3 bg-white p-3 sm:px-4 rounded-xl shadow-[0_1px_4px_rgba(90,138,136,0.08)] border border-[#D4E4E3] gap-3 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                {/* Today button (Moved to left of date range) */}
+                <button
+                  onClick={() => {
+                    const now = new Date();
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    setDateRange({ start: today, end: today });
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[13px] font-bold transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
+                >
+                  <Calendar size={14} className="text-[#5A8A88]" />
+                  Today
+                </button>
+
+                {/* Date range inputs */}
+                <div className="flex items-center gap-2 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3]">
                   <input 
                     type="date" 
                     value={format(dateRange.start, 'yyyy-MM-dd')}
@@ -2257,9 +2223,9 @@ export default function App() {
                       }
                       setDateRange({ start: newStart, end: newEnd });
                     }}
-                    className="bg-white border border-[#D4E4E3] rounded-lg text-sm px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono"
+                    className="bg-white border border-[#D4E4E3] rounded-lg text-[13px] px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
                   />
-                  <span className="text-[#6B8F8E] text-sm font-medium">ถึง</span>
+                  <span className="text-[#6B8F8E] text-[13px] font-medium">ถึง</span>
                   <input 
                     type="date" 
                     value={format(dateRange.end, 'yyyy-MM-dd')}
@@ -2276,55 +2242,42 @@ export default function App() {
                     }}
                     min={format(dateRange.start, 'yyyy-MM-dd')}
                     max={format(addDays(dateRange.start, 6), 'yyyy-MM-dd')}
-                    className="bg-white border border-[#D4E4E3] rounded-lg text-sm px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono"
+                    className="bg-white border border-[#D4E4E3] rounded-lg text-[13px] px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
                   />
                 </div>
+
                 <button 
                   onClick={() => setDateRange({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) })}
-                  className="text-[13px] text-[#5A8A88] hover:underline font-bold px-3 py-1.5 hover:bg-[#E8F3F2]/50 rounded-lg transition-all"
+                  className="text-[13px] text-[#5A8A88] hover:underline font-bold px-2 py-1 hover:bg-[#E8F3F2]/50 rounded-lg transition-all"
                 >
                   This Week
                 </button>
               </div>
               
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3]">
-                  <button 
-                    onClick={handleUndo}
-                    disabled={history.length === 0}
-                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                    title="Undo (Ctrl+Z)"
-                  >
-                    <Undo size={15} />
-                  </button>
-                  <button 
-                    onClick={handleRedo}
-                    disabled={future.length === 0}
-                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                    title="Redo (Ctrl+Y)"
-                  >
-                    <Redo size={15} />
-                  </button>
-                </div>
+              {/* Undo / Redo */}
+              <div className="flex items-center gap-1 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3]">
+                <button 
+                  onClick={handleUndo}
+                  disabled={history.length === 0}
+                  className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <Undo size={15} />
+                </button>
+                <button 
+                  onClick={handleRedo}
+                  disabled={future.length === 0}
+                  className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                  title="Redo (Ctrl+Y)"
+                >
+                  <Redo size={15} />
+                </button>
               </div>
             </div>
 
-            {/* Action Bar (above table) */}
+            {/* ROW 2 — Action Buttons */}
             <div className="flex justify-between items-center gap-2 mb-3 flex-wrap">
-              <div>
-                <button
-                  onClick={() => {
-                    const now = new Date();
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    setDateRange({ start: today, end: today });
-                  }}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-bold transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
-                >
-                  <Calendar size={14} className="text-[#5A8A88]" />
-                  Today
-                </button>
-              </div>
-              <div className="flex justify-end gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
               {hasPermission('manageIngredients') && (
                 <>
                   <input 
@@ -2336,7 +2289,7 @@ export default function App() {
                   />
                   <button
                     onClick={handleImportExcel}
-                    className="flex items-center gap-1.5 bg-[#5A8A88] text-white px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#4A7A78] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 bg-[#5A8A88] text-white px-4 h-9 rounded-lg text-[13px] font-medium hover:bg-[#4A7A78] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                     title="นำเข้าวัตถุดิบจากไฟล์ Excel"
                   >
                     <FileUp size={14} strokeWidth={2.5} />
@@ -2344,7 +2297,6 @@ export default function App() {
                   </button>
                   <button
                     onClick={async () => {
-                      
                       const ws = XLSX.utils.json_to_sheet([
                         { 
                           'ชื่อสินค้า': 'เมล็ดกาแฟคั่วกลาง', 
@@ -2375,7 +2327,7 @@ export default function App() {
                       XLSX.utils.book_append_sheet(wb, ws, "Template");
                       XLSX.writeFile(wb, "Ingredient_Template.xlsx");
                     }}
-                    className="flex items-center gap-1.5 bg-white text-[#2D4A49] border border-[#D4E4E3] px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#F0F5F4] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 bg-white text-[#2D4A49] border border-[#D4E4E3] px-4 h-9 rounded-lg text-[13px] font-medium hover:bg-[#F0F5F4] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                   >
                     โหลดเทมเพลต (Template)
                   </button>
@@ -2385,7 +2337,7 @@ export default function App() {
                         e.stopPropagation();
                         setIsExportDropdownOpen(!isExportDropdownOpen);
                       }}
-                      className="flex items-center gap-1.5 bg-[#7A9E9C] text-white px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#6B8E8C] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                      className="flex items-center gap-1.5 bg-[#7A9E9C] text-white px-4 h-9 rounded-lg text-[13px] font-medium hover:bg-[#6B8E8C] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                     >
                       <FileDown size={14} strokeWidth={2.5} />
                       Export File
@@ -2393,7 +2345,7 @@ export default function App() {
                     </button>
                     
                     {isExportDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-[#2D4A49]">
+                      <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-[#2D4A49]">
                         <button
                           onClick={() => {
                             exportExcel();
@@ -2417,16 +2369,19 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => setIsFormOpen(true)}
-                    className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#1D3A39] transition-all shadow-xs transform hover:scale-105 active:scale-95"
-                  >
-                    <Plus size={15} strokeWidth={3} />
-                    เพิ่มรายการวัตถุดิบ
-                  </button>
                 </>
               )}
               </div>
+
+              {hasPermission('manageIngredients') && (
+                <button
+                  onClick={() => setIsFormOpen(true)}
+                  className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-4 h-9 rounded-lg text-[13px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs transform hover:scale-105 active:scale-95 ml-auto sm:ml-0"
+                >
+                  <Plus size={15} strokeWidth={3} />
+                  เพิ่มรายการวัตถุดิบ
+                </button>
+              )}
             </div>
 
             {/* Main Table */}
@@ -2447,27 +2402,11 @@ export default function App() {
         )}
 
         {/* Bottom Actions Zone */}
-        <div className="mt-12 pt-6 border-t border-[#D4E4E3] flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
-          <div>
-            {activeTab !== 'home' && (
-              <button 
-                id="back-to-home-bottom-btn"
-                onClick={() => {
-                  setActiveTab('home');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="flex items-center gap-2 bg-white border border-[#D4E4E3] text-[#5A8A88] hover:bg-[#E8F3F2] px-5 py-2.5 rounded-lg text-[14px] font-bold transition-all shadow-xs hover:shadow active:scale-95 duration-150 cursor-pointer"
-              >
-                <ChevronLeft size={18} className="text-[#5A8A88]" />
-                ย้อนกลับหน้าหลัก
-              </button>
-            )}
-          </div>
-          
+        <div className="mt-12 pt-6 border-t border-[#D4E4E3] flex items-center justify-end print:hidden">
           <button 
             id="scroll-to-top-btn"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-2 text-[#5A8A88] hover:text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-5 py-2.5 rounded-lg text-[14px] font-bold transition-all shadow-xs hover:shadow active:scale-95 duration-150 ml-auto sm:ml-0 cursor-pointer"
+            className="flex items-center gap-2 text-[#5A8A88] hover:text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-5 py-2.5 rounded-lg text-[14px] font-bold transition-all shadow-xs hover:shadow active:scale-95 duration-150 cursor-pointer"
           >
             <ChevronUp size={18} />
             เลื่อนขึ้นบนสุด
