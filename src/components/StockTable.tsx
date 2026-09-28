@@ -114,87 +114,104 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
     weekDays.length;
 
   return (
-    <div className="space-y-2 w-full">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-        
+    <div className="space-y-2.5 w-full">
+      {/* Column Visibility Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-2.5 sm:px-4 rounded-[10px] border border-[#D4E4E3] shadow-[0_1px_4px_rgba(90,138,136,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-slate-700">แสดงคอลัมน์:</span>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer hover:text-slate-900">
-            <input type="checkbox" checked={visibleCols.brand} onChange={(e) => setVisibleCols(prev => ({...prev, brand: e.target.checked}))} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          <span className="text-[13px] font-semibold text-[#6B8F8E]">แสดงคอลัมน์นี้:</span>
+          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+            <input type="checkbox" checked={visibleCols.brand} onChange={(e) => setVisibleCols(prev => ({...prev, brand: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ยี่ห้อ
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer hover:text-slate-900">
-            <input type="checkbox" checked={visibleCols.sizePerUnit} onChange={(e) => setVisibleCols(prev => ({...prev, sizePerUnit: e.target.checked}))} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+            <input type="checkbox" checked={visibleCols.sizePerUnit} onChange={(e) => setVisibleCols(prev => ({...prev, sizePerUnit: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ขนาด/หน่วย
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer hover:text-slate-900">
-            <input type="checkbox" checked={visibleCols.minStock} onChange={(e) => setVisibleCols(prev => ({...prev, minStock: e.target.checked}))} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+            <input type="checkbox" checked={visibleCols.minStock} onChange={(e) => setVisibleCols(prev => ({...prev, minStock: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             คงเหลือขั้นต่ำ
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer hover:text-slate-900">
-            <input type="checkbox" checked={visibleCols.minOrder} onChange={(e) => setVisibleCols(prev => ({...prev, minOrder: e.target.checked}))} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+            <input type="checkbox" checked={visibleCols.minOrder} onChange={(e) => setVisibleCols(prev => ({...prev, minOrder: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             สั่งซื้อขั้นต่ำ
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer hover:text-slate-900">
-            <input type="checkbox" checked={visibleCols.supplier} onChange={(e) => setVisibleCols(prev => ({...prev, supplier: e.target.checked}))} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          <label className="flex items-center gap-1.5 text-xs text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+            <input type="checkbox" checked={visibleCols.supplier} onChange={(e) => setVisibleCols(prev => ({...prev, supplier: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ผู้จัดจำหน่าย
           </label>
         </div>
       </div>
 
-      <div className="text-[12.5px] font-bold text-amber-700 bg-amber-50/80 px-3.5 py-2.5 rounded-xl border border-amber-100/75 flex items-center justify-between gap-2 shadow-sm animate-pulse-slow">
-        <span className="flex items-center gap-1.5 leading-tight">
-          📱 สำหรับระบบแท็บเล็ต (Tablet): เลื่อนหรือปัดหน้าจอไปทางซ้าย-ขวา เพื่อตรวจสัญลักษ์นำทางและการเข้าถึงคอลัมน์ด้านนอกที่สมบูรณ์
-        </span>
-        <span className="text-[11px] text-amber-600 font-bold bg-white px-2 py-0.5 rounded-md border border-amber-200 shrink-0 hidden sm:inline">
-          Swipe Left/Right ↔️
-        </span>
+      {/* Day Selector Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-[#2D4A49] text-white p-3 sm:px-4 rounded-xl shadow-xs">
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-[#C5D5D3]">
+          <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse"></span>
+          <span>เลือกวันที่ต้องการดู:</span>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          {weekDays.map((day, idx) => {
+            const isToday = isSameDay(day, new Date());
+            return (
+              <button
+                key={day.toString()}
+                type="button"
+                onClick={() => {
+                  if (tableContainerRef.current) {
+                    const baseOffset = 260;
+                    tableContainerRef.current.scrollTo({
+                      left: baseOffset + (idx * 130),
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all border active:scale-95",
+                  isToday 
+                    ? "bg-[#5A8A88] text-white border-[#7A9E9C] shadow-sm"
+                    : "bg-white/10 text-[#C5D5D3] border-white/10 hover:bg-white/20 hover:text-white"
+                )}
+              >
+                {format(day, 'EEE d/M')}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div ref={tableContainerRef} className="overflow-auto max-h-[550px] md:max-h-[68vh] border border-slate-200 rounded-2xl shadow-lg bg-white scrollbar-thin">
+
+      <div ref={tableContainerRef} className="overflow-auto max-h-[550px] md:max-h-[68vh] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
       <table className="w-full min-w-max border-collapse relative">
-        <thead className="sticky top-0 z-40 shadow-md">
-          <tr className="bg-slate-800 text-white border-b border-slate-700">
-            {isAdmin && <th className="sticky left-0 z-50 px-1 py-2 w-[60px] min-w-[60px] max-w-[60px] text-center border-r border-slate-700 bg-slate-800 no-print text-[10px]">จัดการ</th>}
-            <th className={cn("sticky z-50 px-1 py-2 text-center font-medium tracking-wide w-[45px] min-w-[45px] max-w-[45px] bg-slate-800 border-r border-slate-700 text-[10px]", isAdmin ? "left-[60px]" : "left-0")}>รูป</th>
-            <th className={cn("sticky z-50 px-2 py-2 text-left font-medium tracking-wide w-[170px] min-w-[170px] max-w-[170px] bg-slate-800 border-r border-slate-700 text-[10px]", isAdmin ? "left-[105px]" : "left-[45px]")}>รายการสินค้า</th>
-            {visibleCols.brand && <th className="px-2 py-2 text-left font-medium tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-slate-800 border-r border-slate-700 text-[10px]">ยี่ห้อ</th>}
-            {visibleCols.sizePerUnit && <th className="px-2 py-2 text-left font-medium tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-slate-800 border-r border-slate-700 text-[10px]">ขนาด/หน่วย</th>}
-            {visibleCols.minStock && <th className="px-2 py-2 text-center font-medium tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-slate-800 border-r border-slate-700 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.3)] text-[10px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
-            {visibleCols.minOrder && <th className="px-2 py-2 text-center font-medium tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-slate-800 shadow-xl border-r border-slate-700 text-[10px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
-            {visibleCols.supplier && <th className="px-2 py-2 text-left font-medium tracking-wide w-[90px] min-w-[90px] max-w-[90px] border-r border-slate-700 text-[10px]">ผู้จัดจำหน่าย</th>}
+        <thead className="sticky top-0 z-40 shadow-sm">
+          <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
+            {isAdmin && <th className="sticky left-0 z-50 px-1 py-2 w-[52px] sm:w-[60px] min-w-[52px] sm:min-w-[60px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[10px] font-semibold">จัดการ</th>}
+            <th className={cn("sticky z-50 px-1 py-2 text-center font-semibold tracking-wide w-[36px] sm:w-[45px] min-w-[36px] sm:min-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]", isAdmin ? "left-[52px] sm:left-[60px]" : "left-0")}>รูป</th>
+            <th className={cn("sticky z-50 px-2 py-2 text-left font-semibold tracking-wide w-[140px] sm:w-[170px] min-w-[140px] sm:min-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]", isAdmin ? "left-[88px] sm:left-[105px]" : "left-[36px] sm:left-[45px]")}>รายการสินค้า</th>
+            {visibleCols.brand && <th className="px-2 py-2 text-left font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]">ยี่ห้อ</th>}
+            {visibleCols.sizePerUnit && <th className="px-2 py-2 text-left font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]">ขนาด/หน่วย</th>}
+            {visibleCols.minStock && <th className="px-2 py-2 text-center font-semibold tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-[#2D4A49] border-r border-[#3D6B69] shadow-[4px_0_8px_-2px_rgba(0,0,0,0.2)] text-[10px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
+            {visibleCols.minOrder && <th className="px-2 py-2 text-center font-semibold tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-[#2D4A49] shadow-xl border-r border-[#3D6B69] text-[10px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
+            {visibleCols.supplier && <th className="px-2 py-2 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]">ผู้จัดจำหน่าย</th>}
             {weekDays.map((day) => {
               const isToday = isSameDay(day, new Date());
-              const dayOfWeek = day.getDay();
-              const dayColors: Record<number, string> = {
-                0: "bg-red-500 text-white",        // Sunday
-                1: "bg-yellow-400 text-slate-900", // Monday
-                2: "bg-pink-500 text-white",       // Tuesday
-                3: "bg-green-500 text-white",      // Wednesday
-                4: "bg-orange-500 text-white",     // Thursday
-                5: "bg-blue-500 text-white",       // Friday
-                6: "bg-purple-500 text-white",     // Saturday
-              };
 
               return (
                 <th key={day.toString()} data-is-today={isToday ? "true" : "false"} className={cn(
-                  "px-1 py-1 text-center font-medium w-[130px] min-w-[130px] max-w-[130px] transition-colors border-r border-slate-700 last:border-0 relative",
-                  dayColors[dayOfWeek],
-                  isToday ? "ring-2 ring-inset ring-slate-800 shadow-inner font-bold" : ""
+                  "px-1 py-1 text-center font-semibold w-[130px] min-w-[130px] max-w-[130px] transition-colors border-r border-[#3D6B69] last:border-0 relative bg-[#5A8A88] text-white",
+                  isToday ? "ring-2 ring-inset ring-white/40 shadow-inner font-bold" : ""
                 )}>
                   <button
                     onClick={() => setDayToClear({ 
                       dateKey: format(day, 'yyyy-MM-dd'), 
                       label: `${format(day, 'EEE')} ${format(day, 'd/M')}` 
                     })}
-                    className="absolute top-1 right-1 w-6 h-6 bg-black/20 hover:bg-red-500/60 rounded border border-white/10 transition-all flex flex-col items-center justify-center group"
-                    title="Clear Day Data"
+                    className="absolute top-1 right-1 w-6 h-6 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
+                    title="ล้างข้อมูลของวันนี้"
                   >
-                    <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform" />
+                    <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform text-white" />
                   </button>
 
-                  <div className="text-[10px] uppercase">{format(day, 'EEE')}</div>
-                  <div className="text-[9px] opacity-90 mb-0.5">{format(day, 'd/M')}</div>
-                  <div className="grid grid-cols-3 gap-0.5 text-[10px] bg-black/20 rounded px-0.5 py-0.5">
+                  <div className="text-[10px] uppercase font-bold text-white">{format(day, 'EEE')}</div>
+                  <div className="text-[9px] text-white/90 mb-0.5">{format(day, 'd/M')}</div>
+                  <div className="grid grid-cols-3 gap-0.5 text-[10px] bg-[#4A7A78] rounded px-0.5 py-0.5 text-white font-medium">
                     <div>เข้า</div>
                     <div>เบิก</div>
                     <div>เหลือ</div>
@@ -216,48 +233,48 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             })
             .map(([category, items]) => (
             <React.Fragment key={category}>
-              <tr className="bg-slate-100 border-y border-slate-200">
+              <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                 <td colSpan={baseColsCount} className="p-0">
-                  <div className="sticky left-0 w-fit p-1.5 pl-2 font-bold text-[11px] text-slate-700 flex items-center gap-1.5 bg-slate-100 z-20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                  <div className="sticky left-0 w-fit p-2 pl-3 font-semibold text-xs text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
+                    <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
                     {category}
                   </div>
                 </td>
               </tr>
               {items.map((item, index) => (
                 <tr key={item.id} className={cn(
-                  "group transition-all border-b border-slate-100 hover:bg-blue-50",
-                  index % 2 === 0 ? "bg-white" : "bg-slate-50"
+                  "group transition-colors border-b border-[#D4E4E3] hover:bg-[#E8F3F2]",
+                  index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
                 )}>
                   {isAdmin && (
-                    <td className="sticky left-0 z-20 p-1 w-[60px] min-w-[60px] max-w-[60px] border-r border-slate-100 text-center whitespace-nowrap bg-inherit no-print">
+                    <td className="sticky left-0 z-20 p-1 w-[52px] sm:w-[60px] min-w-[52px] sm:min-w-[60px] border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print">
                       <div className="flex items-center justify-center gap-0.5">
                         <button 
                           onClick={() => onEditIngredient(item)}
-                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+                          className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-md transition-all"
                           title="แก้ไข"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                         </button>
                         <button 
                           onClick={() => setItemToClear(item)}
-                          className="p-1 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all"
+                          className="p-1 text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#F0F5F4] rounded-md transition-all"
                           title="ล้างข้อมูลสัปดาห์นี้"
                         >
-                          <RotateCcw size={12} />
+                          <RotateCcw size={13} />
                         </button>
                         <button 
                           onClick={() => setItemToDelete(item)}
-                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                          className="p-1 text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-md transition-all"
                           title="ลบ"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                       </div>
                     </td>
                   )}
-                  <td className={cn("sticky z-20 p-1 w-[45px] min-w-[45px] max-w-[45px] border-r border-slate-100 font-medium text-slate-800 text-center bg-inherit", isAdmin ? "left-[60px]" : "left-0")}>
-                    <div className="w-[20px] h-[20px] rounded-md overflow-hidden bg-slate-100 mx-auto flex items-center justify-center border border-slate-200">
+                  <td className={cn("sticky z-20 p-1 w-[36px] sm:w-[45px] min-w-[36px] sm:min-w-[45px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] text-center bg-inherit", isAdmin ? "left-[52px] sm:left-[60px]" : "left-0")}>
+                    <div className="w-[22px] h-[22px] rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]">
                       {item.image ? (
                         <img 
                           src={item.image} 
@@ -267,49 +284,49 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           onClick={() => setSelectedImage(item.image!)}
                         />
                       ) : (
-                        <ShoppingCart size={12} className="text-slate-300" />
+                        <ShoppingCart size={12} className="text-[#A8BCBB]" />
                       )}
                     </div>
                   </td>
-                  <td className={cn("sticky z-20 px-2 py-1.5 w-[170px] min-w-[170px] max-w-[170px] border-r border-slate-100 font-medium text-slate-800 bg-inherit shadow-[4px_0_8px_-2px_rgba(0,0,0,0.1)]", isAdmin ? "left-[105px]" : "left-[45px]")}>
-                    <div className="truncate text-[10px]" title={item.name}>{item.name}</div>
+                  <td className={cn("sticky z-20 px-2.5 py-1.5 w-[140px] sm:w-[170px] min-w-[140px] sm:min-w-[170px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] bg-inherit shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]", isAdmin ? "left-[88px] sm:left-[105px]" : "left-[36px] sm:left-[45px]")}>
+                    <div className="truncate text-[12px] sm:text-[11px] font-semibold text-[#2D4A49]" title={item.name}>{item.name}</div>
                   </td>
                   {visibleCols.brand && (
-                    <td className="px-2 py-1.5 w-[80px] min-w-[80px] max-w-[80px] border-r border-slate-100 text-[10px] text-slate-600 bg-inherit hidden md:table-cell">
-                      <div className="bg-slate-100 px-1 py-0.5 rounded text-[10px] inline-block text-slate-500 font-medium truncate max-w-full" title={item.brand || '-'}>
+                    <td className="px-2 py-1.5 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] bg-inherit hidden md:table-cell">
+                      <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-[10px] inline-block text-[#6B8F8E] font-medium truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
                         {item.brand || '-'}
                       </div>
                     </td>
                   )}
                   {visibleCols.sizePerUnit && (
-                    <td className="px-2 py-1.5 w-[80px] min-w-[80px] max-w-[80px] border-r border-slate-100 text-[10px] text-slate-600 font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
+                    <td className="px-2 py-1.5 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
                       {item.sizePerUnit || '-'}
                     </td>
                   )}
                   {visibleCols.minStock && (
-                    <td className="px-1 py-1.5 w-[70px] min-w-[70px] max-w-[70px] border-r border-slate-100 font-mono text-[10px] text-center text-slate-600 bg-inherit">
-                      <span className="bg-orange-50 text-orange-700 px-1 py-0.5 rounded-full text-[10px] font-bold border border-orange-100">
+                    <td className="px-1 py-1.5 w-[70px] min-w-[70px] max-w-[70px] border-r border-[#D4E4E3] font-mono text-[10px] text-center bg-inherit">
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full text-[10px] font-bold border border-[#B8D4D2]">
                         {item.minStock} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.minOrder && (
-                    <td className="px-1 py-1.5 w-[70px] min-w-[70px] max-w-[70px] border-r border-slate-100 font-mono text-[10px] text-center text-slate-600 bg-inherit">
-                      <span className="bg-purple-50 text-purple-700 px-1 py-0.5 rounded-full text-[10px] font-bold border border-purple-100">
+                    <td className="px-1 py-1.5 w-[70px] min-w-[70px] max-w-[70px] border-r border-[#D4E4E3] font-mono text-[10px] text-center bg-inherit">
+                      <span className="bg-[#FEF3C7] text-[#D97706] px-2 py-0.5 rounded-full text-[10px] font-bold border border-[#FDE68A]">
                         {item.minOrder} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.supplier && (
-                    <td className="px-2 py-1.5 w-[90px] min-w-[90px] max-w-[90px] border-r border-slate-100 text-[10px] text-slate-600 bg-inherit group/supplier relative" title={item.supplier}>
-                      <div className="truncate">
+                    <td className="px-2 py-1.5 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] bg-inherit group/supplier relative" title={item.supplier}>
+                      <div className="truncate text-[11px]">
                         {item.supplier.split(',').map((sup, idx, arr) => {
                           const isPrimary = sup.includes('(หลัก)');
                           const text = sup.replace(' (หลัก)', '').trim();
                           return (
-                            <span key={idx} className={isPrimary ? "font-bold text-amber-600" : ""}>
+                            <span key={idx} className={isPrimary ? "font-bold text-[#5A8A88]" : ""}>
                               {text}
-                              {isPrimary && <span className="text-amber-500 ml-0.5" title="ผู้จัดจำหน่ายหลัก">★</span>}
+                              {isPrimary && <span className="text-[#F59E0B] ml-0.5" title="ผู้จัดจำหน่ายหลัก">★</span>}
                               {idx < arr.length - 1 ? ", " : ""}
                             </span>
                           );
@@ -321,22 +338,22 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                     const dateKey = format(day, 'yyyy-MM-dd');
                     const currentStockObj = computedStock[dateKey]?.[item.id] || { in: undefined, out: undefined, remaining: undefined, isAutoCalculated: false };
 
-                    const isLowStock = currentStockObj.remaining !== undefined && currentStockObj.remaining < item.minStock;
+                    const isLowStock = currentStockObj.remaining !== undefined && currentStockObj.remaining <= item.minStock;
                     const isToday = isSameDay(day, new Date());
 
                     return (
                       <td 
                         key={dateKey} 
                         className={cn(
-                          "p-1 w-[130px] min-w-[130px] max-w-[130px] border-r border-slate-100 text-center relative transition-colors",
-                          isToday ? "bg-blue-50/30" : ""
+                          "p-1 w-[130px] min-w-[130px] max-w-[130px] border-r border-[#D4E4E3] text-center relative transition-colors",
+                          isToday ? "bg-[#E8F3F2]/40" : ""
                         )}
                       >
                         <div className="grid grid-cols-3 gap-0.5 items-center justify-center">
                           <input
                             type="number"
                             min="0"
-                            className="w-full h-7 text-center focus:outline-none font-mono text-[10px] rounded border border-slate-200 bg-slate-50 text-slate-700 focus:bg-white focus:border-blue-400 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            className="w-full h-8 sm:h-7 text-center focus:outline-none font-mono tabular-nums text-xs sm:text-[10px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                             placeholder="0"
                             value={currentStockObj.in ?? ''}
                             onChange={(e) => {
@@ -348,7 +365,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           <input
                             type="number"
                             min="0"
-                            className="w-full h-7 text-center focus:outline-none font-mono text-[10px] rounded border border-slate-200 bg-slate-50 text-slate-700 focus:bg-white focus:border-blue-400 disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            className="w-full h-8 sm:h-7 text-center focus:outline-none font-mono tabular-nums text-xs sm:text-[10px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                             placeholder="0"
                             value={currentStockObj.out ?? ''}
                             onChange={(e) => {
@@ -362,14 +379,14 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                               type="number"
                               min="0"
                               className={cn(
-                                "w-full h-7 text-center focus:outline-none font-mono text-[10px] rounded border-2 transition-all shadow-sm disabled:opacity-75 disabled:cursor-not-allowed",
+                                "w-full h-8 sm:h-7 text-center focus:outline-none font-mono tabular-nums text-xs sm:text-[10px] rounded-md border transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
                                 isLowStock 
-                                  ? "border-red-300 bg-red-50 text-red-600 font-bold focus:border-red-500 focus:ring-2 focus:ring-red-200" 
+                                  ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-bold focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20" 
                                   : currentStockObj.isAutoCalculated 
-                                    ? "border-emerald-200 bg-emerald-50/30 text-emerald-700 font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                                    ? "border-[#B8D4D2] bg-[#E8F3F2] text-[#2D4A49] font-medium focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
                                     : currentStockObj.remaining !== undefined
-                                      ? "border-blue-200 bg-white text-slate-900 font-semibold focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                      : "border-slate-200 bg-slate-50 text-slate-400 focus:bg-white focus:border-blue-400 focus:text-slate-900"
+                                      ? "border-[#5A8A88] bg-white text-[#2D4A49] font-bold focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                      : "border-[#D4E4E3] bg-[#F0F5F4] text-[#6B8F8E] focus:bg-white focus:border-[#5A8A88] focus:text-[#2D4A49]"
                               )}
                               placeholder="0"
                               value={currentStockObj.remaining ?? ''}
@@ -383,8 +400,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                             {isLowStock && (
                               <div className="absolute -top-1 -right-1">
                                 <span className="flex h-1.5 w-1.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF4444] opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#EF4444]"></span>
                                 </span>
                               </div>
                             )}
@@ -399,13 +416,13 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
           ))}
           {ingredients.length === 0 && (
             <tr>
-              <td colSpan={baseColsCount} className="p-12 text-center text-slate-400">
+              <td colSpan={baseColsCount} className="p-12 text-center text-[#6B8F8E]">
                 <div className="flex flex-col items-center justify-center gap-3">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                    <ShoppingCart size={32} className="text-slate-300" />
+                  <div className="w-16 h-16 bg-[#F0F5F4] rounded-full flex items-center justify-center border border-[#D4E4E3]">
+                    <ShoppingCart size={32} className="text-[#A8BCBB]" />
                   </div>
-                  <p className="text-[13px] font-medium text-slate-500">ยังไม่มีรายการสินค้า</p>
-                  <p className="text-[13px] text-slate-400">กดปุ่ม "เพิ่มรายการวัตถุดิบ" เพื่อเริ่มต้นใช้งาน</p>
+                  <p className="text-[14px] font-bold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
+                  <p className="text-[13px] text-[#6B8F8E]">กดปุ่ม "เพิ่มรายการวัตถุดิบ" เพื่อเริ่มต้นใช้งาน</p>
                 </div>
               </td>
             </tr>
@@ -419,12 +436,12 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
           onClick={() => setSelectedImage(null)}
         >
           <div 
-            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#D4E4E3]"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-3 right-3 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors z-10"
+              className="absolute top-3 right-3 p-2 bg-[#2D4A49]/80 hover:bg-[#2D4A49] text-white rounded-full transition-colors z-10"
               title="Close"
             >
               <X size={20} />
@@ -441,20 +458,20 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
       {dayToClear && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setDayToClear(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200 border border-[#D4E4E3]" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-red-100 text-[#EF4444] rounded-full flex items-center justify-center mx-auto mb-4">
               <RotateCcw size={32} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการล้างข้อมูล</h3>
-            <p className="text-slate-600 text-[14px] mb-6">
-              คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลสต็อกทั้งหมดของวันที่ <span className="font-bold text-slate-800">{dayToClear.label}</span>?
+            <h3 className="text-lg font-bold text-[#2D4A49] mb-2">ยืนยันการล้างข้อมูล</h3>
+            <p className="text-[#6B8F8E] text-[14px] mb-6">
+              คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลสต็อกทั้งหมดของวันที่ <span className="font-bold text-[#2D4A49]">{dayToClear.label}</span>?
               <br />
-              <span className="text-red-500 text-[12px] font-medium mt-2 block">** ข้อมูล เข้า, เบิก, คงเหลือ ของวันนี้จะถูกลบออกทั้งหมด</span>
+              <span className="text-[#EF4444] text-[12px] font-medium mt-2 block">** ข้อมูล เข้า, เบิก, คงเหลือ ของวันนี้จะถูกลบออกทั้งหมด</span>
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setDayToClear(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3]"
               >
                 ยกเลิก
               </button>
@@ -463,7 +480,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   onClearDay(dayToClear.dateKey);
                   setDayToClear(null);
                 }}
-                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-[#EF4444] hover:bg-[#DC2626] transition-colors shadow-md"
               >
                 ยืนยันล้างข้อมูล
               </button>
@@ -474,18 +491,18 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
       {itemToClear && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setItemToClear(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200 border border-[#D4E4E3]" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-amber-100 text-[#F59E0B] rounded-full flex items-center justify-center mx-auto mb-4">
               <RotateCcw size={32} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการล้างข้อมูล</h3>
-            <p className="text-slate-600 text-[14px] mb-6">
-              คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูล <span className="font-bold text-slate-800">เข้า, เบิก, คงเหลือ</span> ทั้งหมดของ <span className="font-bold text-slate-800">{itemToClear.name}</span> ในสัปดาห์นี้?
+            <h3 className="text-lg font-bold text-[#2D4A49] mb-2">ยืนยันการล้างข้อมูล</h3>
+            <p className="text-[#6B8F8E] text-[14px] mb-6">
+              คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูล <span className="font-bold text-[#2D4A49]">เข้า, เบิก, คงเหลือ</span> ทั้งหมดของ <span className="font-bold text-[#2D4A49]">{itemToClear.name}</span> ในสัปดาห์นี้?
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setItemToClear(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3]"
               >
                 ยกเลิก
               </button>
@@ -494,7 +511,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   onClearIngredientWeek(itemToClear.id);
                   setItemToClear(null);
                 }}
-                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-orange-600 hover:bg-orange-700 transition-colors shadow-lg shadow-orange-900/20"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-[#F59E0B] hover:bg-[#D97706] transition-colors shadow-md"
               >
                 ยืนยันล้างข้อมูล
               </button>
@@ -505,18 +522,18 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
       {itemToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setItemToDelete(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all border border-[#D4E4E3]" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-red-100 text-[#EF4444] rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertTriangle size={32} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการลบรายการ</h3>
-            <p className="text-slate-600 text-[14px] mb-6">
-              คุณแน่ใจหรือไม่ว่าต้องการลบ <span className="font-bold text-slate-800">{itemToDelete.name}</span>? การกระทำนี้ไม่สามารถย้อนกลับได้
+            <h3 className="text-lg font-bold text-[#2D4A49] mb-2">ยืนยันการลบรายการ</h3>
+            <p className="text-[#6B8F8E] text-[14px] mb-6">
+              คุณแน่ใจหรือไม่ว่าต้องการลบ <span className="font-bold text-[#2D4A49]">{itemToDelete.name}</span>? การกระทำนี้ไม่สามารถย้อนกลับได้
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setItemToDelete(null)}
-                className="px-4 py-2 rounded-xl text-[14px] font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3]"
               >
                 ยกเลิก
               </button>
@@ -525,7 +542,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   onDeleteIngredient(itemToDelete.id);
                   setItemToDelete(null);
                 }}
-                className="px-4 py-2 rounded-xl text-[14px] font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-[#EF4444] hover:bg-[#DC2626] transition-colors shadow-md"
               >
                 ยืนยันการลบ
               </button>
