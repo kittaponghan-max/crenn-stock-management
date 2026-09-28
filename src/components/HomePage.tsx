@@ -1159,8 +1159,15 @@ export const HomePage: React.FC<HomePageProps> = ({
               <Menu size={22} />
             </button>
             <div>
-              <div className="text-[12px] md:text-[13px] font-semibold text-[#6B8F8E] tracking-wide mb-0.5">
-                หน้าหลัก
+              <div className="text-[12px] md:text-[13px] font-semibold text-[#6B8F8E] tracking-wide mb-0.5 flex items-center flex-wrap gap-1.5">
+                <span>สรุปสถานะสต็อก</span>
+                <span className="text-slate-300">·</span>
+                <span>{selectedBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ'}</span>
+                <span className="text-slate-300">·</span>
+                <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Real-time
+                </span>
               </div>
               <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[#2D4A49] leading-tight tracking-tight">
                 Inventory Dashboard
@@ -1170,98 +1177,21 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Right Header: Filters, Notification, Date */}
           <div ref={headerFiltersRef} className="flex items-center flex-wrap gap-2.5">
-            {/* Filter Pill 1: [📅 เดือนนี้ ▼] */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMonthDropdownOpen(!isMonthDropdownOpen);
-                  setIsBranchDropdownOpen(false);
-                  setIsLocationDropdownOpen(false);
-                }}
-                className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Calendar size={15} className="text-[#5A8A88]" />
-                <span>{selectedMonth}</span>
-                <ChevronDown size={14} className="text-[#6B8F8E]" />
-              </button>
-
-              {isMonthDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-30">
-                  {['วันนี้', 'สัปดาห์นี้', 'เดือนนี้', 'ไตรมาสนี้'].map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => {
-                        setSelectedMonth(m);
-                        setIsMonthDropdownOpen(false);
-                      }}
-                      className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
-                        selectedMonth === m ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
-                      }`}
-                    >
-                      <span>{m}</span>
-                      {selectedMonth === m && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* Filter Pill 1: [📅 อัปเดต: 14:30 น.] (text, non-clickable) */}
+            <div className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 flex items-center gap-2 select-none">
+              <Calendar size={15} className="text-[#5A8A88]" />
+              <span>อัปเดต: 14:30 น.</span>
             </div>
 
-            {/* Filter Pill 2: [🏪 สาขา ▼] */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsBranchDropdownOpen(!isBranchDropdownOpen);
-                  setIsMonthDropdownOpen(false);
-                  setIsLocationDropdownOpen(false);
-                }}
-                className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <MapPin size={15} className="text-[#5A8A88]" />
-                <span>
-                  {selectedBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ'}
-                </span>
-                <ChevronDown size={14} className="text-[#6B8F8E]" />
-              </button>
-
-              {isBranchDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-30">
-                  <div className="px-4 py-1 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
-                    เลือกสาขาทำงาน
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedBranch('Rayong');
-                      setIsBranchDropdownOpen(false);
-                    }}
-                    className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
-                      selectedBranch === 'Rayong' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
-                    }`}
-                  >
-                    <span>📍 สาขาระยอง (Rayong)</span>
-                    {selectedBranch === 'Rayong' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedBranch('Bangkok');
-                      setIsBranchDropdownOpen(false);
-                    }}
-                    className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
-                      selectedBranch === 'Bangkok' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
-                    }`}
-                  >
-                    <span>📍 สาขากรุงเทพฯ (Bangkok)</span>
-                    {selectedBranch === 'Bangkok' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
-                  </button>
-                </div>
-              )}
+            {/* Filter Pill 2: [📍 สาขากรุงเทพฯ] (badge, non-clickable) */}
+            <div className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 flex items-center gap-2 select-none">
+              <MapPin size={15} className="text-[#5A8A88]" />
+              <span>
+                {selectedBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ'}
+              </span>
             </div>
 
-            {/* Filter Pill 3: [🏪 ทั้งหมด / 🍹 บาร์ / 🍳 ครัว ▼] */}
+            {/* Filter Pill 3: [🏪 ทั้งหมด / 🍹 บาร์ / 🍳 ครัว ▼] (dropdown) */}
             <div className="relative">
               <button
                 type="button"
