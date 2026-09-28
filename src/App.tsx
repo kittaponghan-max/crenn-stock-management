@@ -2060,42 +2060,33 @@ export default function App() {
       {/* Header */}
       {activeTab !== 'home' && (
       <header className="bg-gradient-to-r from-[#2D4A49] to-[#3D6B69] text-white shadow-md sticky top-0 z-[60] border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 h-18 flex items-center justify-between py-3">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between py-2.5">
           <div className="flex items-center gap-3">
             <div className="bg-[#5A8A88] text-white font-black tracking-[0.22em] uppercase text-sm px-3 py-1.5 rounded-lg shadow-xs">
               CRENN
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <h1 className="font-bold tracking-tight leading-tight text-white text-[16px] hidden sm:block">Cafe Management</h1>
-              {user?.branch && (
-                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30">
-                  <MapPin size={12} className="text-white" />
-                  สาขา: {user.branch === 'Rayong' ? 'ระยอง' : user.branch === 'Bangkok' ? 'กทม.' : user.branch}
-                </div>
-              )}
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/20 border border-white/20">
-                <div className={`w-2 h-2 rounded-full ${
-                  dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/20 border border-white/10">
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' :
                   dbStatus === 'checking' ? 'bg-[#F59E0B] animate-pulse' : 'bg-slate-400'
                 }`}></div>
-                <span className="text-[10px] font-semibold text-white uppercase tracking-widest">
-                  {dbStatus === 'connected' ? 'Supabase Connected' : 
-                   dbStatus === 'checking' ? 'Connecting...' : 'Local Offline Mode'}
+                <span className="text-[10px] font-medium text-white/80 tracking-wide">
+                  {dbStatus === 'connected' ? 'Connected' : 
+                   dbStatus === 'checking' ? 'Connecting...' : 'Offline'}
                 </span>
               </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="text-white/90 text-[14px] font-medium hidden sm:block">
-              {format(new Date(), 'dd MMM yyyy')}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#5A8A88] border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-xs select-none">
+              {(user.name || 'U').charAt(0).toUpperCase()}
             </div>
-            <div className="h-6 w-px bg-white/20 hidden sm:block"></div>
-            <div className="flex items-center gap-2">
-              <span className="text-[14px] font-medium text-white">{user.name}</span>
-              <span className="px-2 py-0.5 rounded-md text-[12px] bg-white/20 text-white uppercase tracking-wider font-semibold border border-white/20">
-                {user.role}
-              </span>
+            <div className="flex flex-col text-right">
+              <span className="text-[14px] font-semibold text-white leading-tight">{user.name}</span>
+              <span className="text-[11px] font-normal text-white/70 leading-tight">{format(new Date(), 'dd MMM yyyy')}</span>
             </div>
           </div>
         </div>
