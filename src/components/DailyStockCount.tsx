@@ -68,24 +68,24 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-200 gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-[#D4E4E3] gap-4">
         <div className="flex flex-col gap-2 w-full sm:w-auto">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-slate-700 font-medium whitespace-nowrap">
-              <CalendarIcon size={20} className="text-blue-600" />
-              <span>เลือกวันที่ตรวจนับ:</span>
+            <div className="flex items-center gap-2 text-[#2D4A49] font-medium whitespace-nowrap">
+              <CalendarIcon size={20} className="text-[#5A8A88]" />
+              <span className="font-semibold">เลือกวันที่ตรวจนับ:</span>
             </div>
             <input 
               type="date" 
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto font-mono text-[13px]"
+              className="border border-[#D4E4E3] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] w-full sm:w-auto font-mono text-[13px] text-[#2D4A49]"
             />
           </div>
           {lastSubmittedDate && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pl-1">
-              <Clock size={14} className="text-slate-400" />
-              <span>Last Submitted Date: <span className="text-slate-700">{lastSubmittedDate}</span></span>
+            <div className="flex items-center gap-1.5 text-xs text-[#6B8F8E] font-medium pl-1">
+              <Clock size={14} className="text-[#6B8F8E]" />
+              <span>Last Submitted Date: <span className="text-[#2D4A49] font-semibold">{lastSubmittedDate}</span></span>
             </div>
           )}
         </div>
@@ -94,15 +94,15 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
             <>
               <button
                 onClick={() => setCounts({})}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-[14px] font-bold hover:bg-slate-200 transition-all border border-slate-300"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#F0F5F4] text-[#2D4A49] px-4 py-2.5 rounded-xl text-[14px] font-bold hover:bg-[#E8F3F2] transition-all border border-[#D4E4E3]"
               >
-                <RotateCcw size={18} />
+                <RotateCcw size={18} className="text-[#5A8A88]" />
                 ล้างข้อมูล
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl text-[14px] font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20 transform hover:scale-105 active:scale-95 border border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#5A8A88] text-white px-6 py-2.5 rounded-xl text-[14px] font-bold hover:bg-[#4A7A78] transition-all shadow-md transform hover:scale-105 active:scale-95 border border-[#5A8A88] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send size={18} />
                 {isSubmitting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
@@ -112,16 +112,16 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
         </div>
       </div>
 
-      <div className="overflow-auto max-h-[560px] border border-slate-200 rounded-xl shadow-lg bg-white scrollbar-thin">
+      <div className="overflow-auto max-h-[560px] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
         <table className="w-full min-w-max border-collapse relative">
-          <thead className="sticky top-0 z-40 shadow-md">
-            <tr className="bg-slate-800 text-white border-b border-slate-700">
-              <th className="sticky left-0 z-50 px-2 py-3 text-center font-medium tracking-wide w-[50px] min-w-[50px] max-w-[50px] bg-slate-800 border-r border-slate-700 text-[12px]">รูป</th>
-              <th className="sticky left-[50px] z-50 px-2 py-3 text-left font-medium tracking-wide w-[180px] min-w-[180px] max-w-[180px] bg-slate-800 border-r border-slate-700 text-[12px]">รายการสินค้า</th>
-              <th className="sticky left-[230px] z-50 px-2 py-3 text-left font-medium tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-slate-800 border-r border-slate-700 text-[12px]">ยี่ห้อ</th>
-              <th className="sticky left-[330px] z-50 px-2 py-3 text-left font-medium tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-slate-800 border-r border-slate-700 text-[12px]">ขนาด/หน่วย</th>
-              <th className="px-2 py-3 text-center font-medium tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-slate-800 border-r border-slate-700 text-[12px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
-              <th className="px-4 py-3 text-center font-bold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-blue-600 border-r border-slate-700 text-[13px]">
+          <thead className="sticky top-0 z-40 shadow-sm">
+            <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
+              <th className="sticky left-0 z-50 px-2 py-3 text-center font-semibold tracking-wide w-[45px] min-w-[45px] max-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs">รูป</th>
+              <th className="sticky left-[45px] z-50 px-3 py-3 text-left font-semibold tracking-wide w-[170px] min-w-[170px] max-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs shadow-[2px_0_6px_-1px_rgba(0,0,0,0.2)]">รายการสินค้า</th>
+              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs">ยี่ห้อ</th>
+              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs">ขนาด/หน่วย</th>
+              <th className="px-2 py-3 text-center font-semibold tracking-wide w-[85px] min-w-[85px] max-w-[85px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
+              <th className="px-3 py-3 text-center font-bold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-[#5A8A88] border-r border-[#3D6B69] text-sm text-white">
                 ยอดตรวจนับ
               </th>
             </tr>
@@ -138,25 +138,25 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
               })
               .map(([category, items]: [string, Ingredient[]]) => (
               <React.Fragment key={category}>
-                <tr className="bg-slate-100 border-y border-slate-200">
+                <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                   <td colSpan={6} className="p-0">
-                    <div className="sticky left-0 w-fit p-3 pl-4 font-bold text-[13px] text-slate-700 flex items-center gap-2 bg-slate-100 z-20">
-                      <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                    <div className="sticky left-0 w-fit p-2.5 pl-4 font-semibold text-xs text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
+                      <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
                       {category}
                     </div>
                   </td>
                 </tr>
                 {items.map((item, index) => {
                   const currentValue = counts[item.id];
-                  const isLowStock = currentValue !== undefined && currentValue < item.minStock;
+                  const isLowStock = currentValue !== undefined && currentValue <= item.minStock;
 
                   return (
                     <tr key={item.id} className={cn(
-                      "group transition-all border-b border-slate-100 hover:bg-blue-50",
-                      index % 2 === 0 ? "bg-white" : "bg-slate-50"
+                      "group transition-colors border-b border-[#D4E4E3] hover:bg-[#E8F3F2]",
+                      index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
                     )}>
-                      <td className="sticky left-0 z-20 p-1 w-[50px] min-w-[50px] max-w-[50px] border-r border-slate-100 font-medium text-slate-800 text-center bg-inherit">
-                        <div className="w-[28px] h-[28px] rounded-md overflow-hidden bg-slate-100 mx-auto flex items-center justify-center border border-slate-200">
+                      <td className="sticky left-0 z-20 p-1 w-[45px] min-w-[45px] max-w-[45px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] text-center bg-inherit">
+                        <div className="w-[30px] h-[30px] rounded-lg overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]">
                           {item.image ? (
                             <img 
                               src={item.image} 
@@ -166,36 +166,40 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                               onClick={() => setSelectedImage(item.image!)}
                             />
                           ) : (
-                            <ShoppingCart size={14} className="text-slate-300" />
+                            <ShoppingCart size={14} className="text-[#A8BCBB]" />
                           )}
                         </div>
                       </td>
-                      <td className="sticky left-[50px] z-20 px-2 py-2 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-100 font-medium text-slate-800 bg-inherit">
-                        <div className="truncate text-[13px]" title={item.name}>{item.name}</div>
+                      <td className="sticky left-[45px] z-20 px-2.5 py-2 w-[170px] min-w-[170px] max-w-[170px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] bg-inherit shadow-[2px_0_6px_-1px_rgba(90,138,136,0.06)]">
+                        <div className="truncate text-xs font-semibold text-[#2D4A49]" title={item.name}>{item.name}</div>
+                        <div className="text-[11px] text-[#6B8F8E] truncate md:hidden mt-0.5">
+                          {item.brand ? <span>{item.brand} · </span> : null}
+                          <span>{item.sizePerUnit || item.unit}</span>
+                        </div>
                       </td>
-                      <td className="sticky left-[230px] z-20 px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-slate-100 text-[12px] text-slate-600 bg-inherit">
-                        <div className="bg-slate-100 px-1.5 py-0.5 rounded text-[12px] inline-block text-slate-500 font-medium truncate max-w-full" title={item.brand || '-'}>
+                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-xs text-[#6B8F8E] bg-inherit">
+                        <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-xs inline-block text-[#6B8F8E] font-medium truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
                           {item.brand || '-'}
                         </div>
                       </td>
-                      <td className="sticky left-[330px] z-20 px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-slate-100 text-[12px] text-slate-600 font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
+                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-xs text-[#6B8F8E] font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
                         {item.sizePerUnit || '-'}
                       </td>
-                      <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-slate-100 font-mono text-[12px] text-center text-slate-600 bg-inherit shadow-[4px_0_8px_-2px_rgba(0,0,0,0.1)]">
-                        <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded-full text-[12px] font-bold border border-orange-100">
+                      <td className="px-2 py-2 w-[85px] min-w-[85px] max-w-[85px] border-r border-[#D4E4E3] font-mono text-xs text-center bg-inherit">
+                        <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full text-xs font-bold border border-[#B8D4D2] tabular-nums">
                           {item.minStock} {item.unit}
                         </span>
                       </td>
-                      <td className="p-2 w-[120px] min-w-[120px] max-w-[120px] border-r border-slate-100 text-center bg-blue-50/30">
+                      <td className="p-1.5 w-[120px] min-w-[120px] max-w-[120px] border-r border-[#D4E4E3] text-center bg-[#E8F3F2]/30">
                         <div className="relative flex items-center justify-center">
                           <input
                             type="number"
                             min="0"
                             className={cn(
-                              "w-full h-9 text-center focus:outline-none font-mono text-[13px] rounded-md border-2 bg-white transition-all disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed",
+                              "w-full h-10 text-center focus:outline-none font-mono text-sm rounded-lg border-2 bg-white transition-all disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed tabular-nums",
                               isLowStock
-                                ? "border-red-400 text-red-600 shadow-sm focus:border-red-500 focus:ring-2 focus:ring-red-200"
-                                : "border-blue-200 text-slate-900 font-bold focus:border-blue-500 focus:ring-2 focus:ring-blue-200 shadow-sm"
+                                ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-bold shadow-xs focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20"
+                                : "border-[#D4E4E3] text-[#2D4A49] font-bold focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 shadow-xs"
                             )}
                             placeholder="0"
                             value={currentValue ?? ''}
@@ -212,8 +216,8 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                             disabled={isReadOnly}
                           />
                           {isLowStock && (
-                            <div className="absolute top-1/2 -translate-y-1/2 right-3 text-red-500" title="ต่ำกว่ายอดคงเหลือขั้นต่ำ">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            <div className="absolute top-1/2 -translate-y-1/2 right-2.5 text-[#EF4444] pointer-events-none" title="ต่ำกว่ายอดคงเหลือขั้นต่ำ">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                             </div>
                           )}
                         </div>
@@ -225,12 +229,12 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
             ))}
             {ingredients.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-slate-400">
+                <td colSpan={6} className="p-12 text-center text-[#6B8F8E]">
                   <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                      <ShoppingCart size={32} className="text-slate-300" />
+                    <div className="w-16 h-16 bg-[#F0F5F4] rounded-full flex items-center justify-center border border-[#D4E4E3]">
+                      <ShoppingCart size={32} className="text-[#A8BCBB]" />
                     </div>
-                    <p className="text-[13px] font-medium text-slate-500">ยังไม่มีรายการสินค้า</p>
+                    <p className="text-[14px] font-bold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
                   </div>
                 </td>
               </tr>
@@ -245,19 +249,19 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
           onClick={() => setSelectedImage(null)}
         >
           <div 
-            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-[#D4E4E3]"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-3 right-3 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors z-10"
+              className="absolute top-3 right-3 p-2 bg-[#2D4A49]/80 hover:bg-[#2D4A49] text-white rounded-full transition-colors z-10"
               title="Close"
             >
               <X size={20} />
             </button>
             <img 
               src={selectedImage} 
-              alt="Enlarged ingredient"
+              alt="Enlarged ingredient" 
               className="w-full h-full object-contain max-h-[85vh]"
               referrerPolicy="no-referrer"
             />
@@ -267,24 +271,24 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
 
       {showConfirmModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowConfirmModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200 border border-[#D4E4E3]" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-[#E8F3F2] text-[#5A8A88] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#B8D4D2]">
               <Send size={32} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการส่งรายงาน</h3>
-            <p className="text-slate-600 text-[14px] mb-6">
-              คุณแน่ใจหรือไม่ว่าต้องการส่งรายงานตรวจนับสต็อกประจำวันที่ <span className="font-bold text-slate-800">{format(new Date(selectedDate + 'T00:00:00'), 'dd/MM/yyyy')}</span>?
+            <h3 className="text-lg font-bold text-[#2D4A49] mb-2">ยืนยันการส่งรายงาน</h3>
+            <p className="text-[#6B8F8E] text-[14px] mb-6">
+              คุณแน่ใจหรือไม่ว่าต้องการส่งรายงานตรวจนับสต็อกประจำวันที่ <span className="font-bold text-[#2D4A49]">{format(new Date(selectedDate + 'T00:00:00'), 'dd/MM/yyyy')}</span>?
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3]"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleConfirmSubmit}
-                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20"
+                className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-bold text-white bg-[#5A8A88] hover:bg-[#4A7A78] transition-colors shadow-md"
               >
                 ยืนยันส่งรายงาน
               </button>
