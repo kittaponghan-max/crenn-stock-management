@@ -2050,7 +2050,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen bg-[#F0F5F4] text-[#2D4A49] font-sans">
       {/* Print Header */}
       <div className="print-header">
         <h1>Cafe Management - Weekly Report</h1>
@@ -2059,24 +2059,26 @@ export default function App() {
 
       {/* Header */}
       {activeTab !== 'home' && (
-      <header className="bg-slate-800 text-white shadow-lg sticky top-0 z-[60] border-b border-slate-700">
+      <header className="bg-gradient-to-r from-[#2D4A49] to-[#3D6B69] text-white shadow-md sticky top-0 z-[60] border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-18 flex items-center justify-between py-3">
           <div className="flex items-center gap-3">
-            <Logo className="rounded-[4px] shadow-sm py-1.5 px-3" textClassName="text-xl" showSubtitle={false} />
+            <div className="bg-[#5A8A88] text-white font-black tracking-[0.22em] uppercase text-sm px-3 py-1.5 rounded-lg shadow-xs">
+              CRENN
+            </div>
             <div className="flex items-center gap-4">
-              <h1 className="font-bold tracking-tight leading-tight text-slate-100 text-[16px] hidden sm:block">Cafe Management</h1>
+              <h1 className="font-bold tracking-tight leading-tight text-white text-[16px] hidden sm:block">Cafe Management</h1>
               {user?.branch && (
-                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-200 text-xs font-semibold border border-indigo-500/30">
-                  <MapPin size={12} className="text-indigo-400" />
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30">
+                  <MapPin size={12} className="text-white" />
                   สาขา: {user.branch === 'Rayong' ? 'ระยอง' : user.branch === 'Bangkok' ? 'กทม.' : user.branch}
                 </div>
               )}
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/50 border border-slate-700/50">
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/20 border border-white/20">
                 <div className={`w-2 h-2 rounded-full ${
-                  dbStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' :
-                  dbStatus === 'checking' ? 'bg-amber-400 animate-pulse' : 'bg-slate-500'
+                  dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+                  dbStatus === 'checking' ? 'bg-[#F59E0B] animate-pulse' : 'bg-slate-400'
                 }`}></div>
-                <span className="text-[10px] font-medium text-slate-300 uppercase tracking-widest">
+                <span className="text-[10px] font-semibold text-white uppercase tracking-widest">
                   {dbStatus === 'connected' ? 'Supabase Connected' : 
                    dbStatus === 'checking' ? 'Connecting...' : 'Local Offline Mode'}
                 </span>
@@ -2085,13 +2087,13 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="text-slate-300 text-[14px] font-medium hidden sm:block">
+            <div className="text-white/90 text-[14px] font-medium hidden sm:block">
               {format(new Date(), 'dd MMM yyyy')}
             </div>
-            <div className="h-6 w-px bg-slate-700 hidden sm:block"></div>
+            <div className="h-6 w-px bg-white/20 hidden sm:block"></div>
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-medium text-slate-200">{user.name}</span>
-              <span className="px-2 py-0.5 rounded-md text-[12px] bg-slate-700 text-blue-200 uppercase tracking-wider font-semibold border border-slate-600">
+              <span className="text-[14px] font-medium text-white">{user.name}</span>
+              <span className="px-2 py-0.5 rounded-md text-[12px] bg-white/20 text-white uppercase tracking-wider font-semibold border border-white/20">
                 {user.role}
               </span>
             </div>
@@ -2101,14 +2103,14 @@ export default function App() {
                   e.stopPropagation();
                   setIsUserMenuOpen(!isUserMenuOpen);
                 }}
-                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all ml-1"
+                className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all ml-1"
                 title="Settings"
               >
                 <Settings size={20} />
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-[#2D4A49]">
                   {hasPermission('adminTools') && (
                     <button
                       onClick={(e) => {
@@ -2116,15 +2118,15 @@ export default function App() {
                         setActiveTab('userSettings');
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors font-medium border-b border-slate-100"
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium border-b border-[#D4E4E3]"
                     >
                       User Security Settings
-                      <Settings size={14} className="text-slate-400" />
+                      <Settings size={14} className="text-[#6B8F8E]" />
                     </button>
                   )}
                   <button
                     onClick={() => setUser(null)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-red-600 hover:bg-red-50 transition-colors font-medium"
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-[14px] text-[#EF4444] hover:bg-rose-50 transition-colors font-medium"
                   >
                     Log-out
                     <LogOut size={14} />
@@ -2143,9 +2145,9 @@ export default function App() {
           <div className="mb-6">
             <button 
               onClick={() => setActiveTab('home')}
-              className="flex items-center gap-2 text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-[14px] font-bold transition-all shadow-sm"
+              className="flex items-center gap-2 bg-white border border-[#D4E4E3] text-[#5A8A88] hover:bg-[#E8F3F2] px-4 py-2 rounded-lg text-[14px] font-bold transition-all shadow-xs"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={18} className="text-[#5A8A88]" />
               ย้อนกลับหน้าหลัก
             </button>
           </div>
@@ -2238,9 +2240,9 @@ export default function App() {
         ) : (
           <>
             {/* Date Range Controls for Stock Recording */}
-            <div className="flex items-center justify-between mb-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1.5">
+            <div className="flex items-center justify-between mb-4 bg-white p-3 sm:px-4 rounded-xl shadow-[0_1px_4px_rgba(90,138,136,0.08)] border border-[#D4E4E3]">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2 bg-[#F0F5F4] rounded-lg p-1.5 border border-[#D4E4E3]">
                   <input 
                     type="date" 
                     value={format(dateRange.start, 'yyyy-MM-dd')}
@@ -2255,9 +2257,9 @@ export default function App() {
                       }
                       setDateRange({ start: newStart, end: newEnd });
                     }}
-                    className="bg-white border border-slate-300 rounded text-sm px-2 py-1 focus:outline-none focus:border-blue-500 font-mono text-slate-700"
+                    className="bg-white border border-[#D4E4E3] rounded-lg text-sm px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono"
                   />
-                  <span className="text-slate-500 text-sm font-medium">ถึง</span>
+                  <span className="text-[#6B8F8E] text-sm font-medium">ถึง</span>
                   <input 
                     type="date" 
                     value={format(dateRange.end, 'yyyy-MM-dd')}
@@ -2274,34 +2276,34 @@ export default function App() {
                     }}
                     min={format(dateRange.start, 'yyyy-MM-dd')}
                     max={format(addDays(dateRange.start, 6), 'yyyy-MM-dd')}
-                    className="bg-white border border-slate-300 rounded text-sm px-2 py-1 focus:outline-none focus:border-blue-500 font-mono text-slate-700"
+                    className="bg-white border border-[#D4E4E3] rounded-lg text-sm px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono"
                   />
                 </div>
                 <button 
                   onClick={() => setDateRange({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) })}
-                  className="text-[12px] text-blue-600 hover:text-blue-700 font-bold px-3 py-1.5 hover:bg-blue-50 rounded-lg transition-all"
+                  className="text-[13px] text-[#5A8A88] hover:underline font-bold px-3 py-1.5 hover:bg-[#E8F3F2]/50 rounded-lg transition-all"
                 >
                   This Week
                 </button>
               </div>
               
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                <div className="flex items-center gap-1 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3]">
                   <button 
                     onClick={handleUndo}
                     disabled={history.length === 0}
-                    className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all shadow-sm"
+                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                     title="Undo (Ctrl+Z)"
                   >
-                    <Undo size={14} />
+                    <Undo size={15} />
                   </button>
                   <button 
                     onClick={handleRedo}
                     disabled={future.length === 0}
-                    className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all shadow-sm"
+                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                     title="Redo (Ctrl+Y)"
                   >
-                    <Redo size={14} />
+                    <Redo size={15} />
                   </button>
                 </div>
               </div>
@@ -2316,9 +2318,9 @@ export default function App() {
                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     setDateRange({ start: today, end: today });
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all shadow-sm transform hover:scale-105 active:scale-95 border bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-bold transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
                 >
-                  <Calendar size={14} className="text-blue-500" />
+                  <Calendar size={14} className="text-[#5A8A88]" />
                   Today
                 </button>
               </div>
@@ -2334,10 +2336,10 @@ export default function App() {
                   />
                   <button
                     onClick={handleImportExcel}
-                    className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:bg-emerald-500 transition-all shadow-sm transform hover:scale-105 active:scale-95 border border-emerald-500"
+                    className="flex items-center gap-1.5 bg-[#5A8A88] text-white px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#4A7A78] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                     title="นำเข้าวัตถุดิบจากไฟล์ Excel"
                   >
-                    <FileUp size={14} strokeWidth={3} />
+                    <FileUp size={14} strokeWidth={2.5} />
                     Import Excel
                   </button>
                   <button
@@ -2373,7 +2375,7 @@ export default function App() {
                       XLSX.utils.book_append_sheet(wb, ws, "Template");
                       XLSX.writeFile(wb, "Ingredient_Template.xlsx");
                     }}
-                    className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-[12px] font-bold hover:bg-slate-200 transition-all shadow-sm transform hover:scale-105 active:scale-95 border border-slate-300"
+                    className="flex items-center gap-1.5 bg-white text-[#2D4A49] border border-[#D4E4E3] px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#F0F5F4] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                   >
                     โหลดเทมเพลต (Template)
                   </button>
@@ -2383,23 +2385,23 @@ export default function App() {
                         e.stopPropagation();
                         setIsExportDropdownOpen(!isExportDropdownOpen);
                       }}
-                      className="flex items-center gap-1.5 bg-slate-700 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:bg-slate-600 transition-all shadow-sm transform hover:scale-105 active:scale-95 border border-slate-600"
+                      className="flex items-center gap-1.5 bg-[#7A9E9C] text-white px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#6B8E8C] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                     >
-                      <FileDown size={14} strokeWidth={3} />
+                      <FileDown size={14} strokeWidth={2.5} />
                       Export File
                       <ChevronDown size={12} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
                     </button>
                     
                     {isExportDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-[#2D4A49]">
                         <button
                           onClick={() => {
                             exportExcel();
                             setIsExportDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
                         >
-                          <FileDown size={14} className="text-emerald-600" />
+                          <FileDown size={15} className="text-[#5A8A88]" />
                           Excel (.xlsx)
                         </button>
                         <button
@@ -2407,9 +2409,9 @@ export default function App() {
                             handlePrint();
                             setIsExportDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
                         >
-                          <Printer size={14} className="text-blue-600" />
+                          <Printer size={15} className="text-[#7A9E9C]" />
                           PDF / Print
                         </button>
                       </div>
@@ -2417,9 +2419,9 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => setIsFormOpen(true)}
-                    className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold hover:bg-blue-500 transition-all shadow-sm transform hover:scale-105 active:scale-95 border border-blue-500"
+                    className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 py-2 rounded-lg text-[13px] font-bold hover:bg-[#1D3A39] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                   >
-                    <Plus size={14} strokeWidth={3} />
+                    <Plus size={15} strokeWidth={3} />
                     เพิ่มรายการวัตถุดิบ
                   </button>
                 </>
@@ -2445,7 +2447,7 @@ export default function App() {
         )}
 
         {/* Bottom Actions Zone */}
-        <div className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
+        <div className="mt-12 pt-6 border-t border-[#D4E4E3] flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
           <div>
             {activeTab !== 'home' && (
               <button 
@@ -2454,9 +2456,9 @@ export default function App() {
                   setActiveTab('home');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="flex items-center gap-2 text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 px-5 py-2.5 rounded-xl text-[14px] font-bold transition-all shadow-sm hover:shadow active:scale-95 duration-150 cursor-pointer"
+                className="flex items-center gap-2 bg-white border border-[#D4E4E3] text-[#5A8A88] hover:bg-[#E8F3F2] px-5 py-2.5 rounded-lg text-[14px] font-bold transition-all shadow-xs hover:shadow active:scale-95 duration-150 cursor-pointer"
               >
-                <ChevronLeft size={18} className="text-slate-500" />
+                <ChevronLeft size={18} className="text-[#5A8A88]" />
                 ย้อนกลับหน้าหลัก
               </button>
             )}
@@ -2465,7 +2467,7 @@ export default function App() {
           <button 
             id="scroll-to-top-btn"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 px-5 py-2.5 rounded-xl text-[14px] font-bold transition-all shadow-sm hover:shadow active:scale-95 duration-150 ml-auto sm:ml-0 cursor-pointer"
+            className="flex items-center gap-2 text-[#5A8A88] hover:text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-5 py-2.5 rounded-lg text-[14px] font-bold transition-all shadow-xs hover:shadow active:scale-95 duration-150 ml-auto sm:ml-0 cursor-pointer"
           >
             <ChevronUp size={18} />
             เลื่อนขึ้นบนสุด
