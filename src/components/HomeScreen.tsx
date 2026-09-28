@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Bell, 
   Calendar, 
@@ -50,18 +50,120 @@ export function HomeScreen({
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
   
+  // Location Filter State: "all" (ทั้งหมด) | "bar" (บาร์) | "kitchen" (ครัว)
+  const [locationFilter, setLocationFilter] = useState<'all' | 'bar' | 'kitchen'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('crenn_location_filter');
+        if (saved === 'bar' || saved === 'kitchen' || saved === 'all') {
+          return saved;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return 'all';
+  });
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+
+  // Sync locationFilter with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('crenn_location_filter', locationFilter);
+    } catch {
+      // ignore
+    }
+  }, [locationFilter]);
+
+  // Click outside listener for filter bar
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (filterBarRef.current && !filterBarRef.current.contains(event.target as Node)) {
+        setShowTimeDropdown(false);
+        setShowBranchDropdown(false);
+        setShowLocationDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // Modals & Popups
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
 
-  // Calculate current stock levels for all ingredients
+  // Filter ingredients by location:
+  // "all": all ingredients
+  // "bar": department === 'Bar' OR location === 'bar' OR category includes bar-related
+  // "kitchen": department in ('Kitchen', 'Bakery') OR location in ('kitchen', 'bakery') OR category includes kitchen/bakery/packaging/cleaning
+  const filteredIngredients = useMemo(() => {
+    if (locationFilter === 'all') return ingredients;
+    return ingredients.filter(ing => {
+      const dept = (ing.department || '').toLowerCase();
+      const loc = ((ing as any).location || '').toLowerCase();
+      const cat = (ing.category || '').toLowerCase();
+      const name = (ing.name || '').toLowerCase();
+      const id = ing.id || '';
+
+      if (locationFilter === 'bar') {
+        return (
+          dept === 'bar' ||
+          loc === 'bar' ||
+          cat.includes('bar') ||
+          cat === 'coffee' ||
+          cat.includes('milk') ||
+          cat.includes('dairy') ||
+          cat.includes('syrup') ||
+          cat.includes('powder') ||
+          cat.includes('tea') ||
+          name.includes('coffee') ||
+          name.includes('syrup')
+        );
+      }
+
+      if (locationFilter === 'kitchen') {
+        return (
+          dept === 'kitchen' ||
+          dept === 'bakery' ||
+          loc === 'kitchen' ||
+          loc === 'bakery' ||
+          cat.includes('kitchen') ||
+          cat.includes('bakery') ||
+          cat.includes('บรรจุภัณฑ์') ||
+          cat.includes('ทำความสะอาด') ||
+          cat.includes('cleaning') ||
+          cat.includes('packaging') ||
+          cat.includes('food') ||
+          id.startsWith('b-')
+        );
+      }
+
+      return true;
+    });
+  }, [ingredients, locationFilter]);
+
+  // Labels for current location selection
+  const locationLabel = useMemo(() => {
+    if (locationFilter === 'bar') return 'วัตถุดิบบาร์';
+    if (locationFilter === 'kitchen') return 'วัตถุดิบครัว';
+    return 'วัตถุดิบทั้งหมด';
+  }, [locationFilter]);
+
+  const locationSubtitle = useMemo(() => {
+    if (locationFilter === 'bar') return 'สรุปสถานะสต็อกบาร์';
+    if (locationFilter === 'kitchen') return 'สรุปสถานะสต็อกครัว';
+    return 'สรุปสถานะสต็อกทั้งหมด';
+  }, [locationFilter]);
+
+  // Calculate current stock levels for filtered ingredients
   const stockData = useMemo(() => {
     const stockMap: Record<string, number> = {};
     const sortedDatesAsc = Object.keys(stockRecord).sort();
 
     sortedDatesAsc.forEach(dateKey => {
-      ingredients.forEach(ing => {
+      filteredIngredients.forEach(ing => {
         const val = stockRecord[dateKey]?.[ing.id];
         if (typeof val === 'number') {
           stockMap[ing.id] = val;
@@ -83,7 +185,7 @@ export function HomeScreen({
     const lowStockList: Array<{ ing: Ingredient; remaining: number }> = [];
     const goodStockList: Array<{ ing: Ingredient; remaining: number }> = [];
 
-    ingredients.forEach(ing => {
+    filteredIngredients.forEach(ing => {
       const remaining = stockMap[ing.id] ?? 0;
       if (remaining <= 0) {
         outOfStockList.push({ ing, remaining });
@@ -94,13 +196,13 @@ export function HomeScreen({
       }
     });
 
-    const total = ingredients.length;
+    const total = filteredIngredients.length;
     const outCount = outOfStockList.length;
     const lowCount = lowStockList.length;
     const goodCount = goodStockList.length;
 
     // Critical items (Out of stock first, then lowest remaining/minStock ratio)
-    const criticalList = [...outOfStockList, ...lowStockList].slice(0, 5);
+    const criticalList = [...outOfStockList, ...lowStockList].slice(0, 8);
 
     return {
       total,
@@ -110,7 +212,7 @@ export function HomeScreen({
       criticalList,
       stockMap
     };
-  }, [ingredients, stockRecord]);
+  }, [filteredIngredients, stockRecord]);
 
   // Donut chart calculations
   const chartValues = useMemo(() => {
@@ -149,7 +251,7 @@ export function HomeScreen({
       
       {/* 1. TOP BAR: CRENN + 🔔 + avatar */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#D4E4E3] shadow-xs px-4 py-3">
-        <div className="max-w-md mx-auto flex items-center justify-between">
+        <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between">
           
           {/* Brand Name CRENN */}
           <div className="flex items-center gap-2">
@@ -245,10 +347,10 @@ export function HomeScreen({
       </header>
 
       {/* Main Container */}
-      <main className="max-w-md mx-auto px-4 pt-4 space-y-4">
+      <main className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto px-4 md:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
         
         {/* 2. GREETING + "Inventory Dashboard" TITLE */}
-        <section className="bg-gradient-to-r from-white to-[#EAF2F1] rounded-2xl p-4 border border-[#D4E4E3] shadow-xs">
+        <section className="bg-gradient-to-r from-white to-[#EAF2F1] rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-[#5A8A88] font-medium flex items-center gap-1.5">
@@ -258,35 +360,43 @@ export function HomeScreen({
                   {user.role}
                 </span>
               </p>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight mt-1">
                 Inventory Dashboard
               </h2>
+              {/* Filter context subtitle */}
+              <p className="text-xs md:text-sm text-[#6B8F8E] font-medium mt-1">
+                {locationSubtitle}
+              </p>
             </div>
-            <div className="w-11 h-11 rounded-2xl bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] shadow-xs">
-              <Package size={22} />
+            <div className="w-11 h-11 md:w-13 md:h-13 rounded-2xl bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] shadow-xs">
+              <Package size={24} />
             </div>
           </div>
         </section>
 
-        {/* 3. FILTER BAR: [📅 เดือนนี้] [🏪 สาขา] */}
-        <section className="flex items-center gap-2">
+        {/* 3. FILTER BAR: [📅 เดือนนี้ ▼]  [📍 สาขา ▼]  [🏪 ทั้งหมด ▼] */}
+        <section ref={filterBarRef} className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
           {/* Filter 1: Time Filter */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[110px]">
             <button
-              onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-white border border-[#D4E4E3] text-xs font-semibold text-slate-700 hover:border-[#5A8A88] transition-colors shadow-xs"
+              onClick={() => {
+                setShowTimeDropdown(!showTimeDropdown);
+                setShowBranchDropdown(false);
+                setShowLocationDropdown(false);
+              }}
+              className="w-full flex items-center justify-between px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors shadow-xs"
             >
               <div className="flex items-center gap-1.5 truncate">
                 <Calendar size={14} className="text-[#5A8A88] shrink-0" />
                 <span className="truncate">
-                  {timeFilter === 'thisMonth' ? '📅 เดือนนี้' : timeFilter === 'thisWeek' ? '📅 สัปดาห์นี้' : '📅 ทั้งหมด'}
+                  {timeFilter === 'thisMonth' ? 'เดือนนี้' : timeFilter === 'thisWeek' ? 'สัปดาห์นี้' : 'ทั้งหมด'}
                 </span>
               </div>
-              <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1" />
+              <ChevronDown size={14} className="text-[#6B8F8E] shrink-0 ml-1" />
             </button>
 
             {showTimeDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-20 text-xs">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-[#D4E4E3] py-1.5 z-30 text-xs">
                 <button
                   onClick={() => { setTimeFilter('thisMonth'); setShowTimeDropdown(false); }}
                   className="w-full text-left px-3.5 py-2 hover:bg-[#E8F3F2] flex items-center justify-between font-medium"
@@ -313,22 +423,26 @@ export function HomeScreen({
           </div>
 
           {/* Filter 2: Branch Filter */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[110px]">
             <button
-              onClick={() => setShowBranchDropdown(!showBranchDropdown)}
-              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-white border border-[#D4E4E3] text-xs font-semibold text-slate-700 hover:border-[#5A8A88] transition-colors shadow-xs"
+              onClick={() => {
+                setShowBranchDropdown(!showBranchDropdown);
+                setShowTimeDropdown(false);
+                setShowLocationDropdown(false);
+              }}
+              className="w-full flex items-center justify-between px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors shadow-xs"
             >
               <div className="flex items-center gap-1.5 truncate">
                 <MapPin size={14} className="text-[#5A8A88] shrink-0" />
                 <span className="truncate">
-                  {user.branch === 'Rayong' ? '📍 สาขาระยอง' : user.branch === 'Bangkok' ? '📍 สาขากรุงเทพฯ' : '📍 ' + (user.branch || 'สาขา')}
+                  {user.branch === 'Rayong' ? 'สาขาระยอง' : user.branch === 'Bangkok' ? 'สาขากรุงเทพฯ' : (user.branch || 'สาขา')}
                 </span>
               </div>
-              <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1" />
+              <ChevronDown size={14} className="text-[#6B8F8E] shrink-0 ml-1" />
             </button>
 
             {showBranchDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-20 text-xs">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-[#D4E4E3] py-1.5 z-30 text-xs">
                 <button
                   onClick={() => {
                     if (onChangeBranch) onChangeBranch('Rayong');
@@ -352,246 +466,350 @@ export function HomeScreen({
               </div>
             )}
           </div>
+
+          {/* Filter 3: Inventory Location Filter [🏪 ทั้งหมด ▼ / 🍹 บาร์ ▼ / 🍳 ครัว ▼] */}
+          <div className="relative flex-1 min-w-[120px]">
+            <button
+              type="button"
+              onClick={() => {
+                setShowLocationDropdown(!showLocationDropdown);
+                setShowTimeDropdown(false);
+                setShowBranchDropdown(false);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 sm:px-4 py-2 rounded-full border text-[13px] sm:text-sm font-semibold transition-all duration-200 shadow-xs cursor-pointer ${
+                locationFilter !== 'all'
+                  ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#5A8A88]'
+                  : 'bg-white border-[#D4E4E3] text-[#2D4A49] hover:bg-[#F0F5F4]'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="shrink-0 text-sm">
+                  {locationFilter === 'bar' ? '🍹' : locationFilter === 'kitchen' ? '🍳' : '🏪'}
+                </span>
+                <span className="truncate">
+                  {locationFilter === 'bar' ? 'บาร์' : locationFilter === 'kitchen' ? 'ครัว' : 'ทั้งหมด'}
+                </span>
+              </div>
+              <ChevronDown 
+                size={14} 
+                className={`shrink-0 ml-1 transition-transform duration-200 ${
+                  showLocationDropdown ? 'rotate-180 text-[#5A8A88]' : 'text-[#6B8F8E]'
+                }`} 
+              />
+            </button>
+
+            {showLocationDropdown && (
+              <div className="absolute top-full right-0 sm:left-0 sm:right-auto sm:w-48 mt-1 bg-white rounded-2xl shadow-xl border border-[#D4E4E3] py-1.5 z-30 text-xs animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3.5 py-1 text-[10px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
+                  เลือกพื้นที่จัดเก็บสต็อก
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationFilter('all');
+                    setShowLocationDropdown(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors ${
+                    locationFilter === 'all' ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold' : 'text-[#2D4A49]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>🏪</span>
+                    <span>ทั้งหมด (all)</span>
+                  </span>
+                  {locationFilter === 'all' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationFilter('bar');
+                    setShowLocationDropdown(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors ${
+                    locationFilter === 'bar' ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold' : 'text-[#2D4A49]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>🍹</span>
+                    <span>บาร์ (bar)</span>
+                  </span>
+                  {locationFilter === 'bar' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationFilter('kitchen');
+                    setShowLocationDropdown(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors ${
+                    locationFilter === 'kitchen' ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold' : 'text-[#2D4A49]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span>🍳</span>
+                    <span>ครัว (kitchen)</span>
+                  </span>
+                  {locationFilter === 'kitchen' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
+                </button>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* 4. KPI ROW: 3 CARDS (หมดสต็อก / ใกล้หมด / รวม) */}
-        <section className="grid grid-cols-3 gap-2.5">
+        <section className="grid grid-cols-3 gap-2.5 md:gap-4 lg:gap-6">
           {/* Card 1: หมดสต็อก */}
-          <div className="bg-white rounded-2xl p-3 border border-rose-200/80 shadow-xs flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-white rounded-2xl p-3 md:p-4 border border-rose-200/80 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 hover:shadow-sm">
             <div className="absolute top-0 right-0 w-12 h-12 bg-rose-50 rounded-bl-full -z-0"></div>
-            <div className="z-10 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-rose-700">หมดสต็อก</span>
-              <AlertCircle size={14} className="text-rose-500" />
+            <div className="z-10 flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-rose-700">หมดสต็อก</span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">{locationLabel}</span>
+              </div>
+              <AlertCircle size={15} className="text-rose-500 shrink-0" />
             </div>
             <div className="mt-2 z-10">
-              <span className="text-2xl font-black text-rose-600 leading-none">
+              <span className="text-2xl md:text-3xl lg:text-4xl font-black text-rose-600 leading-none">
                 {stockData.outCount}
               </span>
-              <span className="text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
             </div>
-            <div className="mt-1 text-[9px] text-rose-500 font-medium truncate z-10">
+            <div className="mt-1 text-[9px] md:text-[10px] text-rose-500 font-medium truncate z-10">
               ต้องสั่งซื้อด่วน
             </div>
           </div>
 
           {/* Card 2: ใกล้หมด */}
-          <div className="bg-white rounded-2xl p-3 border border-amber-200/80 shadow-xs flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-white rounded-2xl p-3 md:p-4 border border-amber-200/80 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 hover:shadow-sm">
             <div className="absolute top-0 right-0 w-12 h-12 bg-amber-50 rounded-bl-full -z-0"></div>
-            <div className="z-10 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-700">ใกล้หมด</span>
-              <AlertTriangle size={14} className="text-amber-500" />
+            <div className="z-10 flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-amber-700">ใกล้หมด</span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">{locationLabel}</span>
+              </div>
+              <AlertTriangle size={15} className="text-amber-500 shrink-0" />
             </div>
             <div className="mt-2 z-10">
-              <span className="text-2xl font-black text-amber-600 leading-none">
+              <span className="text-2xl md:text-3xl lg:text-4xl font-black text-amber-600 leading-none">
                 {stockData.lowCount}
               </span>
-              <span className="text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
             </div>
-            <div className="mt-1 text-[9px] text-amber-600 font-medium truncate z-10">
+            <div className="mt-1 text-[9px] md:text-[10px] text-amber-600 font-medium truncate z-10">
               ต่ำกว่าขั้นต่ำ
             </div>
           </div>
 
           {/* Card 3: รวม */}
-          <div className="bg-white rounded-2xl p-3 border border-[#D4E4E3] shadow-xs flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-white rounded-2xl p-3 md:p-4 border border-[#D4E4E3] shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 hover:shadow-sm">
             <div className="absolute top-0 right-0 w-12 h-12 bg-[#E8F3F2] rounded-bl-full -z-0"></div>
-            <div className="z-10 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-[#476E6C]">รวม</span>
-              <Package size={14} className="text-[#5A8A88]" />
+            <div className="z-10 flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-[#476E6C]">รวม</span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">{locationLabel}</span>
+              </div>
+              <Package size={15} className="text-[#5A8A88] shrink-0" />
             </div>
             <div className="mt-2 z-10">
-              <span className="text-2xl font-black text-[#5A8A88] leading-none">
+              <span className="text-2xl md:text-3xl lg:text-4xl font-black text-[#5A8A88] leading-none">
                 {stockData.total}
               </span>
-              <span className="text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
             </div>
-            <div className="mt-1 text-[9px] text-[#5A8A88] font-medium truncate z-10">
-              วัตถุดิบทั้งหมด
-            </div>
-          </div>
-        </section>
-
-        {/* 5. STOCK STATUS CARD: Donut chart + legend */}
-        <section className="bg-white rounded-2xl p-4 border border-[#D4E4E3] shadow-xs">
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></div>
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                สถานะสต็อกสินค้า (Stock Status)
-              </h3>
-            </div>
-            <span className="text-[11px] font-medium text-slate-400">
-              ทั้งหมด {stockData.total} รายการ
-            </span>
-          </div>
-
-          <div className="flex items-center justify-around gap-4 py-1">
-            {/* Donut Chart SVG */}
-            <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                {/* Background ring */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="transparent"
-                  stroke="#F1F5F4"
-                  strokeWidth="12"
-                />
-                {/* Good stock ring segment */}
-                {stockData.goodCount > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="transparent"
-                    stroke="#5A8A88"
-                    strokeWidth="12"
-                    strokeDasharray={`${chartValues.goodLen} ${chartValues.circumference}`}
-                    strokeDashoffset={chartValues.goodOffset}
-                    strokeLinecap="round"
-                  />
-                )}
-                {/* Low stock ring segment */}
-                {stockData.lowCount > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="transparent"
-                    stroke="#F59E0B"
-                    strokeWidth="12"
-                    strokeDasharray={`${chartValues.lowLen} ${chartValues.circumference}`}
-                    strokeDashoffset={chartValues.lowOffset}
-                    strokeLinecap="round"
-                  />
-                )}
-                {/* Out of stock ring segment */}
-                {stockData.outCount > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="transparent"
-                    stroke="#EF4444"
-                    strokeWidth="12"
-                    strokeDasharray={`${chartValues.outLen} ${chartValues.circumference}`}
-                    strokeDashoffset={chartValues.outOffset}
-                    strokeLinecap="round"
-                  />
-                )}
-              </svg>
-              {/* Center text */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                <span className="text-base font-black text-slate-800 leading-none">
-                  {chartValues.goodPct}%
-                </span>
-                <span className="text-[9px] font-medium text-slate-400 mt-0.5">
-                  ความพร้อม
-                </span>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="space-y-2 flex-1 text-xs">
-              <div className="flex items-center justify-between p-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></span>
-                  <span className="text-slate-700 font-medium">สต็อกปกติ</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-slate-800">{stockData.goodCount}</span>
-                  <span className="text-[10px] text-slate-400">({chartValues.goodPct}%)</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-1.5 rounded-lg bg-amber-50/60 border border-amber-100">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                  <span className="text-amber-900 font-medium">ใกล้หมด</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-amber-700">{stockData.lowCount}</span>
-                  <span className="text-[10px] text-amber-500">({chartValues.lowPct}%)</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-1.5 rounded-lg bg-rose-50/60 border border-rose-100">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                  <span className="text-rose-900 font-medium">หมดสต็อก</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="font-bold text-rose-700">{stockData.outCount}</span>
-                  <span className="text-[10px] text-rose-500">({chartValues.outPct}%)</span>
-                </div>
-              </div>
+            <div className="mt-1 text-[9px] md:text-[10px] text-[#5A8A88] font-medium truncate z-10">
+              {locationLabel}
             </div>
           </div>
         </section>
 
-        {/* 6. STOCK ALERT CARD: Top 3–5 critical items */}
-        <section className="bg-white rounded-2xl p-4 border border-[#D4E4E3] shadow-xs">
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <AlertTriangle size={15} className="text-amber-500" />
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                รายการวิกฤตที่ต้องสั่งซื้อ (Stock Alerts)
-              </h3>
+        {/* 5 & 6. STOCK STATUS CARD + STOCK ALERT CARD (Responsive 2-column on md+) */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+          {/* 5. STOCK STATUS CARD: Donut chart + legend */}
+          <section className="md:col-span-7 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></div>
+                <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
+                  สถานะสต็อกสินค้า ({locationLabel})
+                </h3>
+              </div>
+              <span className="text-[11px] font-medium text-slate-400">
+                ทั้งหมด {stockData.total} รายการ
+              </span>
             </div>
-            <button
-              onClick={() => onNavigate('barPurchasing')}
-              className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5"
-            >
-              สั่งซื้อ
-              <ChevronRight size={13} />
-            </button>
-          </div>
 
-          {stockData.criticalList.length === 0 ? (
-            <div className="py-6 text-center text-slate-400">
-              <CheckCircle2 size={32} className="mx-auto text-emerald-500 mb-1.5" />
-              <p className="text-xs font-medium text-slate-600">สต็อกสินค้าอยู่ในเกณฑ์ปกติทุกรายการ</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">ไม่มีสินค้าที่หมดหรือใกล้หมดในขณะนี้</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {stockData.criticalList.map(({ ing, remaining }) => {
-                const isZero = remaining <= 0;
-                return (
-                  <div key={ing.id} className="py-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                        isZero ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'
-                      }`}>
-                        {ing.department === 'Bar' ? <Coffee size={16} /> : <Cake size={16} />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-800 truncate leading-snug">
-                          {ing.name}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">
-                          {ing.brand || '-'} • ขั้นต่ำ: {ing.minStock} {ing.unit}
-                        </p>
-                      </div>
-                    </div>
+            <div className="flex items-center justify-around gap-4 py-2 my-auto">
+              {/* Donut Chart SVG */}
+              <div className="relative w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40 shrink-0 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                  {/* Background ring */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="transparent"
+                    stroke="#F1F5F4"
+                    strokeWidth="12"
+                  />
+                  {/* Good stock ring segment */}
+                  {stockData.goodCount > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#5A8A88"
+                      strokeWidth="12"
+                      strokeDasharray={`${chartValues.goodLen} ${chartValues.circumference}`}
+                      strokeDashoffset={chartValues.goodOffset}
+                      strokeLinecap="round"
+                    />
+                  )}
+                  {/* Low stock ring segment */}
+                  {stockData.lowCount > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#F59E0B"
+                      strokeWidth="12"
+                      strokeDasharray={`${chartValues.lowLen} ${chartValues.circumference}`}
+                      strokeDashoffset={chartValues.lowOffset}
+                      strokeLinecap="round"
+                    />
+                  )}
+                  {/* Out of stock ring segment */}
+                  {stockData.outCount > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#EF4444"
+                      strokeWidth="12"
+                      strokeDasharray={`${chartValues.outLen} ${chartValues.circumference}`}
+                      strokeDashoffset={chartValues.outOffset}
+                      strokeLinecap="round"
+                    />
+                  )}
+                </svg>
+                {/* Center text */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                  <span className="text-base sm:text-lg font-black text-slate-800 leading-none">
+                    {chartValues.goodPct}%
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5">
+                    ความพร้อม
+                  </span>
+                </div>
+              </div>
 
-                    <div className="text-right shrink-0">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                        isZero ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {remaining} / {ing.minStock} {ing.unit}
-                      </span>
-                      <p className="text-[9px] font-medium text-slate-400 mt-0.5">
-                        {isZero ? 'หมดแล้ว' : 'ใกล้หมด'}
-                      </p>
-                    </div>
+              {/* Legend */}
+              <div className="space-y-2 flex-1 text-xs">
+                <div className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></span>
+                    <span className="text-slate-700 font-medium">สต็อกปกติ</span>
                   </div>
-                );
-              })}
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-slate-800">{stockData.goodCount}</span>
+                    <span className="text-[10px] text-slate-400">({chartValues.goodPct}%)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-amber-50/60 border border-amber-100">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span className="text-amber-900 font-medium">ใกล้หมด</span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-amber-700">{stockData.lowCount}</span>
+                    <span className="text-[10px] text-amber-500">({chartValues.lowPct}%)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-rose-50/60 border border-rose-100">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <span className="text-rose-900 font-medium">หมดสต็อก</span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-rose-700">{stockData.outCount}</span>
+                    <span className="text-[10px] text-rose-500">({chartValues.outPct}%)</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </section>
+          </section>
+
+          {/* 6. STOCK ALERT CARD: Top critical items */}
+          <section className="md:col-span-5 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle size={15} className="text-amber-500" />
+                  <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
+                    รายการวิกฤตที่ต้องสั่งซื้อ ({locationLabel})
+                  </h3>
+                </div>
+                <button
+                  onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing')}
+                  className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
+                >
+                  สั่งซื้อ
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+
+              {stockData.criticalList.length === 0 ? (
+                <div className="py-8 text-center text-[#6B8F8E]">
+                  <CheckCircle2 size={36} className="mx-auto text-emerald-500 mb-2" />
+                  <p className="text-xs md:text-sm font-semibold text-slate-700">ไม่มีรายการวิกฤตในส่วนนี้</p>
+                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">{locationLabel} อยู่ในเกณฑ์ปกติทุกรายการ</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
+                  {stockData.criticalList.map(({ ing, remaining }) => {
+                    const isZero = remaining <= 0;
+                    return (
+                      <div key={ing.id} className="py-2.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                            isZero ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'
+                          }`}>
+                            {ing.department === 'Bar' ? <Coffee size={16} /> : <Cake size={16} />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate leading-snug">
+                              {ing.name}
+                            </p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {ing.brand || '-'} • ขั้นต่ำ: {ing.minStock} {ing.unit}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            isZero ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {remaining} / {ing.minStock} {ing.unit}
+                          </span>
+                          <p className="text-[9px] font-medium text-slate-400 mt-0.5">
+                            {isZero ? 'หมดแล้ว' : 'ใกล้หมด'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
 
         {/* 7. SUPABASE STATUS: ● Connected (read-only) */}
         <section className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 border border-[#D4E4E3] shadow-xs flex items-center justify-between text-xs">
