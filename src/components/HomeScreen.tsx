@@ -14,7 +14,9 @@ import {
   Package, 
   CheckCircle2, 
   Loader2,
-  Building
+  Building,
+  ShoppingCart,
+  Check
 } from 'lucide-react';
 import { Ingredient, StockRecord, Branch, AppPermissions } from '../types';
 import { UserRole } from './LoginForm';
@@ -65,6 +67,11 @@ export function HomeScreen({
     return 'all';
   });
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+
+  // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | null
+  const [activeKPI, setActiveKPI] = useState<
+    'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | null
+  >(null);
 
   // Sync locationFilter with localStorage
   useEffect(() => {
@@ -200,15 +207,20 @@ export function HomeScreen({
     const outCount = outOfStockList.length;
     const lowCount = lowStockList.length;
     const goodCount = goodStockList.length;
+    const purchasingCount = outCount + lowCount;
 
     // Critical items (Out of stock first, then lowest remaining/minStock ratio)
-    const criticalList = [...outOfStockList, ...lowStockList].slice(0, 8);
+    const criticalList = [...outOfStockList, ...lowStockList].slice(0, 10);
 
     return {
       total,
       outCount,
       lowCount,
       goodCount,
+      purchasingCount,
+      outOfStockList,
+      lowStockList,
+      goodStockList,
       criticalList,
       stockMap
     };
@@ -245,6 +257,89 @@ export function HomeScreen({
       outPct: Math.max(0, outPct)
     };
   }, [stockData]);
+
+  // Dynamic Right Panel List based on activeKPI selection
+  const { panelTitle, displayItems } = useMemo(() => {
+    if (activeKPI === 'out_of_stock') {
+      const sorted = [...stockData.outOfStockList].sort((a, b) => a.ing.name.localeCompare(b.ing.name, 'th'));
+      return {
+        panelTitle: 'รายการหมดสต็อก',
+        displayItems: sorted.map(item => ({
+          ...item,
+          status: 'out_of_stock' as const,
+          badgeLabel: 'หมดแล้ว',
+          badgeClass: 'bg-[#FEE2E2] text-[#EF4444]'
+        }))
+      };
+    }
+    if (activeKPI === 'low_stock') {
+      const sorted = [...stockData.lowStockList].sort((a, b) => {
+        const ratioA = a.remaining / (a.ing.minStock || 1);
+        const ratioB = b.remaining / (b.ing.minStock || 1);
+        return ratioA - ratioB || a.remaining - b.remaining;
+      });
+      return {
+        panelTitle: 'รายการใกล้หมด',
+        displayItems: sorted.map(item => ({
+          ...item,
+          status: 'low_stock' as const,
+          badgeLabel: 'ใกล้หมด',
+          badgeClass: 'bg-[#FEF3C7] text-[#F59E0B]'
+        }))
+      };
+    }
+    if (activeKPI === 'normal') {
+      const sorted = [...stockData.goodStockList].sort((a, b) => a.ing.name.localeCompare(b.ing.name, 'th'));
+      return {
+        panelTitle: 'รายการสต็อกปกติ',
+        displayItems: sorted.map(item => ({
+          ...item,
+          status: 'normal' as const,
+          badgeLabel: 'ปกติ',
+          badgeClass: 'bg-[#E8F3F2] text-[#5A8A88]'
+        }))
+      };
+    }
+    if (activeKPI === 'purchasing') {
+      const list = [...stockData.outOfStockList, ...stockData.lowStockList];
+      return {
+        panelTitle: 'รายการที่ต้องสั่งซื้อ',
+        displayItems: list.map(item => {
+          const isOut = item.remaining <= 0;
+          const needed = Math.max(1, (item.ing.minStock || 1) * 2 - item.remaining);
+          return {
+            ...item,
+            status: isOut ? ('out_of_stock' as const) : ('low_stock' as const),
+            badgeLabel: isOut ? 'หมดแล้ว' : `ต้องสั่ง +${needed} ${item.ing.unit}`,
+            badgeClass: isOut ? 'bg-[#FEE2E2] text-[#EF4444]' : 'bg-[#F1F5F9] text-[#2D4A49]'
+          };
+        })
+      };
+    }
+    // Default (null)
+    return {
+      panelTitle: 'รายการวิกฤตที่ต้องสั่งซื้อ',
+      displayItems: stockData.criticalList.map(item => {
+        const isOut = item.remaining <= 0;
+        return {
+          ...item,
+          status: isOut ? ('out_of_stock' as const) : ('low_stock' as const),
+          badgeLabel: isOut ? 'หมดแล้ว' : 'ใกล้หมด',
+          badgeClass: isOut ? 'bg-[#FEE2E2] text-[#EF4444]' : 'bg-[#FEF3C7] text-[#F59E0B]'
+        };
+      })
+    };
+  }, [activeKPI, stockData]);
+
+  // Donut segment opacities based on activeKPI
+  const hasActiveKPI = activeKPI !== null;
+  const isGoodActive = activeKPI === 'normal';
+  const isLowActive = activeKPI === 'low_stock' || activeKPI === 'purchasing';
+  const isOutActive = activeKPI === 'out_of_stock' || activeKPI === 'purchasing';
+
+  const goodOpacity = !hasActiveKPI ? 1 : isGoodActive ? 1 : 0.4;
+  const lowOpacity = !hasActiveKPI ? 1 : isLowActive ? 1 : 0.4;
+  const outOpacity = !hasActiveKPI ? 1 : isOutActive ? 1 : 0.4;
 
   return (
     <div className="min-h-screen bg-[#F4F8F7] text-slate-800 pb-28 font-sans">
@@ -558,75 +653,145 @@ export function HomeScreen({
           </div>
         </section>
 
-        {/* 4. KPI ROW: 3 CARDS (หมดสต็อก / ใกล้หมด / รวม) */}
-        <section className="grid grid-cols-3 gap-2.5 md:gap-4 lg:gap-6">
+        {/* 4. KPI ROW: 4 CARDS (หมดสต็อก / ใกล้หมด / สต็อกปกติ / สั่งซื้อ) */}
+        {/* Mobile: 2x2 grid | Tablet & PC: 4 cards in one row */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4 lg:gap-5">
           {/* Card 1: หมดสต็อก */}
-          <div className="bg-white rounded-2xl p-3 md:p-4 border border-rose-200/80 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 hover:shadow-sm">
-            <div className="absolute top-0 right-0 w-12 h-12 bg-rose-50 rounded-bl-full -z-0"></div>
+          <div 
+            onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
+            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+              activeKPI === 'out_of_stock'
+                ? 'border-2 border-[#EF4444] bg-rose-50/70 shadow-md scale-[1.02]'
+                : 'bg-white border border-rose-200/80 hover:bg-[#F0F5F4] hover:shadow-sm'
+            }`}
+          >
+            <div className="absolute top-0 right-0 w-12 h-12 bg-rose-50 rounded-bl-full -z-0 pointer-events-none"></div>
             <div className="z-10 flex items-start justify-between">
               <div>
-                <span className="text-[11px] font-bold text-rose-700">หมดสต็อก</span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">{locationLabel}</span>
+                <span className="text-[11px] sm:text-xs font-bold text-rose-700">หมดสต็อก</span>
+                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">ต้องสั่งซื้อด่วน</span>
               </div>
-              <AlertCircle size={15} className="text-rose-500 shrink-0" />
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                activeKPI === 'out_of_stock' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-500'
+              }`}>
+                <AlertCircle size={15} />
+              </span>
             </div>
-            <div className="mt-2 z-10">
-              <span className="text-2xl md:text-3xl lg:text-4xl font-black text-rose-600 leading-none">
+            <div className="mt-2.5 z-10">
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-rose-600 leading-none">
                 {stockData.outCount}
               </span>
               <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
             </div>
-            <div className="mt-1 text-[9px] md:text-[10px] text-rose-500 font-medium truncate z-10">
-              ต้องสั่งซื้อด่วน
+            <div className="mt-1 text-[9px] sm:text-[10px] text-rose-500 font-medium truncate z-10 flex items-center justify-between">
+              <span>{locationLabel}</span>
+              {activeKPI === 'out_of_stock' && <span className="text-[9px] font-bold text-rose-600 underline">กำลังเลือก</span>}
             </div>
           </div>
 
           {/* Card 2: ใกล้หมด */}
-          <div className="bg-white rounded-2xl p-3 md:p-4 border border-amber-200/80 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 hover:shadow-sm">
-            <div className="absolute top-0 right-0 w-12 h-12 bg-amber-50 rounded-bl-full -z-0"></div>
+          <div 
+            onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
+            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+              activeKPI === 'low_stock'
+                ? 'border-2 border-[#F59E0B] bg-amber-50/70 shadow-md scale-[1.02]'
+                : 'bg-white border border-amber-200/80 hover:bg-[#F0F5F4] hover:shadow-sm'
+            }`}
+          >
+            <div className="absolute top-0 right-0 w-12 h-12 bg-amber-50 rounded-bl-full -z-0 pointer-events-none"></div>
             <div className="z-10 flex items-start justify-between">
               <div>
-                <span className="text-[11px] font-bold text-amber-700">ใกล้หมด</span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">{locationLabel}</span>
+                <span className="text-[11px] sm:text-xs font-bold text-amber-700">ใกล้หมด</span>
+                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">ต่ำกว่าขั้นต่ำ</span>
               </div>
-              <AlertTriangle size={15} className="text-amber-500 shrink-0" />
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                activeKPI === 'low_stock' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-500'
+              }`}>
+                <AlertTriangle size={15} />
+              </span>
             </div>
-            <div className="mt-2 z-10">
-              <span className="text-2xl md:text-3xl lg:text-4xl font-black text-amber-600 leading-none">
+            <div className="mt-2.5 z-10">
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-amber-600 leading-none">
                 {stockData.lowCount}
               </span>
               <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
             </div>
-            <div className="mt-1 text-[9px] md:text-[10px] text-amber-600 font-medium truncate z-10">
-              ต่ำกว่าขั้นต่ำ
+            <div className="mt-1 text-[9px] sm:text-[10px] text-amber-600 font-medium truncate z-10 flex items-center justify-between">
+              <span>{locationLabel}</span>
+              {activeKPI === 'low_stock' && <span className="text-[9px] font-bold text-amber-600 underline">กำลังเลือก</span>}
             </div>
           </div>
 
-          {/* Card 3: รวม */}
-          <div className="bg-white rounded-2xl p-3 md:p-4 border border-[#D4E4E3] shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 hover:shadow-sm">
-            <div className="absolute top-0 right-0 w-12 h-12 bg-[#E8F3F2] rounded-bl-full -z-0"></div>
+          {/* Card 3: สต็อกปกติ (CHANGE 1: Renamed from รวม -> สต็อกปกติ, displays goodCount) */}
+          <div 
+            onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
+            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+              activeKPI === 'normal'
+                ? 'border-2 border-[#5A8A88] bg-[#E8F3F2]/80 shadow-md scale-[1.02]'
+                : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-sm'
+            }`}
+          >
+            <div className="absolute top-0 right-0 w-12 h-12 bg-[#E8F3F2] rounded-bl-full -z-0 pointer-events-none"></div>
             <div className="z-10 flex items-start justify-between">
               <div>
-                <span className="text-[11px] font-bold text-[#476E6C]">รวม</span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">{locationLabel}</span>
+                <span className="text-[11px] sm:text-xs font-bold text-[#2D4A49]">สต็อกปกติ</span>
+                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">วัตถุดิบพร้อมใช้งาน</span>
               </div>
-              <Package size={15} className="text-[#5A8A88] shrink-0" />
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                activeKPI === 'normal' ? 'bg-[#5A8A88] text-white' : 'bg-[#E8F3F2] text-[#5A8A88]'
+              }`}>
+                <CheckCircle2 size={15} />
+              </span>
             </div>
-            <div className="mt-2 z-10">
-              <span className="text-2xl md:text-3xl lg:text-4xl font-black text-[#5A8A88] leading-none">
-                {stockData.total}
+            <div className="mt-2.5 z-10">
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#5A8A88] leading-none">
+                {stockData.goodCount}
               </span>
               <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
             </div>
-            <div className="mt-1 text-[9px] md:text-[10px] text-[#5A8A88] font-medium truncate z-10">
-              {locationLabel}
+            <div className="mt-1 text-[9px] sm:text-[10px] text-[#5A8A88] font-medium truncate z-10 flex items-center justify-between">
+              <span>{locationLabel}</span>
+              {activeKPI === 'normal' && <span className="text-[9px] font-bold text-[#5A8A88] underline">กำลังเลือก</span>}
+            </div>
+          </div>
+
+          {/* Card 4: สั่งซื้อ (CHANGE 2: NEW 4th Card, displays outCount + lowCount) */}
+          <div 
+            onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
+            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+              activeKPI === 'purchasing'
+                ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.02]'
+                : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-sm'
+            }`}
+          >
+            <div className="absolute top-0 right-0 w-12 h-12 bg-[#EAF2F1] rounded-bl-full -z-0 pointer-events-none"></div>
+            <div className="z-10 flex items-start justify-between">
+              <div>
+                <span className="text-[11px] sm:text-xs font-bold text-[#2D4A49]">สั่งซื้อ</span>
+                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">รายการที่ต้องสั่ง</span>
+              </div>
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#E8F3F2] text-[#7A9E9C]'
+              }`}>
+                <ShoppingCart size={15} />
+              </span>
+            </div>
+            <div className="mt-2.5 z-10">
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#7A9E9C] leading-none">
+                {stockData.purchasingCount}
+              </span>
+              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
+            </div>
+            <div className="mt-1 text-[9px] sm:text-[10px] text-[#7A9E9C] font-medium truncate z-10 flex items-center justify-between">
+              <span>{locationLabel}</span>
+              {activeKPI === 'purchasing' && <span className="text-[9px] font-bold text-[#7A9E9C] underline">กำลังเลือก</span>}
             </div>
           </div>
         </section>
 
         {/* 5 & 6. STOCK STATUS CARD + STOCK ALERT CARD (Responsive 2-column on md+) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-          {/* 5. STOCK STATUS CARD: Donut chart + legend */}
+          {/* 5. STOCK STATUS CARD: Donut chart + legend (CHANGE 4: Highlights active segment) */}
           <section className="md:col-span-7 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
               <div className="flex items-center gap-1.5">
@@ -661,7 +826,9 @@ export function HomeScreen({
                       r="40"
                       fill="transparent"
                       stroke="#5A8A88"
-                      strokeWidth="12"
+                      strokeWidth={isGoodActive ? "14" : "12"}
+                      strokeOpacity={goodOpacity}
+                      className="transition-all duration-300"
                       strokeDasharray={`${chartValues.goodLen} ${chartValues.circumference}`}
                       strokeDashoffset={chartValues.goodOffset}
                       strokeLinecap="round"
@@ -675,7 +842,9 @@ export function HomeScreen({
                       r="40"
                       fill="transparent"
                       stroke="#F59E0B"
-                      strokeWidth="12"
+                      strokeWidth={isLowActive ? "14" : "12"}
+                      strokeOpacity={lowOpacity}
+                      className="transition-all duration-300"
                       strokeDasharray={`${chartValues.lowLen} ${chartValues.circumference}`}
                       strokeDashoffset={chartValues.lowOffset}
                       strokeLinecap="round"
@@ -689,27 +858,80 @@ export function HomeScreen({
                       r="40"
                       fill="transparent"
                       stroke="#EF4444"
-                      strokeWidth="12"
+                      strokeWidth={isOutActive ? "14" : "12"}
+                      strokeOpacity={outOpacity}
+                      className="transition-all duration-300"
                       strokeDasharray={`${chartValues.outLen} ${chartValues.circumference}`}
                       strokeDashoffset={chartValues.outOffset}
                       strokeLinecap="round"
                     />
                   )}
                 </svg>
-                {/* Center text */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span className="text-base sm:text-lg font-black text-slate-800 leading-none">
-                    {chartValues.goodPct}%
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5">
-                    ความพร้อม
-                  </span>
+
+                {/* Center text (CHANGE 4: Updates with KPI Selection) */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none transition-all duration-200">
+                  {activeKPI === 'out_of_stock' ? (
+                    <>
+                      <span className="text-base sm:text-lg font-black text-rose-600 leading-none">
+                        {stockData.outCount}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-rose-500 mt-0.5">
+                        หมดสต็อก
+                      </span>
+                    </>
+                  ) : activeKPI === 'low_stock' ? (
+                    <>
+                      <span className="text-base sm:text-lg font-black text-amber-600 leading-none">
+                        {stockData.lowCount}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 mt-0.5">
+                        ใกล้หมด
+                      </span>
+                    </>
+                  ) : activeKPI === 'normal' ? (
+                    <>
+                      <span className="text-base sm:text-lg font-black text-[#5A8A88] leading-none">
+                        {stockData.goodCount}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#5A8A88] mt-0.5">
+                        สต็อกปกติ
+                      </span>
+                    </>
+                  ) : activeKPI === 'purchasing' ? (
+                    <>
+                      <span className="text-base sm:text-lg font-black text-[#2D4A49] leading-none">
+                        {stockData.purchasingCount}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#7A9E9C] mt-0.5">
+                        ต้องสั่งซื้อ
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-base sm:text-lg font-black text-slate-800 leading-none">
+                        {chartValues.goodPct}%
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5">
+                        ความพร้อม
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Legend */}
+              {/* Legend (CHANGE 4: Active status row highlight) */}
               <div className="space-y-2 flex-1 text-xs">
-                <div className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-slate-50 border border-slate-100">
+                {/* 1. สต็อกปกติ */}
+                <div 
+                  onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
+                  className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                    activeKPI === 'normal'
+                      ? 'bg-[#E8F3F2] border-l-4 border-[#5A8A88] shadow-xs'
+                      : hasActiveKPI
+                        ? 'opacity-50 bg-slate-50 border border-slate-100 hover:opacity-80'
+                        : 'bg-slate-50 border border-slate-100 hover:bg-[#F0F5F4]'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></span>
                     <span className="text-slate-700 font-medium">สต็อกปกติ</span>
@@ -720,7 +942,17 @@ export function HomeScreen({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-amber-50/60 border border-amber-100">
+                {/* 2. ใกล้หมด */}
+                <div 
+                  onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
+                  className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                    activeKPI === 'low_stock' || activeKPI === 'purchasing'
+                      ? 'bg-amber-50 border-l-4 border-amber-500 shadow-xs'
+                      : hasActiveKPI
+                        ? 'opacity-50 bg-amber-50/60 border border-amber-100 hover:opacity-80'
+                        : 'bg-amber-50/60 border border-amber-100 hover:bg-amber-50'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                     <span className="text-amber-900 font-medium">ใกล้หมด</span>
@@ -731,7 +963,17 @@ export function HomeScreen({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg bg-rose-50/60 border border-rose-100">
+                {/* 3. หมดสต็อก */}
+                <div 
+                  onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
+                  className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                    activeKPI === 'out_of_stock' || activeKPI === 'purchasing'
+                      ? 'bg-rose-50 border-l-4 border-rose-500 shadow-xs'
+                      : hasActiveKPI
+                        ? 'opacity-50 bg-rose-50/60 border border-rose-100 hover:opacity-80'
+                        : 'bg-rose-50/60 border border-rose-100 hover:bg-rose-50'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
                     <span className="text-rose-900 font-medium">หมดสต็อก</span>
@@ -745,62 +987,73 @@ export function HomeScreen({
             </div>
           </section>
 
-          {/* 6. STOCK ALERT CARD: Top critical items */}
+          {/* 6. RIGHT PANEL: DYNAMIC LIST (CHANGE 3: Filtered by KPI or Default) */}
           <section className="md:col-span-5 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-1.5">
                   <AlertTriangle size={15} className="text-amber-500" />
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
-                    รายการวิกฤตที่ต้องสั่งซื้อ ({locationLabel})
+                    {panelTitle}
                   </h3>
                 </div>
-                <button
-                  onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing')}
-                  className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
-                >
-                  สั่งซื้อ
-                  <ChevronRight size={13} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {activeKPI && (
+                    <button
+                      onClick={() => setActiveKPI(null)}
+                      className="text-[10px] font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                    >
+                      ล้างตัวกรอง
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing')}
+                    className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
+                  >
+                    สั่งซื้อ
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
 
-              {stockData.criticalList.length === 0 ? (
+              {displayItems.length === 0 ? (
                 <div className="py-8 text-center text-[#6B8F8E]">
                   <CheckCircle2 size={36} className="mx-auto text-emerald-500 mb-2" />
-                  <p className="text-xs md:text-sm font-semibold text-slate-700">ไม่มีรายการวิกฤตในส่วนนี้</p>
-                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">{locationLabel} อยู่ในเกณฑ์ปกติทุกรายการ</p>
+                  <p className="text-xs md:text-sm font-semibold text-slate-700">ไม่มีรายการในหมวดนี้</p>
+                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">{locationLabel} ในหมวดนี้ไม่มีรายการที่ต้องแสดง</p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
-                  {stockData.criticalList.map(({ ing, remaining }) => {
-                    const isZero = remaining <= 0;
+                <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
+                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass }) => {
                     return (
-                      <div key={ing.id} className="py-2.5 flex items-center justify-between gap-3">
+                      <div key={ing.id} className="py-2.5 flex items-center justify-between gap-3 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                            isZero ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'
+                            remaining <= 0 
+                              ? 'bg-rose-50 text-rose-500' 
+                              : remaining <= ing.minStock 
+                                ? 'bg-amber-50 text-amber-500' 
+                                : 'bg-[#E8F3F2] text-[#5A8A88]'
                           }`}>
                             {ing.department === 'Bar' ? <Coffee size={16} /> : <Cake size={16} />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-800 truncate leading-snug">
+                            <p className="text-xs font-bold text-[#2D4A49] truncate leading-snug">
                               {ing.name}
                             </p>
-                            <p className="text-[10px] text-slate-400 truncate">
-                              {ing.brand || '-'} • ขั้นต่ำ: {ing.minStock} {ing.unit}
+                            <p className="text-[10px] text-[#6B8F8E] truncate">
+                              {ing.brand || '-'} &bull; ขั้นต่ำ: {ing.minStock} {ing.unit}
                             </p>
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                            isZero ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {remaining} / {ing.minStock} {ing.unit}
+                        <div className="text-right shrink-0 flex flex-col items-end">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}`}>
+                            {badgeLabel}
                           </span>
-                          <p className="text-[9px] font-medium text-slate-400 mt-0.5">
-                            {isZero ? 'หมดแล้ว' : 'ใกล้หมด'}
-                          </p>
+                          <span className="text-[10px] font-medium text-slate-500 mt-0.5">
+                            คงเหลือ {remaining} / {ing.minStock} {ing.unit}
+                          </span>
                         </div>
                       </div>
                     );
