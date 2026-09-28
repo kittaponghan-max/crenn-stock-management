@@ -108,6 +108,11 @@ export const HomePage: React.FC<HomePageProps> = ({
   });
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState<boolean>(false);
 
+  // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | null
+  const [activeKPI, setActiveKPI] = useState<
+    'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | null
+  >(null);
+
   // Sync locationFilter with localStorage
   useEffect(() => {
     try {
@@ -326,15 +331,48 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
   ];
 
-  // Dynamic alert items filtered by selected department
+  // Labels for current location selection
+  const locationLabel = useMemo(() => {
+    if (locationFilter === 'bar') return 'วัตถุดิบบาร์';
+    if (locationFilter === 'kitchen') return 'วัตถุดิบครัว';
+    return 'วัตถุดิบทั้งหมด';
+  }, [locationFilter]);
+
+  const locationSubtitle = useMemo(() => {
+    if (locationFilter === 'bar') return 'สรุปสถานะสต็อกบาร์';
+    if (locationFilter === 'kitchen') return 'สรุปสถานะสต็อกครัว';
+    return 'สรุปสถานะสต็อกทั้งหมด';
+  }, [locationFilter]);
+
+  // Dynamic alert items filtered by selected location and activeKPI
   const displayedAlertItems = useMemo(() => {
-    if (selectedDepartment === 'Bar') {
+    let baseList = allAlertItems;
+    if (locationFilter === 'bar') {
+      baseList = allAlertItems.filter(item => item.department === 'Bar');
+    } else if (locationFilter === 'kitchen') {
+      baseList = allAlertItems.filter(item => item.department === 'Bakery');
+    }
+
+    if (activeKPI === 'out_of_stock') {
+      return baseList.filter(item => item.status === 'outOfStock');
+    }
+    if (activeKPI === 'low_stock') {
+      return baseList.filter(item => item.status === 'lowStock');
+    }
+    if (activeKPI === 'purchasing') {
+      return baseList;
+    }
+    if (activeKPI === 'normal') {
+      return [];
+    }
+
+    // Default (null)
+    if (locationFilter === 'bar') {
       return allAlertItems.filter(item => item.department === 'Bar');
     }
-    if (selectedDepartment === 'Bakery') {
+    if (locationFilter === 'kitchen') {
       return allAlertItems.filter(item => item.department === 'Bakery');
     }
-    // 'All' - balanced top 8 items across both departments
     return [
       allAlertItems.find(i => i.id === 'bar-1')!,
       allAlertItems.find(i => i.id === 'bakery-1')!,
@@ -345,11 +383,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       allAlertItems.find(i => i.id === 'bakery-6')!,
       allAlertItems.find(i => i.id === 'bar-6')!,
     ].filter(Boolean);
-  }, [selectedDepartment]);
+  }, [locationFilter, activeKPI]);
 
-  // Reactive Stock counts and percentages according to active department filter
+  // Reactive Stock counts and percentages according to active location filter
   const stats = useMemo(() => {
-    if (selectedDepartment === 'Bar') {
+    if (locationFilter === 'bar') {
       const total = 53;
       const out = 5;
       const low = 11;
@@ -369,7 +407,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         subtextOut: 'ต้องเติมบาร์ด่วนก่อนเริ่มรอบถัดไป',
         subtextLow: 'บาร์: ต่ำกว่าเกณฑ์สต็อกขั้นต่ำ'
       };
-    } else if (selectedDepartment === 'Bakery') {
+    } else if (locationFilter === 'kitchen') {
       const total = 81;
       const out = 4;
       const low = 15;
@@ -410,7 +448,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         subtextLow: 'ต่ำกว่าเกณฑ์สต็อกขั้นต่ำ (Min Stock)'
       };
     }
-  }, [selectedDepartment, outOfStockCount, lowStockCount]);
+  }, [locationFilter, outOfStockCount, lowStockCount]);
 
   // Donut chart calculations based on current reactive stats
   const radius = 70;
@@ -1139,7 +1177,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onClick={() => {
                   setIsMonthDropdownOpen(!isMonthDropdownOpen);
                   setIsBranchDropdownOpen(false);
-                  setIsDepartmentDropdownOpen(false);
+                  setIsLocationDropdownOpen(false);
                 }}
                 className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
               >
@@ -1177,7 +1215,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onClick={() => {
                   setIsBranchDropdownOpen(!isBranchDropdownOpen);
                   setIsMonthDropdownOpen(false);
-                  setIsDepartmentDropdownOpen(false);
+                  setIsLocationDropdownOpen(false);
                 }}
                 className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
               >
@@ -1223,78 +1261,80 @@ export const HomePage: React.FC<HomePageProps> = ({
               )}
             </div>
 
-            {/* Filter Pill 3: [🏢 แผนก: ทั้งหมด / บาร์ / ครัว ▼] */}
+            {/* Filter Pill 3: [🏪 ทั้งหมด / 🍹 บาร์ / 🍳 ครัว ▼] */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => {
-                  setIsDepartmentDropdownOpen(!isDepartmentDropdownOpen);
+                  setIsLocationDropdownOpen(!isLocationDropdownOpen);
                   setIsBranchDropdownOpen(false);
                   setIsMonthDropdownOpen(false);
                 }}
-                className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-2 transition-all cursor-pointer"
+                className={`min-h-[48px] px-4 py-2.5 rounded-full text-[13px] font-semibold shadow-xs border flex items-center gap-2 transition-all cursor-pointer ${
+                  locationFilter !== 'all'
+                    ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#5A8A88]'
+                    : 'bg-white border-slate-200/80 text-[#2D4A49] hover:bg-slate-50'
+                }`}
               >
-                {selectedDepartment === 'All' && <LayoutGrid size={15} className="text-[#5A8A88]" />}
-                {selectedDepartment === 'Bar' && <Coffee size={15} className="text-[#5A8A88]" />}
-                {selectedDepartment === 'Bakery' && <ChefHat size={15} className="text-[#5A8A88]" />}
+                <span>{locationFilter === 'bar' ? '🍹' : locationFilter === 'kitchen' ? '🍳' : '🏪'}</span>
                 <span>
-                  {selectedDepartment === 'All' ? 'ทั้งหมด' : selectedDepartment === 'Bar' ? 'บาร์' : 'ครัว'}
+                  {locationFilter === 'bar' ? 'บาร์' : locationFilter === 'kitchen' ? 'ครัว' : 'ทั้งหมด'}
                 </span>
                 <ChevronDown size={14} className="text-[#6B8F8E]" />
               </button>
 
-              {isDepartmentDropdownOpen && (
+              {isLocationDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-4 py-1 text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
-                    เลือกแผนกที่ต้องการดู
+                    เลือกพื้นที่จัดเก็บสต็อก
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedDepartment('All');
-                      setIsDepartmentDropdownOpen(false);
+                      setLocationFilter('all');
+                      setIsLocationDropdownOpen(false);
                     }}
                     className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
-                      selectedDepartment === 'All' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
+                      locationFilter === 'all' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <LayoutGrid size={14} className="text-[#5A8A88]" />
+                      <span>🏪</span>
                       <span>ทั้งหมด (All)</span>
                     </div>
-                    {selectedDepartment === 'All' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
+                    {locationFilter === 'all' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedDepartment('Bar');
-                      setIsDepartmentDropdownOpen(false);
+                      setLocationFilter('bar');
+                      setIsLocationDropdownOpen(false);
                     }}
                     className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
-                      selectedDepartment === 'Bar' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
+                      locationFilter === 'bar' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Coffee size={14} className="text-[#5A8A88]" />
+                      <span>🍹</span>
                       <span>บาร์ (Bar)</span>
                     </div>
-                    {selectedDepartment === 'Bar' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
+                    {locationFilter === 'bar' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedDepartment('Bakery');
-                      setIsDepartmentDropdownOpen(false);
+                      setLocationFilter('kitchen');
+                      setIsLocationDropdownOpen(false);
                     }}
                     className={`w-full min-h-[44px] px-4 text-left text-xs font-semibold flex items-center justify-between hover:bg-[#F0F5F4] transition-colors ${
-                      selectedDepartment === 'Bakery' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
+                      locationFilter === 'kitchen' ? 'text-[#2D4A49] font-bold bg-[#F0F5F4]' : 'text-slate-600'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <ChefHat size={14} className="text-[#5A8A88]" />
-                      <span>ครัว (Bakery)</span>
+                      <span>🍳</span>
+                      <span>ครัว (Kitchen)</span>
                     </div>
-                    {selectedDepartment === 'Bakery' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
+                    {locationFilter === 'kitchen' && <CheckCircle2 size={14} className="text-[#5A8A88]" />}
                   </button>
                 </div>
               )}
@@ -1320,27 +1360,38 @@ export const HomePage: React.FC<HomePageProps> = ({
         </header>
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* KPI ROW (3 Cards, Full Width, Horizontal) */}
+        {/* KPI ROW (4 Cards, Grid 2x2 mobile / 4 on md+) */}
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 mb-7">
           {/* Card 1: หมดสต็อก (Top accent 4px Red #EF4444) */}
           <div
-            onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
-            className="bg-white rounded-[16px] p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] border-t-4 border-[#EF4444] flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
+            onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
+            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+              activeKPI === 'out_of_stock'
+                ? 'border-2 border-[#EF4444] bg-rose-50/70 shadow-md scale-[1.02]'
+                : 'bg-white border-t-4 border-[#EF4444] hover:shadow-md hover:bg-[#F0F5F4]'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-[#6B8F8E]">
-                หมดสต็อก
-              </span>
-              <span className="w-8 h-8 rounded-full bg-red-50 text-[#EF4444] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div>
+                <span className="text-[13px] font-bold text-rose-700">
+                  หมดสต็อก
+                </span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
+                  ต้องสั่งซื้อด่วน
+                </span>
+              </div>
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                activeKPI === 'out_of_stock' ? 'bg-rose-500 text-white' : 'bg-red-50 text-[#EF4444]'
+              }`}>
                 <AlertTriangle size={16} />
               </span>
             </div>
             <div className="mt-3">
-              <div className="text-[38px] lg:text-[40px] font-extrabold text-[#2D4A49] leading-none">
+              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#2D4A49] leading-none">
                 {stats.out}
               </div>
-              <div className="text-[12px] text-red-500 font-medium mt-1">
+              <div className="text-[11px] text-rose-500 font-medium mt-1 truncate">
                 {stats.subtextOut}
               </div>
             </div>
@@ -1348,46 +1399,102 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Card 2: ใกล้หมด (Top accent 4px Amber #F59E0B) */}
           <div
-            onClick={() => onNavigate('barPurchasing')}
-            className="bg-white rounded-[16px] p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] border-t-4 border-[#F59E0B] flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
+            onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
+            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+              activeKPI === 'low_stock'
+                ? 'border-2 border-[#F59E0B] bg-amber-50/70 shadow-md scale-[1.02]'
+                : 'bg-white border-t-4 border-[#F59E0B] hover:shadow-md hover:bg-[#F0F5F4]'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-[#6B8F8E]">
-                ใกล้หมด
-              </span>
-              <span className="w-8 h-8 rounded-full bg-amber-50 text-[#F59E0B] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div>
+                <span className="text-[13px] font-bold text-amber-700">
+                  ใกล้หมด
+                </span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
+                  ต่ำกว่าขั้นต่ำ
+                </span>
+              </div>
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                activeKPI === 'low_stock' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-[#F59E0B]'
+              }`}>
                 <Clock size={16} />
               </span>
             </div>
             <div className="mt-3">
-              <div className="text-[38px] lg:text-[40px] font-extrabold text-[#2D4A49] leading-none">
+              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#2D4A49] leading-none">
                 {stats.low}
               </div>
-              <div className="text-[12px] text-amber-600 font-medium mt-1">
+              <div className="text-[11px] text-amber-600 font-medium mt-1 truncate">
                 {stats.subtextLow}
               </div>
             </div>
           </div>
 
-          {/* Card 3: รายการรวม (Top accent 4px Teal #5A8A88) */}
+          {/* Card 3: สต็อกปกติ (CHANGE 1: Renamed from รายการรวม -> สต็อกปกติ, displays normal count) */}
           <div
-            onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
-            className="bg-white rounded-[16px] p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] border-t-4 border-[#5A8A88] flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
+            onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
+            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+              activeKPI === 'normal'
+                ? 'border-2 border-[#5A8A88] bg-[#E8F3F2]/80 shadow-md scale-[1.02]'
+                : 'bg-white border-t-4 border-[#5A8A88] hover:shadow-md hover:bg-[#F0F5F4]'
+            }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-[#6B8F8E]">
-                รายการรวม
-              </span>
-              <span className="w-8 h-8 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Package size={16} />
+              <div>
+                <span className="text-[13px] font-bold text-[#2D4A49]">
+                  สต็อกปกติ
+                </span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
+                  วัตถุดิบพร้อมใช้งาน
+                </span>
+              </div>
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                activeKPI === 'normal' ? 'bg-[#5A8A88] text-white' : 'bg-[#E8F3F2] text-[#5A8A88]'
+              }`}>
+                <CheckCircle2 size={16} />
               </span>
             </div>
             <div className="mt-3">
-              <div className="text-[38px] lg:text-[40px] font-extrabold text-[#2D4A49] leading-none">
-                {stats.total}
+              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#2D4A49] leading-none">
+                {stats.normal}
               </div>
-              <div className="text-[12px] text-[#6B8F8E] font-medium mt-1">
-                {stats.description}
+              <div className="text-[11px] text-[#5A8A88] font-medium mt-1 truncate">
+                {locationLabel}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: สั่งซื้อ (CHANGE 2: NEW 4th Card, displays purchasing count) */}
+          <div
+            onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
+            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+              activeKPI === 'purchasing'
+                ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.02]'
+                : 'bg-white border-t-4 border-[#7A9E9C] hover:shadow-md hover:bg-[#F0F5F4]'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[13px] font-bold text-[#2D4A49]">
+                  สั่งซื้อ
+                </span>
+                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
+                  รายการที่ต้องสั่ง
+                </span>
+              </div>
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#EAF2F1] text-[#7A9E9C]'
+              }`}>
+                <ShoppingCart size={16} />
+              </span>
+            </div>
+            <div className="mt-3">
+              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#7A9E9C] leading-none">
+                {stats.out + stats.low}
+              </div>
+              <div className="text-[11px] text-[#7A9E9C] font-medium mt-1 truncate">
+                ต้องสั่งซื้อด่วน
               </div>
             </div>
           </div>
@@ -1403,11 +1510,11 @@ export const HomePage: React.FC<HomePageProps> = ({
             {/* Title & Settings Icon */}
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-[18px] lg:text-[20px] font-bold text-[#2D4A49]">
-                สถานะสต็อก {selectedDepartment !== 'All' ? `(${selectedDepartment === 'Bar' ? 'แผนกบาร์' : 'แผนกครัว'})` : ''}
+                สถานะสต็อก {locationFilter !== 'all' ? `(${locationLabel})` : ''}
               </h2>
               <button
                 type="button"
-                onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
+                onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryStock' : 'barStock')}
                 className="w-10 h-10 rounded-full hover:bg-white/60 flex items-center justify-center text-[#5A8A88] transition-colors cursor-pointer"
                 title="ตัวกรองและมุมมองสต็อก"
               >
@@ -1538,7 +1645,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <span>อัปเดตข้อมูลล่าสุดจากการตรวจนับตามรอบ</span>
               <button
                 type="button"
-                onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryDailyCount' : 'barDailyCount')}
+                onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryDailyCount' : 'barDailyCount')}
                 className="font-semibold text-[#5A8A88] hover:underline cursor-pointer"
               >
                 บันทึกการนับสต็อกวันนี้ &rsaquo;
@@ -1592,7 +1699,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
               <button
                 type="button"
-                onClick={() => onNavigate(selectedDepartment === 'Bakery' ? 'bakeryStock' : 'barStock')}
+                onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryStock' : 'barStock')}
                 className="text-[#5A8A88] hover:text-[#2D4A49] text-[13px] font-bold flex items-center gap-1 transition-colors cursor-pointer min-h-[44px]"
               >
                 <span>ดูทั้งหมด</span>
