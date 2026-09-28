@@ -459,8 +459,15 @@ export function HomeScreen({
                 Inventory Dashboard
               </h2>
               {/* Filter context subtitle */}
-              <p className="text-xs md:text-sm text-[#6B8F8E] font-medium mt-1">
-                {locationSubtitle}
+              <p className="text-xs md:text-sm text-[#6B8F8E] font-medium mt-1 flex items-center flex-wrap gap-1.5">
+                <span>สรุปสถานะสต็อก</span>
+                <span className="text-slate-300">·</span>
+                <span>{user.branch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ'}</span>
+                <span className="text-slate-300">·</span>
+                <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Real-time
+                </span>
               </p>
             </div>
             <div className="w-11 h-11 md:w-13 md:h-13 rounded-2xl bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] shadow-xs">
@@ -469,100 +476,27 @@ export function HomeScreen({
           </div>
         </section>
 
-        {/* 3. FILTER BAR: [📅 เดือนนี้ ▼]  [📍 สาขา ▼]  [🏪 ทั้งหมด ▼] */}
+        {/* 3. FILTER BAR: [📅 อัปเดต: 14:30 น.]  [📍 สาขากรุงเทพฯ]  [🏪 ทั้งหมด ▼] */}
         <section ref={filterBarRef} className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-          {/* Filter 1: Time Filter */}
-          <div className="relative flex-1 min-w-[110px]">
-            <button
-              onClick={() => {
-                setShowTimeDropdown(!showTimeDropdown);
-                setShowBranchDropdown(false);
-                setShowLocationDropdown(false);
-              }}
-              className="w-full flex items-center justify-between px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors shadow-xs"
-            >
-              <div className="flex items-center gap-1.5 truncate">
-                <Calendar size={14} className="text-[#5A8A88] shrink-0" />
-                <span className="truncate">
-                  {timeFilter === 'thisMonth' ? 'เดือนนี้' : timeFilter === 'thisWeek' ? 'สัปดาห์นี้' : 'ทั้งหมด'}
-                </span>
-              </div>
-              <ChevronDown size={14} className="text-[#6B8F8E] shrink-0 ml-1" />
-            </button>
-
-            {showTimeDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-[#D4E4E3] py-1.5 z-30 text-xs">
-                <button
-                  onClick={() => { setTimeFilter('thisMonth'); setShowTimeDropdown(false); }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-[#E8F3F2] flex items-center justify-between font-medium"
-                >
-                  <span>เดือนนี้ (This Month)</span>
-                  {timeFilter === 'thisMonth' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
-                </button>
-                <button
-                  onClick={() => { setTimeFilter('thisWeek'); setShowTimeDropdown(false); }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-[#E8F3F2] flex items-center justify-between font-medium"
-                >
-                  <span>สัปดาห์นี้ (This Week)</span>
-                  {timeFilter === 'thisWeek' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
-                </button>
-                <button
-                  onClick={() => { setTimeFilter('all'); setShowTimeDropdown(false); }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-[#E8F3F2] flex items-center justify-between font-medium"
-                >
-                  <span>ทั้งหมด (All)</span>
-                  {timeFilter === 'all' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
-                </button>
-              </div>
-            )}
+          {/* Pill 1: Update Time (Text, non-clickable) */}
+          <div className="flex-1 min-w-[130px] flex items-center justify-center sm:justify-start px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] shadow-xs select-none">
+            <div className="flex items-center gap-1.5 truncate">
+              <Calendar size={14} className="text-[#5A8A88] shrink-0" />
+              <span className="truncate">อัปเดต: 14:30 น.</span>
+            </div>
           </div>
 
-          {/* Filter 2: Branch Filter */}
-          <div className="relative flex-1 min-w-[110px]">
-            <button
-              onClick={() => {
-                setShowBranchDropdown(!showBranchDropdown);
-                setShowTimeDropdown(false);
-                setShowLocationDropdown(false);
-              }}
-              className="w-full flex items-center justify-between px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors shadow-xs"
-            >
-              <div className="flex items-center gap-1.5 truncate">
-                <MapPin size={14} className="text-[#5A8A88] shrink-0" />
-                <span className="truncate">
-                  {user.branch === 'Rayong' ? 'สาขาระยอง' : user.branch === 'Bangkok' ? 'สาขากรุงเทพฯ' : (user.branch || 'สาขา')}
-                </span>
-              </div>
-              <ChevronDown size={14} className="text-[#6B8F8E] shrink-0 ml-1" />
-            </button>
-
-            {showBranchDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-[#D4E4E3] py-1.5 z-30 text-xs">
-                <button
-                  onClick={() => {
-                    if (onChangeBranch) onChangeBranch('Rayong');
-                    setShowBranchDropdown(false);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-[#E8F3F2] flex items-center justify-between font-medium"
-                >
-                  <span>📍 สาขาระยอง (Rayong)</span>
-                  {user.branch === 'Rayong' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
-                </button>
-                <button
-                  onClick={() => {
-                    if (onChangeBranch) onChangeBranch('Bangkok');
-                    setShowBranchDropdown(false);
-                  }}
-                  className="w-full text-left px-3.5 py-2 hover:bg-[#E8F3F2] flex items-center justify-between font-medium"
-                >
-                  <span>📍 สาขากรุงเทพฯ (Bangkok)</span>
-                  {user.branch === 'Bangkok' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
-                </button>
-              </div>
-            )}
+          {/* Pill 2: Branch Badge (Badge, non-clickable) */}
+          <div className="flex-1 min-w-[120px] flex items-center justify-center sm:justify-start px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] shadow-xs select-none">
+            <div className="flex items-center gap-1.5 truncate">
+              <MapPin size={14} className="text-[#5A8A88] shrink-0" />
+              <span className="truncate">
+                {user.branch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ'}
+              </span>
+            </div>
           </div>
 
-          {/* Filter 3: Inventory Location Filter [🏪 ทั้งหมด ▼ / 🍹 บาร์ ▼ / 🍳 ครัว ▼] */}
+          {/* Pill 3: Inventory Location Filter [🏪 ทั้งหมด ▼ / 🍹 บาร์ ▼ / 🍳 ครัว ▼] */}
           <div className="relative flex-1 min-w-[120px]">
             <button
               type="button"
