@@ -92,9 +92,30 @@ export const HomePage: React.FC<HomePageProps> = ({
   );
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState<boolean>(false);
 
-  // Department filter state: 'All' (ทั้งหมด) | 'Bar' (บาร์) | 'Bakery' (ครัว)
-  const [selectedDepartment, setSelectedDepartment] = useState<'All' | 'Bar' | 'Bakery'>('All');
-  const [isDepartmentDropdownOpen, setIsDepartmentDropdownOpen] = useState<boolean>(false);
+  // Inventory Location Filter State: "all" (ทั้งหมด) | "bar" (บาร์) | "kitchen" (ครัว)
+  const [locationFilter, setLocationFilter] = useState<'all' | 'bar' | 'kitchen'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('crenn_location_filter');
+        if (saved === 'bar' || saved === 'kitchen' || saved === 'all') {
+          return saved;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return 'all';
+  });
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState<boolean>(false);
+
+  // Sync locationFilter with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('crenn_location_filter', locationFilter);
+    } catch {
+      // ignore
+    }
+  }, [locationFilter]);
 
   // Notifications Modal
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
@@ -121,7 +142,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       ) {
         setIsMonthDropdownOpen(false);
         setIsBranchDropdownOpen(false);
-        setIsDepartmentDropdownOpen(false);
+        setIsLocationDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
