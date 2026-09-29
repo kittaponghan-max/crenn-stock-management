@@ -22,7 +22,7 @@ import { WasteReport } from './components/WasteReport';
 import { RnDReport } from './components/RnDReport';
 import { PurchasingReport } from './components/PurchasingReport';
 import { UserSettings } from './components/UserSettings';
-import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil } from 'lucide-react';
+import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
 import { cn, generateUUID, isValidUUID } from './lib/utils';
 import { supabase } from './lib/supabase';
@@ -2059,37 +2059,49 @@ export default function App() {
 
       {/* Header */}
       {activeTab !== 'home' && (
-      <header className="bg-gradient-to-r from-[#2D4A49] to-[#3D6B69] text-white shadow-md sticky top-0 z-[60] border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between py-2.5">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#5A8A88] text-white font-bold tracking-[0.22em] uppercase text-sm px-3 py-1.5 rounded-lg shadow-xs">
+      <header className="bg-white border-b border-[#D4E4E3] shadow-xs sticky top-0 z-[60]">
+        <div className="max-w-6xl mx-auto h-[56px] px-6 flex items-center justify-between">
+          {/* Left side: CRENN wordmark & subtitle */}
+          <div className="flex flex-col">
+            <span className="text-[18px] font-extrabold text-[#2D4A49] tracking-[0.1em] leading-none">
               CRENN
+            </span>
+            <span className="text-[9px] font-medium text-[#7A9E9C] tracking-[0.15em] uppercase mt-0.5 leading-none">
+              CAFE MANAGEMENT
+            </span>
+          </div>
+
+          {/* Center: Connected status pill & date display */}
+          <div className="hidden sm:flex items-center">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F2] border border-[#D4E4E3]">
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' :
+                dbStatus === 'checking' ? 'bg-[#F59E0B] animate-pulse' : 'bg-slate-400'
+              }`} />
+              <span className="text-[11px] font-normal text-[#5A8A88]">
+                {dbStatus === 'connected' ? 'Connected' : 
+                 dbStatus === 'checking' ? 'Connecting...' : 'Offline'}
+              </span>
             </div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-semibold tracking-tight leading-tight text-white text-[13px] hidden sm:block">Cafe Management</h1>
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/20 border border-white/10">
-                <div className={`w-1.5 h-1.5 rounded-full ${
-                  dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' :
-                  dbStatus === 'checking' ? 'bg-[#F59E0B] animate-pulse' : 'bg-slate-400'
-                }`}></div>
-                <span className="text-[11px] font-normal text-white/80 tracking-wide">
-                  {dbStatus === 'connected' ? 'Connected' : 
-                   dbStatus === 'checking' ? 'Connecting...' : 'Offline'}
-                </span>
-              </div>
-            </div>
+            <span className="text-[11px] text-[#6B8F8E] ml-3 font-normal">
+              {format(new Date(), 'EEE d MMM yyyy')}
+            </span>
           </div>
           
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#5A8A88] border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-xs select-none">
-              {(user.name || 'U').charAt(0).toUpperCase()}
+          {/* Right side: Bell notification icon & Avatar + Day */}
+          <div className="flex items-center gap-3">
+            <div className="relative text-[#6B8F8E] flex items-center justify-center cursor-pointer hover:text-[#2D4A49] transition-colors" title="การแจ้งเตือน">
+              <Bell size={20} className="text-[#6B8F8E]" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
             </div>
-            <div className="flex flex-col text-right">
-              <span className="text-[13px] font-semibold text-white leading-tight">{user.name}</span>
-              <div className="flex items-center gap-1 justify-end leading-tight">
-                <span className="text-[11px] font-medium text-white/90">{format(new Date(), 'EEE')}</span>
-                <span className="text-[11px] font-normal text-white/70">{format(new Date(), 'dd MMM yyyy')}</span>
+
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-[#5A8A88] flex items-center justify-center text-white text-[13px] font-semibold select-none shadow-xs">
+                {(user.name || 'U').charAt(0).toUpperCase()}
               </div>
+              <span className="text-[12px] font-medium text-[#2D4A49]">
+                {format(new Date(), 'EEE')}
+              </span>
             </div>
           </div>
         </div>
@@ -2187,22 +2199,34 @@ export default function App() {
           <>
             {/* ROW 1 — Date + Navigation */}
             <div className="flex items-center justify-between mb-3 bg-white p-3 sm:px-4 rounded-xl shadow-[0_1px_4px_rgba(90,138,136,0.08)] border border-[#D4E4E3] gap-3 flex-wrap sm:flex-nowrap">
-              <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-                {/* Today button (Moved to left of date range) */}
-                <button
-                  onClick={() => {
-                    const now = new Date();
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    setDateRange({ start: today, end: today });
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[11px] font-medium transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
-                >
-                  <Calendar size={13} className="text-[#5A8A88]" />
-                  Today
-                </button>
+              <div className="flex items-center flex-wrap sm:flex-nowrap">
+                {/* Button Group: Today & This Week */}
+                <div className="flex items-center gap-2">
+                  {/* Today button */}
+                  <button
+                    onClick={() => {
+                      const now = new Date();
+                      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                      setDateRange({ start: today, end: today });
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[11px] font-medium transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
+                  >
+                    <Calendar size={13} className="text-[#5A8A88]" />
+                    Today
+                  </button>
+
+                  {/* This Week button */}
+                  <button 
+                    onClick={() => setDateRange({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) })}
+                    className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[11px] font-medium transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
+                  >
+                    <Calendar size={13} className="text-[#5A8A88]" />
+                    This Week
+                  </button>
+                </div>
 
                 {/* Date range inputs */}
-                <div className="flex items-center gap-2 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3]">
+                <div className="flex items-center gap-2 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3] ml-4">
                   <input 
                     type="date" 
                     value={format(dateRange.start, 'yyyy-MM-dd')}
@@ -2239,13 +2263,6 @@ export default function App() {
                     className="bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-normal px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
                   />
                 </div>
-
-                <button 
-                  onClick={() => setDateRange({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) })}
-                  className="text-[11px] text-[#5A8A88] hover:underline font-medium px-2 py-1 hover:bg-[#E8F3F2]/50 rounded-lg transition-all"
-                >
-                  This Week
-                </button>
               </div>
               
               {/* Undo / Redo */}
