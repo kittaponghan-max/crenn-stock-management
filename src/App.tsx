@@ -32,6 +32,7 @@ import { DEFAULT_DISCORD_NOTIFY_SETTINGS, sendDiscordNotification } from './lib/
 import { Logo } from './components/Logo';
 import { HomeScreen } from './components/HomeScreen';
 import { BottomNav } from './components/BottomNav';
+import { TopNav } from './components/TopNav';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -2059,53 +2060,14 @@ export default function App() {
 
       {/* Header */}
       {activeTab !== 'home' && (
-      <header className="bg-white border-b border-[#D4E4E3] shadow-xs sticky top-0 z-[60]">
-        <div className="max-w-6xl mx-auto h-[56px] px-6 flex items-center justify-between">
-          {/* Left side: CRENN wordmark & subtitle */}
-          <div className="flex flex-col">
-            <span className="text-[18px] font-extrabold text-[#2D4A49] tracking-[0.1em] leading-none">
-              CRENN
-            </span>
-            <span className="text-[9px] font-medium text-[#7A9E9C] tracking-[0.15em] uppercase mt-0.5 leading-none">
-              CAFE MANAGEMENT
-            </span>
-          </div>
-
-          {/* Center: Connected status pill & date display */}
-          <div className="hidden sm:flex items-center">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F2] border border-[#D4E4E3]">
-              <div className={`w-1.5 h-1.5 rounded-full ${
-                dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' :
-                dbStatus === 'checking' ? 'bg-[#F59E0B] animate-pulse' : 'bg-slate-400'
-              }`} />
-              <span className="text-[11px] font-normal text-[#5A8A88]">
-                {dbStatus === 'connected' ? 'Connected' : 
-                 dbStatus === 'checking' ? 'Connecting...' : 'Offline'}
-              </span>
-            </div>
-            <span className="text-[11px] text-[#6B8F8E] ml-3 font-normal">
-              {format(new Date(), 'EEE d MMM yyyy')}
-            </span>
-          </div>
-          
-          {/* Right side: Bell notification icon & Avatar + Day */}
-          <div className="flex items-center gap-3">
-            <div className="relative text-[#6B8F8E] flex items-center justify-center cursor-pointer hover:text-[#2D4A49] transition-colors" title="การแจ้งเตือน">
-              <Bell size={20} className="text-[#6B8F8E]" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#5A8A88] flex items-center justify-center text-white text-[13px] font-semibold select-none shadow-xs">
-                {(user.name || 'U').charAt(0).toUpperCase()}
-              </div>
-              <span className="text-[12px] font-medium text-[#2D4A49]">
-                {format(new Date(), 'EEE')}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+        <TopNav
+          userName={user.name}
+          onLogoClick={() => setActiveTab('home')}
+          onAvatarClick={() => setActiveTab('userSettings')}
+          outCount={stockSummary.outOfStock}
+          lowCount={stockSummary.lowStock}
+          dbStatus={dbStatus}
+        />
       )}
 
       {/* Main Content */}
