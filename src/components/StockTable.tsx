@@ -116,24 +116,24 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
       {/* ROW 3 — Column Visibility Bar */}
       <div className="flex flex-wrap sm:flex-nowrap gap-3 justify-between items-center bg-white p-2.5 sm:px-4 rounded-[10px] border border-[#D4E4E3] shadow-[0_1px_4px_rgba(90,138,136,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[12px] font-semibold text-[#6B8F8E]">แสดง:</span>
-          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
+          <span className="text-[11px] font-medium text-[#6B8F8E]">แสดง:</span>
+          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.brand} onChange={(e) => setVisibleCols(prev => ({...prev, brand: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ยี่ห้อ
           </label>
-          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.sizePerUnit} onChange={(e) => setVisibleCols(prev => ({...prev, sizePerUnit: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ขนาด/หน่วย
           </label>
-          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.minStock} onChange={(e) => setVisibleCols(prev => ({...prev, minStock: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             คงเหลือขั้นต่ำ
           </label>
-          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.minOrder} onChange={(e) => setVisibleCols(prev => ({...prev, minOrder: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             สั่งซื้อขั้นต่ำ
           </label>
-          <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
+          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
             <input type="checkbox" checked={visibleCols.supplier} onChange={(e) => setVisibleCols(prev => ({...prev, supplier: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ผู้จัดจำหน่าย
           </label>
@@ -141,7 +141,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
         {isAdmin && (
           <div className="flex items-center gap-3 pl-3 sm:border-l sm:border-[#D4E4E3] ml-auto sm:ml-0">
-            <label className="flex items-center gap-1.5 text-[12px] text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88]">
+            <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-normal cursor-pointer hover:text-[#5A8A88]">
               <input 
                 type="checkbox" 
                 checked={visibleCols.manage} 
@@ -160,27 +160,27 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
         <thead className="sticky top-0 z-40 shadow-sm">
           <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
             {showManageCol && (
-              <th className="sticky left-0 z-50 px-1 py-2.5 w-[80px] min-w-[80px] max-w-[80px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[12px] font-semibold">
+              <th className="sticky left-0 z-50 px-1 py-2.5 w-[80px] min-w-[80px] max-w-[80px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[11px] font-semibold">
                 จัดการ
               </th>
             )}
             <th className={cn(
-              "sticky z-50 px-1 py-2.5 text-center font-semibold tracking-wide w-[48px] min-w-[48px] max-w-[48px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]",
+              "sticky z-50 px-1 py-2.5 text-center font-semibold tracking-wide w-[48px] min-w-[48px] max-w-[48px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]",
               showManageCol ? "left-[80px]" : "left-0"
             )}>
               รูป
             </th>
             <th className={cn(
-              "sticky z-50 px-3 py-2.5 text-left font-semibold tracking-wide w-[200px] min-w-[180px] max-w-[280px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]",
+              "sticky z-50 px-3 py-2.5 text-left font-semibold tracking-wide w-[200px] min-w-[180px] max-w-[280px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]",
               showManageCol ? "left-[128px]" : "left-[48px]"
             )}>
               รายการสินค้า
             </th>
-            {visibleCols.brand && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]">ยี่ห้อ</th>}
-            {visibleCols.sizePerUnit && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]">ขนาด/หน่วย</th>}
-            {visibleCols.minStock && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
-            {visibleCols.minOrder && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
-            {visibleCols.supplier && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[12px]">ผู้จัดจำหน่าย</th>}
+            {visibleCols.brand && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ยี่ห้อ</th>}
+            {visibleCols.sizePerUnit && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ขนาด/หน่วย</th>}
+            {visibleCols.minStock && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
+            {visibleCols.minOrder && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
+            {visibleCols.supplier && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ผู้จัดจำหน่าย</th>}
             {weekDays.map((day) => {
               const isToday = isSameDay(day, new Date());
 
@@ -200,8 +200,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                     <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform text-white" />
                   </button>
 
-                  <div className="text-[11px] uppercase font-bold text-white">{format(day, 'EEE')}</div>
-                  <div className="text-[10px] text-white/90 mb-1">{format(day, 'd/M')}</div>
+                  <div className="text-[10px] uppercase font-semibold text-white">{format(day, 'EEE')}</div>
+                  <div className="text-[10px] font-normal text-white/90 mb-1">{format(day, 'd/M')}</div>
                   <div className="grid grid-cols-3 gap-1 text-[10px] bg-[#4A7A78] rounded px-1 py-0.5 text-white font-medium">
                     <div>เข้า</div>
                     <div>เบิก</div>
@@ -226,7 +226,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             <React.Fragment key={category}>
               <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                 <td colSpan={baseColsCount} className="p-0">
-                  <div className="sticky left-0 w-fit p-2 pl-3 font-semibold text-[12px] text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
+                  <div className="sticky left-0 w-fit p-2 pl-3 font-semibold text-[11px] text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
                     <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
                     {category}
                   </div>
@@ -286,11 +286,11 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                     "sticky z-20 px-3 py-2 w-[200px] min-w-[180px] max-w-[280px] border-r border-[#D4E4E3] bg-inherit shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]",
                     showManageCol ? "left-[128px]" : "left-[48px]"
                   )}>
-                    <div className="truncate text-[13px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
+                    <div className="truncate text-[11px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
                   </td>
                   {visibleCols.brand && (
-                    <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal bg-inherit hidden md:table-cell">
-                      <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-[10px] inline-block text-[#6B8F8E] font-medium truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
+                    <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[10px] text-[#6B8F8E] font-normal bg-inherit hidden md:table-cell">
+                      <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-[10px] inline-block text-[#6B8F8E] font-normal truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
                         {item.brand || '-'}
                       </div>
                     </td>
@@ -302,21 +302,21 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   )}
                   {visibleCols.minStock && (
                     <td className="px-1 py-2 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center bg-inherit">
-                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-md text-[12px] font-medium border border-[#B8D4D2]">
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-md text-[11px] font-semibold border border-[#B8D4D2]">
                         {item.minStock} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.minOrder && (
                     <td className="px-1 py-2 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center bg-inherit">
-                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-2 py-0.5 rounded-md text-[12px] font-medium border border-[#FDE68A]">
+                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-2 py-0.5 rounded-md text-[11px] font-semibold border border-[#FDE68A]">
                         {item.minOrder} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.supplier && (
                     <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal bg-inherit group/supplier relative" title={item.supplier}>
-                      <div className="truncate text-[11px]">
+                      <div className="truncate text-[11px] font-normal">
                         {item.supplier.split(',').map((sup, idx, arr) => {
                           const isPrimary = sup.includes('(หลัก)');
                           const text = sup.replace(' (หลัก)', '').trim();
@@ -350,7 +350,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           <input
                             type="number"
                             min="0"
-                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[13px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[11px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                             placeholder="0"
                             value={currentStockObj.in ?? ''}
                             onChange={(e) => {
@@ -362,7 +362,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           <input
                             type="number"
                             min="0"
-                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[13px] rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[11px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                             placeholder="0"
                             value={currentStockObj.out ?? ''}
                             onChange={(e) => {
@@ -376,13 +376,13 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                               type="number"
                               min="0"
                               className={cn(
-                                "w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[13px] rounded-md border p-1 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
+                                "w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[11px] font-medium rounded-md border p-1 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
                                 isLowStock 
-                                  ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-bold focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20" 
+                                  ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-semibold focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20" 
                                   : currentStockObj.isAutoCalculated 
                                     ? "border-[#B8D4D2] bg-[#E8F3F2] text-[#2D4A49] font-medium focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
                                     : currentStockObj.remaining !== undefined
-                                      ? "border-[#5A8A88] bg-white text-[#2D4A49] font-bold focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                      ? "border-[#5A8A88] bg-white text-[#2D4A49] font-semibold focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
                                       : "border-[#D4E4E3] bg-[#F0F5F4] text-[#6B8F8E] focus:bg-white focus:border-[#5A8A88] focus:text-[#2D4A49]"
                               )}
                               placeholder="0"
@@ -418,8 +418,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   <div className="w-16 h-16 bg-[#F0F5F4] rounded-full flex items-center justify-center border border-[#D4E4E3]">
                     <ShoppingCart size={32} className="text-[#A8BCBB]" />
                   </div>
-                  <p className="text-[14px] font-bold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
-                  <p className="text-[13px] text-[#6B8F8E]">กดปุ่ม "เพิ่มรายการวัตถุดิบ" เพื่อเริ่มต้นใช้งาน</p>
+                  <p className="text-[11px] font-semibold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
+                  <p className="text-[11px] text-[#6B8F8E]">กดปุ่ม "เพิ่มรายการวัตถุดิบ" เพื่อเริ่มต้นใช้งาน</p>
                 </div>
               </td>
             </tr>
