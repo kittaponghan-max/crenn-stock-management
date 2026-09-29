@@ -71,21 +71,21 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-[#D4E4E3] gap-4">
         <div className="flex flex-col gap-2 w-full sm:w-auto">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-[#2D4A49] font-medium whitespace-nowrap">
-              <CalendarIcon size={20} className="text-[#5A8A88]" />
-              <span className="font-semibold">เลือกวันที่ตรวจนับ:</span>
+            <div className="flex items-center gap-2 text-[#2D4A49] font-medium whitespace-nowrap text-[11px]">
+              <CalendarIcon size={16} className="text-[#5A8A88]" />
+              <span className="font-semibold text-[11px]">เลือกวันที่ตรวจนับ:</span>
             </div>
             <input 
               type="date" 
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-[#D4E4E3] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] w-full sm:w-auto font-mono text-[13px] text-[#2D4A49]"
+              className="border border-[#D4E4E3] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] w-full sm:w-auto font-mono text-[11px] text-[#2D4A49]"
             />
           </div>
           {lastSubmittedDate && (
-            <div className="flex items-center gap-1.5 text-xs text-[#6B8F8E] font-medium pl-1">
-              <Clock size={14} className="text-[#6B8F8E]" />
-              <span>Last Submitted Date: <span className="text-[#2D4A49] font-semibold">{lastSubmittedDate}</span></span>
+            <div className="flex items-center gap-1.5 text-[11px] text-[#6B8F8E] font-medium pl-1">
+              <Clock size={13} className="text-[#6B8F8E]" />
+              <span>Last Submitted Date: <span className="text-[#2D4A49] font-semibold text-[11px]">{lastSubmittedDate}</span></span>
             </div>
           )}
         </div>
@@ -94,17 +94,17 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
             <>
               <button
                 onClick={() => setCounts({})}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#F0F5F4] text-[#2D4A49] px-4 py-2.5 rounded-xl text-[14px] font-bold hover:bg-[#E8F3F2] transition-all border border-[#D4E4E3]"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#F0F5F4] text-[#2D4A49] px-4 py-2.5 rounded-xl text-[11px] font-medium hover:bg-[#E8F3F2] transition-all border border-[#D4E4E3]"
               >
-                <RotateCcw size={18} className="text-[#5A8A88]" />
+                <RotateCcw size={14} className="text-[#5A8A88]" />
                 ล้างข้อมูล
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#5A8A88] text-white px-6 py-2.5 rounded-xl text-[14px] font-bold hover:bg-[#4A7A78] transition-all shadow-md transform hover:scale-105 active:scale-95 border border-[#5A8A88] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#5A8A88] text-white px-6 py-2.5 rounded-xl text-[11px] font-semibold hover:bg-[#4A7A78] transition-all shadow-md transform hover:scale-105 active:scale-95 border border-[#5A8A88] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send size={18} />
+                <Send size={14} />
                 {isSubmitting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
               </button>
             </>
@@ -116,12 +116,12 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
         <table className="w-full min-w-max border-collapse relative">
           <thead className="sticky top-0 z-40 shadow-sm">
             <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
-              <th className="sticky left-0 z-50 px-2 py-3 text-center font-semibold tracking-wide w-[45px] min-w-[45px] max-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs">รูป</th>
-              <th className="sticky left-[45px] z-50 px-3 py-3 text-left font-semibold tracking-wide w-[170px] min-w-[170px] max-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs shadow-[2px_0_6px_-1px_rgba(0,0,0,0.2)]">รายการสินค้า</th>
-              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs">ยี่ห้อ</th>
-              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs">ขนาด/หน่วย</th>
-              <th className="px-2 py-3 text-center font-semibold tracking-wide w-[85px] min-w-[85px] max-w-[85px] bg-[#2D4A49] border-r border-[#3D6B69] text-xs leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
-              <th className="px-3 py-3 text-center font-bold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-[#5A8A88] border-r border-[#3D6B69] text-sm text-white">
+              <th className="sticky left-0 z-50 px-2 py-3 text-center font-semibold tracking-wide w-[45px] min-w-[45px] max-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">รูป</th>
+              <th className="sticky left-[45px] z-50 px-3 py-3 text-left font-semibold tracking-wide w-[170px] min-w-[170px] max-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] shadow-[2px_0_6px_-1px_rgba(0,0,0,0.2)]">รายการสินค้า</th>
+              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ยี่ห้อ</th>
+              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ขนาด/หน่วย</th>
+              <th className="px-2 py-3 text-center font-semibold tracking-wide w-[85px] min-w-[85px] max-w-[85px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
+              <th className="px-3 py-3 text-center font-semibold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-[#5A8A88] border-r border-[#3D6B69] text-[11px] text-white">
                 ยอดตรวจนับ
               </th>
             </tr>
@@ -140,7 +140,7 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
               <React.Fragment key={category}>
                 <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                   <td colSpan={6} className="p-0">
-                    <div className="sticky left-0 w-fit p-2.5 pl-4 font-semibold text-xs text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
+                    <div className="sticky left-0 w-fit p-2.5 pl-4 font-semibold text-[11px] text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
                       <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
                       {category}
                     </div>
@@ -171,22 +171,22 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                         </div>
                       </td>
                       <td className="sticky left-[45px] z-20 px-2.5 py-2 w-[170px] min-w-[170px] max-w-[170px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] bg-inherit shadow-[2px_0_6px_-1px_rgba(90,138,136,0.06)]">
-                        <div className="truncate text-xs font-semibold text-[#2D4A49]" title={item.name}>{item.name}</div>
-                        <div className="text-[11px] text-[#6B8F8E] truncate md:hidden mt-0.5">
+                        <div className="truncate text-[11px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
+                        <div className="text-[10px] text-[#6B8F8E] truncate md:hidden mt-0.5">
                           {item.brand ? <span>{item.brand} · </span> : null}
                           <span>{item.sizePerUnit || item.unit}</span>
                         </div>
                       </td>
-                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-xs text-[#6B8F8E] bg-inherit">
-                        <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-xs inline-block text-[#6B8F8E] font-medium truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
+                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-[10px] text-[#6B8F8E] bg-inherit">
+                        <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-[10px] inline-block text-[#6B8F8E] font-normal truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
                           {item.brand || '-'}
                         </div>
                       </td>
-                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-xs text-[#6B8F8E] font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
+                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
                         {item.sizePerUnit || '-'}
                       </td>
-                      <td className="px-2 py-2 w-[85px] min-w-[85px] max-w-[85px] border-r border-[#D4E4E3] font-mono text-xs text-center bg-inherit">
-                        <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full text-xs font-bold border border-[#B8D4D2] tabular-nums">
+                      <td className="px-2 py-2 w-[85px] min-w-[85px] max-w-[85px] border-r border-[#D4E4E3] font-mono text-[11px] text-center bg-inherit">
+                        <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[#B8D4D2] tabular-nums">
                           {item.minStock} {item.unit}
                         </span>
                       </td>
@@ -196,10 +196,10 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                             type="number"
                             min="0"
                             className={cn(
-                              "w-full h-10 text-center focus:outline-none font-mono text-sm rounded-lg border-2 bg-white transition-all disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed tabular-nums",
+                              "w-full h-10 text-center focus:outline-none font-mono text-[11px] font-medium rounded-lg border-2 bg-white transition-all disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed tabular-nums",
                               isLowStock
                                 ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-bold shadow-xs focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20"
-                                : "border-[#D4E4E3] text-[#2D4A49] font-bold focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 shadow-xs"
+                                : "border-[#D4E4E3] text-[#2D4A49] font-medium focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 shadow-xs"
                             )}
                             placeholder="0"
                             value={currentValue ?? ''}
@@ -234,7 +234,7 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                     <div className="w-16 h-16 bg-[#F0F5F4] rounded-full flex items-center justify-center border border-[#D4E4E3]">
                       <ShoppingCart size={32} className="text-[#A8BCBB]" />
                     </div>
-                    <p className="text-[14px] font-bold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
+                    <p className="text-[11px] font-bold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
                   </div>
                 </td>
               </tr>
