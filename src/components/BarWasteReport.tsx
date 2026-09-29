@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Ingredient } from '../types';
 import { format, parseISO, isSameDay } from 'date-fns';
-import { Trash2, TrendingDown, Coffee, Calendar, ChevronRight, AlertCircle } from 'lucide-react';
+import { Trash2, TrendingDown, Coffee, Calendar, ChevronRight, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 
 interface BarWasteReportProps {
   ingredients: Ingredient[];
@@ -16,6 +17,82 @@ interface WasteItem {
 }
 
 export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReportProps) {
+  const [liveChecklists, setLiveChecklists] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      let branch = 'Rayong';
+      try {
+        const raw = localStorage.getItem('cafe-user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u.branch) branch = u.branch;
+        }
+      } catch (e) {}
+
+      const { data, error } = await supabase
+        .from('checklist_records')
+        .select('*')
+        .eq('branch', branch)
+        .order('timestamp', { ascending: false })
+        .limit(150);
+
+      if (data) {
+        setLiveChecklists(data.map((c: any) => ({
+          id: c.id,
+          timestamp: c.timestamp,
+          type: c.type,
+          reportDate: c.report_date,
+          reporterName: c.reporter_name,
+          ...c.data
+        })));
+      }
+    } catch (e) {
+      console.error('Error fetching checklist_records in BarWasteReport:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Real-time Supabase subscription
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`bar-waste-checklist-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_records' }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
+
+  // Visibility and focus listeners
+  useEffect(() => {
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') fetchData();
+    };
+    const handleFoc = () => fetchData();
+    document.addEventListener('visibilitychange', handleVis);
+    window.addEventListener('focus', handleFoc);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVis);
+      window.removeEventListener('focus', handleFoc);
+    };
+  }, [fetchData]);
+
+  const effectiveChecklists = liveChecklists.length > 0 ? liveChecklists : checklistRecords;
   const coffeeIngredients = ingredients.filter(ing => ing.category === 'Coffee');
 
   const dailyWaste = useMemo(() => {
@@ -24,7 +101,7 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
     // Group records by day
     const recordsByDay: Record<string, { checkIn?: any; checkOut?: any }> = {};
     
-    checklistRecords.forEach(record => {
+    effectiveChecklists.forEach(record => {
       const dateKey = format(parseISO(record.timestamp), 'yyyy-MM-dd');
       if (!recordsByDay[dateKey]) recordsByDay[dateKey] = {};
       
@@ -60,28 +137,38 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
     });
 
     return Object.entries(wasteMap).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [ingredients, checklistRecords]);
+  }, [ingredients, effectiveChecklists]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="bg-slate-800 p-6 text-white flex items-center justify-between">
+        <div className="bg-slate-800 p-4 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-500 rounded-xl">
+            <div className="p-2.5 bg-red-500 rounded-xl shrink-0">
               <Trash2 size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold">รายงาน Waste เมล็ดกาแฟรายวัน</h2>
-              <p className="text-slate-400 text-xs mt-1">คำนวณจากน้ำหนักเมล็ดกาแฟตอน Check-in และ Check-out</p>
+              <h2 className="text-lg sm:text-xl font-bold">รายงาน Waste เมล็ดกาแฟรายวัน</h2>
+              <p className="text-slate-400 text-xs mt-0.5">คำนวณจากน้ำหนักเมล็ดกาแฟตอน Check-in และ Check-out</p>
             </div>
           </div>
-          <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/10">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">จำนวนบันทึก</div>
-            <div className="text-xl font-black">{dailyWaste.length} วัน</div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => fetchData()}
+              disabled={loading}
+              title="รีเฟรชข้อมูลล่าสุด (Sync with Supabase)"
+              className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-xl border border-white/10 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw size={16} className={cn(loading && "animate-spin text-red-400")} />
+            </button>
+            <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/10">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">จำนวนบันทึก</div>
+              <div className="text-lg sm:text-xl font-black">{dailyWaste.length} วัน</div>
+            </div>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {dailyWaste.length > 0 ? (
             <div className="space-y-8">
               {dailyWaste.map(([date, wasteData]) => (
