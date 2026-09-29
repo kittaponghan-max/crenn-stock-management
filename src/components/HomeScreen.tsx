@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   Bell, 
   Calendar, 
@@ -101,67 +101,74 @@ export function HomeScreen({
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
 
-  // Filter ingredients by location:
-  // "all": all ingredients
-  // "bar": department === 'Bar' OR location === 'bar' OR category includes bar-related
-  // "kitchen": department in ('Kitchen', 'Bakery') OR location in ('kitchen', 'bakery') OR category includes kitchen/bakery/packaging/cleaning
-  const filteredIngredients = useMemo(() => {
-    if (locationFilter === 'all') return ingredients;
-    return ingredients.filter(ing => {
-      const dept = (ing.department || '').toLowerCase();
-      const loc = ((ing as any).location || '').toLowerCase();
-      const cat = (ing.category || '').toLowerCase();
-      const name = (ing.name || '').toLowerCase();
-      const id = ing.id || '';
+  // Correct Filter Function: uses "department" field from Supabase
+  const getFilteredIngredients = useCallback(
+    (
+      allIngredients: Ingredient[],
+      filter: "all" | "bar" | "kitchen"
+    ): Ingredient[] => {
+      if (filter === "all") return allIngredients;
 
-      if (locationFilter === 'bar') {
-        return (
-          dept === 'bar' ||
-          loc === 'bar' ||
-          cat.includes('bar') ||
-          cat === 'coffee' ||
-          cat.includes('milk') ||
-          cat.includes('dairy') ||
-          cat.includes('syrup') ||
-          cat.includes('powder') ||
-          cat.includes('tea') ||
-          name.includes('coffee') ||
-          name.includes('syrup')
-        );
-      }
+      return allIngredients.filter((item) => {
+        // Use "department" field from Supabase
+        const dept = (item.department || "")
+          .toLowerCase()
+          .trim();
 
-      if (locationFilter === 'kitchen') {
-        return (
-          dept === 'kitchen' ||
-          dept === 'bakery' ||
-          loc === 'kitchen' ||
-          loc === 'bakery' ||
-          cat.includes('kitchen') ||
-          cat.includes('bakery') ||
-          cat.includes('บรรจุภัณฑ์') ||
-          cat.includes('ทำความสะอาด') ||
-          cat.includes('cleaning') ||
-          cat.includes('packaging') ||
-          cat.includes('food') ||
-          id.startsWith('b-')
-        );
-      }
+        if (filter === "bar") {
+          // Match only Bar department
+          return dept === "bar";
+        }
 
-      return true;
-    });
-  }, [ingredients, locationFilter]);
+        if (filter === "kitchen") {
+          // Match Bakery + Kitchen departments
+          return (
+            dept === "bakery" ||
+            dept === "kitchen" ||
+            dept === "ครัว"
+          );
+        }
+
+        return true;
+      });
+    },
+    []
+  );
+
+  // Compute filtered list reactively
+  const filteredIngredients = useMemo(
+    () => getFilteredIngredients(
+      ingredients,
+      locationFilter  // "all" | "bar" | "kitchen"
+    ),
+    [ingredients, locationFilter, getFilteredIngredients]
+  );
 
   // Labels for current location selection
   const locationLabel = useMemo(() => {
-    if (locationFilter === 'bar') return 'วัตถุดิบบาร์';
-    if (locationFilter === 'kitchen') return 'วัตถุดิบครัว';
-    return 'วัตถุดิบทั้งหมด';
+    switch (locationFilter) {
+      case "bar":     return "วัตถุดิบบาร์";
+      case "kitchen": return "วัตถุดิบครัว";
+      default:        return "วัตถุดิบทั้งหมด";
+    }
   }, [locationFilter]);
 
   const locationSubtitle = useMemo(() => {
     if (locationFilter === 'bar') return 'สรุปสถานะสต็อกบาร์';
     if (locationFilter === 'kitchen') return 'สรุปสถานะสต็อกครัว';
     return 'สรุปสถานะสต็อกทั้งหมด';
+  }, [locationFilter]);
+
+  // Dashboard Donut Chart Title
+  const chartTitle = useMemo(() => {
+    switch (locationFilter) {
+      case "bar":
+        return "สถานะสต็อกสินค้า (วัตถุดิบบาร์)";
+      case "kitchen":
+        return "สถานะสต็อกสินค้า (วัตถุดิบครัว)";
+      default:
+        return "สถานะสต็อกสินค้า (วัตถุดิบทั้งหมด)";
+    }
   }, [locationFilter]);
 
   // Calculate current stock levels for filtered ingredients
@@ -516,7 +523,7 @@ export function HomeScreen({
                   {locationFilter === 'bar' ? '🍹' : locationFilter === 'kitchen' ? '🍳' : '🏪'}
                 </span>
                 <span className="truncate">
-                  {locationFilter === 'bar' ? 'บาร์' : locationFilter === 'kitchen' ? 'ครัว' : 'ทั้งหมด'}
+                  {locationFilter === 'bar' ? 'บาร์' : locationFilter === 'kitchen' ? 'ครัว / เบเกอรี่' : 'ทั้งหมด'}
                 </span>
               </div>
               <ChevronDown 
@@ -538,13 +545,13 @@ export function HomeScreen({
                     setLocationFilter('all');
                     setShowLocationDropdown(false);
                   }}
-                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors ${
+                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors cursor-pointer ${
                     locationFilter === 'all' ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold' : 'text-[#2D4A49]'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <span>🏪</span>
-                    <span>ทั้งหมด (all)</span>
+                    <span>ทั้งหมด</span>
                   </span>
                   {locationFilter === 'all' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
                 </button>
@@ -555,13 +562,13 @@ export function HomeScreen({
                     setLocationFilter('bar');
                     setShowLocationDropdown(false);
                   }}
-                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors ${
+                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors cursor-pointer ${
                     locationFilter === 'bar' ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold' : 'text-[#2D4A49]'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <span>🍹</span>
-                    <span>บาร์ (bar)</span>
+                    <span>บาร์</span>
                   </span>
                   {locationFilter === 'bar' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
                 </button>
@@ -572,13 +579,13 @@ export function HomeScreen({
                     setLocationFilter('kitchen');
                     setShowLocationDropdown(false);
                   }}
-                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors ${
+                  className={`w-full text-left px-3.5 py-2 hover:bg-[#F0F5F4] flex items-center justify-between font-medium transition-colors cursor-pointer ${
                     locationFilter === 'kitchen' ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold' : 'text-[#2D4A49]'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <span>🍳</span>
-                    <span>ครัว (kitchen)</span>
+                    <span>ครัว / เบเกอรี่</span>
                   </span>
                   {locationFilter === 'kitchen' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
                 </button>
@@ -731,7 +738,7 @@ export function HomeScreen({
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
-                  สถานะสต็อกสินค้า ({locationLabel})
+                  {chartTitle}
                 </h3>
               </div>
               <span className="text-[11px] font-medium text-slate-400">
