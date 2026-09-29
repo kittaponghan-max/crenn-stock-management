@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Ingredient, WasteLogEntry } from '../types';
 import { format } from 'date-fns';
-import { Trash2, Plus, X, Upload, Save, AlertTriangle, AlertCircle, Camera, Edit2, CheckCircle2, Loader2 } from 'lucide-react';
+import { Trash2, Plus, X, Upload, Save, AlertTriangle, AlertCircle, Camera, Edit2, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import { cn, generateUUID } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 
 interface WasteReportProps {
   department: 'Bar' | 'Bakery';
@@ -45,23 +46,142 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   const [entryDate, setEntryDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [wasteItems, setWasteItems] = useState<WasteFormItem[]>([createNewItem()]);
 
+  // Reliable data fetching pattern & real-time state
+  const [records, setRecords] = useState<WasteLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<Date>(new Date());
+
+  const fetchData = useCallback(async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+
+      let branch = 'Rayong';
+      try {
+        const savedUser = localStorage.getItem('cafe-user');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed.branch) branch = parsed.branch;
+        }
+      } catch (e) {}
+
+      let query = supabase
+        .from('waste_logs')
+        .select('id, timestamp, date, department, ingredient_id, ingredient_name, quantity, unit, cause, solution, image_url, recorder_name')
+        .order('timestamp', { ascending: false });
+
+      if (branch) {
+        query = query.eq('branch', branch);
+      }
+
+      const { data, error: fetchErr } = await query.limit(150);
+
+      if (fetchErr) {
+        console.error('Error fetching waste_logs from Supabase:', fetchErr);
+        setError(fetchErr.message);
+      } else if (data) {
+        const mapped: WasteLogEntry[] = data.map((w: any) => ({
+          id: w.id,
+          timestamp: w.timestamp,
+          date: w.date,
+          department: w.department,
+          ingredientId: w.ingredient_id,
+          ingredientName: w.ingredient_name,
+          quantity: typeof w.quantity === 'number' ? w.quantity : parseFloat(w.quantity) || 0,
+          unit: w.unit,
+          cause: w.cause,
+          solution: w.solution,
+          imageUrl: w.image_url,
+          recorderName: w.recorder_name
+        }));
+        setRecords(mapped);
+      }
+    } catch (err: any) {
+      console.error('Fetch exception in waste_logs:', err);
+      setError(err?.message || 'Error fetching data');
+    } finally {
+      setLoading(false);
+      setLastFetch(new Date());
+    }
+  }, []);
+
+  // Initial fetch on mount & re-fetch if department/branch changes
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, department]);
+
+  // Real-time Supabase subscription
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`realtime-waste_logs-${department}-${Math.random().toString(36).substring(2, 7)}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'waste_logs'
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData, department]);
+
+  // Re-fetch on tab return / window focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    const handleFocus = () => {
+      fetchData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchData]);
+
+  // Blend fetched records with props fallback
+  const effectiveWasteLogs = useMemo(() => {
+    if (records.length > 0) return records;
+    return wasteLogs;
+  }, [records, wasteLogs]);
+
   // Always resolve the freshest log from wasteLogs state
   const activeSelectedLog = useMemo(() => {
     if (!selectedLog) return null;
-    return wasteLogs.find(l => l.id === selectedLog.id) || selectedLog;
-  }, [selectedLog, wasteLogs]);
+    return effectiveWasteLogs.find(l => l.id === selectedLog.id) || selectedLog;
+  }, [selectedLog, effectiveWasteLogs]);
 
   // Keep editFormData strictly in sync with the selected item and reset edit mode on item change
   useEffect(() => {
     if (selectedLog) {
-      const current = wasteLogs.find(l => l.id === selectedLog.id) || selectedLog;
+      const current = effectiveWasteLogs.find(l => l.id === selectedLog.id) || selectedLog;
       setEditFormData({
         cause: current.cause || '',
         solution: current.solution || ''
       });
       setIsEditing(false);
     }
-  }, [selectedLog?.id]);
+  }, [selectedLog?.id, effectiveWasteLogs]);
 
   const handleOpenLogDetail = (log: WasteLogEntry) => {
     setSelectedLog(log);
@@ -117,6 +237,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       });
       setSelectedLog(prev => prev ? { ...prev, cause: trimmedCause, solution: trimmedSolution } : null);
       setIsEditing(false);
+      await fetchData();
     }
   };
 
@@ -179,10 +300,10 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   }, [ingredients, department]);
 
   const deptLogs = useMemo(() => {
-    return wasteLogs
+    return effectiveWasteLogs
       .filter(log => log.department === department || (department === 'Bakery' && log.department === 'Kitchen'))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [wasteLogs, department]);
+  }, [effectiveWasteLogs, department]);
 
   const getItemUnit = (ingredientId: string) => {
     if (!ingredientId) return '-';
@@ -358,6 +479,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
     try {
       setIsSaving(true);
       await onSave(entriesToSave);
+      await fetchData();
       setSaveSuccessMsg(`บันทึกรายการของเสียสำเร็จ ${entriesToSave.length} รายการ เรียบร้อยแล้ว`);
       setEntryDate(format(new Date(), 'yyyy-MM-dd'));
       setWasteItems([createNewItem()]);
@@ -766,12 +888,28 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
       {/* History List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
-          <Trash2 size={18} className="text-slate-500" />
-          <h3 className="font-bold text-slate-800">ประวัติบันทึกของเสียล่าสุด</h3>
+        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trash2 size={18} className="text-slate-500" />
+            <h3 className="font-bold text-slate-800">ประวัติบันทึกของเสียล่าสุด</h3>
+          </div>
+          <button
+            onClick={() => fetchData()}
+            disabled={loading}
+            title="รีเฟรชข้อมูล (Sync with Supabase)"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw size={14} className={cn(loading && "animate-spin text-orange-600")} />
+            <span className="hidden sm:inline">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
+          </button>
         </div>
         
-        {deptLogs.length > 0 ? (
+        {loading && deptLogs.length === 0 ? (
+          <div className="py-16 text-center flex flex-col items-center">
+            <Loader2 className="text-slate-400 animate-spin mb-3" size={28} />
+            <p className="text-slate-500 text-sm">กำลังโหลดข้อมูลประวัติของเสียล่าสุด...</p>
+          </div>
+        ) : deptLogs.length > 0 ? (
           <div className="divide-y divide-slate-100">
             {deptLogs.map(log => (
               <div 
