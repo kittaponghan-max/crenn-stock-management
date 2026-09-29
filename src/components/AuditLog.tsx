@@ -2,7 +2,8 @@ import React from 'react';
 import { LogEntry, Ingredient, ReceivingRecord } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { History, User, Clock, FileText, Search, ClipboardList, ChevronLeft, ChevronRight, CheckCircle2, Circle, Coffee, Calendar, Sparkles, Package, Printer, ChevronDown, FileDown, Trash2 } from 'lucide-react';
+import { History, User, Clock, FileText, Search, ClipboardList, ChevronLeft, ChevronRight, CheckCircle2, Circle, Coffee, Calendar, Sparkles, Package, Printer, ChevronDown, FileDown, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface AuditLogProps {
   logs: LogEntry[];
@@ -20,6 +21,128 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
   const [expandedLogIds, setExpandedLogIds] = React.useState<Record<string, boolean>>({});
   const [selectedRecord, setSelectedRecord] = React.useState<any | null>(null);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = React.useState(false);
+
+  // Reliable data fetching state & real-time sync
+  const [liveLogs, setLiveLogs] = React.useState<LogEntry[]>([]);
+  const [liveChecklists, setLiveChecklists] = React.useState<any[]>([]);
+  const [liveReceiving, setLiveReceiving] = React.useState<ReceivingRecord[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [lastFetch, setLastFetch] = React.useState<Date>(new Date());
+
+  const fetchData = React.useCallback(async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+
+      let branch = 'Rayong';
+      try {
+        const raw = localStorage.getItem('cafe-user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u.branch) branch = u.branch;
+        }
+      } catch (e) {}
+
+      const [
+        { data: logsData },
+        { data: checkData },
+        { data: recData }
+      ] = await Promise.all([
+        supabase.from('audit_logs').select('*').eq('branch', branch).order('timestamp', { ascending: false }).limit(150),
+        supabase.from('checklist_records').select('*').eq('branch', branch).order('timestamp', { ascending: false }).limit(150),
+        supabase.from('receiving_records').select('*').eq('branch', branch).order('receive_date', { ascending: false }).limit(200)
+      ]);
+
+      if (logsData) {
+        setLiveLogs(logsData.map((l: any) => ({
+          id: l.id,
+          timestamp: l.timestamp,
+          userEmail: l.user_email,
+          userRole: l.user_role,
+          action: l.action,
+          details: l.details
+        })));
+      }
+
+      if (checkData) {
+        setLiveChecklists(checkData.map((c: any) => ({
+          id: c.id,
+          timestamp: c.timestamp,
+          type: c.type,
+          reportDate: c.report_date,
+          reporterName: c.reporter_name,
+          ...c.data
+        })));
+      }
+
+      if (recData) {
+        setLiveReceiving(recData.map((r: any) => ({
+          id: r.id,
+          date: r.receive_date,
+          ingredientId: r.ingredient_id,
+          supplier: r.supplier,
+          quantity: r.quantity,
+          expiryDate: r.expiry_date,
+          userName: r.user_name || '-'
+        })));
+      }
+    } catch (err: any) {
+      console.error('Fetch exception in AuditLog:', err);
+    } finally {
+      setLoading(false);
+      setLastFetch(new Date());
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Real-time Supabase subscriptions
+  React.useEffect(() => {
+    if (!supabase) return;
+
+    const channel1 = supabase
+      .channel(`audit-logs-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => fetchData())
+      .subscribe();
+
+    const channel2 = supabase
+      .channel(`checklist-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_records' }, () => fetchData())
+      .subscribe();
+
+    const channel3 = supabase
+      .channel(`receiving-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'receiving_records' }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
+      supabase.removeChannel(channel3);
+    };
+  }, [fetchData]);
+
+  React.useEffect(() => {
+    const handleVis = () => {
+      if (document.visibilityState === 'visible') fetchData();
+    };
+    const handleFoc = () => fetchData();
+    document.addEventListener('visibilitychange', handleVis);
+    window.addEventListener('focus', handleFoc);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVis);
+      window.removeEventListener('focus', handleFoc);
+    };
+  }, [fetchData]);
+
+  const effectiveLogs = liveLogs.length > 0 ? liveLogs : logs;
+  const effectiveChecklists = liveChecklists.length > 0 ? liveChecklists : checklistRecords;
+  const effectiveReceiving = liveReceiving.length > 0 ? liveReceiving : receivingRecords;
 
   // Reset active tab when initialTab changes
   React.useEffect(() => {
@@ -177,15 +300,15 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
       const dateStr = format(new Date(selectedRecord.reportDate || selectedRecord.timestamp), 'yyyyMMdd');
       pdf.save(`Audit_${selectedRecord.type}_${dateStr}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.warn('Error generating PDF:', error);
       alert('เกิดข้อผิดพลาดในการสร้างไฟล์ PDF โปรดลองอีกครั้ง');
     }
   };
 
-  const stockSubmitLogs = logs.filter(log => log.action.includes('ส่งรายงานตรวจนับสต็อก'));
+  const stockSubmitLogs = effectiveLogs.filter(log => log.action.includes('ส่งรายงาน'));
 
-  const filteredLogs = logs.filter(log => 
-    !log.action.includes('ส่งรายงานตรวจนับสต็อก') && (
+  const filteredLogs = effectiveLogs.filter(log => 
+    !log.action.includes('ส่งรายงาน') && (
       log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
@@ -193,17 +316,17 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
   );
 
   const filteredStockSubmit = stockSubmitLogs.filter(log =>
-    log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    (log.action && log.action.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (log.details && log.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (log.userEmail && log.userEmail.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const filteredChecklist = checklistRecords.filter(record => 
+  const filteredChecklist = effectiveChecklists.filter(record => 
     record.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
     record.timestamp.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const filteredReceiving = receivingRecords.filter(record => {
+  const filteredReceiving = effectiveReceiving.filter(record => {
     const ingName = getIngredientName(record.ingredientId);
     return ingName.toLowerCase().includes(searchTerm.toLowerCase()) ||
            record.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -624,15 +747,25 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
             </div>
           </div>
 
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder={activeTab === 'logs' ? "ค้นหาประวัติการแก้ไข..." : activeTab === 'receiving' ? "ค้นหาประวัติการรับวัตถุดิบ..." : activeTab === 'stockSubmit' ? "ค้นหาประวัติส่งนับสต็อก..." : "ค้นหาประวัติ Check-in/out..."}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-            />
+          <div className="flex items-center gap-2 flex-1 max-w-md justify-end">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder={activeTab === 'logs' ? "ค้นหาประวัติการแก้ไข..." : activeTab === 'receiving' ? "ค้นหาประวัติการรับวัตถุดิบ..." : activeTab === 'stockSubmit' ? "ค้นหาประวัติส่งนับสต็อก..." : "ค้นหาประวัติ Check-in/out..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+            <button
+              onClick={() => fetchData()}
+              disabled={loading}
+              title="รีเฟรชข้อมูลล่าสุด (Sync with Supabase)"
+              className="p-2 text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
+            >
+              <RefreshCw size={16} className={cn(loading && "animate-spin text-blue-600")} />
+            </button>
           </div>
         </div>
 
