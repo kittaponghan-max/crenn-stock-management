@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Ingredient, StockRecord, CATEGORIES } from '../types';
 import { format, isSameDay, startOfWeek, addDays, subDays, differenceInDays } from 'date-fns';
-import { AlertTriangle, Check, ShoppingCart, ChevronLeft, ChevronRight, X, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Check, ShoppingCart, ChevronLeft, ChevronRight, X, RotateCcw, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { UserRole } from './LoginForm';
@@ -160,19 +160,19 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
         <thead className="sticky top-0 z-40 shadow-sm">
           <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
             {showManageCol && (
-              <th className="sticky left-0 z-50 px-1 py-2.5 w-[80px] min-w-[80px] max-w-[80px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[11px] font-semibold">
+              <th className="sticky left-0 z-50 px-1 py-2.5 w-[56px] min-w-[56px] max-w-[56px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[11px] font-semibold">
                 จัดการ
               </th>
             )}
             <th className={cn(
               "sticky z-50 px-1 py-2.5 text-center font-semibold tracking-wide w-[48px] min-w-[48px] max-w-[48px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]",
-              showManageCol ? "left-[80px]" : "left-0"
+              showManageCol ? "left-[56px]" : "left-0"
             )}>
               รูป
             </th>
             <th className={cn(
               "sticky z-50 px-3 py-2.5 text-left font-semibold tracking-wide w-[200px] min-w-[180px] max-w-[280px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]",
-              showManageCol ? "left-[128px]" : "left-[48px]"
+              showManageCol ? "left-[104px]" : "left-[48px]"
             )}>
               รายการสินค้า
             </th>
@@ -238,35 +238,28 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
                 )}>
                   {showManageCol && (
-                    <td className="sticky left-0 z-20 p-1 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print">
+                    <td className="sticky left-0 z-20 p-1 w-[56px] min-w-[56px] max-w-[56px] border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print">
                       <div className="flex items-center justify-center gap-1">
                         <button 
                           onClick={() => onEditIngredient(item)}
-                          className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-md transition-all"
+                          className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-[6px] transition-all"
                           title="แก้ไข"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                        </button>
-                        <button 
-                          onClick={() => setItemToClear(item)}
-                          className="p-1 text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#F0F5F4] rounded-md transition-all"
-                          title="ล้างข้อมูลสัปดาห์นี้"
-                        >
-                          <RotateCcw size={14} />
+                          <Pencil size={14} />
                         </button>
                         <button 
                           onClick={() => setItemToDelete(item)}
-                          className="p-1 text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-md transition-all"
+                          className="p-1 text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-[6px] transition-all"
                           title="ลบ"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
                   )}
                   <td className={cn(
                     "sticky z-20 p-1 w-[48px] min-w-[48px] max-w-[48px] border-r border-[#D4E4E3] text-center bg-inherit",
-                    showManageCol ? "left-[80px]" : "left-0"
+                    showManageCol ? "left-[56px]" : "left-0"
                   )}>
                     <div className="w-[28px] h-[28px] rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]">
                       {item.image ? (
@@ -284,7 +277,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   </td>
                   <td className={cn(
                     "sticky z-20 px-3 py-2 w-[200px] min-w-[180px] max-w-[280px] border-r border-[#D4E4E3] bg-inherit shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]",
-                    showManageCol ? "left-[128px]" : "left-[48px]"
+                    showManageCol ? "left-[104px]" : "left-[48px]"
                   )}>
                     <div className="truncate text-[11px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
                   </td>
