@@ -2062,17 +2062,17 @@ export default function App() {
       <header className="bg-gradient-to-r from-[#2D4A49] to-[#3D6B69] text-white shadow-md sticky top-0 z-[60] border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between py-2.5">
           <div className="flex items-center gap-3">
-            <div className="bg-[#5A8A88] text-white font-black tracking-[0.22em] uppercase text-sm px-3 py-1.5 rounded-lg shadow-xs">
+            <div className="bg-[#5A8A88] text-white font-bold tracking-[0.22em] uppercase text-sm px-3 py-1.5 rounded-lg shadow-xs">
               CRENN
             </div>
             <div className="flex items-center gap-3">
-              <h1 className="font-bold tracking-tight leading-tight text-white text-[16px] hidden sm:block">Cafe Management</h1>
+              <h1 className="font-semibold tracking-tight leading-tight text-white text-[13px] hidden sm:block">Cafe Management</h1>
               <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/20 border border-white/10">
                 <div className={`w-1.5 h-1.5 rounded-full ${
                   dbStatus === 'connected' ? 'bg-[#22C55E] animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' :
                   dbStatus === 'checking' ? 'bg-[#F59E0B] animate-pulse' : 'bg-slate-400'
                 }`}></div>
-                <span className="text-[10px] font-medium text-white/80 tracking-wide">
+                <span className="text-[11px] font-normal text-white/80 tracking-wide">
                   {dbStatus === 'connected' ? 'Connected' : 
                    dbStatus === 'checking' ? 'Connecting...' : 'Offline'}
                 </span>
@@ -2085,8 +2085,11 @@ export default function App() {
               {(user.name || 'U').charAt(0).toUpperCase()}
             </div>
             <div className="flex flex-col text-right">
-              <span className="text-[14px] font-semibold text-white leading-tight">{user.name}</span>
-              <span className="text-[11px] font-normal text-white/70 leading-tight">{format(new Date(), 'dd MMM yyyy')}</span>
+              <span className="text-[13px] font-semibold text-white leading-tight">{user.name}</span>
+              <div className="flex items-center gap-1 justify-end leading-tight">
+                <span className="text-[11px] font-medium text-white/90">{format(new Date(), 'EEE')}</span>
+                <span className="text-[11px] font-normal text-white/70">{format(new Date(), 'dd MMM yyyy')}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2192,9 +2195,9 @@ export default function App() {
                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     setDateRange({ start: today, end: today });
                   }}
-                  className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[13px] font-bold transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
+                  className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[11px] font-medium transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
                 >
-                  <Calendar size={14} className="text-[#5A8A88]" />
+                  <Calendar size={13} className="text-[#5A8A88]" />
                   Today
                 </button>
 
@@ -2214,9 +2217,9 @@ export default function App() {
                       }
                       setDateRange({ start: newStart, end: newEnd });
                     }}
-                    className="bg-white border border-[#D4E4E3] rounded-lg text-[13px] px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
+                    className="bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-normal px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
                   />
-                  <span className="text-[#6B8F8E] text-[13px] font-medium">ถึง</span>
+                  <span className="text-[#6B8F8E] text-[11px] font-normal">ถึง</span>
                   <input 
                     type="date" 
                     value={format(dateRange.end, 'yyyy-MM-dd')}
@@ -2233,13 +2236,13 @@ export default function App() {
                     }}
                     min={format(dateRange.start, 'yyyy-MM-dd')}
                     max={format(addDays(dateRange.start, 6), 'yyyy-MM-dd')}
-                    className="bg-white border border-[#D4E4E3] rounded-lg text-[13px] px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
+                    className="bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-normal px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
                   />
                 </div>
 
                 <button 
                   onClick={() => setDateRange({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) })}
-                  className="text-[13px] text-[#5A8A88] hover:underline font-bold px-2 py-1 hover:bg-[#E8F3F2]/50 rounded-lg transition-all"
+                  className="text-[11px] text-[#5A8A88] hover:underline font-medium px-2 py-1 hover:bg-[#E8F3F2]/50 rounded-lg transition-all"
                 >
                   This Week
                 </button>
@@ -2253,7 +2256,7 @@ export default function App() {
                   className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                   title="Undo (Ctrl+Z)"
                 >
-                  <Undo size={15} />
+                  <Undo size={11} />
                 </button>
                 <button 
                   onClick={handleRedo}
@@ -2261,7 +2264,7 @@ export default function App() {
                   className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                   title="Redo (Ctrl+Y)"
                 >
-                  <Redo size={15} />
+                  <Redo size={11} />
                 </button>
               </div>
             </div>
@@ -2280,10 +2283,10 @@ export default function App() {
                   />
                   <button
                     onClick={handleImportExcel}
-                    className="flex items-center gap-1.5 bg-[#5A8A88] text-white px-4 h-9 rounded-lg text-[13px] font-medium hover:bg-[#4A7A78] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 bg-[#5A8A88] text-white px-4 h-9 rounded-lg text-[11px] font-medium hover:bg-[#4A7A78] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                     title="นำเข้าวัตถุดิบจากไฟล์ Excel"
                   >
-                    <FileUp size={14} strokeWidth={2.5} />
+                    <FileUp size={13} strokeWidth={2.5} />
                     Import Excel
                   </button>
                   <button
@@ -2318,7 +2321,7 @@ export default function App() {
                       XLSX.utils.book_append_sheet(wb, ws, "Template");
                       XLSX.writeFile(wb, "Ingredient_Template.xlsx");
                     }}
-                    className="flex items-center gap-1.5 bg-white text-[#2D4A49] border border-[#D4E4E3] px-4 h-9 rounded-lg text-[13px] font-medium hover:bg-[#F0F5F4] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 bg-white text-[#2D4A49] border border-[#D4E4E3] px-4 h-9 rounded-lg text-[11px] font-medium hover:bg-[#F0F5F4] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                   >
                     โหลดเทมเพลต (Template)
                   </button>
@@ -2328,11 +2331,11 @@ export default function App() {
                         e.stopPropagation();
                         setIsExportDropdownOpen(!isExportDropdownOpen);
                       }}
-                      className="flex items-center gap-1.5 bg-[#7A9E9C] text-white px-4 h-9 rounded-lg text-[13px] font-medium hover:bg-[#6B8E8C] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                      className="flex items-center gap-1.5 bg-[#7A9E9C] text-white px-4 h-9 rounded-lg text-[11px] font-medium hover:bg-[#6B8E8C] transition-all shadow-xs transform hover:scale-105 active:scale-95"
                     >
-                      <FileDown size={14} strokeWidth={2.5} />
+                      <FileDown size={13} strokeWidth={2.5} />
                       Export File
-                      <ChevronDown size={12} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
+                      <ChevronDown size={11} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
                     </button>
                     
                     {isExportDropdownOpen && (
@@ -2342,9 +2345,9 @@ export default function App() {
                             exportExcel();
                             setIsExportDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
                         >
-                          <FileDown size={15} className="text-[#5A8A88]" />
+                          <FileDown size={14} className="text-[#5A8A88]" />
                           Excel (.xlsx)
                         </button>
                         <button
@@ -2352,9 +2355,9 @@ export default function App() {
                             handlePrint();
                             setIsExportDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
                         >
-                          <Printer size={15} className="text-[#7A9E9C]" />
+                          <Printer size={14} className="text-[#7A9E9C]" />
                           PDF / Print
                         </button>
                       </div>
@@ -2367,9 +2370,9 @@ export default function App() {
               {hasPermission('manageIngredients') && (
                 <button
                   onClick={() => setIsFormOpen(true)}
-                  className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-4 h-9 rounded-lg text-[13px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs transform hover:scale-105 active:scale-95 ml-auto sm:ml-0"
+                  className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-4 h-9 rounded-lg text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs transform hover:scale-105 active:scale-95 ml-auto sm:ml-0"
                 >
-                  <Plus size={15} strokeWidth={3} />
+                  <Plus size={14} strokeWidth={3} />
                   เพิ่มรายการวัตถุดิบ
                 </button>
               )}
