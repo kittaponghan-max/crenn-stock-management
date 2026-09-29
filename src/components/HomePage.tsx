@@ -128,6 +128,34 @@ export const HomePage: React.FC<HomePageProps> = ({
   // Settings / Status Modal
   const [isStatusModalOpen, setIsStatusModalOpen] = useState<boolean>(false);
 
+  // ─── Live timestamp state ───
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    // Update immediately on mount
+    setCurrentTime(new Date());
+
+    // Update every 30 seconds
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30 * 1000); // 30,000ms = 30 seconds
+
+    // Cleanup on unmount (prevents memory leak)
+    return () => clearInterval(timer);
+  }, []); // empty deps = run once on mount
+
+  // Also update when data updates/refreshes
+  useEffect(() => {
+    setCurrentTime(new Date());
+  }, [receivingRecords, wasteLogs, lowStockCount, outOfStockCount]);
+
+  // ─── Format: Thai time HH:MM น. ───
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes} น.`;
+  };
+
   // Refs for outside click handling
   const railContainerRef = useRef<HTMLDivElement>(null);
   const headerFiltersRef = useRef<HTMLDivElement>(null);
@@ -1177,10 +1205,11 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Right Header: Filters, Notification, Date */}
           <div ref={headerFiltersRef} className="flex items-center flex-wrap gap-2.5">
-            {/* Filter Pill 1: [📅 อัปเดต: 14:30 น.] (text, non-clickable) */}
+            {/* Filter Pill 1: [📅 ● อัปเดต: {HH:MM} น.] (text, non-clickable) */}
             <div className="min-h-[48px] px-4 py-2.5 rounded-full bg-white text-[#2D4A49] text-[13px] font-semibold shadow-xs border border-slate-200/80 flex items-center gap-2 select-none">
               <Calendar size={15} className="text-[#5A8A88]" />
-              <span>อัปเดต: 14:30 น.</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse shrink-0" />
+              <span>อัปเดต: {formatTime(currentTime)}</span>
             </div>
 
             {/* Filter Pill 2: [📍 สาขากรุงเทพฯ] (badge, non-clickable) */}
