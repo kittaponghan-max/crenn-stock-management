@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { RnDReportEntry } from '../types';
 import { format } from 'date-fns';
-import { ChefHat, Plus, X, Camera, Save, Coffee, Search, Edit } from 'lucide-react';
+import { ChefHat, Plus, X, Camera, Save, Coffee, Search, Edit, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 
 interface RnDReportProps {
   reports: RnDReportEntry[];
@@ -42,6 +43,137 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
     commenterName: currentUser || '',
     imageUrls: []
   });
+
+  const [records, setRecords] = useState<RnDReportEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<Date>(new Date());
+
+  const fetchData = useCallback(async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+
+      let branch = 'Rayong';
+      try {
+        const savedUser = localStorage.getItem('cafe-user');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed.branch) branch = parsed.branch;
+        }
+      } catch (e) {}
+
+      let query = supabase
+        .from('rnd_reports')
+        .select('id, timestamp, date, menu_name_th, menu_name_en, product_looks, component, taste, flavor, taste_result, improvements, commenter_name, image_url, image_urls, recorder_name')
+        .order('timestamp', { ascending: false });
+
+      if (branch) {
+        query = query.eq('branch', branch);
+      }
+
+      const { data, error: fetchErr } = await query.limit(100);
+
+      if (fetchErr) {
+        console.error('Error fetching rnd_reports from Supabase:', fetchErr);
+        setError(fetchErr.message);
+      } else if (data) {
+        const safeParseJson = (val: any) => {
+          if (!val) return [];
+          if (Array.isArray(val)) return val;
+          try {
+            const parsed = JSON.parse(val);
+            return Array.isArray(parsed) ? parsed : [String(parsed)];
+          } catch (e) {
+            return [String(val)];
+          }
+        };
+
+        const mapped: RnDReportEntry[] = data.map((r: any) => ({
+          id: r.id,
+          timestamp: r.timestamp,
+          date: r.date,
+          menuNameTH: r.menu_name_th,
+          menuNameEN: r.menu_name_en,
+          productLooks: r.product_looks,
+          component: r.component,
+          taste: safeParseJson(r.taste),
+          flavor: safeParseJson(r.flavor),
+          tasteResult: safeParseJson(r.taste_result),
+          improvements: safeParseJson(r.improvements),
+          commenterName: r.commenter_name,
+          imageUrl: r.image_url,
+          imageUrls: safeParseJson(r.image_urls),
+          recorderName: r.recorder_name
+        }));
+        setRecords(mapped);
+      }
+    } catch (err: any) {
+      console.error('Fetch exception in rnd_reports:', err);
+      setError(err?.message || 'Error fetching data');
+    } finally {
+      setLoading(false);
+      setLastFetch(new Date());
+    }
+  }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Real-time Supabase subscription
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`realtime-rnd_reports-${Math.random().toString(36).substring(2, 7)}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rnd_reports'
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
+
+  // Re-fetch on tab focus / visibilitychange
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    const handleFocus = () => {
+      fetchData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchData]);
+
+  const effectiveReports = useMemo(() => {
+    if (records.length > 0) return records;
+    return reports;
+  }, [records, reports]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -171,8 +303,10 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
 
     if (editingId && onUpdate) {
       onUpdate(editingId, payload);
+      fetchData();
     } else {
       onSave(payload);
+      fetchData();
     }
 
     setFormData({
@@ -192,7 +326,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
     setIsFormOpen(false);
   };
 
-  const filteredReports = reports.filter(r => 
+  const filteredReports = effectiveReports.filter(r => 
     r.menuNameTH.toLowerCase().includes(searchTerm.toLowerCase()) || 
     r.menuNameEN.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -482,12 +616,23 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
       {/* Reports List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Coffee size={20} className="text-purple-600" />
-            <h3 className="font-bold text-slate-800 text-lg">รายการ R&D ทั้งหมด</h3>
-            <span className="bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-lg text-sm">
-              {filteredReports.length}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Coffee size={20} className="text-purple-600" />
+              <h3 className="font-bold text-slate-800 text-lg">รายการ R&D ทั้งหมด</h3>
+              <span className="bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-lg text-sm">
+                {filteredReports.length}
+              </span>
+            </div>
+            <button
+              onClick={() => fetchData()}
+              disabled={loading}
+              title="รีเฟรชข้อมูล (Sync with Supabase)"
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw size={14} className={cn(loading && "animate-spin text-purple-600")} />
+              <span className="hidden sm:inline">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
+            </button>
           </div>
           
           <div className="relative w-full sm:w-64">
@@ -502,7 +647,12 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
           </div>
         </div>
         
-        {filteredReports.length > 0 ? (
+        {loading && filteredReports.length === 0 ? (
+          <div className="py-16 text-center flex flex-col items-center">
+            <Loader2 className="text-slate-400 animate-spin mb-3" size={28} />
+            <p className="text-slate-500 text-sm">กำลังโหลดข้อมูล R&D จากระบบ...</p>
+          </div>
+        ) : filteredReports.length > 0 ? (
           <div className="divide-y divide-slate-100">
             {filteredReports.map(report => (
               <div key={report.id} className="p-4 sm:p-6 hover:bg-slate-50 transition-colors">
