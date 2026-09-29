@@ -101,6 +101,34 @@ export function HomeScreen({
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
 
+  // ─── Live timestamp state ───
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    // Update immediately on mount
+    setCurrentTime(new Date());
+
+    // Update every 30 seconds
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30 * 1000); // 30,000ms = 30 seconds
+
+    // Cleanup on unmount (prevents memory leak)
+    return () => clearInterval(timer);
+  }, []); // empty deps = run once on mount
+
+  // Also update when data updates/refreshes
+  useEffect(() => {
+    setCurrentTime(new Date());
+  }, [ingredients, stockRecord]);
+
+  // ─── Format: Thai time HH:MM น. ───
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes} น.`;
+  };
+
   // Correct Filter Function: uses "department" field from Supabase
   const getFilteredIngredients = useCallback(
     (
@@ -483,13 +511,14 @@ export function HomeScreen({
           </div>
         </section>
 
-        {/* 3. FILTER BAR: [📅 อัปเดต: 14:30 น.]  [📍 สาขากรุงเทพฯ]  [🏪 ทั้งหมด ▼] */}
+        {/* 3. FILTER BAR: [📅 ● อัปเดต: {HH:MM} น.]  [📍 สาขากรุงเทพฯ]  [🏪 ทั้งหมด ▼] */}
         <section ref={filterBarRef} className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
           {/* Pill 1: Update Time (Text, non-clickable) */}
           <div className="flex-1 min-w-[130px] flex items-center justify-center sm:justify-start px-3.5 sm:px-4 py-2 rounded-full bg-white border border-[#D4E4E3] text-[13px] sm:text-sm font-semibold text-[#2D4A49] shadow-xs select-none">
             <div className="flex items-center gap-1.5 truncate">
               <Calendar size={14} className="text-[#5A8A88] shrink-0" />
-              <span className="truncate">อัปเดต: 14:30 น.</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse shrink-0" />
+              <span className="truncate">อัปเดต: {formatTime(currentTime)}</span>
             </div>
           </div>
 
