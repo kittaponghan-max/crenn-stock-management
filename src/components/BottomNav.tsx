@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, 
   Package, 
@@ -8,14 +8,9 @@ import {
   Cake, 
   ChefHat, 
   MoreHorizontal,
-  X, 
+  ChevronUp,
   ChevronRight, 
-  LogOut, 
-  Settings, 
-  History, 
-  Coffee, 
-  Building,
-  User as UserIcon
+  Building
 } from 'lucide-react';
 import { Branch } from '../types';
 import { UserRole } from './LoginForm';
@@ -31,21 +26,69 @@ export interface BottomNavProps {
   };
 }
 
+interface SubMenuItem {
+  route?: string;
+  label: string;
+  emoji: string;
+  action?: () => void;
+  isDanger?: boolean;
+}
+
+interface SubMenuGroup {
+  title?: string;
+  items: SubMenuItem[];
+}
+
+interface NavTabConfig {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; className?: string }>;
+  hasDropdown: boolean;
+  dropdownWidth?: string;
+  alignmentClass?: string;
+  groups?: SubMenuGroup[];
+}
+
 export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavProps) {
-  const [activeSheetTab, setActiveSheetTab] = useState<string | null>(null);
+  const [openTab, setOpenTab] = useState<string | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
+  const bottomNavRef = useRef<HTMLElement>(null);
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const NAV_TABS = [
-    { id: 'home', label: 'หน้าหลัก', icon: Home, hasSubmenu: false },
-    { id: 'stock', label: 'สต็อก', icon: Package, hasSubmenu: true },
-    { id: 'reports', label: 'รายงาน', icon: ClipboardList, hasSubmenu: true },
-    { id: 'checkin', label: 'Check-in', icon: CheckSquare, hasSubmenu: true },
-    { id: 'purchasing', label: 'Purchasing', icon: ShoppingCart, hasSubmenu: false },
-    { id: 'bakery', label: 'Bakery', icon: Cake, hasSubmenu: true },
-    { id: 'rnd', label: 'R&D', icon: ChefHat, hasSubmenu: false },
-    { id: 'more', label: 'เพิ่มเติม', icon: MoreHorizontal, hasSubmenu: true }
-  ];
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const scheduleClose = (delay = 220) => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setOpenTab(null);
+    }, delay);
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (!bottomNavRef.current?.contains(e.target as Node)) {
+        setOpenTab(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenTab(null);
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, []);
 
   const isTabActive = (tabId: string) => {
     if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard';
@@ -64,19 +107,166 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
     return false;
   };
 
-  const handleTabClick = (tab: typeof NAV_TABS[0]) => {
-    if (tab.hasSubmenu) {
-      setActiveSheetTab(prev => prev === tab.id ? null : tab.id);
+  const NAV_TABS: NavTabConfig[] = [
+    { 
+      id: 'home', 
+      label: 'หน้าหลัก', 
+      icon: Home, 
+      hasDropdown: false 
+    },
+    { 
+      id: 'stock', 
+      label: 'สต็อก', 
+      icon: Package, 
+      hasDropdown: true,
+      dropdownWidth: 'min-w-[220px]',
+      alignmentClass: 'left-0 sm:left-1/2 sm:-translate-x-1/2',
+      groups: [
+        {
+          items: [
+            { route: 'barStock', label: 'สรุป Stock บาร์', emoji: '📦' },
+            { route: 'bakeryStock', label: 'สรุป Stock ครัว', emoji: '🍳' },
+          ],
+        },
+      ],
+    },
+    { 
+      id: 'reports', 
+      label: 'รายงาน', 
+      icon: ClipboardList, 
+      hasDropdown: true,
+      dropdownWidth: 'min-w-[240px]',
+      alignmentClass: 'left-1/2 -translate-x-1/2',
+      groups: [
+        {
+          title: 'รายงานประจำวัน',
+          items: [
+            { route: 'barReceiving', label: 'รับวัตถุดิบ (บาร์)', emoji: '📦' },
+            { route: 'bakeryReceiving', label: 'รับวัตถุดิบ (ครัว)', emoji: '📦' },
+            { route: 'barDailyCount', label: 'นับสต็อก (บาร์)', emoji: '📋' },
+            { route: 'bakeryDailyCount', label: 'นับสต็อก (ครัว)', emoji: '📋' },
+            { route: 'barWasteLog', label: 'Waste/ของเสีย (บาร์)', emoji: '🗑️' },
+            { route: 'bakeryWasteLog', label: 'Waste/ของเสีย (ครัว)', emoji: '🗑️' },
+            { route: 'barWaste', label: 'Waste เมล็ดกาแฟ', emoji: '☕' },
+          ],
+        },
+        {
+          title: 'ประวัติย้อนหลัง',
+          items: [
+            { route: 'logs', label: 'ประวัติการแก้ไขข้อมูล', emoji: '🕐' },
+            { route: 'stockSubmitHistory', label: 'ประวัตินับสต็อก', emoji: '🕐' },
+            { route: 'receivingHistory', label: 'ประวัติรับวัตถุดิบ', emoji: '🕐' },
+          ],
+        },
+      ],
+    },
+    { 
+      id: 'checkin', 
+      label: 'Check-in', 
+      icon: CheckSquare, 
+      hasDropdown: true,
+      dropdownWidth: 'min-w-[240px]',
+      alignmentClass: 'left-1/2 -translate-x-1/2',
+      groups: [
+        {
+          items: [
+            { route: 'barChecklist', label: 'Check-in & Check-out (บาร์)', emoji: '✅' },
+            { route: 'bakeryChecklist', label: 'Check-in & Check-out (ครัว)', emoji: '✅' },
+            { route: 'checklistHistory', label: 'ประวัติ Check-in & Check-out', emoji: '🕐' },
+          ],
+        },
+      ],
+    },
+    { 
+      id: 'purchasing', 
+      label: 'Purchasing', 
+      icon: ShoppingCart, 
+      hasDropdown: false 
+    },
+    { 
+      id: 'bakery', 
+      label: 'Bakery', 
+      icon: Cake, 
+      hasDropdown: true,
+      dropdownWidth: 'min-w-[230px]',
+      alignmentClass: 'right-[-20px] left-auto sm:left-1/2 sm:-translate-x-1/2',
+      groups: [
+        {
+          items: [
+            { route: 'bakeryPlan', label: 'แผนงาน Bakery', emoji: '🧁' },
+            { route: 'bakeryPlanHistory', label: 'ประวัติแผนงาน Bakery', emoji: '🕐' },
+          ],
+        },
+      ],
+    },
+    { 
+      id: 'rnd', 
+      label: 'R&D', 
+      icon: ChefHat, 
+      hasDropdown: false 
+    },
+    { 
+      id: 'more', 
+      label: 'เพิ่มเติม', 
+      icon: MoreHorizontal, 
+      hasDropdown: true,
+      dropdownWidth: 'min-w-[220px]',
+      alignmentClass: 'right-0 left-auto sm:left-1/2 sm:-translate-x-1/2',
+      groups: [
+        {
+          items: [
+            { route: 'userSettings', label: 'ตั้งค่า / Settings', emoji: '⚙️' },
+            { label: 'โปรไฟล์ผู้ใช้', emoji: '👤', action: () => { setOpenTab(null); setShowProfileModal(true); } },
+            { label: 'ข้อมูลสาขา', emoji: '🏪', action: () => { setOpenTab(null); setShowBranchModal(true); } },
+            { route: 'logs', label: 'ประวัติแก้ไขข้อมูล', emoji: '🕐' },
+          ],
+        },
+        {
+          items: [
+            { label: 'ออกจากระบบ (Logout)', emoji: '🚪', isDanger: true, action: () => { setOpenTab(null); onLogout(); } },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const handleTabClick = (tab: NavTabConfig) => {
+    if (tab.hasDropdown) {
+      setOpenTab((prev) => (prev === tab.id ? null : tab.id));
     } else {
-      setActiveSheetTab(null);
+      setOpenTab(null);
       if (tab.id === 'home') onNavigate('home');
       else if (tab.id === 'purchasing') onNavigate('barPurchasing');
       else if (tab.id === 'rnd') onNavigate('rndReport');
     }
   };
 
+  const handleTabMouseEnter = (tab: NavTabConfig) => {
+    clearCloseTimer();
+    if (tab.hasDropdown) {
+      setOpenTab(tab.id);
+    } else {
+      setOpenTab(null);
+    }
+  };
+
+  const handleTabMouseLeave = (tab: NavTabConfig) => {
+    if (tab.hasDropdown) {
+      scheduleClose(220);
+    }
+  };
+
+  const handleDropdownMouseEnter = () => {
+    clearCloseTimer();
+  };
+
+  const handleDropdownMouseLeave = () => {
+    scheduleClose(200);
+  };
+
   const handleNavigateSubItem = (tab: string) => {
-    setActiveSheetTab(null);
+    clearCloseTimer();
+    setOpenTab(null);
     onNavigate(tab);
   };
 
@@ -84,440 +274,223 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
     <>
       {/* Fixed Bottom Navigation Bar */}
       <nav 
+        ref={bottomNavRef}
         aria-label="Main Navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#D4E4E3] shadow-lg select-none py-2"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          overflow: 'visible',
+          background: '#FFFFFF',
+          borderTop: '1px solid #D4E4E3',
+          paddingTop: '8px',
+          paddingBottom: '8px',
+        }}
+        className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-[#D4E4E3] shadow-lg select-none py-2 overflow-visible"
       >
-        <div className="max-w-md mx-auto flex items-center overflow-x-auto no-scrollbar px-1.5 gap-1">
+        <div 
+          style={{ overflow: 'visible' }}
+          className="max-w-xl mx-auto flex items-center justify-around px-2 relative"
+        >
           {NAV_TABS.map(tab => {
             const Icon = tab.icon;
             const active = isTabActive(tab.id);
-            const isSheetOpen = activeSheetTab === tab.id;
+            const isOpen = openTab === tab.id;
 
             return (
-              <button
+              <div 
                 key={tab.id}
-                onClick={() => handleTabClick(tab)}
-                className={`flex flex-col items-center justify-center min-w-[58px] py-1 px-2 rounded-full transition-all select-none shrink-0 ${
-                  active || isSheetOpen
-                    ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold shadow-xs'
-                    : 'text-[#A8BCBB] hover:text-[#5A8A88] font-medium bg-transparent'
-                }`}
+                style={{ position: 'relative' }}
+                className="relative shrink-0"
               >
-                <div className="relative">
-                  <Icon size={18} strokeWidth={active || isSheetOpen ? 2.5 : 2} />
-                  {tab.hasSubmenu && (
-                    <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#5A8A88]/50"></span>
-                  )}
-                </div>
-                <span className="text-[10px] mt-1 leading-tight tracking-tight">
-                  {tab.label}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleTabClick(tab)}
+                  onMouseEnter={() => handleTabMouseEnter(tab)}
+                  onMouseLeave={() => handleTabMouseLeave(tab)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '42px',
+                    padding: '4px 6px',
+                    borderRadius: '9999px',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'all 150ms ease',
+                    background: active || isOpen ? '#E8F3F2' : 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                  }}
+                  className={`flex flex-col items-center justify-center min-w-[42px] sm:min-w-[52px] py-1 px-1.5 sm:px-2 rounded-full transition-all select-none shrink-0 relative ${
+                    active || isOpen
+                      ? 'bg-[#E8F3F2] shadow-xs'
+                      : 'hover:bg-[#F0F5F4]'
+                  }`}
+                  aria-expanded={isOpen}
+                  aria-haspopup={tab.hasDropdown}
+                >
+                  <div className="relative flex items-center justify-center">
+                    <Icon 
+                      size={18} 
+                      strokeWidth={active || isOpen ? 2.5 : 2} 
+                      style={{ color: active || isOpen ? '#5A8A88' : '#A8BCBB' }}
+                    />
+                    {tab.hasDropdown && (
+                      <ChevronUp 
+                        size={8} 
+                        style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-6px',
+                          color: isOpen ? '#5A8A88' : '#A8BCBB',
+                          transform: isOpen ? 'rotate(180deg)' : 'none',
+                          transition: 'transform 150ms ease, color 150ms ease',
+                        }}
+                      />
+                    )}
+                  </div>
+                  <span 
+                    style={{
+                      fontSize: '10px',
+                      marginTop: '2px',
+                      lineHeight: 1.1,
+                      fontWeight: active || isOpen ? 700 : 500,
+                      color: active || isOpen ? '#5A8A88' : '#A8BCBB',
+                      whiteSpace: 'nowrap',
+                    }}
+                    className={`text-[10px] mt-0.5 leading-tight tracking-tight whitespace-nowrap ${
+                      active || isOpen ? 'text-[#5A8A88] font-bold' : 'text-[#A8BCBB] font-medium'
+                    }`}
+                  >
+                    {tab.label}
+                  </span>
+                </button>
+
+                {/* Dropdown menu opening UPWARD */}
+                {isOpen && tab.groups && (
+                  <div
+                    onMouseEnter={handleDropdownMouseEnter}
+                    onMouseLeave={handleDropdownMouseLeave}
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 6px)',
+                      maxHeight: '70vh',
+                      overflowY: 'auto',
+                      background: '#FFFFFF',
+                      border: '1px solid #D4E4E3',
+                      borderRadius: '12px',
+                      padding: '6px',
+                      boxShadow: '0 -8px 24px rgba(45,74,73,0.12)',
+                      zIndex: 200,
+                    }}
+                    className={`absolute bottom-[calc(100%+6px)] ${tab.alignmentClass || 'left-1/2 -translate-x-1/2'} ${tab.dropdownWidth || 'min-w-[220px]'} bg-white border border-[#D4E4E3] rounded-[12px] p-1.5 shadow-[-8px_24px_rgba(45,74,73,0.12)] z-[200] max-h-[70vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150`}
+                  >
+                    {/* Invisible hover bridge to prevent mouseleave between button and upward menu */}
+                    <div 
+                      className="absolute -bottom-3 left-0 right-0 h-3 bg-transparent" 
+                      aria-hidden="true" 
+                    />
+
+                    {tab.groups.map((group, groupIdx) => (
+                      <React.Fragment key={groupIdx}>
+                        {groupIdx > 0 && (
+                          <div 
+                            style={{
+                              height: '1px',
+                              background: '#D4E4E3',
+                              margin: '4px 8px',
+                            }}
+                            className="h-[1px] bg-[#D4E4E3] mx-2 my-1" 
+                          />
+                        )}
+                        {group.title && (
+                          <div
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              color: '#A8BCBB',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              padding: '6px 12px 2px',
+                            }}
+                            className="text-[10px] font-semibold text-[#A8BCBB] uppercase tracking-[0.08em] px-3 pt-1.5 pb-0.5 select-none"
+                          >
+                            {group.title}
+                          </div>
+                        )}
+                        <div className="space-y-0.5">
+                          {group.items.map((subItem) => {
+                            const isSubActive = subItem.route ? activeTab === subItem.route : false;
+                            return (
+                              <button
+                                key={subItem.route || subItem.label}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (subItem.action) {
+                                    subItem.action();
+                                  } else if (subItem.route) {
+                                    handleNavigateSubItem(subItem.route);
+                                  }
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  width: '100%',
+                                  padding: '9px 12px',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  transition: 'all 100ms ease',
+                                  textAlign: 'left',
+                                  background: isSubActive ? '#E8F3F2' : 'transparent',
+                                  color: isSubActive ? '#5A8A88' : subItem.isDanger ? '#E11D48' : '#2D4A49',
+                                  fontSize: '12px',
+                                  fontWeight: isSubActive ? 500 : 400,
+                                  border: 'none',
+                                  outline: 'none',
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-[9px] rounded-lg text-xs transition-all duration-100 cursor-pointer text-left group select-none ${
+                                  isSubActive
+                                    ? 'bg-[#E8F3F2] text-[#5A8A88] font-medium'
+                                    : subItem.isDanger
+                                    ? 'text-rose-600 hover:bg-rose-50 font-medium'
+                                    : 'text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] font-normal'
+                                }`}
+                              >
+                                <div className="flex items-center gap-[10px] min-w-0">
+                                  <span className="text-[14px] shrink-0 leading-none">{subItem.emoji}</span>
+                                  <span className="truncate text-[12px]">{subItem.label}</span>
+                                </div>
+                                {isSubActive ? (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0 ml-2" />
+                                ) : (
+                                  <ChevronRight 
+                                    size={13} 
+                                    className="text-[#7A9E9C] group-hover:text-[#5A8A88] transition-colors shrink-0 ml-2 opacity-60 group-hover:opacity-100" 
+                                  />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
       </nav>
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          SUB-MENUS AS BOTTOM SHEET (DISMISSIBLE)
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {activeSheetTab && (
-        <div 
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setActiveSheetTab(null)}
-        >
-          <div 
-            className="w-full max-w-md mx-auto bg-white rounded-t-3xl shadow-2xl border-t border-[#D4E4E3] p-4 max-h-[82vh] overflow-y-auto animate-in slide-in-from-bottom duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drag Handle */}
-            <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto mb-3"></div>
-
-            {/* TAB 2: สต็อก Sub-menu */}
-            {activeSheetTab === 'stock' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-[#E8F3F2] text-[#5A8A88]">
-                      <Package size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">จัดการสต็อก (Stock)</h4>
-                      <p className="text-[11px] text-slate-400">เลือกแผนกเพื่อเข้าบันทึกสต็อก</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setActiveSheetTab(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleNavigateSubItem('barStock')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-blue-100 text-blue-600 group-hover:scale-105 transition-transform">
-                        <Coffee size={22} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">📦 สรุป Stock บาร์</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">บันทึกและจัดการสต็อกสำหรับบาร์</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigateSubItem('bakeryStock')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-rose-100 text-rose-600 group-hover:scale-105 transition-transform">
-                        <Cake size={22} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">🍳 สรุป Stock ครัว</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">บันทึกและจัดการสต็อกสำหรับครัว</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: รายงาน Sub-menu (2 Groups) */}
-            {activeSheetTab === 'reports' && (
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-[#E8F3F2] text-[#5A8A88]">
-                      <ClipboardList size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">ศูนย์รวมรายงาน (Reports)</h4>
-                      <p className="text-[11px] text-slate-400">รายงานประจำวันและประวัติย้อนหลัง</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setActiveSheetTab(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* Group 1: รายงานประจำวัน */}
-                <div>
-                  <span className="text-[11px] font-bold text-[#5A8A88] uppercase tracking-wider block mb-2 px-1">
-                    Group 1: รายงานประจำวัน
-                  </span>
-                  <div className="space-y-1.5">
-                    <button
-                      onClick={() => handleNavigateSubItem('barReceiving')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">📦 รายงานตรวจรับวัตถุดิบ (บาร์)</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('bakeryReceiving')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">📦 รายงานตรวจรับวัตถุดิบ (ครัว)</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('barDailyCount')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">📋 รายงานตรวจนับสต็อก (บาร์)</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('bakeryDailyCount')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">📋 รายงานตรวจนับสต็อก (ครัว)</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('barWasteLog')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">🗑️ รายงาน Waste/ของเสีย (บาร์)</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('bakeryWasteLog')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">🗑️ รายงาน Waste/ของเสีย (ครัว)</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('barWaste')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">☕ รายงาน Waste เมล็ดกาแฟ</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Group 2: ประวัติย้อนหลัง */}
-                <div className="pt-2 border-t border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2 px-1">
-                    Group 2: ประวัติย้อนหลัง
-                  </span>
-                  <div className="space-y-1.5">
-                    <button
-                      onClick={() => handleNavigateSubItem('logs')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">🕐 ประวัติการแก้ไขข้อมูล</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('stockSubmitHistory')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">🕐 ประวัติรายงานนับสต็อก</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => handleNavigateSubItem('receivingHistory')}
-                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#E8F3F2] text-left text-xs transition-colors"
-                    >
-                      <span className="font-semibold text-slate-700">🕐 ประวัติการรับวัตถุดิบ</span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 4: Check-in Sub-menu */}
-            {activeSheetTab === 'checkin' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-[#E8F3F2] text-[#5A8A88]">
-                      <CheckSquare size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">Check-in & Check-out</h4>
-                      <p className="text-[11px] text-slate-400">แบบฟอร์มตรวจสอบการทำงานประจำวัน</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setActiveSheetTab(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleNavigateSubItem('barChecklist')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-purple-100 text-purple-600 group-hover:scale-105 transition-transform">
-                        <CheckSquare size={20} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">✅ Check-in & Check-out (บาร์)</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">เปิด-ปิดบาร์ และตรวจความเรียบร้อย</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigateSubItem('bakeryChecklist')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-pink-100 text-pink-600 group-hover:scale-105 transition-transform">
-                        <CheckSquare size={20} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">✅ Check-in & Check-out (ครัว)</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">เปิด-ปิดครัว และตรวจความเรียบร้อย</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigateSubItem('checklistHistory')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-slate-100 text-slate-600 group-hover:scale-105 transition-transform">
-                        <History size={20} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">🕐 ประวัติ Check-in & Check-out</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">ตรวจสอบบันทึกย้อนหลัง</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 6: Bakery Sub-menu */}
-            {activeSheetTab === 'bakery' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-[#E8F3F2] text-[#5A8A88]">
-                      <Cake size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">แผนงาน Bakery</h4>
-                      <p className="text-[11px] text-slate-400">ตารางอบขนมและประวัติแผนงาน</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setActiveSheetTab(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleNavigateSubItem('bakeryPlan')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-amber-100 text-amber-600 group-hover:scale-105 transition-transform">
-                        <Cake size={20} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">🧁 แผนงาน Bakery</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">บันทึกและจัดการแผนงานอบขนม</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigateSubItem('bakeryPlanHistory')}
-                    className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-[#E8F3F2] border border-slate-100 hover:border-[#D4E4E3] transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-orange-100 text-orange-600 group-hover:scale-105 transition-transform">
-                        <History size={20} />
-                      </div>
-                      <div>
-                        <h5 className="text-xs font-bold text-slate-800">🕐 ประวัติแผนงาน Bakery (24 สัปดาห์)</h5>
-                        <p className="text-[11px] text-slate-500 mt-0.5">ตรวจสอบแผนงานย้อนหลัง 24 สัปดาห์</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400 group-hover:text-[#5A8A88]" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 8: เพิ่มเติม Sub-menu */}
-            {activeSheetTab === 'more' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-[#E8F3F2] text-[#5A8A88]">
-                      <MoreHorizontal size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">เมนูเพิ่มเติม (More)</h4>
-                      <p className="text-[11px] text-slate-400">การตั้งค่า โปรไฟล์ และระบบ</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setActiveSheetTab(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  <button
-                    onClick={() => handleNavigateSubItem('userSettings')}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#E8F3F2] text-left transition-colors font-medium text-slate-700"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Settings size={18} className="text-slate-500" />
-                      <span>⚙️ ตั้งค่า / Settings</span>
-                    </div>
-                    <ChevronRight size={15} className="text-slate-400" />
-                  </button>
-
-                  <button
-                    onClick={() => { setActiveSheetTab(null); setShowProfileModal(true); }}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#E8F3F2] text-left transition-colors font-medium text-slate-700"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <UserIcon size={18} className="text-slate-500" />
-                      <span>👤 โปรไฟล์ผู้ใช้</span>
-                    </div>
-                    <ChevronRight size={15} className="text-slate-400" />
-                  </button>
-
-                  <button
-                    onClick={() => { setActiveSheetTab(null); setShowBranchModal(true); }}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#E8F3F2] text-left transition-colors font-medium text-slate-700"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Building size={18} className="text-slate-500" />
-                      <span>🏪 ข้อมูลสาขา</span>
-                    </div>
-                    <ChevronRight size={15} className="text-slate-400" />
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigateSubItem('logs')}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#E8F3F2] text-left transition-colors font-medium text-slate-700"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <History size={18} className="text-slate-500" />
-                      <span>🕐 ประวัติแก้ไขข้อมูล</span>
-                    </div>
-                    <ChevronRight size={15} className="text-slate-400" />
-                  </button>
-
-                  <button
-                    onClick={() => { setActiveSheetTab(null); onLogout(); }}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-rose-50 text-left transition-colors font-bold text-rose-600 border-t border-slate-100 mt-2"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <LogOut size={18} className="text-rose-500" />
-                      <span>🚪 ออกจากระบบ (Logout)</span>
-                    </div>
-                    <ChevronRight size={15} className="text-rose-400" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
-
       {/* Profile Modal */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-16 h-16 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center font-bold text-2xl mx-auto shadow-xs border-2 border-[#D4E4E3]">
               {user.name.charAt(0)}
@@ -553,7 +526,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
 
       {/* Branch Info Modal */}
       {showBranchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center mx-auto">
               <Building size={24} />
@@ -579,3 +552,5 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
     </>
   );
 }
+
+export default BottomNav;
