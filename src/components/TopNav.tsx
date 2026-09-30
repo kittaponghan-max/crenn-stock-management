@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, X, AlertCircle, AlertTriangle, Database } from 'lucide-react';
+import { TopNavCenterIcons } from './TopNavCenterIcons';
 
 interface TopNavProps {
   userName?: string;
@@ -8,7 +9,10 @@ interface TopNavProps {
   hasNotification?: boolean;
   outCount?: number;
   lowCount?: number;
+  needPurchasing?: number;
   dbStatus?: 'connected' | 'checking' | 'offline';
+  activeTab?: string;
+  onNavigate?: (tab: string) => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -18,7 +22,10 @@ export const TopNav: React.FC<TopNavProps> = ({
   hasNotification = true,
   outCount = 0,
   lowCount = 0,
+  needPurchasing,
   dbStatus = 'connected',
+  activeTab = 'home',
+  onNavigate,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -70,7 +77,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           alignItems: 'flex-start',
           gap: '1px',
         }}
-        className={`flex flex-col items-start gap-[1px] select-none ${onLogoClick ? 'cursor-pointer' : ''}`}
+        className={`flex flex-col items-start gap-[1px] select-none shrink-0 ${onLogoClick ? 'cursor-pointer' : ''}`}
       >
         <span
           style={{
@@ -100,6 +107,16 @@ export const TopNav: React.FC<TopNavProps> = ({
         </span>
       </div>
 
+      {/* CENTER — Navigation Icons */}
+      <TopNavCenterIcons
+        activeTab={activeTab}
+        onNavigate={onNavigate || ((tab) => {
+          if (tab === 'home' && onLogoClick) onLogoClick();
+        })}
+        outOfStockCount={outCount}
+        needPurchasingCount={needPurchasing !== undefined ? needPurchasing : (outCount + lowCount)}
+      />
+
       {/* RIGHT — Icon group */}
       <div
         style={{
@@ -107,7 +124,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           alignItems: 'center',
           gap: '8px',
         }}
-        className="flex items-center gap-[8px]"
+        className="flex items-center gap-[8px] shrink-0"
       >
         {/* BELL BUTTON */}
         <div className="relative" ref={notifRef}>
