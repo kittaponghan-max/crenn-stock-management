@@ -32,6 +32,7 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   const initial = (userName || 'U').charAt(0).toUpperCase();
   const dayLabel = new Date().toLocaleDateString('en-US', { weekday: 'short' });
+  const displayText = userName || dayLabel;
 
   // Close notifications on click outside
   useEffect(() => {
@@ -53,22 +54,22 @@ export const TopNav: React.FC<TopNavProps> = ({
   return (
     <header
       style={{
+        height: '56px',
+        minHeight: '56px',
+        background: '#FFFFFF',
+        borderBottom: '1px solid #E2EAE9',
+        paddingLeft: '20px',
+        paddingRight: '20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        width: '100%',
-        height: '56px',
-        minHeight: '56px',
-        paddingLeft: '20px',
-        paddingRight: '20px',
-        background: '#FFFFFF',
-        borderBottom: '1px solid #E2EAE9',
         position: 'sticky',
         top: 0,
         zIndex: 50,
         flexShrink: 0,
+        width: '100%',
       }}
-      className="w-full h-[56px] min-h-[56px] px-[20px] bg-white border-b border-[#E2EAE9] sticky top-0 z-50 flex items-center justify-between shrink-0"
+      className="sticky top-0 z-50 w-full h-[56px] min-h-[56px] bg-white border-b border-[#E2EAE9] flex items-center justify-between px-5 flex-shrink-0"
     >
       {/* LEFT — Brand block */}
       <div
@@ -80,7 +81,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           gap: '1px',
           flexShrink: 0,
         }}
-        className={`flex flex-col items-start gap-[1px] select-none shrink-0 ${onLogoClick ? 'cursor-pointer' : ''}`}
+        className={`flex flex-col items-start gap-[1px] select-none flex-shrink-0 ${onLogoClick ? 'cursor-pointer' : ''}`}
       >
         <span
           style={{
@@ -129,7 +130,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           gap: '8px',
           flexShrink: 0,
         }}
-        className="flex items-center gap-[8px] shrink-0"
+        className="flex items-center gap-[8px] flex-shrink-0"
       >
         {/* BELL BUTTON */}
         <div className="relative" ref={notifRef}>
@@ -137,19 +138,19 @@ export const TopNav: React.FC<TopNavProps> = ({
             type="button"
             onClick={() => setShowNotifications(prev => !prev)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               width: '36px',
               height: '36px',
               borderRadius: '50%',
               background: '#F0F5F4',
               border: '1px solid #E2EAE9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: 'pointer',
               position: 'relative',
               flexShrink: 0,
             }}
-            className="w-[36px] h-[36px] rounded-full bg-[#F0F5F4] border border-[#E2EAE9] flex items-center justify-center cursor-pointer relative hover:bg-[#E8F3F2] transition-colors focus:outline-none shrink-0"
+            className="w-[36px] h-[36px] rounded-full bg-[#F0F5F4] border border-[#E2EAE9] flex items-center justify-center cursor-pointer relative hover:bg-[#E8F3F2] transition-colors focus:outline-none flex-shrink-0"
             title="การแจ้งเตือน"
           >
             <Bell size={16} strokeWidth={1.5} className="text-[#5A8A88]" style={{ color: '#5A8A88' }} />
@@ -233,7 +234,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             cursor: 'pointer',
             flexShrink: 0,
           }}
-          className="flex items-center gap-[6px] bg-[#F0F5F4] border border-[#E2EAE9] rounded-full py-[3px] pr-[10px] pl-[3px] cursor-pointer hover:bg-[#E8F3F2] transition-colors focus:outline-none shrink-0"
+          className="flex items-center gap-1.5 bg-[#F0F5F4] border border-[#E2EAE9] rounded-full px-2.5 py-[3px] pl-[3px] cursor-pointer hover:bg-[#E8F3F2] transition-colors focus:outline-none flex-shrink-0"
           title="โปรไฟล์ผู้ใช้"
         >
           {/* Avatar circle */}
@@ -248,7 +249,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               justifyContent: 'center',
               flexShrink: 0,
             }}
-            className="w-[28px] h-[28px] rounded-full bg-[#5A8A88] flex items-center justify-center shrink-0"
+            className="w-7 h-7 rounded-full bg-[#5A8A88] flex items-center justify-center flex-shrink-0"
           >
             <span
               style={{
@@ -257,7 +258,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                 color: '#FFFFFF',
                 textTransform: 'uppercase',
               }}
-              className="text-[12px] font-[600] text-white uppercase"
+              className="text-[12px] font-semibold text-white"
             >
               {initial}
             </span>
@@ -271,9 +272,9 @@ export const TopNav: React.FC<TopNavProps> = ({
               color: '#2D4A49',
               whiteSpace: 'nowrap',
             }}
-            className="text-[12px] font-[500] text-[#2D4A49] whitespace-nowrap"
+            className="text-[12px] font-medium text-[#2D4A49] pr-1 whitespace-nowrap"
           >
-            {dayLabel}
+            {displayText}
           </span>
         </button>
       </div>
