@@ -2063,11 +2063,14 @@ export default function App() {
       {activeTab !== 'home' && (
         <>
           <TopNav
+            activeTab={activeTab}
+            onNavigate={(tab) => setActiveTab(tab as any)}
             userName={user.name}
             onLogoClick={() => setActiveTab('home')}
             onAvatarClick={() => setActiveTab('userSettings')}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
+            needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
             dbStatus={dbStatus}
           />
           <SupabaseStatusBar dbStatus={dbStatus} />
