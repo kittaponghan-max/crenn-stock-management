@@ -33,6 +33,7 @@ import { Logo } from './components/Logo';
 import { HomeScreen } from './components/HomeScreen';
 import { BottomNav } from './components/BottomNav';
 import { TopNav } from './components/TopNav';
+import { SupabaseStatusBar } from './components/SupabaseStatusBar';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -2060,14 +2061,17 @@ export default function App() {
 
       {/* Header */}
       {activeTab !== 'home' && (
-        <TopNav
-          userName={user.name}
-          onLogoClick={() => setActiveTab('home')}
-          onAvatarClick={() => setActiveTab('userSettings')}
-          outCount={stockSummary.outOfStock}
-          lowCount={stockSummary.lowStock}
-          dbStatus={dbStatus}
-        />
+        <>
+          <TopNav
+            userName={user.name}
+            onLogoClick={() => setActiveTab('home')}
+            onAvatarClick={() => setActiveTab('userSettings')}
+            outCount={stockSummary.outOfStock}
+            lowCount={stockSummary.lowStock}
+            dbStatus={dbStatus}
+          />
+          <SupabaseStatusBar dbStatus={dbStatus} />
+        </>
       )}
 
       {/* Main Content */}
