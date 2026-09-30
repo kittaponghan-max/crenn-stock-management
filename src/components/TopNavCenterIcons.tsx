@@ -22,6 +22,8 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   outOfStockCount = 0,
   needPurchasingCount = 0,
 }) => {
+  const [hoveredId, setHoveredId] = React.useState<string | null>(null);
+
   const isItemActive = (id: string, currentTab: string) => {
     if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard';
     if (id === 'stock') {
@@ -66,19 +68,33 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
         justifyContent: 'center',
         gap: '4px',
         flex: 1,
-        padding: '0 16px',
+        paddingLeft: '16px',
+        paddingRight: '16px',
       }}
       className="hidden md:flex items-center justify-center gap-[4px] flex-1 px-[16px]"
     >
       {NAV_ITEMS.map((item) => {
         const active = isItemActive(item.id, activeTab);
+        const hovered = hoveredId === item.id;
         const Icon = item.icon;
+
+        let bg = 'transparent';
+        let color = '#A8BCBB';
+        if (active) {
+          bg = '#E8F3F2';
+          color = '#5A8A88';
+        } else if (hovered) {
+          bg = '#F0F5F4';
+          color = '#5A8A88';
+        }
 
         return (
           <button
             key={item.id}
             type="button"
             onClick={() => onNavigate?.(item.route)}
+            onMouseEnter={() => setHoveredId(item.id)}
+            onMouseLeave={() => setHoveredId(null)}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -91,29 +107,33 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
               cursor: 'pointer',
               position: 'relative',
               transition: 'all 150ms ease',
-              background: active ? '#E8F3F2' : 'transparent',
-              color: active ? '#5A8A88' : '#A8BCBB',
-              fontWeight: active ? 600 : 400,
+              background: bg,
+              border: 'none',
+              outline: 'none',
             }}
-            className={`flex flex-col items-center justify-center py-[6px] px-[10px] rounded-[8px] transition-all duration-150 relative min-w-[48px] cursor-pointer ${
-              active
-                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
-                : 'text-[#A8BCBB] hover:bg-[#F0F5F4] hover:text-[#5A8A88]'
-            }`}
+            className="flex flex-col items-center justify-center py-[6px] px-[10px] rounded-[8px] transition-all duration-150 relative min-w-[48px] cursor-pointer"
             title={item.label}
           >
-            <Icon size={18} strokeWidth={1.5} />
+            <Icon 
+              size={18} 
+              strokeWidth={1.5} 
+              style={{
+                color: color,
+                transition: 'color 150ms ease',
+              }}
+            />
             <span
               style={{
                 fontSize: '9px',
                 fontWeight: active ? 600 : 400,
-                color: active ? '#5A8A88' : '#A8BCBB',
-                marginTop: '2px',
+                color: color,
+                lineHeight: 1,
                 whiteSpace: 'nowrap',
+                marginTop: '1px',
+                display: 'block',
+                transition: 'color 150ms ease',
               }}
-              className={`block text-[9px] mt-[2px] leading-tight tracking-tight whitespace-nowrap ${
-                active ? 'text-[#5A8A88] font-[600]' : 'text-[#A8BCBB] font-[400]'
-              }`}
+              className="block text-[9px] mt-[1px] leading-[1] tracking-tight whitespace-nowrap"
             >
               {item.label}
             </span>
