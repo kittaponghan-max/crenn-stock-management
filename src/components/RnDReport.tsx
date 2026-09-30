@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { RnDReportEntry } from '../types';
 import { format } from 'date-fns';
-import { ChefHat, Plus, X, Camera, Save, Coffee, Search, Edit, RefreshCw, Loader2 } from 'lucide-react';
+import { ChefHat, Plus, X, Camera, Save, Coffee, Search, Edit, RefreshCw, Loader2, Calendar, User, Lightbulb, ChevronLeft, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
@@ -17,6 +17,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<{
     date: string;
@@ -46,8 +47,8 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
 
   const [records, setRecords] = useState<RnDReportEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastFetch, setLastFetch] = useState<Date>(new Date());
+  const [, setError] = useState<string | null>(null);
+  const [, setLastFetch] = useState<Date>(new Date());
 
   const fetchData = useCallback(async () => {
     if (!supabase) {
@@ -177,7 +178,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       Array.from(files).forEach((file: File) => {
@@ -263,7 +264,6 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
     });
     setEditingId(report.id);
     setIsFormOpen(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleAddNew = () => {
@@ -333,97 +333,145 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-medium mb-2 flex items-center gap-2">
-            ← ย้อนกลับหน้าหลัก
-          </button>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-            <ChefHat className="text-purple-600" size={28} />
-            R&D Report (เทสเมนูใหม่)
-          </h2>
-          <p className="text-slate-500 mt-1">
-            เก็บบันทึกข้อมูล ข้อมูลส่วนผสม และรายละเอียดการปรับปรุงเมนูใหม่
-          </p>
-        </div>
-        
-        <button
-          onClick={handleAddNew}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl text-white font-medium shadow-md hover:shadow-lg transition-all"
-        >
-          <Plus size={20} />
-          เพิ่มรายการ R&D
-        </button>
-      </div>
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 sm:p-6 overflow-hidden">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          {/* Left Title */}
+          <div className="flex items-center gap-3.5">
+            <button 
+              onClick={onBack}
+              title="ย้อนกลับหน้าหลัก"
+              className="p-2.5 hover:bg-[#E8F3F2] text-[#2D4A49] rounded-xl transition-all shadow-xs bg-white border border-[#D4E4E3] cursor-pointer"
+            >
+              <ChevronLeft size={20} className="text-[#5A8A88]" />
+            </button>
+            <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
+              <ChefHat size={22} className="text-[#5A8A88]" />
+            </div>
+            <div>
+              <h2 className="text-[18px] font-bold text-[#2D4A49] flex items-center gap-2 leading-tight">
+                รายงาน R&D และพัฒนาเมนู (Menu Development)
+              </h2>
+              <p className="text-[11px] text-[#6B8F8E] font-medium mt-0.5">
+                บันทึกการทดลองรสชาติและพัฒนาสูตรเครื่องดื่ม / เบเกอรี่
+              </p>
+            </div>
+          </div>
 
-      {isFormOpen && (
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 border-b border-purple-100 flex justify-between items-center">
-            <h3 className="font-bold text-indigo-900 flex items-center gap-2">
-              <ChefHat className="text-indigo-600" size={20} />
-              {editingId ? 'แก้ไขข้อมูล New Menu' : 'บันทึกข้อมูล New Menu'}
-            </h3>
-            <button onClick={() => { setIsFormOpen(false); setEditingId(null); }} className="text-slate-400 hover:bg-slate-200 p-1.5 rounded-lg transition-colors">
-              <X size={20} />
+          {/* Right Controls */}
+          <div className="flex items-center gap-2.5 w-full lg:w-auto">
+            {/* Search */}
+            <div className="relative flex-1 sm:w-56">
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อเมนู..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white border border-[#D4E4E3] rounded-xl text-[12px] font-medium text-[#2D4A49] placeholder-[#A8BCBB] focus:border-[#5A8A88] outline-none transition-all shadow-xs h-[38px]"
+              />
+              <Search className="absolute left-3 top-2.5 text-[#5A8A88]" size={16} />
+            </div>
+
+            {/* Refresh */}
+            <button
+              onClick={() => fetchData()}
+              disabled={loading}
+              title="รีเฟรชข้อมูล"
+              className="w-[38px] h-[38px] bg-white border border-[#D4E4E3] rounded-xl text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={cn(loading && "animate-spin text-[#5A8A88]")} />
+            </button>
+
+            {/* Add New Button */}
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 h-[38px] bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[13px] font-bold transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+            >
+              <Plus size={16} />
+              <span>+ สร้างรายงาน R&D</span>
             </button>
           </div>
-          
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Group 1: Basic Info */}
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
-                <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">1. ชื่อเมนู (Menu Name)</h4>
+        </div>
+      </div>
+
+      {/* R&D Form Modal */}
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full border border-[#D4E4E3] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="bg-[#E8F3F2] px-5 py-4 border-b border-[#D4E4E3] flex justify-between items-center">
+              <h3 className="font-bold text-[16px] text-[#2D4A49] flex items-center gap-2">
+                <ChefHat className="text-[#5A8A88]" size={20} />
+                <span>{editingId ? 'แก้ไขรายงาน R&D' : 'บันทึกรายงาน R&D (Menu Development)'}</span>
+              </h3>
+              <button 
+                onClick={() => { setIsFormOpen(false); setEditingId(null); }} 
+                className="w-8 h-8 rounded-lg bg-white/70 hover:bg-white text-[#6B8F8E] hover:text-[#2D4A49] flex items-center justify-center transition-colors cursor-pointer border border-[#D4E4E3]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              {/* Basic Info Box */}
+              <div className="bg-[#F8FAF9] p-4 sm:p-5 rounded-xl border border-[#E2EAE9] space-y-4">
+                <h4 className="font-bold text-[13px] text-[#2D4A49] border-b border-[#E2EAE9] pb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#5A8A88]" />
+                  <span>1. ข้อมูลพื้นฐานของเมนู (Menu Basic Info)</span>
+                </h4>
                 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">วันที่สร้าง R&D</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.date}
-                    onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#6B8F8E] mb-1">วันที่สร้าง R&D *</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.date}
+                      onChange={e => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-[#D4E4E3] rounded-lg text-[13px] font-medium text-[#2D4A49] focus:border-[#5A8A88] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#6B8F8E] mb-1">ชื่อเมนู (ภาษาไทย) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="เช่น มัทฉะยูซุ สปาร์คกลิ้ง"
+                      value={formData.menuNameTH}
+                      onChange={e => setFormData({ ...formData, menuNameTH: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-[#D4E4E3] rounded-lg text-[13px] font-medium text-[#2D4A49] focus:border-[#5A8A88] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#6B8F8E] mb-1">ชื่อเมนู (ภาษาอังกฤษ) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Matcha Yuzu Sparkling"
+                      value={formData.menuNameEN}
+                      onChange={e => setFormData({ ...formData, menuNameEN: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-[#D4E4E3] rounded-lg text-[13px] font-medium text-[#2D4A49] focus:border-[#5A8A88] outline-none"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อเมนู (ภาษาไทย) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="เช่น ฮันนี่โทสต์ชาไทย"
-                    value={formData.menuNameTH}
-                    onChange={e => setFormData({ ...formData, menuNameTH: e.target.value })}
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อเมนู (ภาษาอังกฤษ) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Thai Tea Honey Toast"
-                    value={formData.menuNameEN}
-                    onChange={e => setFormData({ ...formData, menuNameEN: e.target.value })}
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                  />
-                </div>
-
-                <div className="pt-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">ภาพประกอบเมนู (ภาพถ่าย)</label>
+                {/* Photo Upload Zone */}
+                <div className="pt-2">
+                  <label className="block text-[11px] font-bold text-[#6B8F8E] mb-2">ภาพถ่ายเมนู (Photos)</label>
                   
                   {formData.imageUrls.length > 0 && (
-                    <div className="flex flex-wrap gap-3 mb-3">
+                    <div className="flex flex-wrap gap-2.5 mb-3">
                       {formData.imageUrls.map((img, idx) => (
-                        <div key={idx} className="relative inline-block">
-                          <img src={img} alt={`Menu preview ${idx + 1}`} className="w-24 h-24 object-cover rounded-xl border border-slate-200" />
+                        <div key={idx} className="relative inline-block group">
+                          <img src={img} alt={`Preview ${idx + 1}`} className="w-20 h-20 object-cover rounded-xl border border-[#D4E4E3] shadow-xs" />
                           <button
                             type="button"
                             onClick={() => removeImage(idx)}
-                            className="absolute -top-2 -right-2 bg-white text-red-500 shadow-md rounded-full p-1 border border-slate-100 hover:bg-slate-50"
+                            className="absolute -top-1.5 -right-1.5 bg-white text-[#EF4444] shadow-md rounded-full p-1 border border-[#D4E4E3] hover:bg-[#FEE2E2] cursor-pointer"
                           >
-                            <X size={14} />
+                            <X size={12} />
                           </button>
                         </div>
                       ))}
@@ -432,15 +480,13 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
 
                   <div 
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-16 flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-xl bg-white hover:bg-slate-50 cursor-pointer transition-colors text-slate-500"
+                    className="w-full h-16 flex items-center justify-center gap-2 border-2 border-dashed border-[#B8D4D2] rounded-xl bg-[#F8FAF9] hover:bg-[#E8F3F2] cursor-pointer transition-colors text-[#5A8A88]"
                   >
-                    <Plus size={20} />
-                    <Camera size={20} />
-                    <span className="text-sm font-medium">เพิ่มรูปภาพ</span>
+                    <Camera size={18} />
+                    <span className="text-[12px] font-bold">+ เพิ่มรูปภาพเมนู</span>
                     <input 
                       type="file" 
                       accept="image/*"
-                      capture="environment"
                       multiple
                       className="hidden" 
                       ref={fileInputRef} 
@@ -450,72 +496,87 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
                 </div>
               </div>
 
-              {/* Group 2: Menu Info */}
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
-                <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">2. ข้อมูลเมนู (Menu Information)</h4>
+              {/* Menu Details Box */}
+              <div className="bg-[#F8FAF9] p-4 sm:p-5 rounded-xl border border-[#E2EAE9] space-y-4">
+                <h4 className="font-bold text-[13px] text-[#2D4A49] border-b border-[#E2EAE9] pb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#5A8A88]" />
+                  <span>2. ข้อมูลลักษณะและส่วนประกอบ (Details & Component)</span>
+                </h4>
                 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">2.1 รูปลักษณ์ (Product Looks)</label>
-                  <textarea
-                    rows={2}
-                    placeholder="ลักษณะภายนอก, การจัดจาน, สีสัน"
-                    value={formData.productLooks}
-                    onChange={e => setFormData({ ...formData, productLooks: e.target.value })}
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">2.2 ส่วนประกอบ (Component)</label>
-                  <textarea
-                    rows={2}
-                    placeholder="วัตถุดิบหลักและส่วนผสม"
-                    value={formData.component}
-                    onChange={e => setFormData({ ...formData, component: e.target.value })}
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm font-medium text-slate-700">2.3 รสชาติ (Taste)</label>
-                      <button type="button" onClick={() => addArrayField('taste')} className="text-purple-600 hover:text-purple-800 p-0.5"><Plus size={16} /></button>
+                    <label className="block text-[11px] font-bold text-[#6B8F8E] mb-1">รูปลักษณ์ (Product Looks)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="ลักษณะภายนอก สีสัน การจัดตกแต่งแก้ว..."
+                      value={formData.productLooks}
+                      onChange={e => setFormData({ ...formData, productLooks: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-[#D4E4E3] rounded-lg text-[13px] text-[#2D4A49] focus:border-[#5A8A88] outline-none resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#6B8F8E] mb-1">ส่วนประกอบ (Component)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="วัตถุดิบหลัก สัดส่วน และส่วนผสม..."
+                      value={formData.component}
+                      onChange={e => setFormData({ ...formData, component: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-[#D4E4E3] rounded-lg text-[13px] text-[#2D4A49] focus:border-[#5A8A88] outline-none resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Taste & Flavor Tags */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-bold text-[#6B8F8E]">รสชาติ (Taste Tags)</label>
+                      <button type="button" onClick={() => addArrayField('taste')} className="text-[#5A8A88] hover:text-[#4A7A78] text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Plus size={14} /> เพิ่มรสชาติ
+                      </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {formData.taste.map((item, index) => (
-                        <div key={`taste-${index}`} className="flex items-center gap-2">
+                        <div key={`taste-${index}`} className="flex items-center gap-1.5">
                           <input
                             type="text"
-                            placeholder="เช่น หวานนำ, เปรี้ยวน้อย"
+                            placeholder="เช่น หวานอมเปรี้ยว, กลมกล่อม"
                             value={item}
                             onChange={e => updateArrayField('taste', index, e.target.value)}
-                            className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                            className="w-full px-3 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[12px] text-[#2D4A49] focus:border-[#5A8A88] outline-none"
                           />
                           {formData.taste.length > 1 && (
-                            <button type="button" onClick={() => removeArrayField('taste', index)} className="text-slate-400 hover:text-red-500"><X size={16}/></button>
+                            <button type="button" onClick={() => removeArrayField('taste', index)} className="text-[#A8BCBB] hover:text-[#EF4444] cursor-pointer">
+                              <X size={15} />
+                            </button>
                           )}
                         </div>
                       ))}
                     </div>
                   </div>
+
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm font-medium text-slate-700">2.4 กลิ่น (Flavor)</label>
-                      <button type="button" onClick={() => addArrayField('flavor')} className="text-purple-600 hover:text-purple-800 p-0.5"><Plus size={16} /></button>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-bold text-[#6B8F8E]">กลิ่น (Flavor Tags)</label>
+                      <button type="button" onClick={() => addArrayField('flavor')} className="text-[#5A8A88] hover:text-[#4A7A78] text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Plus size={14} /> เพิ่มกลิ่น
+                      </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {formData.flavor.map((item, index) => (
-                        <div key={`flavor-${index}`} className="flex items-center gap-2">
+                        <div key={`flavor-${index}`} className="flex items-center gap-1.5">
                           <input
                             type="text"
-                            placeholder="เช่น หอมกลิ่นคั่ว, หอมเนย"
+                            placeholder="เช่น หอมสดชื่นส้มยูซุ, โทนดอกไม้"
                             value={item}
                             onChange={e => updateArrayField('flavor', index, e.target.value)}
-                            className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                            className="w-full px-3 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[12px] text-[#2D4A49] focus:border-[#5A8A88] outline-none"
                           />
                           {formData.flavor.length > 1 && (
-                            <button type="button" onClick={() => removeArrayField('flavor', index)} className="text-slate-400 hover:text-red-500"><X size={16}/></button>
+                            <button type="button" onClick={() => removeArrayField('flavor', index)} className="text-[#A8BCBB] hover:text-[#EF4444] cursor-pointer">
+                              <X size={15} />
+                            </button>
                           )}
                         </div>
                       ))}
@@ -524,65 +585,77 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
                 </div>
               </div>
 
-              {/* Group 3: Tasting & Improvments */}
-              <div className="md:col-span-2 bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-3 border-b border-indigo-200 pb-2">
-                  <h4 className="font-bold text-indigo-900">3. ข้อมูลจากการชิม (Taste Result) และการปรับปรุง</h4>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <label className="text-sm font-bold text-indigo-700 whitespace-nowrap">ผู้ทดสอบ/ให้ความเห็น:</label>
+              {/* Tasting Results & Improvements */}
+              <div className="bg-[#E8F3F2]/60 p-4 sm:p-5 rounded-xl border border-[#B8D4D2] space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-[#B8D4D2] pb-2">
+                  <h4 className="font-bold text-[13px] text-[#2D4A49] flex items-center gap-2">
+                    <Sparkles className="text-[#5A8A88]" size={16} />
+                    <span>3. ผลจากการทดลองชิมและการพัฒนาต่อ</span>
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] font-bold text-[#6B8F8E]">ผู้ประเมินชิม:</label>
                     <input
                       type="text"
                       required
-                      placeholder="ชื่อผู้เทสชิม"
+                      placeholder="ชื่อผู้เทส"
                       value={formData.commenterName}
                       onChange={e => setFormData({ ...formData, commenterName: e.target.value })}
-                      className="w-full sm:w-48 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
+                      className="px-2.5 py-1 bg-white border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49] focus:border-[#5A8A88] outline-none"
                     />
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm font-medium text-slate-700">ผลจากการชิม (Taste Result)</label>
-                      <button type="button" onClick={() => addArrayField('tasteResult')} className="text-indigo-600 hover:text-indigo-800 p-0.5"><Plus size={16} /></button>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-bold text-[#6B8F8E]">ผลจากการชิม (Taste Result)</label>
+                      <button type="button" onClick={() => addArrayField('tasteResult')} className="text-[#5A8A88] hover:text-[#4A7A78] text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Plus size={14} /> เพิ่มข้อความ
+                      </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {formData.tasteResult.map((item, index) => (
-                        <div key={`tasteResult-${index}`} className="flex items-start gap-2">
+                        <div key={`tasteResult-${index}`} className="flex items-start gap-1.5">
                           <textarea
                             required={index === 0}
                             rows={2}
-                            placeholder="ข้อคิดเห็นและฟีดแบคทั้งหมดจากการชิม"
+                            placeholder="ฟีดแบคและข้อคิดเห็นจากการชิม..."
                             value={item}
                             onChange={e => updateArrayField('tasteResult', index, e.target.value)}
-                            className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                            className="w-full px-3 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[12px] text-[#2D4A49] focus:border-[#5A8A88] outline-none resize-none"
                           />
                           {formData.tasteResult.length > 1 && (
-                            <button type="button" onClick={() => removeArrayField('tasteResult', index)} className="text-slate-400 hover:text-red-500 mt-2"><X size={16} /></button>
+                            <button type="button" onClick={() => removeArrayField('tasteResult', index)} className="text-[#A8BCBB] hover:text-[#EF4444] cursor-pointer mt-1">
+                              <X size={15} />
+                            </button>
                           )}
                         </div>
                       ))}
                     </div>
                   </div>
+
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm font-medium text-slate-700">สิ่งที่ต้องปรับปรุง (Improvements)</label>
-                      <button type="button" onClick={() => addArrayField('improvements')} className="text-indigo-600 hover:text-indigo-800 p-0.5"><Plus size={16} /></button>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-bold text-[#6B8F8E]">แนวทางพัฒนาต่อ (Improvements)</label>
+                      <button type="button" onClick={() => addArrayField('improvements')} className="text-[#5A8A88] hover:text-[#4A7A78] text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Plus size={14} /> เพิ่มแนวทาง
+                      </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {formData.improvements.map((item, index) => (
-                        <div key={`improvements-${index}`} className="flex items-start gap-2">
+                        <div key={`improvements-${index}`} className="flex items-start gap-1.5">
                           <textarea
                             required={index === 0}
                             rows={2}
-                            placeholder="จุดที่ต้องแก้ไข เช่น ลดความหวาน, เพิ่มปริมาณเนื้อสัตว์"
+                            placeholder="จุดที่ต้องปรับ เช่น ลดหวาน 10%, ปรับสัดส่วนโซดา..."
                             value={item}
                             onChange={e => updateArrayField('improvements', index, e.target.value)}
-                            className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                            className="w-full px-3 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[12px] text-[#2D4A49] focus:border-[#5A8A88] outline-none resize-none"
                           />
                           {formData.improvements.length > 1 && (
-                            <button type="button" onClick={() => removeArrayField('improvements', index)} className="text-slate-400 hover:text-red-500 mt-2"><X size={16} /></button>
+                            <button type="button" onClick={() => removeArrayField('improvements', index)} className="text-[#A8BCBB] hover:text-[#EF4444] cursor-pointer mt-1">
+                              <X size={15} />
+                            </button>
                           )}
                         </div>
                       ))}
@@ -591,214 +664,268 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
                 </div>
               </div>
 
-            </div>
-
-            <div className="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-6">
-              <button
-                type="button"
-                onClick={() => { setIsFormOpen(false); setEditingId(null); }}
-                className="px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-2.5 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-xl transition-colors flex items-center gap-2 shadow-md"
-              >
-                <Save size={18} />
-                {editingId ? 'อัปเดต Report' : 'บันทึก Report'}
-              </button>
-            </div>
-          </form>
+              {/* Form Action Buttons */}
+              <div className="pt-2 flex justify-end gap-2.5 border-t border-[#E2EAE9]">
+                <button
+                  type="button"
+                  onClick={() => { setIsFormOpen(false); setEditingId(null); }}
+                  className="px-5 py-2.5 bg-[#F0F5F4] text-[#6B8F8E] hover:text-[#2D4A49] rounded-xl text-[13px] font-semibold hover:bg-[#E2EAE9] transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[13px] font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <Save size={16} />
+                  <span>{editingId ? 'บันทึกการแก้ไข' : 'บันทึกรายงาน R&D'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       {/* Reports List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Coffee size={20} className="text-purple-600" />
-              <h3 className="font-bold text-slate-800 text-lg">รายการ R&D ทั้งหมด</h3>
-              <span className="bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-lg text-sm">
-                {filteredReports.length}
-              </span>
-            </div>
-            <button
-              onClick={() => fetchData()}
-              disabled={loading}
-              title="รีเฟรชข้อมูล (Sync with Supabase)"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw size={14} className={cn(loading && "animate-spin text-purple-600")} />
-              <span className="hidden sm:inline">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
-            </button>
-          </div>
-          
-          <div className="relative w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="ค้นหาชื่อเมนู..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm transition-all"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-          </div>
-        </div>
-        
+      <div className="space-y-4">
         {loading && filteredReports.length === 0 ? (
-          <div className="py-16 text-center flex flex-col items-center">
-            <Loader2 className="text-slate-400 animate-spin mb-3" size={28} />
-            <p className="text-slate-500 text-sm">กำลังโหลดข้อมูล R&D จากระบบ...</p>
+          <div className="bg-white rounded-2xl border border-[#D4E4E3] p-12 text-center flex flex-col items-center">
+            <Loader2 className="text-[#5A8A88] animate-spin mb-3" size={28} />
+            <p className="text-[#6B8F8E] text-[13px] font-medium">กำลังโหลดข้อมูลรายงาน R&D...</p>
           </div>
         ) : filteredReports.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="grid grid-cols-1 gap-5">
             {filteredReports.map(report => (
-              <div key={report.id} className="p-4 sm:p-6 hover:bg-slate-50 transition-colors">
-                <div className="flex flex-col md:flex-row gap-6">
-                  {/* Photo & Basic info */}
-                  <div className="md:w-1/3 flex flex-col gap-4">
-                    {report.imageUrls && report.imageUrls.length > 0 ? (
-                      <div className="flex flex-col gap-2">
-                        <img src={report.imageUrls[0]} alt={report.menuNameEN} className="w-full h-48 object-cover rounded-xl border border-slate-200" />
-                        {report.imageUrls.length > 1 && (
-                          <div className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
-                            {report.imageUrls.slice(1).map((img, idx) => (
-                              <img key={idx} src={img} alt={`Preview ${idx+2}`} className="w-16 h-16 object-cover rounded-lg border border-slate-200 shrink-0" />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : report.imageUrl ? (
-                      <img src={report.imageUrl} alt={report.menuNameEN} className="w-full h-48 object-cover rounded-xl border border-slate-200" />
-                    ) : (
-                      <div className="w-full h-48 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400">
-                        <Coffee size={32} className="mb-2 opacity-50" />
-                        <span className="text-sm">ไม่มีรูปภาพ</span>
-                      </div>
-                    )}
-                    
+              <div 
+                key={report.id} 
+                className="bg-white rounded-2xl border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.06)] hover:shadow-md transition-all overflow-hidden"
+              >
+                {/* Card Header */}
+                <div className="px-5 py-4 border-b border-[#E2EAE9] bg-white flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px] font-bold text-[#2D4A49]">
+                      <Calendar size={13} className="text-[#5A8A88]" />
+                      <span>{format(new Date(report.date), 'dd/MM/yyyy')}</span>
+                    </div>
                     <div>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="text-xl font-bold text-slate-800">{report.menuNameTH}</h4>
-                          <div className="text-sm text-slate-500 font-medium mb-3">{report.menuNameEN}</div>
-                        </div>
-                        <button
-                          onClick={() => openEditForm(report)}
-                          className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-                          title="แก้ไขข้อมูล"
-                        >
-                          <Edit size={16} />
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-500 bg-white p-3 rounded-xl border border-slate-200">
-                        <div className="flex flex-col gap-1">
-                          <span className="uppercase text-[10px] text-slate-400">วันที่ทดสอบ</span>
-                          <span className="text-slate-700">{format(new Date(report.date), 'dd/MM/yyyy')}</span>
-                        </div>
-                        <div className="flex flex-col gap-1 text-right">
-                          <span className="uppercase text-[10px] text-slate-400">ผู้บันทึก</span>
-                          <span className="text-slate-700">{report.recorderName}</span>
-                        </div>
+                      <h4 className="text-[16px] font-bold text-[#2D4A49] leading-tight">
+                        {report.menuNameTH}
+                      </h4>
+                      <div className="text-[12px] italic text-[#7A9E9C] font-medium">
+                        {report.menuNameEN}
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Details Data */}
-                  <div className="md:w-2/3 flex flex-col gap-4">
-                    
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-bold text-sm text-indigo-900 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
-                        ข้อมูลเมนู (Menu Info)
-                      </h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">รูปลักษณ์</span>
-                          <p className="text-sm text-slate-700">{report.productLooks || '-'}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">ส่วนประกอบ</span>
-                          <p className="text-sm text-slate-700">{report.component || '-'}</p>
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">รสชาติ (Taste)</span>
-                          {Array.isArray(report.taste) ? (
-                            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-                              {report.taste.map((t, i) => <li key={i}>{t}</li>)}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-slate-700">{report.taste || '-'}</p>
-                          )}
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">กลิ่น (Flavor)</span>
-                          {Array.isArray(report.flavor) ? (
-                            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-                              {report.flavor.map((t, i) => <li key={i}>{t}</li>)}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-slate-700">{report.flavor || '-'}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
-                        <h5 className="font-bold text-sm text-blue-900 mb-2 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                            ผลจากการชิม
+
+                  <div className="flex items-center gap-2 ml-auto">
+                    {report.recorderName && (
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2.5 py-1 rounded-full">
+                        <User size={12} />
+                        ผู้บันทึก: {report.recorderName}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => openEditForm(report)}
+                      className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                      title="แก้ไขรายงาน"
+                    >
+                      <Edit size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-5 space-y-4">
+                  <div className="flex flex-col md:flex-row gap-5">
+                    {/* Photos Column */}
+                    <div className="md:w-1/3 flex flex-col gap-2.5">
+                      {report.imageUrls && report.imageUrls.length > 0 ? (
+                        <div className="space-y-2">
+                          <div 
+                            onClick={() => setZoomImageUrl(report.imageUrls![0])}
+                            className="relative overflow-hidden rounded-xl border border-[#D4E4E3] cursor-pointer group h-44 bg-[#F8FAF9]"
+                          >
+                            <img 
+                              src={report.imageUrls[0]} 
+                              alt={report.menuNameTH} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                            />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium">
+                              คลิกเพื่อดูรูปขยาย
+                            </div>
                           </div>
-                          {report.commenterName && (
-                            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">
-                              โดย: {report.commenterName}
-                            </span>
+                          {report.imageUrls.length > 1 && (
+                            <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                              {report.imageUrls.slice(1).map((img, idx) => (
+                                <img 
+                                  key={idx} 
+                                  src={img} 
+                                  alt={`Thumb ${idx + 2}`} 
+                                  onClick={() => setZoomImageUrl(img)}
+                                  className="w-14 h-14 object-cover rounded-lg border border-[#D4E4E3] shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+                                />
+                              ))}
+                            </div>
                           )}
-                        </h5>
-                        {Array.isArray(report.tasteResult) ? (
-                          <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-                            {report.tasteResult.map((t, i) => <li key={i}>{t}</li>)}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.tasteResult}</p>
-                        )}
-                      </div>
-                      
-                      <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-4">
-                        <h5 className="font-bold text-sm text-amber-900 mb-2 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                          สิ่งที่ต้องปรับปรุง
-                        </h5>
-                        {Array.isArray(report.improvements) ? (
-                          <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-                            {report.improvements.map((t, i) => <li key={i}>{t}</li>)}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.improvements}</p>
-                        )}
-                      </div>
+                        </div>
+                      ) : report.imageUrl ? (
+                        <div 
+                          onClick={() => setZoomImageUrl(report.imageUrl!)}
+                          className="relative overflow-hidden rounded-xl border border-[#D4E4E3] cursor-pointer group h-44 bg-[#F8FAF9]"
+                        >
+                          <img 
+                            src={report.imageUrl} 
+                            alt={report.menuNameTH} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-44 rounded-xl border-2 border-dashed border-[#D4E4E3] bg-[#F8FAF9] flex flex-col items-center justify-center text-[#6B8F8E]">
+                          <ImageIcon size={28} className="opacity-40 mb-1" />
+                          <span className="text-[11px]">ไม่มีรูปภาพ</span>
+                        </div>
+                      )}
                     </div>
-                    
+
+                    {/* Details Column */}
+                    <div className="md:w-2/3 flex flex-col gap-3.5">
+                      {/* Appearance & Component 2-column sub-cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="bg-[#F8FAF9] border border-[#E2EAE9] rounded-xl p-3">
+                          <span className="text-[10px] font-bold text-[#6B8F8E] uppercase tracking-wider block mb-1">
+                            ลักษณะภายนอก (Product Looks)
+                          </span>
+                          <p className="text-[12px] text-[#2D4A49] font-medium leading-relaxed">
+                            {report.productLooks || '-'}
+                          </p>
+                        </div>
+                        <div className="bg-[#F8FAF9] border border-[#E2EAE9] rounded-xl p-3">
+                          <span className="text-[10px] font-bold text-[#6B8F8E] uppercase tracking-wider block mb-1">
+                            ส่วนประกอบหลัก (Component)
+                          </span>
+                          <p className="text-[12px] text-[#2D4A49] font-medium leading-relaxed">
+                            {report.component || '-'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Sensory Evaluation (Taste & Flavor Tags) */}
+                      <div className="bg-[#F8FAF9] border border-[#E2EAE9] rounded-xl p-3 space-y-2">
+                        <span className="text-[10px] font-bold text-[#6B8F8E] uppercase tracking-wider block">
+                          การประเมินรสสัมผัส (Sensory Evaluation)
+                        </span>
+                        
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-[#6B8F8E] mr-1">รสชาติ:</span>
+                          {Array.isArray(report.taste) && report.taste.length > 0 && report.taste[0] ? (
+                            report.taste.map((t, i) => (
+                              <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#E8F3F2] text-[#2D4A49] border border-[#B8D4D2]">
+                                {t}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[11px] text-[#A8BCBB]">-</span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#E2EAE9]">
+                          <span className="text-[11px] font-bold text-[#6B8F8E] mr-1">กลิ่น:</span>
+                          {Array.isArray(report.flavor) && report.flavor.length > 0 && report.flavor[0] ? (
+                            report.flavor.map((f, i) => (
+                              <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#E8F3F2] text-[#2D4A49] border border-[#B8D4D2]">
+                                {f}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[11px] text-[#A8BCBB]">-</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Feedback & Improvements */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Taste Result */}
+                        <div className="bg-[#F8FAF9] border border-[#E2EAE9] rounded-xl p-3">
+                          <div className="text-[10px] font-bold text-[#6B8F8E] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                            <span>ผลจากการชิม (Taste Result)</span>
+                          </div>
+                          {Array.isArray(report.tasteResult) ? (
+                            <ul className="text-[12px] text-[#2D4A49] space-y-1">
+                              {report.tasteResult.map((res, i) => (
+                                <li key={i} className="leading-relaxed flex items-start gap-1.5">
+                                  <span className="text-[#5A8A88] font-bold">•</span>
+                                  <span>{res}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-[12px] text-[#2D4A49] leading-relaxed">{report.tasteResult || '-'}</p>
+                          )}
+                        </div>
+
+                        {/* Improvements */}
+                        <div className="bg-[#FEF3C7]/60 border border-[#FDE68A] rounded-xl p-3">
+                          <div className="text-[10px] font-bold text-[#92400E] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <Lightbulb size={13} className="text-[#D97706]" />
+                            <span>แนวทางพัฒนาต่อ (Improvements)</span>
+                          </div>
+                          {Array.isArray(report.improvements) ? (
+                            <ul className="text-[12px] text-[#92400E] space-y-1">
+                              {report.improvements.map((imp, i) => (
+                                <li key={i} className="leading-relaxed flex items-start gap-1.5">
+                                  <span className="text-[#D97706] font-bold">•</span>
+                                  <span>{imp}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-[12px] text-[#92400E] leading-relaxed">{report.improvements || '-'}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Commenter footer */}
+                      {report.commenterName && (
+                        <div className="text-[11px] text-[#6B8F8E] font-medium pt-1">
+                          ผู้ประเมิน: <span className="text-[#2D4A49] font-bold">{report.commenterName}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-16 text-center flex flex-col items-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-              <ChefHat className="text-slate-300" size={32} />
+          <div className="bg-white rounded-2xl border border-[#D4E4E3] p-12 text-center">
+            <div className="w-16 h-16 bg-[#E8F3F2] rounded-full flex items-center justify-center mx-auto mb-3 text-[#5A8A88]">
+              <Coffee size={32} />
             </div>
-            <h4 className="text-slate-800 font-bold mb-1">ยังไม่มีประวัติ R&D Report</h4>
-            <p className="text-slate-500 text-sm">เพิ่มรายการแรกของคุณเพื่อเริ่มเก็บข้อมูลเทสเมนูใหม่</p>
+            <h4 className="text-[16px] font-bold text-[#2D4A49]">ยังไม่มีรายการ R&D Report</h4>
+            <p className="text-[12px] text-[#6B8F8E] mt-1 max-w-sm mx-auto">
+              {searchTerm ? 'ไม่พบเมนูที่ตรงกับคำค้นหา' : 'เพิ่มรายการแรกของคุณเพื่อเริ่มเก็บข้อมูลสูตรและเทสเมนูใหม่'}
+            </p>
           </div>
         )}
       </div>
+
+      {/* Lightbox Image Zoom Modal */}
+      {zoomImageUrl && (
+        <div 
+          onClick={() => setZoomImageUrl(null)}
+          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-[200] flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-2xl max-h-[85vh] bg-white rounded-2xl overflow-hidden p-2 shadow-2xl">
+            <img src={zoomImageUrl} alt="Enlarged preview" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+            <button
+              onClick={() => setZoomImageUrl(null)}
+              className="absolute top-4 right-4 bg-black/60 text-white rounded-full p-1.5 hover:bg-black transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
