@@ -495,57 +495,65 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PAGE HEADER (NO BACK BUTTON, SAGE GREEN & RED ACCENT)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-medium mb-2 flex items-center gap-2">
-            ← ย้อนกลับหน้าหลัก
-          </button>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-            <Trash2 className={department === 'Bar' ? 'text-red-500' : 'text-orange-500'} size={28} />
-            รายงานบันทึกของเสีย ({department === 'Bar' ? 'บาร์' : 'ครัว'})
-          </h2>
-          <p className="text-slate-500 mt-1">
-            บันทึกและตรวจสอบประวัติวัตถุดิบ/สินค้าที่เสียหาย
-          </p>
+        {/* Left block */}
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-[#FEE2E2] rounded-xl shrink-0 flex items-center justify-center">
+            <Trash2 size={20} className="text-[#EF4444]" />
+          </div>
+          <div>
+            <h2 className="text-[18px] font-bold text-[#2D4A49]">
+              รายงานบันทึกของเสีย ({department === 'Bar' ? 'บาร์' : 'ครัว'})
+            </h2>
+            <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+              บันทึกและตรวจสอบประวัติวัตถุดิบ/สินค้าที่เสียหาย
+            </p>
+          </div>
         </div>
         
+        {/* Right — "+ เพิ่มรายการของเสีย" button */}
         <button
+          type="button"
           onClick={handleOpenForm}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-medium shadow-md hover:shadow-lg transition-all cursor-pointer ${
-            department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
-          }`}
+          className="flex items-center gap-2 px-[18px] py-[10px] rounded-[10px] text-white text-[12px] font-semibold bg-[#2D4A49] hover:bg-[#1D3A39] shadow-xs hover:shadow transition-all cursor-pointer"
         >
-          <Plus size={20} />
-          เพิ่มรายการของเสีย
+          <Plus size={18} className="text-white" />
+          <span>เพิ่มรายการของเสีย</span>
         </button>
       </div>
 
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          NEW WASTE ENTRY FORM (MODAL / INLINE)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {isFormOpen && (
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden mb-8 max-w-4xl mx-auto animate-in zoom-in-95 duration-200">
-          <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200/80 flex justify-between items-center">
+        <div className="bg-white rounded-2xl shadow-xl border border-[#D4E4E3] overflow-hidden mb-6 max-w-4xl mx-auto animate-in zoom-in-95 duration-200">
+          <div className="bg-[#F0F5F4] px-5 py-3.5 border-b border-[#D4E4E3] flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <AlertTriangle className={department === 'Bar' ? 'text-red-500' : 'text-amber-500'} size={18} />
-              <h3 className="font-bold text-sm sm:text-base text-slate-800">
+              <AlertTriangle className="text-[#EF4444]" size={16} />
+              <h3 className="font-bold text-[13px] sm:text-[14px] text-[#2D4A49]">
                 บันทึกของเสียใหม่ (New Waste Entry)
               </h3>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 ml-1">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8F3F2] text-[#5A8A88] border border-[#D4E4E3] ml-1">
                 {wasteItems.length} รายการ
               </span>
             </div>
             <button 
               type="button" 
               onClick={handleCloseForm} 
-              className="text-slate-400 hover:bg-slate-200 hover:text-slate-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+              className="text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#2D4A49] p-1.5 rounded-lg transition-colors cursor-pointer"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
           
-          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
             {/* Common Date Header & Quick Add */}
-            <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-bold text-slate-600 tracking-wider uppercase min-w-max">
+            <div className="bg-[#F8FAFA] p-3 rounded-xl border border-[#E2EAE9] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <label className="text-[11px] font-semibold text-[#6B8F8E] uppercase tracking-wider min-w-max">
                   📅 วันที่ (Date):
                 </label>
                 <input
@@ -553,43 +561,37 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                   required
                   value={entryDate}
                   onChange={e => setEntryDate(e.target.value)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-orange-500/25 outline-none transition-all shadow-sm"
+                  className="px-2.5 py-1 bg-white border border-[#D4E4E3] rounded-lg text-[12px] font-semibold text-[#2D4A49] focus:ring-2 focus:ring-[#5A8A88]/20 outline-none transition-all shadow-xs"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={handleAddItem}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-all cursor-pointer ${
-                  department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
-                }`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-[#5A8A88] hover:bg-[#4A7A78] shadow-xs transition-all cursor-pointer"
               >
-                <Plus size={15} />
-                เพิ่มรายการของเสีย
+                <Plus size={14} />
+                <span>เพิ่มรายการของเสีย</span>
               </button>
             </div>
 
             {/* List of Items */}
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {wasteItems.map((item, index) => {
                 const itemUnit = getItemUnit(item.ingredientId);
                 return (
                   <div 
                     key={item.tempId} 
-                    className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-slate-300 transition-all relative"
+                    className="p-3.5 sm:p-4 rounded-xl border border-[#D4E4E3] bg-white shadow-xs relative"
                   >
                     {/* Item Card Header */}
-                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                    <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#F0F5F4]">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs font-black px-2.5 py-1 rounded-lg ${
-                          department === 'Bar' 
-                            ? 'bg-red-100 text-red-700' 
-                            : 'bg-orange-100 text-orange-800'
-                        }`}>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#FEE2E2] text-[#EF4444] border border-[#FECACA]">
                           รายการที่ {index + 1}
                         </span>
-                        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
-                          (สาเหตุและวิธีแก้ไขปัญหาแยกเฉพาะรายการนี้)
+                        <span className="text-[11px] text-[#A8BCBB] font-normal hidden sm:inline">
+                          (ระบุสาเหตุและวิธีแก้ไขปัญหาแยกเฉพาะรายการนี้)
                         </span>
                       </div>
 
@@ -597,36 +599,36 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(item.tempId)}
-                          className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                          className="flex items-center gap-1 text-[11px] font-medium text-[#EF4444] hover:bg-[#FEE2E2] px-2 py-1 rounded-md transition-colors cursor-pointer"
                           title="ลบรายการนี้"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                           <span>ลบรายการนี้</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                       {/* Left: Item selection, quantity, and photo */}
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         <div>
                           {department === 'Bakery' ? (
                             <>
-                              <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
-                                รายการสัญจรจากแผนงานเบเกอรี่ (Bakery Product) <span className="text-red-500">*</span>
+                              <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
+                                รายการสัญจรจากแผนงานเบเกอรี่ (Bakery Product) <span className="text-[#EF4444]">*</span>
                               </label>
                               <select
                                 required
                                 value={item.ingredientId}
                                 onChange={e => handleItemChange(item.tempId, 'ingredientId', e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-amber-50/30 border border-amber-300/80 rounded-lg focus:ring-2 focus:ring-orange-500/25 outline-none text-xs md:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+                                className="w-full px-2.5 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88]/20 outline-none text-[12px] font-medium text-[#2D4A49] transition-all cursor-pointer"
                               >
                                 <option value="" className="text-slate-500 font-bold">--เลือก ชนิดแป้ง, รายการ, หรือ เมนู--</option>
                                 
                                 {bakeryOptions.types && bakeryOptions.types.length > 0 && (
-                                  <optgroup label="🥖 ชนิดแป้ง (Type)" className="font-bold text-[11.5px] text-amber-700 bg-amber-50/40">
+                                  <optgroup label="🥖 ชนิดแป้ง (Type)" className="font-bold text-[11px] text-[#5A8A88]">
                                     {bakeryOptions.types.map(opt => (
-                                      <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
+                                      <option key={opt.id} value={opt.id} className="text-[#2D4A49]">
                                         {opt.name}
                                       </option>
                                     ))}
@@ -634,9 +636,9 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                                 )}
 
                                 {bakeryOptions.targets && bakeryOptions.targets.length > 0 && (
-                                  <optgroup label="🥞 รายการ (Target Item)" className="font-bold text-[11.5px] text-emerald-700 bg-emerald-50/40">
+                                  <optgroup label="🥞 รายการ (Target Item)" className="font-bold text-[11px] text-[#22C55E]">
                                     {bakeryOptions.targets.map(opt => (
-                                      <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
+                                      <option key={opt.id} value={opt.id} className="text-[#2D4A49]">
                                         {opt.name}
                                       </option>
                                     ))}
@@ -644,9 +646,9 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                                 )}
 
                                 {bakeryOptions.menus && bakeryOptions.menus.length > 0 && (
-                                  <optgroup label="🧁 เมนู (Menu)" className="font-bold text-[11.5px] text-blue-700 bg-blue-50/40">
+                                  <optgroup label="🧁 เมนู (Menu)" className="font-bold text-[11px] text-[#3B82F6]">
                                     {bakeryOptions.menus.map(opt => (
-                                      <option key={opt.id} value={opt.id} className="text-slate-800 font-medium text-xs">
+                                      <option key={opt.id} value={opt.id} className="text-[#2D4A49]">
                                         {opt.name}
                                       </option>
                                     ))}
@@ -654,9 +656,9 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                                 )}
 
                                 {deptIngredients && deptIngredients.length > 0 && (
-                                  <optgroup label="📦 วัตถุดิบในครัว/เบเกอรี่ (Ingredients)" className="font-bold text-[11.5px] text-slate-700 bg-slate-100/70">
+                                  <optgroup label="📦 วัตถุดิบในครัว/เบเกอรี่ (Ingredients)" className="font-bold text-[11px] text-[#6B8F8E]">
                                     {deptIngredients.map(ing => (
-                                      <option key={ing.id} value={ing.id} className="text-slate-800 font-medium text-xs">
+                                      <option key={ing.id} value={ing.id} className="text-[#2D4A49]">
                                         {ing.name} {ing.brand ? `(${ing.brand})` : ''}
                                       </option>
                                     ))}
@@ -666,14 +668,14 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                             </>
                           ) : (
                             <>
-                              <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
-                                รายการ (Item) <span className="text-red-500">*</span>
+                              <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
+                                รายการ (Item) <span className="text-[#EF4444]">*</span>
                               </label>
                               <select
                                 required
                                 value={item.ingredientId}
                                 onChange={e => handleItemChange(item.tempId, 'ingredientId', e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/25 outline-none text-xs md:text-sm font-semibold text-slate-800 transition-all cursor-pointer"
+                                className="w-full px-2.5 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88]/20 outline-none text-[12px] font-medium text-[#2D4A49] transition-all cursor-pointer"
                               >
                                 <option value="" className="text-slate-500">-- เลือกรายการ --</option>
                                 {deptIngredients.map(ing => (
@@ -684,10 +686,10 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
-                              จำนวนที่เสีย <span className="text-red-500">*</span>
+                            <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
+                              จำนวนที่เสีย <span className="text-[#EF4444]">*</span>
                             </label>
                             <input
                               type="number"
@@ -696,66 +698,59 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                               step="any"
                               value={item.quantity}
                               onChange={e => handleItemChange(item.tempId, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
-                              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none font-bold font-mono transition-all"
+                              className="w-full px-2.5 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[12px] focus:ring-2 focus:ring-[#5A8A88]/20 outline-none font-bold text-[#2D4A49] transition-all"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                            <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
                               หน่วยนับ
                             </label>
                             <input
                               type="text"
                               readOnly
                               value={itemUnit}
-                              className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs md:text-sm text-slate-600 font-bold text-center cursor-not-allowed uppercase"
+                              className="w-full px-2.5 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] text-[#6B8F8E] font-semibold text-center cursor-not-allowed uppercase"
                             />
                           </div>
                         </div>
 
                         {/* Photo attachment for this item */}
                         <div>
-                          <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1.5 flex items-center gap-1.5">
-                            📷 แนบรูปภาพของเสีย (ออฟชั่น)
+                          <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
+                            📷 แนบรูปภาพของเสีย (ไม่บังคับ)
                           </label>
                           
                           {item.imageUrl ? (
-                            <div className="relative inline-block border border-slate-200 rounded-xl overflow-hidden shadow-sm group">
-                              <img src={item.imageUrl} alt="Waste preview" className="w-24 h-24 object-cover" />
-                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="relative inline-block border border-[#D4E4E3] rounded-xl overflow-hidden shadow-xs group">
+                              <img src={item.imageUrl} alt="Waste preview" className="w-20 h-20 object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveItemImage(item.tempId)}
-                                  className="bg-white/95 hover:bg-white text-red-600 shadow-md rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95 duration-150 cursor-pointer"
+                                  className="bg-white text-[#EF4444] rounded-md px-2 py-0.5 text-[10px] font-semibold transition-all flex items-center gap-1 cursor-pointer"
                                 >
-                                  <X size={13} /> ลบรูป
+                                  <X size={12} /> ลบรูป
                                 </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItemImage(item.tempId)}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white shadow-md rounded-full p-1 hover:bg-red-700 transition-colors md:hidden cursor-pointer"
-                              >
-                                <X size={12} />
-                              </button>
                             </div>
                           ) : (
                             <div className="flex flex-row gap-2 items-stretch">
                               <button
                                 type="button"
                                 onClick={() => document.getElementById(`camera-input-${item.tempId}`)?.click()}
-                                className="flex-1 py-2 px-2.5 border border-dashed border-amber-300 rounded-xl bg-amber-50/20 hover:bg-amber-50/50 cursor-pointer transition-all text-amber-800 flex items-center justify-center gap-1.5 outline-none hover:scale-[1.01] active:scale-95 duration-150"
+                                className="flex-1 py-1.5 px-2 border border-dashed border-[#D4E4E3] rounded-lg bg-[#F8FAFA] hover:bg-[#E8F3F2] cursor-pointer transition-all text-[#5A8A88] flex items-center justify-center gap-1.5 text-[11px] font-medium"
                               >
-                                <Camera size={14} className="text-amber-600" />
-                                <span className="text-[11px] font-bold">ถ่ายภาพ</span>
+                                <Camera size={13} className="text-[#5A8A88]" />
+                                <span>ถ่ายภาพ</span>
                               </button>
 
                               <button
                                 type="button"
                                 onClick={() => document.getElementById(`file-input-${item.tempId}`)?.click()}
-                                className="flex-1 py-2 px-2.5 border border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100/80 cursor-pointer transition-all text-slate-700 flex items-center justify-center gap-1.5 outline-none hover:scale-[1.01] active:scale-95 duration-150"
+                                className="flex-1 py-1.5 px-2 border border-dashed border-[#D4E4E3] rounded-lg bg-[#F8FAFA] hover:bg-[#E8F3F2] cursor-pointer transition-all text-[#5A8A88] flex items-center justify-center gap-1.5 text-[11px] font-medium"
                               >
-                                <Upload size={14} className="text-slate-500" />
-                                <span className="text-[11px] font-bold">อัปโหลดรูป</span>
+                                <Upload size={13} className="text-[#5A8A88]" />
+                                <span>อัปโหลดรูป</span>
                               </button>
                             </div>
                           )}
@@ -779,9 +774,9 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                       </div>
 
                       {/* Right: Cause and Solution specific to this item */}
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         <div>
-                          <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
+                          <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
                             สาเหตุ (Cause)
                           </label>
                           <textarea
@@ -789,20 +784,20 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                             placeholder="ระบุสาเหตุ เช่น หมดอายุ, ตกหล่น, ชำรุด, อบไหม้ (หรือใส่ -)"
                             value={item.cause}
                             onChange={e => handleItemChange(item.tempId, 'cause', e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
+                            className="w-full px-2.5 py-1.5 bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg text-[11px] text-[#2D4A49] focus:ring-2 focus:ring-[#5A8A88]/20 outline-none resize-none transition-all"
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mb-1">
-                            วิธีแก้ไขปัญหา (Solution / Action Taken) <span className="text-slate-400 font-normal text-[10px]">(ไม่บังคับ)</span>
+                          <label className="block text-[10px] font-semibold text-[#6B8F8E] tracking-wider uppercase mb-1">
+                            วิธีแก้ไขปัญหา (Solution / Action Taken) <span className="text-[#A8BCBB] font-normal">(ไม่บังคับ)</span>
                           </label>
                           <textarea
                             rows={3}
                             placeholder="วิธีการที่ใช้แก้ไขปัญหาในครั้งนี้ (หากไม่มีสามารถเว้นว่างได้)"
                             value={item.solution}
                             onChange={e => handleItemChange(item.tempId, 'solution', e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-orange-500/25 outline-none resize-none transition-all"
+                            className="w-full px-2.5 py-1.5 bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg text-[11px] text-[#2D4A49] focus:ring-2 focus:ring-[#5A8A88]/20 outline-none resize-none transition-all"
                           />
                         </div>
                       </div>
@@ -816,27 +811,23 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
             <button
               type="button"
               onClick={handleAddItem}
-              className={`w-full py-3 border-2 border-dashed rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow ${
-                department === 'Bar'
-                  ? 'border-red-200 bg-red-50/30 text-red-600 hover:bg-red-50/60 hover:border-red-400'
-                  : 'border-orange-200 bg-orange-50/30 text-orange-600 hover:bg-orange-50/60 hover:border-orange-400'
-              }`}
+              className="w-full py-2.5 border border-dashed border-[#5A8A88] bg-[#E8F3F2]/50 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-xl font-semibold text-[12px] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Plus size={18} />
+              <Plus size={16} />
               <span>เพิ่มรายการของเสียอีกรายการ (+ Add Another Item)</span>
             </button>
 
             {formError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs md:text-sm text-red-700 font-bold">
-                <AlertCircle size={18} className="text-red-500 shrink-0" />
+              <div className="p-2.5 bg-[#FEE2E2] border border-[#FECACA] rounded-xl flex items-center gap-2 text-[11px] text-[#EF4444] font-semibold">
+                <AlertCircle size={15} className="shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             {/* Bottom Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-slate-100 pt-4">
-              <div className="text-xs font-bold text-slate-500">
-                รวมทั้งหมด <span className="text-slate-800 font-black">{wasteItems.length}</span> รายการ
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-[#F0F5F4] pt-3">
+              <div className="text-[11px] font-medium text-[#6B8F8E]">
+                รวมทั้งหมด <span className="text-[#2D4A49] font-bold">{wasteItems.length}</span> รายการ
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -844,25 +835,23 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                   type="button"
                   onClick={handleCloseForm}
                   disabled={isSaving}
-                  className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl text-xs md:text-sm transition-colors cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 text-[#6B8F8E] font-medium hover:bg-[#F0F5F4] rounded-lg text-[11px] transition-colors cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className={`px-5 py-2.5 text-white font-bold rounded-xl text-xs md:text-sm transition-all flex items-center gap-2 shadow-md hover:shadow-lg active:scale-95 duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                    department === 'Bar' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'
-                  }`}
+                  className="px-5 py-2 text-white font-semibold rounded-lg text-[11px] bg-[#2D4A49] hover:bg-[#1D3A39] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isSaving ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={14} className="animate-spin" />
                       <span>กำลังบันทึกข้อมูล...</span>
                     </>
                   ) : (
                     <>
-                      <Save size={16} />
+                      <Save size={14} />
                       <span>บันทึกรายการของเสีย ({wasteItems.length} รายการ)</span>
                     </>
                   )}
@@ -875,91 +864,117 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
       {/* Success Banner */}
       {saveSuccessMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 text-sm text-emerald-800 font-bold shadow-sm animate-in fade-in">
+        <div className="p-3.5 bg-[#DCFCE7] border border-[#BBF7D0] rounded-xl flex items-center justify-between gap-2 text-[12px] text-[#16A34A] font-semibold shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+            <CheckCircle2 size={16} className="text-[#16A34A] shrink-0" />
             <span>{saveSuccessMsg}</span>
           </div>
-          <button onClick={() => setSaveSuccessMsg(null)} className="text-emerald-500 hover:text-emerald-800">
-            <X size={18} />
+          <button onClick={() => setSaveSuccessMsg(null)} className="text-[#16A34A] hover:opacity-75">
+            <X size={15} />
           </button>
         </div>
       )}
 
-      {/* History List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          SECTION CARD: "ประวัติบันทึกของเสียล่าสุด"
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+        {/* Card header row */}
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#F0F5F4]">
           <div className="flex items-center gap-2">
-            <Trash2 size={18} className="text-slate-500" />
-            <h3 className="font-bold text-slate-800">ประวัติบันทึกของเสียล่าสุด</h3>
+            <div className="w-7 h-7 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0">
+              <Trash2 size={16} className="text-[#EF4444]" />
+            </div>
+            <h3 className="text-[13px] font-semibold text-[#2D4A49]">
+              ประวัติบันทึกของเสียล่าสุด
+            </h3>
           </div>
+
           <button
+            type="button"
             onClick={() => fetchData()}
             disabled={loading}
             title="รีเฟรชข้อมูล (Sync with Supabase)"
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+            className="p-2 bg-white border border-[#D4E4E3] rounded-lg text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
           >
-            <RefreshCw size={14} className={cn(loading && "animate-spin text-orange-600")} />
-            <span className="hidden sm:inline">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
+            <RefreshCw size={14} className={cn("text-[#5A8A88]", loading && "animate-spin")} />
           </button>
         </div>
         
+        {/* Waste Record Cards */}
         {loading && deptLogs.length === 0 ? (
           <div className="py-16 text-center flex flex-col items-center">
-            <Loader2 className="text-slate-400 animate-spin mb-3" size={28} />
-            <p className="text-slate-500 text-sm">กำลังโหลดข้อมูลประวัติของเสียล่าสุด...</p>
+            <Loader2 className="text-[#5A8A88] animate-spin mb-2" size={24} />
+            <p className="text-[#6B8F8E] text-[12px]">กำลังโหลดข้อมูลประวัติของเสียล่าสุด...</p>
           </div>
         ) : deptLogs.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="space-y-3">
             {deptLogs.map(log => (
               <div 
                 key={log.id} 
-                className="p-4 sm:p-6 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="bg-white border border-[#D4E4E3] rounded-xl p-4 shadow-[0_1px_4px_rgba(90,138,136,0.06)] hover:shadow-md hover:bg-[#FAFCFC] transition-all cursor-pointer"
                 onClick={() => handleOpenLogDetail(log)}
               >
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4">
+                  {/* Left — Image (80px x 80px) */}
                   {log.imageUrl ? (
                     <img 
                       src={log.imageUrl} 
                       alt="Waste item" 
-                      className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-xl border border-slate-200 shrink-0 bg-slate-100 cursor-zoom-in hover:opacity-90" 
+                      className="w-[80px] h-[80px] object-cover rounded-lg border border-[#D4E4E3] shrink-0 bg-[#F0F5F4] cursor-zoom-in hover:opacity-90" 
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedImage(log.imageUrl || null);
                       }}
                     />
                   ) : (
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
-                      <Trash2 className="text-slate-300" size={32} />
+                    <div className="w-[80px] h-[80px] rounded-lg border border-[#D4E4E3] bg-[#F0F5F4] flex items-center justify-center shrink-0">
+                      <Trash2 className="text-[#A8BCBB]" size={24} />
                     </div>
                   )}
                   
+                  {/* Right — Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h4 className="text-lg font-bold text-slate-800 truncate">{log.ingredientName}</h4>
-                        <div className="text-sm font-medium text-slate-500 mt-1">
-                          จำนวน: <span className="text-red-600 font-bold">{log.quantity} {log.unit}</span>
-                        </div>
+                    {/* Row 1 — Name + Date */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                      <h4 className="text-[13px] font-bold text-[#2D4A49] truncate">
+                        {log.ingredientName}
+                      </h4>
+                      <span className="text-[11px] text-[#6B8F8E] bg-[#F0F5F4] rounded-md px-2 py-0.5 border border-[#E2EAE9]">
+                        {format(new Date(log.date), 'dd/MM/yyyy')}
+                      </span>
+                    </div>
+
+                    {/* Row 2 — Quantity badge + Recorded by */}
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-[#6B8F8E]">จำนวน:</span>
+                        <span className="text-[12px] font-bold text-[#EF4444] bg-[#FEE2E2] rounded-md px-2 py-0.5 border border-[#FECACA]">
+                          {log.quantity} {log.unit}
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
-                          {format(new Date(log.date), 'dd/MM/yyyy')}
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          ผู้บันทึก: {log.recorderName}
-                        </div>
-                      </div>
+                      <span className="text-[10px] text-[#A8BCBB]">
+                        ผู้บันทึก: {log.recorderName}
+                      </span>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <div>
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">สาเหตุ</span>
-                        <p className="text-sm text-slate-700 line-clamp-2">{log.cause}</p>
+                    {/* Row 3 — Detail grid (2 columns) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      <div className="bg-[#F8FAFA] border border-[#E2EAE9] rounded-lg p-2.5">
+                        <span className="text-[10px] font-semibold text-[#6B8F8E] uppercase tracking-[0.05em] block mb-1">
+                          สาเหตุ
+                        </span>
+                        <p className="text-[11px] text-[#2D4A49] leading-[1.4] line-clamp-2">
+                          {log.cause || '-'}
+                        </p>
                       </div>
-                      <div>
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">วิธีการแก้ไขปัญหา</span>
-                        <p className="text-sm text-slate-700 line-clamp-2">{log.solution}</p>
+                      <div className="bg-[#F8FAFA] border border-[#E2EAE9] rounded-lg p-2.5">
+                        <span className="text-[10px] font-semibold text-[#6B8F8E] uppercase tracking-[0.05em] block mb-1">
+                          วิธีการแก้ไขปัญหา
+                        </span>
+                        <p className="text-[11px] text-[#2D4A49] leading-[1.4] line-clamp-2">
+                          {log.solution || '-'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -968,20 +983,20 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
             ))}
           </div>
         ) : (
-          <div className="py-16 text-center flex flex-col items-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="text-slate-300" size={32} />
+          <div className="py-14 text-center flex flex-col items-center">
+            <div className="w-14 h-14 bg-[#F0F5F4] rounded-full flex items-center justify-center mb-3">
+              <AlertCircle className="text-[#A8BCBB]" size={28} />
             </div>
-            <h4 className="text-slate-800 font-bold mb-1">ยังไม่มีประวัติของเสีย</h4>
-            <p className="text-slate-500 text-sm">บันทึกของเสียเมื่อมีสินค้าที่เสียหาย</p>
+            <h4 className="text-[#2D4A49] font-bold text-[14px] mb-0.5">ยังไม่มีประวัติของเสีย</h4>
+            <p className="text-[#6B8F8E] text-[11px]">บันทึกของเสียเมื่อมีสินค้าที่เสียหาย</p>
           </div>
         )}
       </div>
 
-      {/* Image Modal */}
+      {/* Enlarged Image Modal */}
       {selectedImage && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xs p-4"
           onClick={() => setSelectedImage(null)}
         >
           <div 
@@ -990,14 +1005,14 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
           >
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors z-10"
+              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors z-10 cursor-pointer"
               title="ปิด"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
             <img 
               src={selectedImage} 
-              alt="Enlarged waste item"
+              alt="Enlarged waste item" 
               className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg"
               referrerPolicy="no-referrer"
             />
@@ -1005,109 +1020,110 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
         </div>
       )}
 
-      {/* Detail Modal */}
+      {/* Detail / Edit Modal */}
       {activeSelectedLog && (
         <div 
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
           onClick={handleCloseLogDetail}
         >
           <div 
-            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 border border-[#D4E4E3]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
-              <h3 className="text-lg font-bold text-slate-800">รายละเอียดรายการของเสีย</h3>
+            <div className="sticky top-0 bg-white border-b border-[#D4E4E3] px-5 py-3.5 flex items-center justify-between z-10">
+              <h3 className="text-[15px] font-bold text-[#2D4A49]">รายละเอียดรายการของเสีย</h3>
               <button 
                 onClick={handleCloseLogDetail}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 cursor-pointer"
+                className="p-1.5 hover:bg-[#F0F5F4] rounded-lg transition-colors text-[#6B8F8E] hover:text-[#2D4A49] cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-            <div className="p-6 space-y-6">
-              <div className="flex flex-col md:flex-row gap-6">
+            <div className="p-5 space-y-4">
+              <div className="flex flex-col md:flex-row gap-4">
                 {activeSelectedLog.imageUrl && (
                   <div className="w-full md:w-1/3 shrink-0">
                     <img 
                       src={activeSelectedLog.imageUrl} 
                       alt="Waste item" 
-                      className="w-full h-auto aspect-square object-cover rounded-xl border border-slate-200 cursor-zoom-in" 
+                      className="w-full h-auto aspect-square object-cover rounded-xl border border-[#D4E4E3] cursor-zoom-in" 
                       onClick={() => setSelectedImage(activeSelectedLog.imageUrl || null)}
                       referrerPolicy="no-referrer"
                     />
                   </div>
                 )}
-                <div className="flex-1 space-y-4">
+                <div className="flex-1 space-y-3">
                   <div>
-                    <h4 className="text-xl font-bold text-slate-800">{activeSelectedLog.ingredientName}</h4>
-                    <div className="text-slate-500 font-medium flex items-center gap-2 mt-1">
-                      <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-md">
+                    <h4 className="text-[16px] font-bold text-[#2D4A49]">{activeSelectedLog.ingredientName}</h4>
+                    <div className="mt-1">
+                      <span className="text-[12px] text-[#EF4444] font-bold bg-[#FEE2E2] px-2 py-0.5 rounded-md border border-[#FECACA]">
                         เสียหาย: {activeSelectedLog.quantity} {activeSelectedLog.unit}
                       </span>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
+                  <div className="grid grid-cols-2 gap-3 text-[12px] bg-[#F8FAFA] p-3 rounded-xl border border-[#E2EAE9]">
                     <div>
-                      <span className="text-slate-500 block mb-1">วันที่บันทึก</span>
-                      <span className="font-semibold text-slate-800">{format(new Date(activeSelectedLog.date), 'dd/MM/yyyy')}</span>
+                      <span className="text-[#6B8F8E] block text-[10px] uppercase font-semibold mb-0.5">วันที่บันทึก</span>
+                      <span className="font-semibold text-[#2D4A49]">{format(new Date(activeSelectedLog.date), 'dd/MM/yyyy')}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block mb-1">ผู้บันทึก</span>
-                      <span className="font-semibold text-slate-800">{activeSelectedLog.recorderName}</span>
+                      <span className="text-[#6B8F8E] block text-[10px] uppercase font-semibold mb-0.5">ผู้บันทึก</span>
+                      <span className="font-semibold text-[#2D4A49]">{activeSelectedLog.recorderName}</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl">
-                  <span className="text-sm font-bold text-orange-800 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                    <AlertTriangle size={16} /> สาเหตุที่เสียหาย
+              <div className="space-y-3">
+                <div className="bg-[#F8FAFA] border border-[#E2EAE9] p-3.5 rounded-xl">
+                  <span className="text-[11px] font-bold text-[#EF4444] uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+                    <AlertTriangle size={14} /> สาเหตุที่เสียหาย
                   </span>
                   {isEditing ? (
                     <textarea 
                       value={editFormData.cause}
                       onChange={(e) => setEditFormData({ ...editFormData, cause: e.target.value })}
                       placeholder="ระบุสาเหตุที่เสียหาย"
-                      className="w-full bg-white border border-orange-200 rounded-lg p-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-orange-500/50 min-h-[80px] text-sm"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-lg p-2 text-[#2D4A49] outline-none focus:ring-2 focus:ring-[#5A8A88]/20 min-h-[70px] text-[12px]"
                     />
                   ) : (
-                    <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">{activeSelectedLog.cause || '-'}</p>
+                    <p className="text-[#2D4A49] whitespace-pre-wrap text-[12px] leading-relaxed">{activeSelectedLog.cause || '-'}</p>
                   )}
                 </div>
                 
-                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-                  <span className="text-sm font-bold text-blue-800 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                    <Save size={16} /> วิธีการแก้ไขปัญหา
+                <div className="bg-[#E8F3F2]/50 border border-[#D4E4E3] p-3.5 rounded-xl">
+                  <span className="text-[11px] font-bold text-[#5A8A88] uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+                    <Save size={14} /> วิธีการแก้ไขปัญหา
                   </span>
                   {isEditing ? (
                     <textarea 
                       value={editFormData.solution}
                       onChange={(e) => setEditFormData({ ...editFormData, solution: e.target.value })}
                       placeholder="ระบุวิธีการแก้ไขปัญหา"
-                      className="w-full bg-white border border-blue-200 rounded-lg p-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[80px] text-sm"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-lg p-2 text-[#2D4A49] outline-none focus:ring-2 focus:ring-[#5A8A88]/20 min-h-[70px] text-[12px]"
                     />
                   ) : (
-                    <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">{activeSelectedLog.solution || '-'}</p>
+                    <p className="text-[#2D4A49] whitespace-pre-wrap text-[12px] leading-relaxed">{activeSelectedLog.solution || '-'}</p>
                   )}
                 </div>
               </div>
             </div>
-            <div className="sticky bottom-0 bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-end gap-3">
+
+            <div className="sticky bottom-0 bg-[#F0F5F4] border-t border-[#D4E4E3] px-5 py-3 flex justify-end gap-2.5">
               {isEditing ? (
                 <>
                   <button 
                     type="button"
                     onClick={handleCancelEdit}
-                    className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#6B8F8E] font-medium rounded-lg text-[11px] transition-colors cursor-pointer"
                   >
                     ยกเลิก
                   </button>
                   <button 
                     type="button"
                     onClick={handleSaveEdit}
-                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-[#5A8A88] hover:bg-[#4A7A78] text-white font-semibold rounded-lg text-[11px] transition-colors cursor-pointer"
                   >
                     บันทึก
                   </button>
@@ -1118,16 +1134,16 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                     <button 
                       type="button"
                       onClick={handleStartEdit}
-                      className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+                      className="px-4 py-2 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] font-medium rounded-lg text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Edit2 size={16} />
-                      แก้ไข
+                      <Edit2 size={13} />
+                      <span>แก้ไข</span>
                     </button>
                   )}
                   <button 
                     type="button"
                     onClick={handleCloseLogDetail}
-                    className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-[#D4E4E3] hover:bg-[#C2D8D6] text-[#2D4A49] font-medium rounded-lg text-[11px] transition-colors cursor-pointer"
                   >
                     ปิด
                   </button>
