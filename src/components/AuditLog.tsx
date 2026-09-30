@@ -2,7 +2,30 @@ import React from 'react';
 import { LogEntry, Ingredient, ReceivingRecord } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { History, User, Clock, FileText, Search, ClipboardList, ChevronLeft, ChevronRight, CheckCircle2, Circle, Coffee, Calendar, Sparkles, Package, Printer, ChevronDown, FileDown, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { 
+  History, 
+  User, 
+  Clock, 
+  FileText, 
+  Search, 
+  ClipboardList, 
+  ChevronLeft, 
+  ChevronRight, 
+  CheckCircle2, 
+  Circle, 
+  Coffee, 
+  Calendar, 
+  Sparkles, 
+  Package, 
+  Printer, 
+  ChevronDown, 
+  FileDown, 
+  Trash2, 
+  RefreshCw, 
+  AlertCircle,
+  AlertTriangle,
+  RotateCcw
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface AuditLogProps {
@@ -15,7 +38,15 @@ interface AuditLogProps {
   isReadOnly?: boolean;
 }
 
-export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingredients = [], initialTab = 'logs', onDeleteReceivingRecord, isReadOnly = false }: AuditLogProps) {
+export function AuditLog({ 
+  logs, 
+  checklistRecords, 
+  receivingRecords = [], 
+  ingredients = [], 
+  initialTab = 'logs', 
+  onDeleteReceivingRecord, 
+  isReadOnly = false 
+}: AuditLogProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeTab, setActiveTab] = React.useState<'logs' | 'checklist' | 'receiving' | 'stockSubmit'>(initialTab);
   const [expandedLogIds, setExpandedLogIds] = React.useState<Record<string, boolean>>({});
@@ -267,7 +298,7 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
       const { jsPDF } = await import('jspdf');
 
       const imgData = await toPng(element, {
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#FFFFFF',
         pixelRatio: 2,
         filter: (node) => {
           if (node instanceof HTMLElement && node.classList?.contains('print:hidden')) {
@@ -322,8 +353,10 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
   );
 
   const filteredChecklist = effectiveChecklists.filter(record => 
-    record.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.timestamp.toLowerCase().includes(searchTerm.toLowerCase())
+    (record.type && record.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (record.timestamp && record.timestamp.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (record.reporterName && record.reporterName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (record.userEmail && record.userEmail.toLowerCase().includes(searchTerm.toLowerCase()))
   ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const filteredReceiving = effectiveReceiving.filter(record => {
@@ -333,229 +366,109 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
            (record.userName && record.userName.toLowerCase().includes(searchTerm.toLowerCase()));
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  // Render Check-in / Check-out Detailed View
   if (selectedRecord) {
     return (
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)] animate-in fade-in zoom-in-95 duration-300" id="audit-report">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="w-full bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] overflow-hidden flex flex-col animate-in fade-in duration-200" id="audit-report">
+        <div className="p-4 sm:p-5 border-b border-[#D4E4E3] bg-[#F0F5F4]/60 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => setSelectedRecord(null)}
-              className="p-2 hover:bg-white rounded-xl transition-all text-slate-400 hover:text-slate-600 border border-transparent hover:border-slate-200"
+              className="p-1.5 hover:bg-[#E8F3F2] rounded-lg transition-colors text-[#5A8A88] border border-[#D4E4E3] bg-white cursor-pointer"
+              title="ย้อนกลับ"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                  selectedRecord.type === 'Check-in' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border ${
+                  selectedRecord.type === 'Check-in' 
+                    ? 'bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]' 
+                    : 'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]'
                 }`}>
                   {selectedRecord.type}
                 </span>
-                <h2 className="text-xl font-bold text-slate-800">รายละเอียดรายงานตรวจสอบ</h2>
+                <h2 className="text-[15px] font-bold text-[#2D4A49]">รายละเอียดรายงานตรวจสอบ</h2>
               </div>
-              <div className="flex items-center gap-4 mt-1">
-                <p className="text-slate-500 text-sm flex items-center gap-1">
-                  <Clock size={14} />
+              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                <p className="text-[#6B8F8E] text-[11px] flex items-center gap-1">
+                  <Clock size={12} className="text-[#5A8A88]" />
                   บันทึกเมื่อ {format(new Date(selectedRecord.timestamp), 'dd/MM/yyyy HH:mm:ss')}
                 </p>
                 {selectedRecord.reportDate && (
-                  <p className="text-blue-600 text-sm font-bold flex items-center gap-1">
-                    <Calendar size={14} />
+                  <p className="text-[#5A8A88] text-[11px] font-semibold flex items-center gap-1">
+                    <Calendar size={12} />
                     วันที่รายงาน: {format(new Date(selectedRecord.reportDate), 'dd/MM/yyyy')}
                   </p>
                 )}
               </div>
             </div>
           </div>
-            <div className="flex flex-col items-end gap-2 text-right">
-              <div className="relative print:hidden z-20">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExportDropdownOpen(!isExportDropdownOpen);
-                  }}
-                  className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                >
-                  <Printer size={14} />
-                  Export / Print
-                  <ChevronDown size={14} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
-                </button>
 
-                {isExportDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        exportExcel();
-                        setIsExportDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[14px] text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-                    >
-                      <FileDown size={16} className="text-emerald-600" />
-                      Excel (.xlsx)
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        exportPDF();
-                        setIsExportDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[14px] text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-                    >
-                      <Printer size={16} className="text-blue-600" />
-                      PDF / Print
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="text-right">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">ผู้ทำรายงาน / ผู้ส่งบันทึก</div>
-                <div className="text-sm font-bold text-slate-700">
-                  {selectedRecord.reporterName || selectedRecord.userEmail || 'ไม่ทราบชื่อ'}
+          <div className="flex items-center gap-2 print:hidden z-20">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExportDropdownOpen(!isExportDropdownOpen);
+                }}
+                className="flex items-center gap-1.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all shadow-xs cursor-pointer"
+              >
+                <Printer size={13} />
+                <span>Export / Print</span>
+                <ChevronDown size={12} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
+              </button>
+
+              {isExportDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-left">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportExcel();
+                      setIsExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                  >
+                    <FileDown size={14} className="text-[#5A8A88]" />
+                    Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportPDF();
+                      setIsExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                  >
+                    <Printer size={14} className="text-[#7A9E9C]" />
+                    PDF / Print
+                  </button>
                 </div>
-                {selectedRecord.reporterName && selectedRecord.userEmail && (
-                  <div className="text-[10px] text-slate-400 font-medium">(ส่งโดย: {selectedRecord.userEmail})</div>
-                )}
-              </div>
+              )}
             </div>
+          </div>
         </div>
 
-        <div className="overflow-auto flex-1 p-6 space-y-8">
-          {/* Special Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {selectedRecord.cashInDrawer && (
-              <div className="bg-green-50 border border-green-100 p-4 rounded-2xl">
-                <div className="text-[10px] font-bold text-green-600 uppercase mb-1">เงินสดเริ่มต้น</div>
-                <div className="text-2xl font-black text-green-800">{selectedRecord.cashInDrawer} <span className="text-sm font-bold">บาท</span></div>
-              </div>
-            )}
-            {selectedRecord.salesSummary && (
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl col-span-full grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">ยอดขายทั้งหมด</div>
-                  <div className="text-xl font-black text-blue-800">{selectedRecord.salesSummary.total}</div>
-                </div>
-                {selectedRecord.salesSummary.totalCashInDrawer && (
-                  <div>
-                    <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">เงินสดในลิ้นชักทั้งหมด</div>
-                    <div className="text-xl font-black text-blue-800">{selectedRecord.salesSummary.totalCashInDrawer}</div>
-                  </div>
-                )}
-                <div>
-                  <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">เงินสด (Cash)</div>
-                  <div className="text-xl font-black text-blue-800">{selectedRecord.salesSummary.cash}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-blue-600 uppercase mb-1">เงินโอน (Transfer)</div>
-                  <div className="text-xl font-black text-blue-800">{selectedRecord.salesSummary.transfer}</div>
-                </div>
-                {selectedRecord.salesSummary.notes && (
-                  <div className="col-span-full pt-2 border-t border-blue-100 mt-2">
-                    <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">หมายเหตุ</div>
-                    <div className="text-sm text-blue-700">{selectedRecord.salesSummary.notes}</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Machine Status */}
-          {selectedRecord.machineStatus && (selectedRecord.machineStatus.steamBoiler || selectedRecord.machineStatus.pumpPressure || selectedRecord.machineStatus.temp) && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Coffee size={14} />
-                ตรวจความพร้อมเครื่องชง
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Steam Boiler</div>
-                  <div className="text-lg font-black text-slate-700">{selectedRecord.machineStatus.steamBoiler || '-'} <span className="text-[10px] font-bold">bar</span></div>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Pump Pressure</div>
-                  <div className="text-lg font-black text-slate-700">{selectedRecord.machineStatus.pumpPressure || '-'} <span className="text-[10px] font-bold">bar</span></div>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">อุณหภูมิ</div>
-                  <div className="text-lg font-black text-slate-700">{selectedRecord.machineStatus.temp || '-'} <span className="text-[10px] font-bold">°C</span></div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Water Quality & Fridge Temp */}
-          {(selectedRecord.waterQuality || selectedRecord.fridgeStatus) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {selectedRecord.waterQuality && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles size={14} />
-                    ค่าน้ำ
-                  </h3>
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                    <div className="text-lg font-black text-slate-700">{selectedRecord.waterQuality} <span className="text-[10px] font-bold">ppm</span></div>
-                  </div>
-                </div>
-              )}
-              {selectedRecord.fridgeStatus && (
-                <div className="space-y-3 col-span-1 sm:col-span-2">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <Package size={14} />
-                    การตรวจเช็คอุณหภูมิตู้แช่
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase mb-2">ตู้แช่เย็น</div>
-                      <div className="flex justify-between items-center">
-                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                          selectedRecord.fridgeStatus.chillerStatus === 'ปกติ' ? 'bg-green-100 text-green-700' :
-                          selectedRecord.fridgeStatus.chillerStatus === 'ไม่ปกติ' ? 'bg-orange-100 text-orange-700' :
-                          'bg-slate-200 text-slate-600'
-                        }`}>
-                          {selectedRecord.fridgeStatus.chillerStatus || '-'}
-                        </span>
-                        <div className="text-lg font-black text-slate-700">
-                          {selectedRecord.fridgeStatus.chillerTemp || '-'} <span className="text-[10px] font-bold">°C</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase mb-2">ตู้แช่แข็ง</div>
-                      <div className="flex justify-between items-center">
-                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                          selectedRecord.fridgeStatus.freezerStatus === 'ปกติ' ? 'bg-green-100 text-green-700' :
-                          selectedRecord.fridgeStatus.freezerStatus === 'ไม่ปกติ' ? 'bg-orange-100 text-orange-700' :
-                          'bg-slate-200 text-slate-600'
-                        }`}>
-                          {selectedRecord.fridgeStatus.freezerStatus || '-'}
-                        </span>
-                        <div className="text-lg font-black text-slate-700">
-                          {selectedRecord.fridgeStatus.freezerTemp || '-'} <span className="text-[10px] font-bold">°C</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+        {/* Modal / Report Body Content */}
+        <div className="p-5 space-y-6 overflow-y-auto max-h-[72vh]">
           {/* Coffee Weights */}
           {selectedRecord.coffeeWeights && Object.keys(selectedRecord.coffeeWeights).length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Coffee size={14} />
-                น้ำหนักเมล็ดกาแฟ
+            <div className="space-y-2">
+              <h3 className="text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider flex items-center gap-1.5">
+                <Coffee size={13} className="text-[#5A8A88]" />
+                น้ำหนักเมล็ดกาแฟก่อนใช้งาน
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                 {Object.entries(selectedRecord.coffeeWeights).map(([id, weight]: [string, any]) => {
                   const ing = ingredients.find(i => i.id === id);
                   return (
-                    <div key={id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 truncate">
+                    <div key={id} className="bg-[#F0F5F4] p-2.5 rounded-lg border border-[#D4E4E3]">
+                      <div className="text-[10px] font-medium text-[#6B8F8E] uppercase mb-0.5 truncate">
                         {ing ? ing.name : `ID: ${id}`}
                       </div>
-                      <div className="text-lg font-black text-slate-700">{weight} <span className="text-[10px] font-bold">กรัม</span></div>
+                      <div className="text-[14px] font-bold text-[#2D4A49]">
+                        {weight} <span className="text-[10px] font-normal text-[#6B8F8E]">กรัม</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -565,143 +478,37 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
 
           {/* Coffee Dial-in */}
           {selectedRecord.coffeeDialIn && Object.keys(selectedRecord.coffeeDialIn).length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Sparkles size={14} className="text-blue-500" />
+            <div className="space-y-2">
+              <h3 className="text-[11px] font-bold text-[#6B8F8E] uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles size={13} className="text-[#5A8A88]" />
                 การตั้งค่ารสชาติ (Dial-in Coffee)
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {Object.entries(selectedRecord.coffeeDialIn).map(([id, dial]: [string, any]) => {
                   const ing = ingredients.find(i => i.id === id);
                   return (
-                    <div key={id} className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex flex-col gap-3">
-                      <div className="flex items-center gap-2 border-b border-blue-100/50 pb-2">
-                        <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
-                          <Coffee size={14} />
+                    <div key={id} className="bg-[#E8F3F2]/50 p-3.5 rounded-xl border border-[#D4E4E3] flex flex-col gap-2.5">
+                      <div className="flex items-center gap-2 border-b border-[#D4E4E3]/60 pb-1.5">
+                        <div className="p-1 bg-[#E8F3F2] text-[#5A8A88] rounded-md">
+                          <Coffee size={13} />
                         </div>
-                        <span className="text-sm font-bold text-blue-900 truncate">
+                        <span className="text-[12px] font-semibold text-[#2D4A49] truncate">
                           {ing ? ing.name : `ID: ${id}`}
                         </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-3 gap-2">
                         <div className="text-center">
-                          <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">Dose</div>
-                          <div className="text-lg font-black text-blue-800">{dial.dose || '-'} <span className="text-[10px] font-bold">g</span></div>
+                          <div className="text-[9px] font-semibold text-[#6B8F8E] uppercase">Dose</div>
+                          <div className="text-[13px] font-bold text-[#2D4A49]">{dial.dose || '-'} <span className="text-[9px] font-normal">g</span></div>
                         </div>
-                        <div className="text-center border-x border-blue-100">
-                          <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">Yield</div>
-                          <div className="text-lg font-black text-blue-800">{dial.yield || '-'} <span className="text-[10px] font-bold">g</span></div>
+                        <div className="text-center border-x border-[#D4E4E3]">
+                          <div className="text-[9px] font-semibold text-[#6B8F8E] uppercase">Yield</div>
+                          <div className="text-[13px] font-bold text-[#2D4A49]">{dial.yield || '-'} <span className="text-[9px] font-normal">g</span></div>
                         </div>
                         <div className="text-center">
-                          <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">Time</div>
-                          <div className="text-lg font-black text-blue-800">{dial.time || '-'} <span className="text-[10px] font-bold">s</span></div>
+                          <div className="text-[9px] font-semibold text-[#6B8F8E] uppercase">Time</div>
+                          <div className="text-[13px] font-bold text-[#2D4A49]">{dial.time || '-'} <span className="text-[9px] font-normal">s</span></div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Cup Counts */}
-          {selectedRecord.cupCounts && (selectedRecord.cupCounts['16oz'] || selectedRecord.cupCounts['12oz'] || selectedRecord.cupCounts['8oz']) && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Package size={14} />
-                จำนวนแก้วก่อนเปิดร้าน
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                {['16oz', '12oz', '8oz'].map((size) => {
-                  const count = selectedRecord.cupCounts[size];
-                  let display = <div className="text-lg font-black text-slate-700">0 <span className="text-[10px] font-bold">ใบ</span></div>;
-                  
-                  if (count) {
-                    if (typeof count === 'string') {
-                      display = <div className="text-lg font-black text-slate-700">{count} <span className="text-[10px] font-bold">ใบ</span></div>;
-                    } else {
-                      const sleeves = parseInt(count.sleeves || '0');
-                      const loose = parseInt(count.loose || '0');
-                      const total = (sleeves * 50) + loose;
-                      
-                      display = (
-                        <div className="flex flex-col items-center">
-                          <div className="text-lg font-black text-slate-700 leading-tight">
-                            {sleeves > 0 && <span>{sleeves} <span className="text-[10px] font-bold mr-1">แถว</span></span>}
-                            {loose > 0 && <span>{loose} <span className="text-[10px] font-bold">ใบ</span></span>}
-                            {sleeves === 0 && loose === 0 && <span>0 <span className="text-[10px] font-bold">ใบ</span></span>}
-                          </div>
-                          {(sleeves > 0 || loose > 0) && <div className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1">รวม {total} ใบ</div>}
-                        </div>
-                      );
-                    }
-                  }
-
-                  return (
-                    <div key={size} className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center flex flex-col justify-center">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">แก้ว {size.replace('oz', ' Oz.')}</div>
-                      {display}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Cup Usage */}
-          {selectedRecord.cupUsage && (selectedRecord.cupUsage['16oz'] || selectedRecord.cupUsage['12oz'] || selectedRecord.cupUsage['8oz']) && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Package size={14} />
-                สรุปการใช้งานแก้วประจำวัน
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {['16oz', '12oz', '8oz'].map((size) => {
-                  const usage = selectedRecord.cupUsage[size];
-                  if (!usage) return null;
-                  
-                  const added = parseInt(usage.added || '0');
-                  const remainingSleeves = parseInt(usage.remainingSleeves || '0');
-                  const remainingLoose = parseInt(usage.remainingLoose || '0');
-                  const remainingTotal = (remainingSleeves * 50) + remainingLoose;
-
-                  // Find Check-in record for the same day to get brought forward
-                  const checkInRecord = checklistRecords.find(r => r.type === 'Check-in' && r.reportDate === selectedRecord.reportDate);
-                  let broughtForward = 0;
-                  if (checkInRecord && checkInRecord.cupCounts && checkInRecord.cupCounts[size]) {
-                    const count = checkInRecord.cupCounts[size];
-                    if (typeof count === 'string') {
-                      broughtForward = parseInt(count) || 0;
-                    } else {
-                      broughtForward = ((parseInt(count.sleeves) || 0) * 50) + (parseInt(count.loose) || 0);
-                    }
-                  }
-
-                  const actualUsage = broughtForward + added - remainingTotal;
-
-                  return (
-                    <div key={size} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col gap-2">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase border-b border-slate-200 pb-1">แก้ว {size.replace('oz', ' Oz.')}</div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-slate-500">ยอดยกมา</span>
-                        <span className="text-sm font-bold text-slate-700">{broughtForward} ใบ</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-slate-500">เบิกเพิ่ม</span>
-                        <span className="text-sm font-bold text-slate-700">{added} ใบ</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-slate-500">คงเหลือ</span>
-                        <span className="text-sm font-bold text-slate-700">{remainingTotal} ใบ</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 text-right">
-                        ({remainingSleeves} แถว {remainingLoose} ใบ)
-                      </div>
-                      <div className="mt-1 pt-2 border-t border-slate-200 flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-slate-500">ยอดใช้งานจริง</span>
-                        <span className={`text-sm font-black ${actualUsage < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                          {actualUsage} ใบ
-                        </span>
                       </div>
                     </div>
                   );
@@ -711,390 +518,454 @@ export function AuditLog({ logs, checklistRecords, receivingRecords = [], ingred
           )}
 
           {/* Checklist Items */}
-          <div className="space-y-6">
-            {selectedRecord.categories?.map((cat: any, idx: number) => (
-              <div key={idx} className="space-y-3">
-                <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">{cat.title}</h3>
-                <div className="grid gap-2">
-                  {cat.items.map((item: any, iidx: number) => (
-                    <div key={iidx} className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      item.checked ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100 opacity-50'
-                    }`}>
-                      {item.checked ? <CheckCircle2 size={16} className="text-blue-600" /> : <Circle size={16} className="text-slate-300" />}
-                      <span className={`text-sm ${item.checked ? 'text-blue-900 font-medium' : 'text-slate-500'}`}>{item.label}</span>
-                    </div>
-                  ))}
+          {selectedRecord.categories && selectedRecord.categories.length > 0 && (
+            <div className="space-y-4">
+              {selectedRecord.categories.map((cat: any, idx: number) => (
+                <div key={idx} className="space-y-2">
+                  <h4 className="font-semibold text-[12px] text-[#2D4A49] border-b border-[#D4E4E3] pb-1">{cat.title}</h4>
+                  <div className="grid gap-1.5">
+                    {cat.items?.map((item: any, iidx: number) => (
+                      <div key={iidx} className={cn(
+                        "flex items-center gap-2.5 p-2 rounded-lg border text-[11px]",
+                        item.checked 
+                          ? "bg-[#E8F3F2] border-[#D4E4E3] text-[#2D4A49]" 
+                          : "bg-[#F0F5F4]/50 border-slate-200 text-[#6B8F8E] opacity-60"
+                      )}>
+                        {item.checked ? <CheckCircle2 size={14} className="text-[#5A8A88] shrink-0" /> : <Circle size={14} className="text-[#A8BCBB] shrink-0" />}
+                        <span className={item.checked ? "font-medium" : ""}>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-full max-h-[calc(100vh-200px)]">
-      <div className="p-6 border-bottom border-slate-100 bg-slate-50/50">
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-              <History size={24} />
+    <div className="w-full bg-white rounded-2xl border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.08)] p-5">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          CARD HEADER (title + search + refresh)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-4">
+        {/* Left — Title block */}
+        <div className="flex flex-col">
+          <div className="flex items-center">
+            <div className="w-8 h-8 rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0">
+              <Clock size={18} className="text-[#5A8A88]" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">ประวัติย้อนหลัง</h2>
-              <p className="text-slate-500 text-sm">แสดงรายการล่าสุดสูงสุด 120 รายการ</p>
-            </div>
+            <h2 className="text-[16px] font-bold text-[#2D4A49] ml-2.5">
+              ประวัติย้อนหลัง
+            </h2>
           </div>
-
-          <div className="flex items-center gap-2 flex-1 max-w-md justify-end">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder={activeTab === 'logs' ? "ค้นหาประวัติการแก้ไข..." : activeTab === 'receiving' ? "ค้นหาประวัติการรับวัตถุดิบ..." : activeTab === 'stockSubmit' ? "ค้นหาประวัติส่งนับสต็อก..." : "ค้นหาประวัติ Check-in/out..."}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-              />
-            </div>
-            <button
-              onClick={() => fetchData()}
-              disabled={loading}
-              title="รีเฟรชข้อมูลล่าสุด (Sync with Supabase)"
-              className="p-2 text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
-            >
-              <RefreshCw size={16} className={cn(loading && "animate-spin text-blue-600")} />
-            </button>
-          </div>
+          <span className="text-[11px] text-[#6B8F8E] mt-0.5 ml-[42px]">
+            แสดงรายการล่าสุด 120 รายการ
+          </span>
         </div>
 
-        <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl w-fit overflow-x-auto">
+        {/* Right — Search + Refresh */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="relative w-full sm:w-[240px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A8BCBB]" />
+            <input
+              type="text"
+              placeholder={
+                activeTab === 'logs' 
+                  ? "ค้นหาประวัติการแก้ไข..." 
+                  : activeTab === 'receiving' 
+                    ? "ค้นหาประวัติการรับวัตถุดิบ..." 
+                    : activeTab === 'stockSubmit' 
+                      ? "ค้นหาประวัติส่งนับสต็อก..." 
+                      : "ค้นหาประวัติ Check-in/out..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg pl-9 pr-3 py-2 text-[11px] text-[#2D4A49] placeholder:text-[#6B8F8E] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 transition-all"
+            />
+          </div>
           <button
-            onClick={() => setActiveTab('logs')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold min-w-max transition-all ${
-              activeTab === 'logs' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
+            type="button"
+            onClick={() => fetchData()}
+            disabled={loading}
+            title="รีเฟรชข้อมูลล่าสุด (Sync with Supabase)"
+            className="p-2 bg-white border border-[#D4E4E3] rounded-lg text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0 ml-2"
           >
-            ประวัติการแก้ไขข้อมูล
-          </button>
-          <button
-            onClick={() => setActiveTab('stockSubmit')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold min-w-max transition-all ${
-              activeTab === 'stockSubmit' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            ประวัติส่งนับสต็อก
-          </button>
-          <button
-            onClick={() => setActiveTab('checklist')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold min-w-max transition-all ${
-              activeTab === 'checklist' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            ประวัติ Check-in & Check-out
-          </button>
-          <button
-            onClick={() => setActiveTab('receiving')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold min-w-max transition-all ${
-              activeTab === 'receiving' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            ประวัติการรับวัตถุดิบ
+            <RefreshCw size={14} className={cn(loading && "animate-spin")} />
           </button>
         </div>
       </div>
 
-      <div className="overflow-auto flex-1">
-        {activeTab === 'logs' ? (
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          TAB FILTERS (Teal-themed)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="flex gap-2 my-4 flex-wrap border-b border-[#D4E4E3] pb-0">
+        <button
+          type="button"
+          onClick={() => setActiveTab('logs')}
+          className={cn(
+            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+            activeTab === 'logs'
+              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+          )}
+        >
+          ประวัติการแก้ไขข้อมูล
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('stockSubmit')}
+          className={cn(
+            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+            activeTab === 'stockSubmit'
+              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+          )}
+        >
+          ประวัติส่งนับสต็อก
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('checklist')}
+          className={cn(
+            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+            activeTab === 'checklist'
+              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+          )}
+        >
+          ประวัติ Check-in & Check-out
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('receiving')}
+          className={cn(
+            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+            activeTab === 'receiving'
+              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+          )}
+        >
+          ประวัติการรับวัตถุดิบ
+        </button>
+      </div>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          TAB CONTENT / HISTORY LIST ITEMS
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="divide-y divide-[#F0F5F4] max-h-[600px] overflow-y-auto pr-1">
+        {/* TAB 1: ประวัติการแก้ไขข้อมูล */}
+        {activeTab === 'logs' && (
           filteredLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <History size={48} strokeWidth={1} className="mb-4 opacity-20" />
-              <p>ไม่พบประวัติการแก้ไข</p>
+            <div className="flex flex-col items-center justify-center py-16 text-[#6B8F8E]">
+              <History size={40} strokeWidth={1.5} className="mb-2.5 opacity-30 text-[#5A8A88]" />
+              <p className="text-[12px]">ไม่พบประวัติการแก้ไข</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredLogs.map((log) => (
-                <div key={log.id} className="p-4 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 p-2 bg-slate-100 text-slate-500 rounded-lg shrink-0">
-                      <Clock size={16} />
+            filteredLogs.map((log) => (
+              <div 
+                key={log.id} 
+                className="flex items-start gap-3 py-3.5 border-b border-[#F0F5F4] last:border-0 hover:bg-[#FAFCFC] rounded-lg hover:px-2 transition-all"
+              >
+                {/* LEFT — Icon circle (ประวัติการแก้ไขข้อมูล: bg #E8F3F2, icon #5A8A88) */}
+                <div className="w-8 h-8 rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock size={14} className="text-[#5A8A88]" />
+                </div>
+
+                {/* MIDDLE — Content block */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-semibold text-[#2D4A49] mb-1">
+                    {log.action}
+                  </div>
+
+                  <p className="text-[11px] font-normal text-[#6B8F8E] leading-[1.4] mb-1.5 break-words">
+                    {log.action === 'System Backup' ? '[ข้อมูลสำรองระบบอัตโนมัติซ่อนอยู่]' : log.details}
+                  </p>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <User size={11} className="text-[#A8BCBB]" />
+                    <span className="text-[11px] font-medium text-[#5A8A88]">
+                      {log.userEmail}
+                    </span>
+                    <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5 tracking-[0.05em] uppercase">
+                      {log.userRole || 'USER'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* RIGHT — Timestamp */}
+                <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap shrink-0 ml-3 self-start mt-0.5">
+                  {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+                </span>
+              </div>
+            ))
+          )
+        )}
+
+        {/* TAB 2: ประวัติส่งนับสต็อก */}
+        {activeTab === 'stockSubmit' && (
+          filteredStockSubmit.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-[#6B8F8E]">
+              <ClipboardList size={40} strokeWidth={1.5} className="mb-2.5 opacity-30 text-[#F59E0B]" />
+              <p className="text-[12px]">ไม่พบประวัติการส่งรายงานตรวจนับสต็อก</p>
+            </div>
+          ) : (
+            filteredStockSubmit.map((log) => {
+              let summaryText = log.details;
+              let changesList: any[] = [];
+              let isJsonData = false;
+              try {
+                const parsed = JSON.parse(log.details);
+                if (parsed && typeof parsed === 'object' && parsed.summary) {
+                  summaryText = parsed.summary;
+                  if (Array.isArray(parsed.changes)) {
+                    changesList = parsed.changes;
+                    isJsonData = true;
+                  }
+                }
+              } catch (e) {}
+
+              const hasChanges = isJsonData && changesList.length > 0;
+              const isExpanded = !!expandedLogIds[log.id];
+
+              return (
+                <div 
+                  key={log.id} 
+                  onClick={() => {
+                    setExpandedLogIds(prev => ({
+                      ...prev,
+                      [log.id]: !prev[log.id]
+                    }));
+                  }}
+                  className={cn(
+                    "flex items-start gap-3 py-3.5 border-b border-[#F0F5F4] last:border-0 hover:bg-[#FAFCFC] rounded-lg hover:px-2 transition-all cursor-pointer",
+                    isExpanded && "bg-[#FAFCFC]"
+                  )}
+                >
+                  {/* LEFT — Icon circle (ประวัติส่งนับสต็อก: bg #FEF3C7, icon #F59E0B) */}
+                  <div className="w-8 h-8 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0 mt-0.5">
+                    <Clock size={14} className="text-[#F59E0B]" />
+                  </div>
+
+                  {/* MIDDLE — Content block */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-[12px] font-semibold text-[#2D4A49]">
+                        {log.action}
+                      </span>
+                      {hasChanges && (
+                        <span className="text-[9px] font-medium text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded-full px-2 py-0.2">
+                          มีการเปลี่ยนแปลง ({changesList.length})
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-bold text-slate-800 text-sm">{log.action}</span>
-                        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                          {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+
+                    <p className="text-[11px] font-normal text-[#6B8F8E] leading-[1.4] mb-1.5 break-words">
+                      {summaryText}
+                    </p>
+
+                    {/* Collapsible Changes List */}
+                    {isExpanded && (
+                      <div 
+                        className="my-2.5 pl-3 border-l-2 border-[#5A8A88] space-y-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {hasChanges ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {changesList.map((ch, idx) => (
+                              <div key={idx} className="flex items-center justify-between p-2 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px]">
+                                <span className="font-medium text-[#2D4A49] truncate max-w-[140px]">
+                                  {ch.ingredientName}
+                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[#A8BCBB] line-through text-[10px]">({ch.oldVal})</span>
+                                  <span className="text-[#6B8F8E]">➜</span>
+                                  <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.5 rounded font-bold text-[10px] border border-[#D4E4E3]">
+                                    {ch.newVal} {ch.unit}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px] text-[#6B8F8E]">
+                            บันทึกรายงานสต็อกเรียบร้อยแล้ว
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <User size={11} className="text-[#A8BCBB]" />
+                        <span className="text-[11px] font-medium text-[#5A8A88]">
+                          {log.userEmail}
+                        </span>
+                        <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5 tracking-[0.05em] uppercase">
+                          {log.userRole || 'USER'}
                         </span>
                       </div>
-                      {log.action === 'System Backup' ? (
-                        <p className="text-slate-600 text-sm mb-2 leading-relaxed italic">
-                          [ข้อมูลสำรองระบบอัตโนมัติซ่อนอยู่เพื่อความสวยงาม]
-                        </p>
-                      ) : (
-                        <p className="text-slate-600 text-sm mb-2 leading-relaxed">{log.details}</p>
-                      )}
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                          <User size={12} />
-                          <span className="font-medium text-slate-500">{log.userEmail}</span>
-                          <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] uppercase tracking-wider">
-                            {log.userRole}
-                          </span>
-                        </div>
+
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-[#5A8A88]">
+                        <span>{isExpanded ? 'ย่อข้อมูล' : 'ดูรายละเอียด'}</span>
+                        <ChevronDown size={12} className={cn("transition-transform duration-200", isExpanded && "rotate-180")} />
                       </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT — Timestamp */}
+                  <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap shrink-0 ml-3 self-start mt-0.5">
+                    {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+                  </span>
+                </div>
+              );
+            })
+          )
+        )}
+
+        {/* TAB 3: ประวัติ Check-in & Check-out */}
+        {activeTab === 'checklist' && (
+          filteredChecklist.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-[#6B8F8E]">
+              <FileText size={40} strokeWidth={1.5} className="mb-2.5 opacity-30 text-[#22C55E]" />
+              <p className="text-[12px]">ไม่พบประวัติ Check-in & Check-out</p>
+            </div>
+          ) : (
+            filteredChecklist.map((record, idx) => (
+              <button 
+                key={record.id || idx}
+                type="button"
+                onClick={() => setSelectedRecord(record)}
+                className="w-full flex items-start gap-3 py-3.5 border-b border-[#F0F5F4] last:border-0 hover:bg-[#FAFCFC] rounded-lg hover:px-2 transition-all text-left cursor-pointer group"
+              >
+                {/* LEFT — Icon circle (ประวัติ Check-in & Check-out: bg #DCFCE7, icon #22C55E) */}
+                <div className="w-8 h-8 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock size={14} className="text-[#22C55E]" />
+                </div>
+
+                {/* MIDDLE — Content block */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[12px] font-semibold text-[#2D4A49]">
+                      รายการตรวจสอบบาร์ ({record.type})
+                    </span>
+                    <span className={cn(
+                      "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase",
+                      record.type === 'Check-in'
+                        ? "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]"
+                        : "bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]"
+                    )}>
+                      {record.type}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] font-normal text-[#6B8F8E] leading-[1.4] mb-1.5 truncate">
+                    {record.reporterName ? `ผู้ทำรายงาน: ${record.reporterName}` : `ผู้ส่งบันทึก: ${record.userEmail || 'ไม่ทราบชื่อ'}`}
+                    {record.reportDate ? ` · วันที่ตรวจ: ${format(new Date(record.reportDate), 'dd/MM/yyyy')}` : ''}
+                  </p>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <User size={11} className="text-[#A8BCBB]" />
+                      <span className="text-[11px] font-medium text-[#5A8A88]">
+                        {record.reporterName || record.userEmail || 'Staff'}
+                      </span>
+                      <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5 tracking-[0.05em] uppercase">
+                        BAR
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[10px] text-[#5A8A88] font-medium group-hover:underline">
+                      <span>เปิดดูรายงาน</span>
+                      <ChevronRight size={12} />
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {/* RIGHT — Timestamp */}
+                <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap shrink-0 ml-3 self-start mt-0.5">
+                  {format(new Date(record.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+                </span>
+              </button>
+            ))
           )
-        ) : activeTab === 'stockSubmit' ? (
-          filteredStockSubmit.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <ClipboardList size={48} strokeWidth={1} className="mb-4 opacity-20" />
-              <p>ไม่พบประวัติการส่งรายงานตรวจนับสต็อก</p>
+        )}
+
+        {/* TAB 4: ประวัติการรับวัตถุดิบ */}
+        {activeTab === 'receiving' && (
+          filteredReceiving.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-[#6B8F8E]">
+              <Package size={40} strokeWidth={1.5} className="mb-2.5 opacity-30 text-[#7C3AED]" />
+              <p className="text-[12px]">ไม่พบประวัติการรับวัตถุดิบ</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredStockSubmit.map((log) => {
-                let summaryText = log.details;
-                let changesList: any[] = [];
-                let isJsonData = false;
-                try {
-                  const parsed = JSON.parse(log.details);
-                  if (parsed && typeof parsed === 'object' && parsed.summary) {
-                    summaryText = parsed.summary;
-                    if (Array.isArray(parsed.changes)) {
-                      changesList = parsed.changes;
-                      isJsonData = true;
-                    }
-                  }
-                } catch(e) {}
+            filteredReceiving.map((record) => (
+              <div 
+                key={record.id} 
+                className="flex items-start gap-3 py-3.5 border-b border-[#F0F5F4] last:border-0 hover:bg-[#FAFCFC] rounded-lg hover:px-2 transition-all"
+              >
+                {/* LEFT — Icon circle (ประวัติการรับวัตถุดิบ: bg #EDE9FE, icon #7C3AED) */}
+                <div className="w-8 h-8 rounded-full bg-[#EDE9FE] flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock size={14} className="text-[#7C3AED]" />
+                </div>
 
-                const hasChanges = isJsonData && changesList.length > 0;
-                const isExpanded = !!expandedLogIds[log.id];
-
-                return (
-                  <div 
-                    key={log.id} 
-                    onClick={() => {
-                      setExpandedLogIds(prev => ({
-                        ...prev,
-                        [log.id]: !prev[log.id]
-                      }));
-                    }}
-                    className={cn(
-                      "p-4 transition-all duration-200 border-b border-slate-100 cursor-pointer hover:bg-slate-50/60 active:bg-blue-50/30",
-                      isExpanded && "bg-blue-50/20"
-                    )}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={cn(
-                        "mt-1 p-2 rounded-xl shrink-0 transition-colors",
-                        isExpanded ? "bg-blue-100 text-blue-600" : "bg-slate-50 text-slate-400"
-                      )}>
-                        <ClipboardList size={18} />
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-1.5">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                            <span className="font-bold text-slate-800 text-sm md:text-base leading-tight">{log.action}</span>
-                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-semibold border border-blue-100">
-                              {hasChanges ? `มีรายการเปลี่ยนแปลง (${changesList.length})` : 'ระบบบันทึกแบบย่อ'}
-                            </span>
-                          </div>
-                          <span className="text-xs text-slate-400 font-medium whitespace-nowrap pt-0.5 shrink-0">
-                            {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
-                          </span>
-                        </div>
-                        
-                        <p className={cn(
-                          "text-slate-600 text-sm leading-relaxed",
-                          isExpanded ? "font-medium" : "text-slate-500"
-                        )}>
-                          {summaryText}
-                        </p>
-
-                        {/* Collapsible Details Content */}
-                        {isExpanded && (
-                          <div 
-                            className="mt-3 pl-4 border-l-2 border-blue-200 space-y-2 pb-1 animate-fadeIn"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {hasChanges ? (
-                              <>
-                                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                                  รายการวัตถุดิบที่มีการเปลี่ยนแปลง
-                                </span>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                  {changesList.map((ch, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded-xl shadow-xs text-slate-700 text-xs md:text-sm">
-                                      <span className="font-semibold text-slate-800 truncate max-w-[130px] md:max-w-xs">{ch.ingredientName}</span>
-                                      <div className="flex items-center gap-1.5 shrink-0">
-                                        <span className="text-slate-400 text-[10px] line-through opacity-75 sm:inline hidden">({ch.oldVal})</span>
-                                        <span className="text-slate-300 text-xs sm:inline hidden">➜</span>
-                                        <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded-md font-bold text-xs">
-                                          {ch.newVal} {ch.unit}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="p-3 bg-amber-50/60 border border-amber-100 rounded-xl text-xs md:text-sm text-slate-600 font-medium leading-relaxed">
-                                ⚠️ เนื่องจากรายงานฉบับนี้ถูกส่งก่อนการอัปเดตระบบฐานข้อมูล Supabase เวอร์ชันล่าสุด ระบบจึงบันทึกเฉพาะหัวข้อแบบย่อ และไม่ได้เก็บบันทึกรายละเอียดของความต่างรายชิ้นเค้กหรือวัตถุดิบไว้
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between gap-4 mt-3 pt-3 border-t border-slate-100/60">
-                          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                            <User size={12} />
-                            <span className="font-medium text-slate-500">{log.userEmail}</span>
-                            <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] uppercase tracking-wider">
-                              {log.userRole}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-1 text-xs font-bold text-blue-600">
-                            <span>{isExpanded ? "ย่อข้อมูล" : "ขยายข้อมูล"}</span>
-                            <ChevronDown size={14} className={cn("transition-transform duration-200", isExpanded && "rotate-180")} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                {/* MIDDLE — Content block */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[12px] font-semibold text-[#2D4A49]">
+                      {getIngredientName(record.ingredientId)}
+                    </span>
+                    <span className="text-[11px] font-bold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5">
+                      {record.quantity} {getIngredientUnit(record.ingredientId)}
+                    </span>
                   </div>
-                )})}
-            </div>
-          )
-        ) : activeTab === 'checklist' ? (
-          filteredChecklist.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <ClipboardList size={48} strokeWidth={1} className="mb-4 opacity-20" />
-              <p>ไม่พบประวัติ Check-in & Check-out</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredChecklist.map((record, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => setSelectedRecord(record)}
-                  className="w-full p-4 hover:bg-slate-50 transition-colors text-left group"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`mt-1 p-2 rounded-lg shrink-0 ${
-                      record.type === 'Check-in' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'
-                    }`}>
-                      <FileText size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            record.type === 'Check-in' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                          }`}>
-                            {record.type}
-                          </span>
-                          <span className="font-bold text-slate-800 text-sm">รายการตรวจสอบบาร์ประจำวัน</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 font-medium">
-                            {format(new Date(record.timestamp), 'dd/MM/yyyy HH:mm:ss')}
-                          </span>
-                          <ChevronRight size={14} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 mt-2">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                          <User size={12} />
-                          <span className="text-slate-500">
-                            {record.reporterName ? (
-                              <>ผู้ทำรายงาน: <span className="font-bold text-slate-700">{record.reporterName}</span></>
-                            ) : (
-                              <>ผู้ส่งบันทึก: <span className="font-bold">{record.userEmail || 'ไม่ทราบชื่อ'}</span></>
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                          <Clock size={12} />
-                          <span className="text-slate-500">เวลา: <span className="font-bold">{format(new Date(record.timestamp), 'HH:mm')} น.</span></span>
-                        </div>
-                      </div>
-                    </div>
+
+                  <p className="text-[11px] font-normal text-[#6B8F8E] leading-[1.4] mb-1.5">
+                    ผู้จัดจำหน่าย: <span className="text-[#2D4A49] font-medium">{record.supplier}</span>
+                    {record.expiryDate ? (
+                      <> · วันหมดอายุ: <span className="text-[#2D4A49]">{format(new Date(record.expiryDate), 'dd/MM/yyyy')}</span></>
+                    ) : null}
+                  </p>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <User size={11} className="text-[#A8BCBB]" />
+                    <span className="text-[11px] font-medium text-[#5A8A88]">
+                      {record.userName || '-'}
+                    </span>
+                    <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5 tracking-[0.05em] uppercase">
+                      RECEIVING
+                    </span>
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+
+                {/* RIGHT — Timestamp & Delete Action */}
+                <div className="flex items-center gap-2 shrink-0 ml-3 self-start mt-0.5">
+                  <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap">
+                    {format(new Date(record.date), 'dd/MM/yyyy')}
+                  </span>
+                  {!isReadOnly && onDeleteReceivingRecord && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบรายการรับวัตถุดิบนี้?')) {
+                          onDeleteReceivingRecord(record.id);
+                        }
+                      }}
+                      className="p-1 text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] rounded transition-colors cursor-pointer"
+                      title="ลบรายการ"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
           )
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-200 text-[12px] text-slate-600">
-                  <th className="p-3 font-semibold">วันที่รับ</th>
-                  <th className="p-3 font-semibold">รายการวัตถุดิบ</th>
-                  <th className="p-3 font-semibold">ผู้จัดจำหน่าย</th>
-                  <th className="p-3 font-semibold text-right">จำนวน</th>
-                  <th className="p-3 font-semibold">วันหมดอายุ</th>
-                  <th className="p-3 font-semibold text-center">ผู้ทำรายการ</th>
-                  <th className="p-3 font-semibold text-center">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredReceiving.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500 text-[13px]">
-                      ยังไม่มีประวัติการรับวัตถุดิบ
-                    </td>
-                  </tr>
-                ) : (
-                  filteredReceiving.map(record => (
-                    <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors text-[13px]">
-                      <td className="p-3 text-slate-800">{format(new Date(record.date), 'dd/MM/yyyy')}</td>
-                      <td className="p-3 font-medium text-slate-800">{getIngredientName(record.ingredientId)}</td>
-                      <td className="p-3 text-slate-600">{record.supplier}</td>
-                      <td className="p-3 text-right font-mono text-blue-600 font-medium">
-                        {record.quantity} <span className="text-slate-500 text-[11px]">{getIngredientUnit(record.ingredientId)}</span>
-                      </td>
-                      <td className="p-3 text-slate-600">{record.expiryDate ? format(new Date(record.expiryDate), 'dd/MM/yyyy') : '-'}</td>
-                      <td className="p-3 text-center">
-                        <span className="inline-flex items-center justify-center px-2 py-1 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-full border border-slate-200">
-                          {record.userName || '-'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        {!isReadOnly && (
-                          <button
-                            onClick={() => {
-                              if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบรายการรับวัตถุดิบนี้?')) {
-                                onDeleteReceivingRecord?.(record.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="ลบรายการ"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
     </div>
