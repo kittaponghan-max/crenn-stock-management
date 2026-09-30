@@ -58,6 +58,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         justifyContent: 'space-between',
         width: '100%',
         height: '56px',
+        minHeight: '56px',
         paddingLeft: '20px',
         paddingRight: '20px',
         background: '#FFFFFF',
@@ -65,8 +66,9 @@ export const TopNav: React.FC<TopNavProps> = ({
         position: 'sticky',
         top: 0,
         zIndex: 50,
+        flexShrink: 0,
       }}
-      className="w-full h-[56px] px-[20px] bg-white border-b border-[#E2EAE9] sticky top-0 z-50 flex items-center justify-between"
+      className="w-full h-[56px] min-h-[56px] px-[20px] bg-white border-b border-[#E2EAE9] sticky top-0 z-50 flex items-center justify-between shrink-0"
     >
       {/* LEFT — Brand block */}
       <div
@@ -76,6 +78,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           flexDirection: 'column',
           alignItems: 'flex-start',
           gap: '1px',
+          flexShrink: 0,
         }}
         className={`flex flex-col items-start gap-[1px] select-none shrink-0 ${onLogoClick ? 'cursor-pointer' : ''}`}
       >
@@ -86,8 +89,9 @@ export const TopNav: React.FC<TopNavProps> = ({
             color: '#1E3A3A',
             letterSpacing: '0.02em',
             lineHeight: 1.1,
+            display: 'block',
           }}
-          className="text-[20px] font-[800] text-[#1E3A3A] tracking-[0.02em] leading-[1.1]"
+          className="text-[20px] font-[800] text-[#1E3A3A] tracking-[0.02em] leading-[1.1] block"
         >
           CRENN
         </span>
@@ -99,9 +103,9 @@ export const TopNav: React.FC<TopNavProps> = ({
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
             lineHeight: 1,
-            marginTop: '1px',
+            display: 'block',
           }}
-          className="text-[8px] font-[500] text-[#7A9E9C] tracking-[0.18em] uppercase leading-[1] mt-[1px]"
+          className="text-[8px] font-[500] text-[#7A9E9C] tracking-[0.18em] uppercase leading-[1] block"
         >
           CAFE MANAGEMENT
         </span>
@@ -123,6 +127,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
+          flexShrink: 0,
         }}
         className="flex items-center gap-[8px] shrink-0"
       >
@@ -147,7 +152,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             className="w-[36px] h-[36px] rounded-full bg-[#F0F5F4] border border-[#E2EAE9] flex items-center justify-center cursor-pointer relative hover:bg-[#E8F3F2] transition-colors focus:outline-none shrink-0"
             title="การแจ้งเตือน"
           >
-            <Bell size={16} strokeWidth={1.5} className="text-[#5A8A88]" />
+            <Bell size={16} strokeWidth={1.5} className="text-[#5A8A88]" style={{ color: '#5A8A88' }} />
             {showDot && (
               <span
                 style={{
@@ -173,7 +178,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowNotifications(false)}
-                  className="text-slate-400 hover:text-slate-600 focus:outline-none"
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
                 >
                   <X size={14} />
                 </button>
@@ -226,8 +231,9 @@ export const TopNav: React.FC<TopNavProps> = ({
             borderRadius: '9999px',
             padding: '3px 10px 3px 3px',
             cursor: 'pointer',
+            flexShrink: 0,
           }}
-          className="flex items-center gap-[6px] bg-[#F0F5F4] border border-[#E2EAE9] rounded-full py-[3px] pr-[10px] pl-[3px] cursor-pointer hover:bg-[#E8F3F2] transition-colors focus:outline-none"
+          className="flex items-center gap-[6px] bg-[#F0F5F4] border border-[#E2EAE9] rounded-full py-[3px] pr-[10px] pl-[3px] cursor-pointer hover:bg-[#E8F3F2] transition-colors focus:outline-none shrink-0"
           title="โปรไฟล์ผู้ใช้"
         >
           {/* Avatar circle */}
