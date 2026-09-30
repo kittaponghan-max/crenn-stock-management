@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Ingredient, StockRecord, Branch, AppPermissions } from '../types';
 import { UserRole } from './LoginForm';
+import { TopNavCenterIcons } from './TopNavCenterIcons';
 
 export interface HomeScreenProps {
   user: {
@@ -384,7 +385,7 @@ export function HomeScreen({
         <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between">
           
           {/* Brand Name CRENN */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button 
               onClick={() => onNavigate('home')}
               className="text-left group focus:outline-none"
@@ -398,8 +399,16 @@ export function HomeScreen({
             </button>
           </div>
 
+          {/* Center Navigation Icons (Visible on tablet/PC) */}
+          <TopNavCenterIcons
+            activeTab="home"
+            onNavigate={onNavigate}
+            outOfStockCount={stockData.outCount}
+            needPurchasingCount={stockData.outCount + stockData.lowCount}
+          />
+
           {/* Right Action Icons: Notification Bell + User Avatar */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0">
             {/* Notification Bell */}
             <div className="relative">
               <button 
