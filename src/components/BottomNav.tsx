@@ -85,9 +85,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       {/* Fixed Bottom Navigation Bar */}
       <nav 
         aria-label="Main Navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#D4E4E3] shadow-lg select-none"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#D4E4E3] shadow-lg select-none py-2"
       >
-        <div className="max-w-md mx-auto flex items-center overflow-x-auto no-scrollbar py-1 px-1.5 gap-1">
+        <div className="max-w-md mx-auto flex items-center overflow-x-auto no-scrollbar px-1.5 gap-1">
           {NAV_TABS.map(tab => {
             const Icon = tab.icon;
             const active = isTabActive(tab.id);
@@ -97,10 +97,10 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab)}
-                className={`flex flex-col items-center justify-center min-w-[58px] py-1.5 px-1 rounded-xl transition-all select-none shrink-0 ${
+                className={`flex flex-col items-center justify-center min-w-[58px] py-1 px-2 rounded-full transition-all select-none shrink-0 ${
                   active || isSheetOpen
                     ? 'bg-[#E8F3F2] text-[#5A8A88] font-bold shadow-xs'
-                    : 'text-[#A8BCBB] hover:text-[#5A8A88] font-medium'
+                    : 'text-[#A8BCBB] hover:text-[#5A8A88] font-medium bg-transparent'
                 }`}
               >
                 <div className="relative">
