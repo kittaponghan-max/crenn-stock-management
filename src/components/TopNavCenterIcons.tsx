@@ -24,17 +24,27 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
 }) => {
   const isItemActive = (id: string, currentTab: string) => {
     if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard';
-    if (id === 'stock') return ['barStock', 'bakeryStock', 'barDailyCount', 'bakeryDailyCount'].includes(currentTab);
+    if (id === 'stock') {
+      return ['barStock', 'bakeryStock', 'barDailyCount', 'bakeryDailyCount', 'stock'].includes(currentTab);
+    }
     if (id === 'reports') {
       return [
-        'logs', 'reports', 'stockSubmitHistory', 'receivingHistory', 'checklistHistory',
+        'logs', 'reports', 'stockSubmitHistory', 'receivingHistory',
         'barReceiving', 'bakeryReceiving', 'barWaste', 'barWasteLog', 'bakeryWasteLog'
       ].includes(currentTab);
     }
-    if (id === 'checkin') return ['barChecklist', 'bakeryChecklist'].includes(currentTab);
-    if (id === 'purchasing') return ['barPurchasing', 'purchasing'].includes(currentTab);
-    if (id === 'bakery') return ['bakeryPlan', 'bakeryPlanHistory'].includes(currentTab);
-    if (id === 'rnd') return currentTab === 'rndReport';
+    if (id === 'checkin') {
+      return ['barChecklist', 'bakeryChecklist', 'checklistHistory', 'checkin'].includes(currentTab);
+    }
+    if (id === 'purchasing') {
+      return ['barPurchasing', 'purchasing'].includes(currentTab);
+    }
+    if (id === 'bakery') {
+      return ['bakeryPlan', 'bakeryPlanHistory', 'bakery'].includes(currentTab);
+    }
+    if (id === 'rnd') {
+      return ['rndReport', 'rnd'].includes(currentTab);
+    }
     return currentTab === id;
   };
 
@@ -58,7 +68,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
         flex: 1,
         padding: '0 16px',
       }}
-      className="hidden md:flex items-center justify-center gap-1 lg:gap-1.5 flex-1 px-2 lg:px-4"
+      className="hidden md:flex items-center justify-center gap-[4px] flex-1 px-[16px]"
     >
       {NAV_ITEMS.map((item) => {
         const active = isItemActive(item.id, activeTab);
@@ -77,28 +87,33 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
               gap: '2px',
               padding: '6px 10px',
               borderRadius: '8px',
+              minWidth: '48px',
               cursor: 'pointer',
               position: 'relative',
               transition: 'all 150ms ease',
-              minWidth: '48px',
               background: active ? '#E8F3F2' : 'transparent',
               color: active ? '#5A8A88' : '#A8BCBB',
               fontWeight: active ? 600 : 400,
             }}
-            className={`flex flex-col items-center justify-center py-1.5 px-2 lg:px-2.5 rounded-lg transition-all duration-150 relative min-w-[44px] lg:min-w-[48px] ${
+            className={`flex flex-col items-center justify-center py-[6px] px-[10px] rounded-[8px] transition-all duration-150 relative min-w-[48px] cursor-pointer ${
               active
                 ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
                 : 'text-[#A8BCBB] hover:bg-[#F0F5F4] hover:text-[#5A8A88]'
             }`}
             title={item.label}
           >
-            <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+            <Icon size={18} strokeWidth={1.5} />
             <span
               style={{
                 fontSize: '9px',
                 fontWeight: active ? 600 : 400,
+                color: active ? '#5A8A88' : '#A8BCBB',
+                marginTop: '2px',
+                whiteSpace: 'nowrap',
               }}
-              className="hidden lg:block text-[9px] mt-0.5 leading-tight tracking-tight"
+              className={`block text-[9px] mt-[2px] leading-tight tracking-tight whitespace-nowrap ${
+                active ? 'text-[#5A8A88] font-[600]' : 'text-[#A8BCBB] font-[400]'
+              }`}
             >
               {item.label}
             </span>
