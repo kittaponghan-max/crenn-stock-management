@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ChevronLeft, Calendar, FileDown, Printer, ShoppingCart, Coffee, ChefHat, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, Calendar, FileDown, Printer, ShoppingCart, Coffee, ChefHat, LayoutGrid, Building2, PackageCheck } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Ingredient, StockRecord } from '../types';
+import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
 
 interface PurchasingReportProps {
@@ -23,21 +23,19 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
   const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>(initialDept);
+  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
 
-  const purchasesToMake = useMemo(() => {
+  const allPurchasesToMake = useMemo(() => {
     // Filter ingredients by department first
     const allowedIngs = ingredients.filter(ing => allowedDepartments.includes(ing.department as any));
     const departmentIngredients = activeDepartment === 'All' 
       ? allowedIngs 
       : allowedIngs.filter(ing => ing.department === activeDepartment);
 
-    // Calculate the most up-to-date stock up to the selectedDate
     const sortedDatesAsc = Object.keys(stockRecord).sort();
     const currentRemaining: Record<string, number> = {};
-
     sortedDatesAsc.forEach(dateKey => {
       if (dateKey > selectedDate) return;
-
       departmentIngredients.forEach(ing => {
         const id = ing.id;
         const val = stockRecord[dateKey]?.[id];
@@ -45,10 +43,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         if (typeof val === 'number') {
           currentRemaining[id] = val;
         } else if (val) {
-          const inVal = val.in === null || val.in === undefined ? undefined : val.in;
-          const outVal = val.out === null || val.out === undefined ? undefined : val.out;
-          const explicitRemaining = val.remaining === null || val.remaining === undefined ? undefined : val.remaining;
-
+          const inVal = (val as any).in === null || (val as any).in === undefined ? undefined : (val as any).in;
+          const outVal = (val as any).out === null || (val as any).out === undefined ? undefined : (val as any).out;
+          const explicitRemaining = (val as any).remaining === null || (val as any).remaining === undefined ? undefined : (val as any).remaining;
           if (explicitRemaining !== undefined) {
              currentRemaining[id] = explicitRemaining;
           } else {
@@ -64,53 +61,65 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     });
 
     const toBuy: (Ingredient & { currentStock: number; suggestedOrder: number })[] = [];
-
     departmentIngredients.forEach(item => {
       const currentStock = currentRemaining[item.id] || 0;
       if (currentStock < item.minStock) {
         toBuy.push({
           ...item,
           currentStock,
-          suggestedOrder: item.minOrder || 1,
+          suggestedOrder: item.minOrder || (item.minStock - currentStock > 0 ? item.minStock - currentStock : 1),
         });
       }
     });
 
-    // Sort by category then supplier
     return toBuy.sort((a, b) => {
       if (a.category !== b.category) return a.category.localeCompare(b.category);
-      if (a.supplier !== b.supplier) return a.supplier.localeCompare(b.supplier);
+      if (a.supplier !== b.supplier) return (a.supplier || '').localeCompare(b.supplier || '');
       return a.name.localeCompare(b.name);
     });
   }, [ingredients, stockRecord, selectedDate, activeDepartment, allowedDepartments]);
+
+  const suppliers = useMemo(() => {
+    const supplierSet = new Set<string>();
+    allPurchasesToMake.forEach(item => {
+      if (item.supplier) supplierSet.add(item.supplier);
+    });
+    return Array.from(supplierSet).sort();
+  }, [allPurchasesToMake]);
+
+  const purchasesToMake = useMemo(() => {
+    if (selectedSuppliers.length === 0) return allPurchasesToMake;
+    return allPurchasesToMake.filter(item => item.supplier && selectedSuppliers.includes(item.supplier));
+  }, [allPurchasesToMake, selectedSuppliers]);
 
   const exportExcel = () => {
     const data = purchasesToMake.map(item => ({
       'หมวดหมู่': item.category,
       'รายการสินค้า': item.name,
-      'ผู้จัดจำหน่าย': item.supplier,
+      'ยี่ห้อ': item.brand || '-',
+      'ผู้จัดจำหน่าย': item.supplier || '-',
       'ขนาด/หน่วย': item.sizePerUnit,
-      'คงเหลือขั้นต่ำ': item.minStock,
-      'ยอดที่ตรวจนับได้': item.currentStock,
-      'จำนวนที่ต้องสั่งซื้อ': item.suggestedOrder,
-      'หน่วย': item.unit,
+      'คงเหลือขั้นต่ำ': `${item.minStock} ${item.unit}`,
+      'ยอดคงเหลือตรวจนับ': `${item.currentStock} ${item.unit}`,
+      'ยอดสั่งซื้อแนะนำ': `${item.suggestedOrder} ${item.unit}`,
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Purchasing");
+    XLSX.utils.book_append_sheet(wb, ws, 'Purchasing List');
     XLSX.writeFile(wb, `Purchasing_${selectedDate}.xlsx`);
   };
 
   const printReport = async () => {
     const element = document.getElementById('purchasing-report-content');
     if (!element) return;
+
     try {
       const { toPng } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
       const imgData = await toPng(element, {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#FFFFFF',
         pixelRatio: 2,
         filter: (node) => {
           if (node instanceof HTMLElement && node.classList?.contains('print:hidden')) {
@@ -142,7 +151,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
       pdf.save(`Purchasing_${selectedDate}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.warn('Error generating PDF:', error);
       alert('เกิดข้อผิดพลาดในการสร้างไฟล์ PDF โปรดลองอีกครั้ง');
     }
   };
@@ -150,220 +159,315 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const groupedPurchases = useMemo(() => {
     const groups: Record<string, Record<string, typeof purchasesToMake>> = {};
     purchasesToMake.forEach(item => {
-      if (!groups[item.supplier]) {
-        groups[item.supplier] = {};
+      const supKey = item.supplier || 'ไม่ระบุผู้จัดจำหน่าย';
+      if (!groups[supKey]) {
+        groups[supKey] = {};
       }
-      if (!groups[item.supplier][item.category]) {
-        groups[item.supplier][item.category] = [];
+      if (!groups[supKey][item.category]) {
+        groups[supKey][item.category] = [];
       }
-      groups[item.supplier][item.category].push(item);
+      groups[supKey][item.category].push(item);
     });
     return groups;
   }, [purchasesToMake]);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-      <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="p-2 sm:p-3 hover:bg-slate-200 text-slate-500 rounded-xl transition-all shadow-sm hover:shadow bg-white border border-slate-200"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <div>
-            <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-              <ShoppingCart className="text-orange-500" size={24} />
-              สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)
-            </h2>
-            <p className="text-sm text-slate-500 font-medium mt-1">
-              อ้างอิงจากรายการตรวจนับสต็อกประจำวัน
-            </p>
+    <div className="flex flex-col h-full bg-[#F0F5F4] space-y-5 animate-in fade-in duration-300">
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 sm:p-6 overflow-hidden">
+        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+          {/* Left info */}
+          <div className="flex items-center gap-3.5">
+            <button 
+              onClick={onBack}
+              title="ย้อนกลับ"
+              className="p-2.5 hover:bg-[#E8F3F2] text-[#2D4A49] rounded-xl transition-all shadow-xs bg-white border border-[#D4E4E3] cursor-pointer"
+            >
+              <ChevronLeft size={20} className="text-[#5A8A88]" />
+            </button>
+            <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
+              <ShoppingCart size={22} className="text-[#5A8A88]" />
+            </div>
+            <div>
+              <h2 className="text-[18px] font-bold text-[#2D4A49] flex items-center gap-2 leading-tight">
+                สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)
+              </h2>
+              <p className="text-[11px] text-[#6B8F8E] font-medium mt-0.5">
+                อ้างอิงจากรายการตรวจนับสต็อกประจำวัน
+              </p>
+            </div>
+          </div>
+
+          {/* Right Controls */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+            {/* Dept filter buttons */}
+            <div className="flex bg-[#F0F5F4] p-1 rounded-xl border border-[#D4E4E3] shadow-xs gap-1">
+              {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
+                .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
+                .map((dept) => {
+                  const isActive = activeDepartment === dept;
+                  const Icon = dept === 'All' ? LayoutGrid : dept === 'Bar' ? Coffee : ChefHat;
+                  
+                  return (
+                    <button
+                      key={dept}
+                      onClick={() => setActiveDepartment(dept)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all cursor-pointer",
+                        isActive 
+                          ? "bg-[#5A8A88] text-white shadow-xs" 
+                          : "text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-white/60"
+                      )}
+                    >
+                      <Icon size={14} />
+                      <span>{dept === 'All' ? 'ทั้งหมด' : dept === 'Bar' ? 'บาร์' : 'ครัว'}</span>
+                    </button>
+                  );
+                })}
+            </div>
+
+            {/* Date picker */}
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#D4E4E3] shadow-xs h-[38px]">
+              <Calendar size={16} className="text-[#5A8A88]" />
+              <input 
+                type="date" 
+                className="bg-transparent border-none focus:outline-none text-[12px] font-bold text-[#2D4A49] w-[125px] cursor-pointer"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </div>
+            
+            {/* Excel export */}
+            <button
+              onClick={exportExcel}
+              disabled={purchasesToMake.length === 0}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 h-[38px] bg-[#E8F3F2] text-[#5A8A88] font-bold text-[12px] rounded-xl hover:bg-[#d5ebe9] transition-colors border border-[#B8D4D2] disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              <FileDown size={15} />
+              <span>Excel</span>
+            </button>
+
+            {/* PDF export */}
+            <button
+              onClick={printReport}
+              disabled={purchasesToMake.length === 0}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 h-[38px] bg-white text-[#2D4A49] font-bold text-[12px] rounded-xl hover:bg-[#F0F5F4] transition-colors border border-[#D4E4E3] disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              <Printer size={15} className="text-[#5A8A88]" />
+              <span>PDF</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0">
-          <div className="flex bg-slate-200/50 p-1.5 rounded-xl border border-slate-200 shadow-sm gap-1 min-w-max">
-            {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
-            .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
-            .map((dept) => {
-              const isActive = activeDepartment === dept;
-              const Icon = dept === 'All' ? LayoutGrid : dept === 'Bar' ? Coffee : ChefHat;
-              const bgActive = dept === 'All' ? 'bg-blue-600' : dept === 'Bar' ? 'bg-rose-500' : 'bg-amber-500';
-              const textActive = 'text-white';
-              
-              return (
-                <button
-                  key={dept}
-                  onClick={() => setActiveDepartment(dept)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all",
-                    isActive 
-                      ? `${bgActive} ${textActive} shadow cursor-default`
-                      : "text-slate-500 hover:text-slate-800 hover:bg-white/60"
-                  )}
-                >
-                  <Icon size={16} />
-                  <span>{dept === 'All' ? 'ทั้งหมด' : dept === 'Bar' ? 'บาร์' : 'ครัว'}</span>
-                </button>
-              );
-            })}
+        {/* Supplier Filter Pills */}
+        {suppliers.length > 0 && (
+          <div className="flex items-center gap-2 w-full overflow-x-auto pt-4 border-t border-[#E2EAE9] mt-4 custom-scrollbar">
+            <span className="text-[12px] font-bold text-[#6B8F8E] min-w-max mr-1">ผู้จัดจำหน่าย:</span>
+            <div className="flex items-center gap-1.5 flex-nowrap">
+              <button
+                type="button"
+                onClick={() => setSelectedSuppliers([])}
+                className={cn(
+                  "px-3 py-1 rounded-full text-[12px] font-bold transition-all shrink-0 cursor-pointer",
+                  selectedSuppliers.length === 0
+                    ? "bg-[#5A8A88] text-white shadow-xs"
+                    : "bg-[#F0F5F4] text-[#6B8F8E] border border-[#D4E4E3] hover:text-[#2D4A49]"
+                )}
+              >
+                ทั้งหมด ({allPurchasesToMake.length})
+              </button>
+              {suppliers.map(sup => {
+                const isSelected = selectedSuppliers.includes(sup);
+                const count = allPurchasesToMake.filter(i => i.supplier === sup).length;
+                return (
+                  <button
+                    key={sup}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSuppliers(prev => 
+                        prev.includes(sup) ? prev.filter(s => s !== sup) : [...prev, sup]
+                      );
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-[12px] font-medium transition-all shrink-0 cursor-pointer",
+                      isSelected
+                        ? "bg-[#5A8A88] text-white font-bold shadow-xs"
+                        : "bg-[#F0F5F4] text-[#6B8F8E] border border-[#D4E4E3] hover:text-[#2D4A49]"
+                    )}
+                  >
+                    {sup} ({count})
+                  </button>
+                );
+              })}
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm min-w-max h-[42px]">
-            <Calendar size={18} className="text-slate-400" />
-            <input 
-              type="date" 
-              className="bg-transparent border-none focus:outline-none text-sm font-bold text-slate-700 w-[130px]"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
-          </div>
-          
-          <button
-            onClick={exportExcel}
-            disabled={purchasesToMake.length === 0}
-            className="flex items-center gap-2 px-4 py-2 h-[42px] bg-emerald-50 text-emerald-600 font-bold rounded-xl hover:bg-emerald-100 transition-colors border border-emerald-200 disabled:opacity-50 min-w-max"
-          >
-            <FileDown size={18} />
-            Excel
-          </button>
-
-          <button
-            onClick={printReport}
-            disabled={purchasesToMake.length === 0}
-            className="flex items-center gap-2 px-4 py-2 h-[42px] bg-blue-50 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition-colors border border-blue-200 disabled:opacity-50 min-w-max"
-          >
-            <Printer size={18} />
-            PDF
-          </button>
-        </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-50/30 custom-scrollbar" id="purchasing-report-content">
-        <div className="max-w-[1000px] mx-auto space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center print:hidden">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">รายการที่ต้องสั่งซื้อ</h3>
-              <p className="text-sm text-slate-500 mt-1">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
-            </div>
-            <div className="bg-orange-50 text-orange-600 px-4 py-2 rounded-xl border border-orange-100 font-bold">
-              ทั้งหมด {purchasesToMake.length} รายการ
-            </div>
-          </div>
-
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-auto custom-scrollbar" id="purchasing-report-content">
+        <div className="space-y-6">
+          {/* Status Alert for Tablet */}
           {purchasesToMake.length > 0 && (
-            <div className="text-[12.5px] font-bold text-blue-700 bg-blue-50/80 px-3.5 py-2.5 rounded-xl border border-blue-100/75 flex items-center justify-between gap-2 shadow-sm animate-pulse-slow print:hidden">
-              <span className="flex items-center gap-1.5 leading-tight">
-                📱 สำหรับระบบแท็บเล็ต (Tablet): เลื่อนหรือปัดนิ้วไปทางซ้าย-ขวาบนตารางสั่งซื้อ เพื่อดูข้อมูล ยอดตรวจนับ และจำนวนแนะนำได้ครบถ้วน
+            <div className="text-[12px] font-semibold text-[#2D4A49] bg-[#E8F3F2] px-4 py-2.5 rounded-xl border border-[#B8D4D2] flex items-center justify-between gap-2 shadow-xs print:hidden">
+              <span className="flex items-center gap-2 leading-tight">
+                📱 แนะนำสำหรับ Tablet: เลื่อนตารางไปทางซ้าย-ขวาเพื่อดูข้อมูลยอดคงเหลือ และจำนวนแนะนำสั่งซื้อได้ครบถ้วน
               </span>
-              <span className="text-[11px] text-blue-600 font-bold bg-white px-2 py-0.5 rounded-md border border-blue-200 shrink-0 hidden sm:inline">
-                Swipe Left/Right ↔️
+              <span className="text-[11px] text-[#5A8A88] font-bold bg-white px-2.5 py-0.5 rounded-md border border-[#D4E4E3] shrink-0 hidden sm:inline">
+                ↔️ เลื่อนตาราง ซ้าย-ขวา
               </span>
             </div>
           )}
 
-          <div className="hidden print:block text-center mb-8">
-            <h1 className="text-2xl font-black text-slate-800">สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)</h1>
-            <p className="text-slate-500 mt-2">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
+          {/* Printable Header */}
+          <div className="hidden print:block text-center mb-6">
+            <h1 className="text-xl font-black text-[#2D4A49]">สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing Report)</h1>
+            <p className="text-[#6B8F8E] text-xs mt-1">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
           </div>
 
+          {/* Empty State */}
           {purchasesToMake.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-400">
-              <ShoppingCart size={48} className="mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-bold text-slate-500">ไม่มีรายการที่ต้องสั่งซื้อ</p>
-              <p className="text-sm mt-2">ยอดคงเหลือของทุกรายการอยู่ในเกณฑ์ปกติ หรือยังไม่มีการบันทึกตรวจนับ</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-[#D4E4E3] p-12 text-center">
+              <div className="w-16 h-16 bg-[#E8F3F2] rounded-full flex items-center justify-center mx-auto mb-3 text-[#5A8A88]">
+                <PackageCheck size={32} />
+              </div>
+              <p className="text-[16px] font-bold text-[#2D4A49]">ไม่มีรายการที่ต้องสั่งซื้อ</p>
+              <p className="text-[12px] text-[#6B8F8E] mt-1 max-w-sm mx-auto">
+                ยอดคงเหลือของทุกรายการอยู่ในเกณฑ์ปกติ หรือยังไม่มีการบันทึกตรวจนับสต็อกในวันที่เลือก
+              </p>
             </div>
           ) : (
+            // Grouped Purchase Tables by Supplier
             Object.entries(groupedPurchases).map(([supplier, categories]) => {
               const totalItems = Object.values(categories).reduce((acc, items) => acc + items.length, 0);
               
               return (
-              <div key={supplier} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-                <div className="bg-slate-800 p-4 text-white">
-                  <h4 className="font-bold text-lg flex items-center gap-2">
-                    ผู้จัดจำหน่าย: {supplier}
-                    <span className="bg-slate-700 text-slate-300 text-xs px-2 py-1 rounded-full ml-auto">
+                <div 
+                  key={supplier} 
+                  className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(90,138,136,0.06)] border border-[#D4E4E3] overflow-hidden"
+                >
+                  {/* Supplier Card Header */}
+                  <div className="bg-[#E8F3F2] px-5 py-3.5 border-b border-[#D4E4E3] flex items-center justify-between">
+                    <h4 className="font-bold text-[14px] text-[#2D4A49] flex items-center gap-2">
+                      <Building2 size={16} className="text-[#5A8A88]" />
+                      <span>ผู้จัดจำหน่าย: {supplier}</span>
+                    </h4>
+                    <span className="bg-white text-[#5A8A88] text-[11px] font-bold px-3 py-1 rounded-full border border-[#D4E4E3] shadow-xs">
                       {totalItems} รายการ
                     </span>
-                  </h4>
-                </div>
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left border-collapse min-w-[800px]">
-                    <thead>
-                      <tr>
-                        <th className="sticky left-0 z-50 px-4 py-3 text-center font-medium tracking-wide w-[70px] min-w-[70px] max-w-[70px] bg-slate-100 border-r border-b border-slate-200 text-[12px] text-slate-600">รูป</th>
-                        <th className="sticky left-[70px] z-50 px-4 py-3 text-left font-medium tracking-wide w-[200px] min-w-[200px] max-w-[200px] bg-slate-100 border-r border-b border-slate-200 text-[12px] text-slate-600">รายการสินค้า</th>
-                        <th className="px-4 py-3 text-left font-medium tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-slate-100 border-r border-b border-slate-200 text-[12px] text-slate-600">ยี่ห้อ</th>
-                        <th className="px-4 py-3 text-left font-medium tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-slate-100 border-r border-b border-slate-200 text-[12px] text-slate-600">ขนาด/หน่วย</th>
-                        <th className="px-2 py-3 text-center font-medium tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-slate-100 border-r border-b border-slate-200 text-[12px] text-slate-600 leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
-                        <th className="px-2 py-3 text-center font-medium tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-slate-100 border-r border-b border-slate-200 text-[12px] text-slate-600 leading-tight">ยอดตรวจนับ</th>
-                        <th className="px-2 py-3 text-center font-bold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-orange-50 text-orange-600 border-b border-slate-200 text-[13px]">จำนวนสั่งซื้อ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(categories).map(([category, items]) => (
-                        <React.Fragment key={category}>
-                          <tr className="bg-slate-50 border-y border-slate-200">
-                            <td colSpan={7} className="p-0">
-                              <div className="sticky left-0 w-fit p-3 pl-4 font-bold text-[13px] text-slate-700 flex items-center gap-2 bg-slate-50 z-20">
-                                <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                                {category}
-                              </div>
-                            </td>
-                          </tr>
-                          {items.map((item, index) => (
-                            <tr key={item.id} className={cn(
-                              "hover:bg-slate-50/80 transition-colors group",
-                              index !== items.length - 1 ? 'border-b border-slate-100' : ''
-                            )}>
-                              <td className="sticky left-0 z-40 p-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/80 transition-colors w-[70px] min-w-[70px] max-w-[70px] text-center">
-                                {item.image ? (
-                                  <img 
-                                    src={item.image} 
-                                    alt={item.name} 
-                                    className="w-10 h-10 object-cover rounded-md border border-slate-200 mx-auto shadow-sm"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-md border border-slate-200 bg-slate-50 flex items-center justify-center mx-auto">
-                                    <ShoppingCart className="w-4 h-4 text-slate-300" />
-                                  </div>
-                                )}
-                              </td>
-                              <td className="sticky left-[70px] z-40 px-4 py-2 border-r border-slate-100 bg-white group-hover:bg-slate-50/80 transition-colors w-[200px] min-w-[200px] max-w-[200px]">
-                                <div className="font-bold text-slate-800 text-[13px] leading-tight line-clamp-2" title={item.name}>
-                                  {item.name}
+                  </div>
+
+                  {/* Table */}
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[650px]">
+                      <thead>
+                        <tr className="bg-[#F8FAF9] text-[#6B8F8E] text-[11px] font-bold border-b border-[#E2EAE9]">
+                          <th className="py-2.5 px-3 text-center w-[8%] border-r border-[#E2EAE9]">รูป</th>
+                          <th className="py-2.5 px-3 text-left w-[30%] border-r border-[#E2EAE9]">รายการสินค้า</th>
+                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#E2EAE9]">หมวดหมู่</th>
+                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#E2EAE9]">ขนาด/หน่วย</th>
+                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#E2EAE9]">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#E2EAE9]">ยอดตรวจนับ</th>
+                          <th className="py-2.5 px-3 text-center w-[12%] bg-[#E8F3F2] text-[#5A8A88]">ยอดสั่งแนะนำ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(categories).map(([category, items]) => (
+                          <React.Fragment key={category}>
+                            {/* Category divider row */}
+                            <tr className="bg-[#F0F5F4]/60 border-y border-[#E2EAE9]">
+                              <td colSpan={7} className="px-4 py-1.5">
+                                <div className="flex items-center gap-2 text-[11px] font-bold text-[#2D4A49]">
+                                  <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
+                                  <span>{category}</span>
                                 </div>
                               </td>
-                              <td className="px-4 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-slate-100">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 truncate max-w-full" title={item.brand}>
-                                  {item.brand}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 w-[120px] min-w-[120px] max-w-[120px] border-r border-slate-100 text-[12px] text-slate-600">
-                                <span className="line-clamp-2" title={item.sizePerUnit}>
-                                  {item.sizePerUnit}
-                                </span>
-                              </td>
-                              <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-slate-100 font-mono text-[12px] text-center text-slate-600">
-                                {item.minStock} {item.unit}
-                              </td>
-                              <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-slate-100 font-mono text-[12px] text-center text-red-500 font-bold bg-red-50/30">
-                                {item.currentStock} {item.unit}
-                              </td>
-                              <td className="px-2 py-2 w-[120px] min-w-[120px] max-w-[120px] font-mono text-[13px] text-center text-orange-600 font-bold bg-orange-50/50">
-                                {item.suggestedOrder} {item.unit}
-                              </td>
                             </tr>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                            {/* Items */}
+                            {items.map((item, index) => (
+                              <tr 
+                                key={item.id} 
+                                className={cn(
+                                  "hover:bg-[#F8FAF9] transition-colors",
+                                  index !== items.length - 1 ? 'border-b border-[#E2EAE9]' : ''
+                                )}
+                              >
+                                <td className="p-2 border-r border-[#E2EAE9] text-center w-[8%]">
+                                  {item.image ? (
+                                    <img 
+                                      src={item.image} 
+                                      alt={item.name} 
+                                      className="w-8 h-8 object-cover rounded-lg border border-[#D4E4E3] mx-auto shadow-xs"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg border border-[#D4E4E3] bg-[#F8FAF9] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                      <ShoppingCart size={14} />
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] w-[30%]">
+                                  <div className="font-bold text-[#2D4A49] text-[13px] leading-tight" title={item.name}>
+                                    {item.name}
+                                  </div>
+                                  {item.brand && (
+                                    <div className="text-[11px] text-[#6B8F8E] mt-0.5">
+                                      ยี่ห้อ: {item.brand}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] w-[14%]">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
+                                    {item.category}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] text-[12px] text-[#6B8F8E] w-[14%]">
+                                  {item.sizePerUnit || '-'}
+                                </td>
+                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] font-mono text-[12px] text-center text-[#6B8F8E] w-[11%]">
+                                  {item.minStock} {item.unit}
+                                </td>
+                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] font-mono text-[12px] text-center font-bold text-[#EF4444] bg-[#FEF2F2]/50 w-[11%]">
+                                  {item.currentStock} {item.unit}
+                                </td>
+                                <td className="px-3 py-2.5 font-mono text-[12px] text-center w-[12%] bg-[#E8F3F2]/50">
+                                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-[#E8F3F2] text-[#5A8A88] font-bold border border-[#B8D4D2]">
+                                    {item.suggestedOrder} {item.unit}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* Summary Footer Card */}
+          {purchasesToMake.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 sm:p-6 print:hidden">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-[14px] font-bold text-[#2D4A49]">สรุปภาพรวมการสั่งซื้อ</h4>
+                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-center sm:text-right">
+                    <div className="text-[10px] font-bold text-[#6B8F8E] uppercase">จำนวนรายการทั้งหมด</div>
+                    <div className="text-[20px] font-black text-[#5A8A88]">{purchasesToMake.length} รายการ</div>
+                  </div>
+                  <div className="w-[1px] h-8 bg-[#D4E4E3]" />
+                  <div className="text-center sm:text-right">
+                    <div className="text-[10px] font-bold text-[#6B8F8E] uppercase">ผู้จัดจำหน่าย</div>
+                    <div className="text-[20px] font-black text-[#2D4A49]">{Object.keys(groupedPurchases).length} ราย</div>
+                  </div>
                 </div>
               </div>
-            )})
+            </div>
           )}
         </div>
       </div>
