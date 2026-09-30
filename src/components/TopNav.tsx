@@ -44,33 +44,107 @@ export const TopNav: React.FC<TopNavProps> = ({
   const showDot = hasNotification || outCount > 0 || lowCount > 0;
 
   return (
-    <header className="w-full h-[56px] px-6 bg-white border-b border-[#E2EAE9] sticky top-0 z-50 flex items-center justify-between">
-      {/* LEFT SECTION */}
+    <header
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        height: '56px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
+        background: '#FFFFFF',
+        borderBottom: '1px solid #E2EAE9',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+      }}
+      className="w-full h-[56px] px-[20px] bg-white border-b border-[#E2EAE9] sticky top-0 z-50 flex items-center justify-between"
+    >
+      {/* LEFT — Brand block */}
       <div
         onClick={onLogoClick}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: '1px',
+        }}
         className={`flex flex-col items-start gap-[1px] select-none ${onLogoClick ? 'cursor-pointer' : ''}`}
       >
-        <span className="text-[18px] font-extrabold text-[#1E3A3A] tracking-[0.05em] leading-[1.1]">
+        <span
+          style={{
+            fontSize: '20px',
+            fontWeight: 800,
+            color: '#1E3A3A',
+            letterSpacing: '0.02em',
+            lineHeight: 1.1,
+          }}
+          className="text-[20px] font-[800] text-[#1E3A3A] tracking-[0.02em] leading-[1.1]"
+        >
           CRENN
         </span>
-        <span className="text-[8px] font-medium text-[#7A9E9C] tracking-[0.2em] uppercase leading-none">
+        <span
+          style={{
+            fontSize: '8px',
+            fontWeight: 500,
+            color: '#7A9E9C',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            lineHeight: 1,
+            marginTop: '1px',
+          }}
+          className="text-[8px] font-[500] text-[#7A9E9C] tracking-[0.18em] uppercase leading-[1] mt-[1px]"
+        >
           CAFE MANAGEMENT
         </span>
       </div>
 
-      {/* RIGHT SECTION */}
-      <div className="flex items-center gap-2">
-        {/* ELEMENT 1 — Bell notification button */}
+      {/* RIGHT — Icon group */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+        className="flex items-center gap-[8px]"
+      >
+        {/* BELL BUTTON */}
         <div className="relative" ref={notifRef}>
           <button
             type="button"
             onClick={() => setShowNotifications(prev => !prev)}
-            className="w-[36px] h-[36px] rounded-full bg-[#F0F5F4] border border-[#E2EAE9] flex items-center justify-center cursor-pointer relative hover:bg-[#E8F3F2] transition-colors focus:outline-none"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: '#F0F5F4',
+              border: '1px solid #E2EAE9',
+              cursor: 'pointer',
+              position: 'relative',
+              flexShrink: 0,
+            }}
+            className="w-[36px] h-[36px] rounded-full bg-[#F0F5F4] border border-[#E2EAE9] flex items-center justify-center cursor-pointer relative hover:bg-[#E8F3F2] transition-colors focus:outline-none shrink-0"
             title="การแจ้งเตือน"
           >
             <Bell size={16} strokeWidth={1.5} className="text-[#5A8A88]" />
             {showDot && (
-              <span className="absolute top-[6px] right-[6px] w-[7px] h-[7px] bg-[#EF4444] rounded-full border-[1.5px] border-white pointer-events-none" />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '7px',
+                  right: '7px',
+                  width: '7px',
+                  height: '7px',
+                  background: '#EF4444',
+                  borderRadius: '50%',
+                  border: '1.5px solid #FFFFFF',
+                }}
+                className="absolute top-[7px] right-[7px] w-[7px] h-[7px] bg-[#EF4444] rounded-full border-[1.5px] border-white pointer-events-none"
+              />
             )}
           </button>
 
@@ -122,22 +196,60 @@ export const TopNav: React.FC<TopNavProps> = ({
           )}
         </div>
 
-        {/* ELEMENT 2 — Avatar + Day pill */}
+        {/* AVATAR PILL */}
         <button
           type="button"
           onClick={onAvatarClick}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: '#F0F5F4',
+            border: '1px solid #E2EAE9',
+            borderRadius: '9999px',
+            padding: '3px 10px 3px 3px',
+            cursor: 'pointer',
+          }}
           className="flex items-center gap-[6px] bg-[#F0F5F4] border border-[#E2EAE9] rounded-full py-[3px] pr-[10px] pl-[3px] cursor-pointer hover:bg-[#E8F3F2] transition-colors focus:outline-none"
           title="โปรไฟล์ผู้ใช้"
         >
           {/* Avatar circle */}
-          <div className="w-[28px] h-[28px] rounded-full bg-[#5A8A88] flex items-center justify-center shrink-0">
-            <span className="text-[12px] font-semibold text-white uppercase">
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: '#5A8A88',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+            className="w-[28px] h-[28px] rounded-full bg-[#5A8A88] flex items-center justify-center shrink-0"
+          >
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#FFFFFF',
+                textTransform: 'uppercase',
+              }}
+              className="text-[12px] font-[600] text-white uppercase"
+            >
               {initial}
             </span>
           </div>
 
           {/* Day label */}
-          <span className="text-[12px] font-medium text-[#2D4A49]">
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#2D4A49',
+              whiteSpace: 'nowrap',
+            }}
+            className="text-[12px] font-[500] text-[#2D4A49] whitespace-nowrap"
+          >
             {dayLabel}
           </span>
         </button>
