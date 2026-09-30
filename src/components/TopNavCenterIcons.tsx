@@ -111,7 +111,11 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
               border: 'none',
               outline: 'none',
             }}
-            className="flex flex-col items-center justify-center py-[6px] px-[10px] rounded-[8px] transition-all duration-150 relative min-w-[48px] cursor-pointer"
+            className={`flex flex-col items-center justify-center gap-[2px] px-[10px] py-[6px] rounded-lg min-w-[48px] cursor-pointer relative transition-all duration-150 ${
+              active
+                ? 'bg-[#E8F3F2]'
+                : 'hover:bg-[#F0F5F4]'
+            }`}
             title={item.label}
           >
             <Icon 
@@ -133,7 +137,9 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                 display: 'block',
                 transition: 'color 150ms ease',
               }}
-              className="block text-[9px] mt-[1px] leading-[1] tracking-tight whitespace-nowrap"
+              className={`text-[9px] leading-none whitespace-nowrap ${
+                active ? 'font-semibold text-[#5A8A88]' : 'font-normal text-[#A8BCBB]'
+              }`}
             >
               {item.label}
             </span>
