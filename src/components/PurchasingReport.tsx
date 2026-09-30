@@ -1,6 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ChevronLeft, Calendar, FileDown, Printer, ShoppingCart, Coffee, ChefHat, LayoutGrid, Building2, PackageCheck } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  Calendar, 
+  Download, 
+  Printer, 
+  ShoppingCart, 
+  Coffee, 
+  ChefHat, 
+  LayoutGrid, 
+  Building2, 
+  PackageCheck,
+  ChevronDown,
+  Check
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
@@ -23,7 +36,30 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
   const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>(initialDept);
-  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
+  const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState<boolean>(false);
+  const supplierDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close supplier dropdown on outside click or Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
+        setIsSupplierDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSupplierDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const allPurchasesToMake = useMemo(() => {
     // Filter ingredients by department first
@@ -87,10 +123,17 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     return Array.from(supplierSet).sort();
   }, [allPurchasesToMake]);
 
+  // Reset selectedSupplier if not in available suppliers
+  useEffect(() => {
+    if (selectedSupplier && !suppliers.includes(selectedSupplier)) {
+      setSelectedSupplier(null);
+    }
+  }, [suppliers, selectedSupplier]);
+
   const purchasesToMake = useMemo(() => {
-    if (selectedSuppliers.length === 0) return allPurchasesToMake;
-    return allPurchasesToMake.filter(item => item.supplier && selectedSuppliers.includes(item.supplier));
-  }, [allPurchasesToMake, selectedSuppliers]);
+    if (!selectedSupplier) return allPurchasesToMake;
+    return allPurchasesToMake.filter(item => item.supplier === selectedSupplier);
+  }, [allPurchasesToMake, selectedSupplier]);
 
   const exportExcel = () => {
     const data = purchasesToMake.map(item => ({
@@ -171,37 +214,44 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     return groups;
   }, [purchasesToMake]);
 
+  const selectedSupplierCount = useMemo(() => {
+    if (!selectedSupplier) return allPurchasesToMake.length;
+    return allPurchasesToMake.filter(i => i.supplier === selectedSupplier).length;
+  }, [allPurchasesToMake, selectedSupplier]);
+
   return (
     <div className="flex flex-col h-full bg-[#F0F5F4] space-y-5 animate-in fade-in duration-300">
-      {/* Header Card */}
-      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 sm:p-6 overflow-hidden">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          HEADER CARD (Main card at top)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 overflow-visible">
         <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
           {/* Left info */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3">
             <button 
               onClick={onBack}
               title="ย้อนกลับ"
-              className="p-2.5 hover:bg-[#E8F3F2] text-[#2D4A49] rounded-xl transition-all shadow-xs bg-white border border-[#D4E4E3] cursor-pointer"
+              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-xs"
             >
-              <ChevronLeft size={20} className="text-[#5A8A88]" />
+              <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
-              <ShoppingCart size={22} className="text-[#5A8A88]" />
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] shrink-0">
+              <ShoppingCart size={18} strokeWidth={2} />
             </div>
             <div>
-              <h2 className="text-[18px] font-bold text-[#2D4A49] flex items-center gap-2 leading-tight">
+              <h2 className="text-[16px] font-bold text-[#2D4A49] leading-tight">
                 สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)
               </h2>
-              <p className="text-[11px] text-[#6B8F8E] font-medium mt-0.5">
+              <p className="text-[11px] text-[#6B8F8E] font-normal mt-0.5">
                 อ้างอิงจากรายการตรวจนับสต็อกประจำวัน
               </p>
             </div>
           </div>
 
-          {/* Right Controls */}
+          {/* FILTER ROW 1 (Location Tabs + Date + Excel + PDF) */}
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
-            {/* Dept filter buttons */}
-            <div className="flex bg-[#F0F5F4] p-1 rounded-xl border border-[#D4E4E3] shadow-xs gap-1">
+            {/* Location tabs [ทั้งหมด] [บาร์] [ครัว] */}
+            <div className="flex bg-[#F0F5F4] p-1 rounded-xl border border-[#D4E4E3] gap-1">
               {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
                 .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
                 .map((dept) => {
@@ -213,10 +263,10 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                       key={dept}
                       onClick={() => setActiveDepartment(dept)}
                       className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all cursor-pointer",
+                        "flex items-center gap-1.5 px-4 h-[36px] rounded-lg text-[12px] transition-all cursor-pointer",
                         isActive 
-                          ? "bg-[#5A8A88] text-white shadow-xs" 
-                          : "text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-white/60"
+                          ? "bg-[#5A8A88] text-white font-semibold shadow-xs" 
+                          : "bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#E8F3F2]"
                       )}
                     >
                       <Icon size={14} />
@@ -226,99 +276,147 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                 })}
             </div>
 
-            {/* Date picker */}
-            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#D4E4E3] shadow-xs h-[38px]">
-              <Calendar size={16} className="text-[#5A8A88]" />
+            {/* Date input */}
+            <div className="flex items-center gap-2 bg-white px-3 h-[36px] rounded-lg border border-[#D4E4E3] shadow-xs">
+              <Calendar size={13} className="text-[#5A8A88] shrink-0" />
               <input 
                 type="date" 
-                className="bg-transparent border-none focus:outline-none text-[12px] font-bold text-[#2D4A49] w-[125px] cursor-pointer"
+                className="bg-transparent border-none focus:outline-none text-[12px] font-medium text-[#2D4A49] w-[120px] cursor-pointer"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
             
-            {/* Excel export */}
+            {/* Excel export button */}
             <button
               onClick={exportExcel}
               disabled={purchasesToMake.length === 0}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 h-[38px] bg-[#E8F3F2] text-[#5A8A88] font-bold text-[12px] rounded-xl hover:bg-[#d5ebe9] transition-colors border border-[#B8D4D2] disabled:opacity-50 cursor-pointer shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 h-[36px] bg-[#5A8A88] hover:bg-[#4d7775] text-white font-medium text-[12px] rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
             >
-              <FileDown size={15} />
+              <Download size={13} className="text-white" />
               <span>Excel</span>
             </button>
 
-            {/* PDF export */}
+            {/* PDF export button */}
             <button
               onClick={printReport}
               disabled={purchasesToMake.length === 0}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 h-[38px] bg-white text-[#2D4A49] font-bold text-[12px] rounded-xl hover:bg-[#F0F5F4] transition-colors border border-[#D4E4E3] disabled:opacity-50 cursor-pointer shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 h-[36px] bg-white text-[#2D4A49] font-medium text-[12px] rounded-lg hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3] disabled:opacity-50 cursor-pointer shadow-xs"
             >
-              <Printer size={15} className="text-[#5A8A88]" />
+              <Printer size={13} className="text-[#5A8A88]" />
               <span>PDF</span>
             </button>
           </div>
         </div>
 
-        {/* Supplier Filter Pills */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            FILTER ROW 2 (ผู้จัดจำหน่าย Dropdown Selector)
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {suppliers.length > 0 && (
-          <div className="flex items-center gap-2 w-full overflow-x-auto pt-4 border-t border-[#E2EAE9] mt-4 custom-scrollbar">
-            <span className="text-[12px] font-bold text-[#6B8F8E] min-w-max mr-1">ผู้จัดจำหน่าย:</span>
-            <div className="flex items-center gap-1.5 flex-nowrap">
+          <div className="flex items-center gap-3 pt-4 border-t border-[#D4E4E3] mt-4">
+            <span className="text-[12px] font-medium text-[#6B8F8E] whitespace-nowrap flex items-center gap-1.5">
+              <Building2 size={14} className="text-[#5A8A88]" />
+              <span>ผู้จัดจำหน่าย:</span>
+            </span>
+
+            {/* Dropdown container */}
+            <div className="relative" ref={supplierDropdownRef}>
               <button
                 type="button"
-                onClick={() => setSelectedSuppliers([])}
+                onClick={() => setIsSupplierDropdownOpen(prev => !prev)}
                 className={cn(
-                  "px-3 py-1 rounded-full text-[12px] font-bold transition-all shrink-0 cursor-pointer",
-                  selectedSuppliers.length === 0
-                    ? "bg-[#5A8A88] text-white shadow-xs"
-                    : "bg-[#F0F5F4] text-[#6B8F8E] border border-[#D4E4E3] hover:text-[#2D4A49]"
+                  "flex items-center justify-between gap-2 bg-white border border-[#D4E4E3] rounded-lg px-3.5 h-[36px] text-[12px] text-[#2D4A49] min-w-[200px] cursor-pointer transition-colors shadow-xs",
+                  isSupplierDropdownOpen ? "border-[#5A8A88] bg-[#E8F3F2]" : "hover:bg-[#F0F5F4]"
                 )}
+                aria-haspopup="listbox"
+                aria-expanded={isSupplierDropdownOpen}
               >
-                ทั้งหมด ({allPurchasesToMake.length})
+                <div className="flex items-center gap-2 truncate">
+                  <Building2 size={14} className="text-[#5A8A88] shrink-0" />
+                  <span className="truncate font-medium">
+                    {selectedSupplier ? selectedSupplier : 'ทั้งหมด'} ({selectedSupplierCount})
+                  </span>
+                </div>
+                <ChevronDown size={12} className={cn("text-[#A8BCBB] transition-transform duration-150 shrink-0", isSupplierDropdownOpen && "rotate-180 text-[#5A8A88]")} />
               </button>
-              {suppliers.map(sup => {
-                const isSelected = selectedSuppliers.includes(sup);
-                const count = allPurchasesToMake.filter(i => i.supplier === sup).length;
-                return (
+
+              {/* Dropdown list (opens downward) */}
+              {isSupplierDropdownOpen && (
+                <div className="absolute left-0 top-[calc(100%+4px)] w-[260px] sm:w-[280px] bg-white border border-[#D4E4E3] rounded-[10px] shadow-[0_8px_24px_rgba(45,74,73,0.12)] max-h-[300px] overflow-y-auto z-50 p-1 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar">
+                  {/* Option: ทั้งหมด */}
                   <button
-                    key={sup}
                     type="button"
                     onClick={() => {
-                      setSelectedSuppliers(prev => 
-                        prev.includes(sup) ? prev.filter(s => s !== sup) : [...prev, sup]
-                      );
+                      setSelectedSupplier(null);
+                      setIsSupplierDropdownOpen(false);
                     }}
                     className={cn(
-                      "px-3 py-1 rounded-full text-[12px] font-medium transition-all shrink-0 cursor-pointer",
-                      isSelected
-                        ? "bg-[#5A8A88] text-white font-bold shadow-xs"
-                        : "bg-[#F0F5F4] text-[#6B8F8E] border border-[#D4E4E3] hover:text-[#2D4A49]"
+                      "w-full flex items-center justify-between px-3 py-[9px] rounded-[7px] text-[12px] transition-colors cursor-pointer text-left group",
+                      selectedSupplier === null
+                        ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
+                        : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
                     )}
                   >
-                    {sup} ({count})
+                    <div className="flex items-center gap-2 min-w-0">
+                      <LayoutGrid size={14} className="text-[#5A8A88] shrink-0" />
+                      <span className="truncate">ทั้งหมด</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold rounded px-1.5 py-0.5">
+                        ({allPurchasesToMake.length})
+                      </span>
+                      {selectedSupplier === null && (
+                        <Check size={14} className="text-[#5A8A88]" />
+                      )}
+                    </div>
                   </button>
-                );
-              })}
+
+                  <div className="h-[1px] bg-[#F0F5F4] my-1" />
+
+                  {/* Options: Suppliers */}
+                  {suppliers.map(sup => {
+                    const isSelected = selectedSupplier === sup;
+                    const count = allPurchasesToMake.filter(i => i.supplier === sup).length;
+                    
+                    return (
+                      <button
+                        key={sup}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSupplier(sup);
+                          setIsSupplierDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-[9px] rounded-[7px] text-[12px] transition-colors cursor-pointer text-left group",
+                          isSelected
+                            ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
+                            : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
+                        )}
+                      >
+                        <span className="truncate pr-2">{sup}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="bg-[#F0F5F4] text-[#6B8F8E] text-[10px] rounded px-1.5 py-0.5">
+                            {count}
+                          </span>
+                          {isSelected && (
+                            <Check size={14} className="text-[#5A8A88]" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Main Content Area */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          MAIN CONTENT AREA (Table & Groups)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="flex-1 overflow-auto custom-scrollbar" id="purchasing-report-content">
         <div className="space-y-6">
-          {/* Status Alert for Tablet */}
-          {purchasesToMake.length > 0 && (
-            <div className="text-[12px] font-semibold text-[#2D4A49] bg-[#E8F3F2] px-4 py-2.5 rounded-xl border border-[#B8D4D2] flex items-center justify-between gap-2 shadow-xs print:hidden">
-              <span className="flex items-center gap-2 leading-tight">
-                📱 แนะนำสำหรับ Tablet: เลื่อนตารางไปทางซ้าย-ขวาเพื่อดูข้อมูลยอดคงเหลือ และจำนวนแนะนำสั่งซื้อได้ครบถ้วน
-              </span>
-              <span className="text-[11px] text-[#5A8A88] font-bold bg-white px-2.5 py-0.5 rounded-md border border-[#D4E4E3] shrink-0 hidden sm:inline">
-                ↔️ เลื่อนตาราง ซ้าย-ขวา
-              </span>
-            </div>
-          )}
-
           {/* Printable Header */}
           <div className="hidden print:block text-center mb-6">
             <h1 className="text-xl font-black text-[#2D4A49]">สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing Report)</h1>
@@ -344,99 +442,125 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
               return (
                 <div 
                   key={supplier} 
-                  className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(90,138,136,0.06)] border border-[#D4E4E3] overflow-hidden"
+                  className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.06)] border border-[#D4E4E3] overflow-hidden"
                 >
-                  {/* Supplier Card Header */}
-                  <div className="bg-[#E8F3F2] px-5 py-3.5 border-b border-[#D4E4E3] flex items-center justify-between">
-                    <h4 className="font-bold text-[14px] text-[#2D4A49] flex items-center gap-2">
-                      <Building2 size={16} className="text-[#5A8A88]" />
+                  {/* Supplier Group Header */}
+                  <div className="bg-[#F0F5F4] border-l-[3px] border-l-[#5A8A88] pl-3 pr-4 py-3 border-b border-[#D4E4E3] flex items-center justify-between">
+                    <h4 className="font-bold text-[13px] text-[#2D4A49] flex items-center gap-2">
+                      <Building2 size={15} className="text-[#5A8A88]" />
                       <span>ผู้จัดจำหน่าย: {supplier}</span>
                     </h4>
-                    <span className="bg-white text-[#5A8A88] text-[11px] font-bold px-3 py-1 rounded-full border border-[#D4E4E3] shadow-xs">
+                    <span className="bg-[#E8F3F2] text-[#5A8A88] text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-[#D4E4E3]">
                       {totalItems} รายการ
                     </span>
                   </div>
 
-                  {/* Table */}
+                  {/* Table with Horizontal Scroll */}
                   <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[650px]">
                       <thead>
-                        <tr className="bg-[#F8FAF9] text-[#6B8F8E] text-[11px] font-bold border-b border-[#E2EAE9]">
-                          <th className="py-2.5 px-3 text-center w-[8%] border-r border-[#E2EAE9]">รูป</th>
-                          <th className="py-2.5 px-3 text-left w-[30%] border-r border-[#E2EAE9]">รายการสินค้า</th>
-                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#E2EAE9]">หมวดหมู่</th>
-                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#E2EAE9]">ขนาด/หน่วย</th>
-                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#E2EAE9]">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#E2EAE9]">ยอดตรวจนับ</th>
-                          <th className="py-2.5 px-3 text-center w-[12%] bg-[#E8F3F2] text-[#5A8A88]">ยอดสั่งแนะนำ</th>
+                        <tr className="bg-[#2D4A49] text-white text-[11px] font-semibold border-b border-[#2D4A49]">
+                          <th className="py-2.5 px-3 text-center w-[8%] border-r border-[#3d605f]">รูป</th>
+                          <th className="py-2.5 px-3 text-left w-[30%] border-r border-[#3d605f]">รายการสินค้า</th>
+                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#3d605f]">หมวดหมู่</th>
+                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#3d605f]">ขนาด/หน่วย</th>
+                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#3d605f]">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#3d605f]">ยอดตรวจนับ</th>
+                          <th className="py-2.5 px-3 text-center w-[12%]">ยอดสั่งแนะนำ</th>
                         </tr>
                       </thead>
                       <tbody>
                         {Object.entries(categories).map(([category, items]) => (
                           <React.Fragment key={category}>
-                            {/* Category divider row */}
-                            <tr className="bg-[#F0F5F4]/60 border-y border-[#E2EAE9]">
-                              <td colSpan={7} className="px-4 py-1.5">
-                                <div className="flex items-center gap-2 text-[11px] font-bold text-[#2D4A49]">
-                                  <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
+                            {/* Category Row */}
+                            <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
+                              <td colSpan={7} className="px-3 py-1.5">
+                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5A8A88]">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
                                 </div>
                               </td>
                             </tr>
                             {/* Items */}
-                            {items.map((item, index) => (
-                              <tr 
-                                key={item.id} 
-                                className={cn(
-                                  "hover:bg-[#F8FAF9] transition-colors",
-                                  index !== items.length - 1 ? 'border-b border-[#E2EAE9]' : ''
-                                )}
-                              >
-                                <td className="p-2 border-r border-[#E2EAE9] text-center w-[8%]">
-                                  {item.image ? (
-                                    <img 
-                                      src={item.image} 
-                                      alt={item.name} 
-                                      className="w-8 h-8 object-cover rounded-lg border border-[#D4E4E3] mx-auto shadow-xs"
-                                      referrerPolicy="no-referrer"
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-lg border border-[#D4E4E3] bg-[#F8FAF9] flex items-center justify-center mx-auto text-[#6B8F8E]">
-                                      <ShoppingCart size={14} />
-                                    </div>
+                            {items.map((item, index) => {
+                              const isLow = item.currentStock < item.minStock;
+                              const isEven = index % 2 === 1;
+
+                              return (
+                                <tr 
+                                  key={item.id} 
+                                  className={cn(
+                                    "transition-colors hover:bg-[#E8F3F2]/60 border-b border-[#F0F5F4]",
+                                    isEven ? "bg-[#F8FAFA]" : "bg-[#FFFFFF]"
                                   )}
-                                </td>
-                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] w-[30%]">
-                                  <div className="font-bold text-[#2D4A49] text-[13px] leading-tight" title={item.name}>
-                                    {item.name}
-                                  </div>
-                                  {item.brand && (
-                                    <div className="text-[11px] text-[#6B8F8E] mt-0.5">
-                                      ยี่ห้อ: {item.brand}
+                                >
+                                  {/* Item Image */}
+                                  <td className="p-2 border-r border-[#F0F5F4] text-center w-[8%]">
+                                    {item.image ? (
+                                      <img 
+                                        src={item.image} 
+                                        alt={item.name} 
+                                        className="w-9 h-9 object-cover rounded-md border border-[#D4E4E3] mx-auto shadow-xs"
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    ) : (
+                                      <div className="w-9 h-9 rounded-md border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                        <ShoppingCart size={14} />
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Item Name & Subtitle */}
+                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] w-[30%]">
+                                    <div className="font-medium text-[#2D4A49] text-[12px] leading-tight" title={item.name}>
+                                      {item.name}
                                     </div>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] w-[14%]">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
-                                    {item.category}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] text-[12px] text-[#6B8F8E] w-[14%]">
-                                  {item.sizePerUnit || '-'}
-                                </td>
-                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] font-mono text-[12px] text-center text-[#6B8F8E] w-[11%]">
-                                  {item.minStock} {item.unit}
-                                </td>
-                                <td className="px-3 py-2.5 border-r border-[#E2EAE9] font-mono text-[12px] text-center font-bold text-[#EF4444] bg-[#FEF2F2]/50 w-[11%]">
-                                  {item.currentStock} {item.unit}
-                                </td>
-                                <td className="px-3 py-2.5 font-mono text-[12px] text-center w-[12%] bg-[#E8F3F2]/50">
-                                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-[#E8F3F2] text-[#5A8A88] font-bold border border-[#B8D4D2]">
-                                    {item.suggestedOrder} {item.unit}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
+                                    {item.brand && (
+                                      <div className="text-[10px] text-[#6B8F8E] mt-0.5">
+                                        ยี่ห้อ: {item.brand}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Category Badge */}
+                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] w-[14%]">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
+                                      {item.category}
+                                    </span>
+                                  </td>
+
+                                  {/* Size / Unit */}
+                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] text-[11px] text-[#6B8F8E] w-[14%]">
+                                    {item.sizePerUnit || '-'}
+                                  </td>
+
+                                  {/* Min Stock (คงเหลือขั้นต่ำ) */}
+                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] text-center w-[11%]">
+                                    {isLow ? (
+                                      <span className="inline-block px-2 py-0.5 rounded-md bg-[#FEE2E2] text-[#EF4444] font-bold text-[12px] font-mono">
+                                        {item.minStock} {item.unit}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[#2D4A49] font-mono text-[12px]">
+                                        {item.minStock} {item.unit}
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Current Stock (ยอดตรวจนับ) */}
+                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] font-mono text-[12px] text-center text-[#6B8F8E] w-[11%]">
+                                    {item.currentStock} {item.unit}
+                                  </td>
+
+                                  {/* Suggested Order (ยอดสั่งแนะนำ) */}
+                                  <td className="px-3 py-2.5 font-mono text-[12px] text-center w-[12%]">
+                                    <span className="inline-block px-2 py-0.5 rounded-md bg-[#E8F3F2] text-[#5A8A88] font-bold text-[12px]">
+                                      {item.suggestedOrder} {item.unit}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </React.Fragment>
                         ))}
                       </tbody>
@@ -474,3 +598,5 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     </div>
   );
 };
+
+export default PurchasingReport;
