@@ -56,6 +56,7 @@ export const TopNav: React.FC<TopNavProps> = ({
       style={{
         height: '56px',
         minHeight: '56px',
+        fontSize: '14px',
         background: '#FFFFFF',
         borderBottom: '1px solid #E2EAE9',
         paddingLeft: '20px',
@@ -69,7 +70,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         flexShrink: 0,
         width: '100%',
       }}
-      className="sticky top-0 z-50 w-full h-[56px] min-h-[56px] bg-white border-b border-[#E2EAE9] flex items-center justify-between px-5 flex-shrink-0"
+      className="sticky top-0 z-50 w-full h-[56px] min-h-[56px] text-[14px] bg-white border-b border-[#E2EAE9] flex items-center justify-between px-5 flex-shrink-0"
     >
       {/* LEFT — Brand block */}
       <div
