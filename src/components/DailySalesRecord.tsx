@@ -14,7 +14,9 @@ import {
   ChevronDown,
   Plus, 
   X, 
-  RefreshCw 
+  RefreshCw,
+  Pencil,
+  Check
 } from 'lucide-react';
 import { format, eachDayOfInterval, parseISO, isAfter, addMonths, subMonths } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -148,6 +150,13 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   // Active adding note index and text
   const [activeNoteInputIdx, setActiveNoteInputIdx] = useState<number | null>(null);
   const [newNoteText, setNewNoteText] = useState<string>('');
+
+  // Active editing note state
+  const [editingNote, setEditingNote] = useState<{
+    rowIndex: number;
+    noteIndex: number;
+    text: string;
+  } | null>(null);
 
   // Export dropdown state and outside click
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -364,6 +373,9 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
 
   // Delete a note from a row
   const handleDeleteNote = (rowIndex: number, noteIndex: number) => {
+    if (editingNote && editingNote.rowIndex === rowIndex && editingNote.noteIndex === noteIndex) {
+      setEditingNote(null);
+    }
     setRows(prev => {
       const updated = [...prev];
       const currentNotes = [...(updated[rowIndex].notes || [])];
@@ -374,6 +386,49 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       };
       return updated;
     });
+  };
+
+  // Start editing a note
+  const startEditNote = (rowIndex: number, noteIndex: number, currentText: string) => {
+    setActiveNoteInputIdx(null);
+    setNewNoteText('');
+    setEditingNote({
+      rowIndex,
+      noteIndex,
+      text: currentText,
+    });
+  };
+
+  // Save edited note
+  const saveEditNote = () => {
+    if (!editingNote) return;
+    const trimmed = editingNote.text.trim();
+    const { rowIndex, noteIndex } = editingNote;
+
+    if (!trimmed) {
+      // If emptied out, delete note
+      handleDeleteNote(rowIndex, noteIndex);
+    } else {
+      setRows(prev => {
+        const updated = [...prev];
+        if (!updated[rowIndex]) return prev;
+        const currentNotes = [...(updated[rowIndex].notes || [])];
+        if (currentNotes[noteIndex] !== undefined) {
+          currentNotes[noteIndex] = trimmed;
+          updated[rowIndex] = {
+            ...updated[rowIndex],
+            notes: currentNotes,
+          };
+        }
+        return updated;
+      });
+    }
+    setEditingNote(null);
+  };
+
+  // Cancel editing note
+  const cancelEditNote = () => {
+    setEditingNote(null);
   };
 
   // Auto-expand textarea helper
@@ -949,29 +1004,115 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                     />
                   </td>
 
-                  {/* 8. หมายเหตุ (Multi-notes system & Auto Word-wrap) */}
+                  {/* 8. หมายเหตุ (Multi-notes system & Auto Word-wrap with Inline Edit) */}
                   <td className="py-1 px-1.5 align-top">
                     <div className="space-y-1">
                       {/* Notes list */}
                       {row.notes && row.notes.length > 0 && (
                         <div className="space-y-0.5">
-                          {row.notes.map((noteItem, nIdx) => (
-                            <div 
-                              key={nIdx}
-                              className="flex items-start gap-1 text-[9px] text-[#2D4A49] leading-tight group"
-                            >
-                              <span className="text-[#5A8A88] shrink-0">•</span>
-                              <span className="flex-1 break-words whitespace-pre-wrap">{noteItem}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteNote(index, nIdx)}
-                                className="text-[#A8BCBB] hover:text-[#EF4444] opacity-70 hover:opacity-100 p-0.5 cursor-pointer shrink-0 transition-opacity"
-                                title="ลบหมายเหตุนี้"
+                          {row.notes.map((noteItem, nIdx) => {
+                            const isEditingThisNote = editingNote !== null && editingNote.rowIndex === index && editingNote.noteIndex === nIdx;
+
+                            if (isEditingThisNote) {
+                              return (
+                                <div 
+                                  key={nIdx}
+                                  className="flex items-start gap-1 text-[9px] text-[#2D4A49] leading-tight w-full my-0.5"
+                                >
+                                  <span className="text-[#5A8A88] shrink-0 mt-1">•</span>
+                                  <textarea
+                                    autoFocus
+                                    rows={1}
+                                    ref={(el) => { if (el) autoExpand(el); }}
+                                    value={editingNote.text}
+                                    onInput={(e) => autoExpand(e.target as HTMLTextAreaElement)}
+                                    onChange={(e) => setEditingNote(prev => prev ? { ...prev, text: e.target.value } : null)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        saveEditNote();
+                                      } else if (e.key === 'Escape') {
+                                        cancelEditNote();
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      setTimeout(() => {
+                                        if (editingNote) saveEditNote();
+                                      }, 150);
+                                    }}
+                                    placeholder="แก้ไขหมายเหตุ..."
+                                    style={{
+                                      resize: 'none',
+                                      overflow: 'hidden',
+                                      minHeight: '24px',
+                                      lineHeight: '1.4',
+                                      padding: '2px 5px',
+                                      fontSize: '9px',
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                    }}
+                                    className="flex-1 bg-white border border-[#5A8A88] rounded-[4px] text-left text-[#2D4A49] focus:outline-none focus:ring-1 focus:ring-[#5A8A88]"
+                                  />
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      saveEditNote();
+                                    }}
+                                    title="บันทึกการแก้ไข"
+                                    className="text-[#22C55E] bg-[#DCFCE7] hover:bg-[#BBF7D0] p-1 rounded-[3px] cursor-pointer shrink-0 transition-colors mt-0.5"
+                                  >
+                                    <Check size={10} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      cancelEditNote();
+                                    }}
+                                    title="ยกเลิก"
+                                    className="text-[#EF4444] bg-[#FEE2E2] hover:bg-[#FECACA] p-1 rounded-[3px] cursor-pointer shrink-0 transition-colors mt-0.5"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div 
+                                key={nIdx}
+                                className="flex items-start gap-1 text-[9px] text-[#2D4A49] leading-tight group rounded-[3px] p-0.5 -mx-0.5 transition-colors"
                               >
-                                <X size={9} />
-                              </button>
-                            </div>
-                          ))}
+                                <span className="text-[#5A8A88] shrink-0">•</span>
+                                <span 
+                                  onClick={() => startEditNote(index, nIdx, noteItem)}
+                                  title="คลิกเพื่อแก้ไขหมายเหตุ"
+                                  className="flex-1 break-words whitespace-pre-wrap cursor-pointer rounded-[3px] px-0.5 py-[1px] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors"
+                                >
+                                  {noteItem}
+                                </span>
+                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditNote(index, nIdx, noteItem)}
+                                    className="text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#E8F3F2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                    title="แก้ไขหมายเหตุ"
+                                  >
+                                    <Pencil size={10} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteNote(index, nIdx)}
+                                    className="text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                    title="ลบหมายเหตุนี้"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -1018,6 +1159,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                         <button
                           type="button"
                           onClick={() => {
+                            setEditingNote(null);
                             setActiveNoteInputIdx(index);
                             setNewNoteText('');
                           }}
