@@ -161,6 +161,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   // Export dropdown state and outside click
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const originalRowsRef = useRef<DailySalesRow[]>([]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -307,6 +308,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     });
 
     setRows(merged);
+    originalRowsRef.current = JSON.parse(JSON.stringify(merged));
   }, [currentBranch, displayedDays]);
 
   useEffect(() => {
@@ -474,7 +476,130 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       console.error('LocalStorage save error:', e);
     }
 
-    // 2. Save to Supabase
+    // 2. Compute granular changes for audit log
+    const changes: Array<{
+      date: string;
+      dayLabel: string;
+      field: string;
+      oldVal: string;
+      newVal: string;
+      unit?: string;
+    }> = [];
+
+    let hasExistingRecord = false;
+
+    rows.forEach((currentRow, idx) => {
+      const originalRow = originalRowsRef.current[idx] || {
+        date: currentRow.date,
+        dayLabel: currentRow.dayLabel,
+        openingCash: '',
+        transfer: '',
+        cash: '',
+        creditCard: '',
+        totalRevenue: '',
+        closingCash: '',
+        notes: [],
+        isAutoCalculated: true,
+      };
+
+      const origHasData = 
+        originalRow.openingCash !== '' ||
+        originalRow.transfer !== '' ||
+        originalRow.cash !== '' ||
+        originalRow.creditCard !== '' ||
+        originalRow.totalRevenue !== '' ||
+        originalRow.closingCash !== '' ||
+        (originalRow.notes && originalRow.notes.length > 0);
+
+      if (origHasData) {
+        hasExistingRecord = true;
+      }
+
+      const compareField = (
+        fieldName: string,
+        oldV: string | number | undefined,
+        newV: string | number | undefined,
+        unit = 'บาท'
+      ) => {
+        const cleanOld = oldV === undefined || oldV === null || oldV === '' ? '' : String(oldV);
+        const cleanNew = newV === undefined || newV === null || newV === '' ? '' : String(newV);
+        if (cleanOld !== cleanNew) {
+          changes.push({
+            date: currentRow.date,
+            dayLabel: currentRow.dayLabel || currentRow.date,
+            field: fieldName,
+            oldVal: cleanOld ? Number(cleanOld).toLocaleString('th-TH') : '-',
+            newVal: cleanNew ? Number(cleanNew).toLocaleString('th-TH') : '-',
+            unit,
+          });
+        }
+      };
+
+      compareField('เงินสดเปิดกะ', originalRow.openingCash, currentRow.openingCash);
+      compareField('โอน (Transfer)', originalRow.transfer, currentRow.transfer);
+      compareField('เงินสด (Cash)', originalRow.cash, currentRow.cash);
+      compareField('บัตร/ช่องทางอื่น', originalRow.creditCard, currentRow.creditCard);
+      compareField('ยอดขายรวม (POS Total)', originalRow.totalRevenue, currentRow.totalRevenue);
+      compareField('นับเงินสดปิดกะ', originalRow.closingCash, currentRow.closingCash);
+
+      // Compare notes
+      const oldNotesStr = (originalRow.notes || []).join(', ');
+      const newNotesStr = (currentRow.notes || []).join(', ');
+      if (oldNotesStr !== newNotesStr) {
+        changes.push({
+          date: currentRow.date,
+          dayLabel: currentRow.dayLabel || currentRow.date,
+          field: 'หมายเหตุ',
+          oldVal: oldNotesStr || '-',
+          newVal: newNotesStr || '-',
+        });
+      }
+    });
+
+    const action = hasExistingRecord && changes.length > 0 
+      ? 'แก้ไขข้อมูลยอดขายประจำวัน' 
+      : 'บันทึกยอดขายประจำวัน';
+
+    const summaryText = changes.length > 0
+      ? `${action} ช่วง ${summaryDateRangeLabel} (${changes.length} รายการเปลี่ยนแปลง - สาขา ${currentBranch})`
+      : `${action} ช่วง ${summaryDateRangeLabel} (สาขา ${currentBranch})`;
+
+    const auditPayload = {
+      summary: summaryText,
+      changes,
+      branch: currentBranch,
+      dateRange: summaryDateRangeLabel
+    };
+
+    const logId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const timestamp = new Date().toISOString();
+    const details = JSON.stringify(auditPayload);
+
+    const newLog = {
+      id: logId,
+      timestamp,
+      userEmail: recorderName,
+      userRole: user?.role || 'Staff',
+      action,
+      details,
+      branch: currentBranch as any
+    };
+
+    // Save to LocalStorage audit logs
+    const branchKey = `cafe-audit-logs-${currentBranch}`;
+    try {
+      const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
+      localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
+    } catch (e) {}
+
+    try {
+      const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
+      localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
+    } catch (e) {}
+
+    // 3. Save to Supabase
     if (supabase) {
       try {
         const recordsToUpsert = rows
@@ -515,33 +640,8 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
               message: 'บันทึกข้อมูลสำเร็จ',
             });
 
-            // 3. Record to audit_logs
+            // Record to Supabase audit_logs
             try {
-              const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-              const timestamp = new Date().toISOString();
-              const action = 'บันทึกยอดขายประจำวัน';
-              const details = `บันทึกยอดขาย ช่วง ${summaryDateRangeLabel} จำนวน ${recordsToUpsert.length} วัน (สาขา ${currentBranch})`;
-
-              const newLog = {
-                id: logId,
-                timestamp,
-                userEmail: recorderName,
-                userRole: user?.role || 'Staff',
-                action,
-                details,
-              };
-
-              const branchKey = `cafe-audit-logs-${currentBranch}`;
-              try {
-                const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
-                localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
-              } catch (e) {}
-
-              try {
-                const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
-                localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
-              } catch (e) {}
-
               await supabase.from('audit_logs').insert({
                 id: logId,
                 branch: currentBranch,
@@ -574,6 +674,9 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
         message: 'บันทึกข้อมูลสำเร็จ (ออฟไลน์โหมด)',
       });
     }
+
+    // Update baseline snapshot after save
+    originalRowsRef.current = JSON.parse(JSON.stringify(rows));
 
     setIsSaving(false);
     setTimeout(() => {
