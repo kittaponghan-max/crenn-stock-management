@@ -266,16 +266,6 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   return (
     <div
       ref={containerRef}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '4px',
-        flex: 1,
-        paddingLeft: '16px',
-        paddingRight: '16px',
-        position: 'relative',
-      }}
       className="hidden md:flex items-center justify-center gap-[4px] flex-1 px-[16px] relative"
     >
       {NAV_ITEMS.map((item) => {
