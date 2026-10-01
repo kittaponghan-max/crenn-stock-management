@@ -303,11 +303,11 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
 
   return (
     <>
-      {/* Fixed Bottom Navigation Bar */}
+      {/* Bottom Navigation Bar */}
       <nav 
         ref={bottomNavRef}
         aria-label="Main Navigation"
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-[#D4E4E3] shadow-lg select-none overflow-visible pb-[env(safe-area-inset-bottom)] h-[56px] md:h-[64px] flex items-center"
+        className="w-full bg-white border-t border-[#D4E4E3] shadow-lg select-none overflow-visible pb-[env(safe-area-inset-bottom)] h-[56px] md:h-[64px] flex items-center shrink-0 flex-shrink-0 z-[100]"
       >
         <div className="w-full max-w-xl mx-auto flex items-center justify-between px-1 md:px-2 relative overflow-visible h-full">
           {NAV_TABS.map(tab => {
