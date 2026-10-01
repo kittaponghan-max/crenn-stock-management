@@ -5,19 +5,10 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-:root {
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
 @layer base {
   html {
     font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
-    height: 100%;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
   }
   
   body {
@@ -25,23 +16,6 @@
     line-height: 1.5;
     color: #1e293b;
     background-color: #f8fafc;
-    height: 100%;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
-  }
-
-  #root {
-    height: 100%;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   /* Ensure touch targets on mobile feel spacious and responsive */
