@@ -276,7 +276,37 @@ const INITIAL_INGREDIENTS: Ingredient[] = [
 ];
 
 export default function App() {
-  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(null);
+  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(() => {
+    try {
+      const saved = localStorage.getItem('cafe-user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.name && parsed.branch) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed parsing saved cafe-user', e);
+    }
+    return null;
+  });
+
+  // Sync user object to cafe-user in localStorage so all components share the active branch
+  useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem('cafe-user', JSON.stringify(user));
+      } catch (e) {
+        console.warn('Failed to save cafe-user to localStorage', e);
+      }
+    } else {
+      try {
+        localStorage.removeItem('cafe-user');
+      } catch (e) {}
+    }
+  }, [user]);
+
+  const currentLoadedBranchRef = React.useRef<string | null>(null);
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [importPreviewData, setImportPreviewData] = useState<Ingredient[] | null>(null);
@@ -329,18 +359,20 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (!user?.branch || currentLoadedBranchRef.current !== user.branch) return;
     try { 
-      localStorage.setItem(`cafe-stock-record-${user?.branch || 'Rayong'}`, JSON.stringify(stockRecord)); 
-      if (user?.branch === 'Rayong' || !user?.branch) {
+      localStorage.setItem(`cafe-stock-record-${user.branch}`, JSON.stringify(stockRecord)); 
+      if (user.branch === 'Rayong') {
         localStorage.setItem('cafe-stock-record', JSON.stringify(stockRecord)); 
       }
     } catch (e) { console.warn('localStorage error', e); }
   }, [stockRecord, user?.branch]);
 
   useEffect(() => {
+    if (!user?.branch || currentLoadedBranchRef.current !== user.branch) return;
     try { 
-      localStorage.setItem(`cafe-ingredients-v4-${user?.branch || 'Rayong'}`, JSON.stringify(ingredients)); 
-      if (user?.branch === 'Rayong' || !user?.branch) {
+      localStorage.setItem(`cafe-ingredients-v4-${user.branch}`, JSON.stringify(ingredients)); 
+      if (user.branch === 'Rayong') {
         localStorage.setItem('cafe-ingredients-v4', JSON.stringify(ingredients)); 
       }
     } catch (e) { console.warn('localStorage error', e); }
@@ -351,24 +383,34 @@ export default function App() {
       if (!user?.branch) return;
       const branch = user.branch;
 
+      // Immediately clear state on branch change so previous branch data never leaks
+      setIngredients([]);
+      setStockRecord({});
+      setReceivingRecords([]);
+      setLogs([]);
+      setChecklistRecords([]);
+      setWasteLogs([]);
+      setRnDReports([]);
+
       setDbStatus('checking');
       if (!supabase) {
         setDbStatus('offline');
-        const savedIng = localStorage.getItem(`cafe-ingredients-v4-${branch}`);
+        const savedIng = localStorage.getItem(`cafe-ingredients-v4-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-ingredients-v4') : null);
         setIngredients(savedIng ? JSON.parse(savedIng) : INITIAL_INGREDIENTS);
-        const savedStock = localStorage.getItem(`cafe-stock-record-${branch}`);
+        const savedStock = localStorage.getItem(`cafe-stock-record-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-stock-record') : null);
         setStockRecord(savedStock ? JSON.parse(savedStock) : {});
-        const savedRec = localStorage.getItem(`cafe-receiving-records-${branch}`);
+        const savedRec = localStorage.getItem(`cafe-receiving-records-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-receiving-records') : null);
         setReceivingRecords(savedRec ? JSON.parse(savedRec) : []);
-        const savedLogs = localStorage.getItem(`cafe-audit-logs-${branch}`);
+        const savedLogs = localStorage.getItem(`cafe-audit-logs-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-audit-logs') : null);
         setLogs(savedLogs ? JSON.parse(savedLogs) : []);
-        const savedChecklist = localStorage.getItem(`cafe-checklist-records-${branch}`);
+        const savedChecklist = localStorage.getItem(`cafe-checklist-records-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-checklist-records') : null);
         setChecklistRecords(savedChecklist ? JSON.parse(savedChecklist) : []);
-        const savedWasteLogs = localStorage.getItem(`cafe-waste-logs-${branch}`);
+        const savedWasteLogs = localStorage.getItem(`cafe-waste-logs-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-waste-logs') : null);
         setWasteLogs(savedWasteLogs ? JSON.parse(savedWasteLogs) : []);
-        const savedRnD = localStorage.getItem(`cafe-rnd-reports-${branch}`);
+        const savedRnD = localStorage.getItem(`cafe-rnd-reports-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-rnd-reports') : null);
         setRnDReports(savedRnD ? JSON.parse(savedRnD) : []);
         setIsLoading(false);
+        currentLoadedBranchRef.current = branch;
         return;
       }
 
@@ -488,6 +530,7 @@ export default function App() {
             userName: r.user_name || '-'
           }));
           setReceivingRecords(formatted);
+          try { localStorage.setItem(`cafe-receiving-records-${branch}`, JSON.stringify(formatted)); } catch (e) {}
           if (user?.branch === 'Rayong' || !user?.branch) { try { localStorage.setItem('cafe-receiving-records', JSON.stringify(formatted)); } catch (e) { console.warn('localStorage error', e); } }
         } else {
           const savedRec = localStorage.getItem(`cafe-receiving-records-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-receiving-records') : null);
@@ -519,47 +562,57 @@ export default function App() {
                 })));
               }
             }
+          } else {
+            setReceivingRecords([]);
           }
         }
 
         if (logsData && logsData.length > 0) {
-          setLogs(logsData.map(l => ({
+          const formattedLogs = logsData.map(l => ({
             id: l.id,
             timestamp: l.timestamp,
             userEmail: l.user_email,
             userRole: l.user_role,
             action: l.action,
             details: l.details
-          })));
+          }));
+          setLogs(formattedLogs);
+          try { localStorage.setItem(`cafe-audit-logs-${branch}`, JSON.stringify(formattedLogs)); } catch (e) {}
+          if (branch === 'Rayong') { try { localStorage.setItem('cafe-audit-logs', JSON.stringify(formattedLogs)); } catch (e) {} }
         } else {
           const savedLogs = localStorage.getItem(`cafe-audit-logs-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-audit-logs') : null);
           if (savedLogs) {
             const parsedLogs = JSON.parse(savedLogs);
             setLogs(parsedLogs);
-            
+          } else {
+            setLogs([]);
           }
         }
 
         if (checklistData && checklistData.length > 0) {
-          setChecklistRecords(checklistData.map(c => ({
+          const formattedChecklists = checklistData.map(c => ({
             id: c.id,
             timestamp: c.timestamp,
             type: c.type,
             reportDate: c.report_date,
             reporterName: c.reporter_name,
             ...c.data
-          })));
+          }));
+          setChecklistRecords(formattedChecklists);
+          try { localStorage.setItem(`cafe-checklist-records-${branch}`, JSON.stringify(formattedChecklists)); } catch (e) {}
+          if (branch === 'Rayong') { try { localStorage.setItem('cafe-checklist-records', JSON.stringify(formattedChecklists)); } catch (e) {} }
         } else {
           const savedChecklist = localStorage.getItem(`cafe-checklist-records-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-checklist-records') : null);
           if (savedChecklist) {
             const parsedChecklist = JSON.parse(savedChecklist);
             setChecklistRecords(parsedChecklist);
-            
+          } else {
+            setChecklistRecords([]);
           }
         }
         
         if (wasteData && wasteData.length > 0) {
-          setWasteLogs(wasteData.map(w => ({
+          const formattedWaste = wasteData.map(w => ({
             id: w.id,
             timestamp: w.timestamp,
             date: w.date,
@@ -572,7 +625,10 @@ export default function App() {
             solution: w.solution,
             imageUrl: w.image_url,
             recorderName: w.recorder_name
-          })));
+          }));
+          setWasteLogs(formattedWaste);
+          try { localStorage.setItem(`cafe-waste-logs-${branch}`, JSON.stringify(formattedWaste)); } catch (e) {}
+          if (branch === 'Rayong') { try { localStorage.setItem('cafe-waste-logs', JSON.stringify(formattedWaste)); } catch (e) {} }
         } else {
           const savedWasteLogs = localStorage.getItem(`cafe-waste-logs-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-waste-logs') : null);
           if (savedWasteLogs) {
@@ -594,11 +650,13 @@ export default function App() {
                 recorder_name: w.recorderName
               })));
             }
+          } else {
+            setWasteLogs([]);
           }
         }
 
         if (rndData && rndData.length > 0) {
-          setRnDReports(rndData.map(r => ({
+          const formattedRnD = rndData.map(r => ({
             id: r.id,
             timestamp: r.timestamp,
             date: r.date,
@@ -614,13 +672,17 @@ export default function App() {
             imageUrl: r.image_url,
             imageUrls: r.image_urls ? JSON.parse(r.image_urls) : [],
             recorderName: r.recorder_name
-          })));
+          }));
+          setRnDReports(formattedRnD);
+          try { localStorage.setItem(`cafe-rnd-reports-${branch}`, JSON.stringify(formattedRnD)); } catch (e) {}
+          if (branch === 'Rayong') { try { localStorage.setItem('cafe-rnd-reports', JSON.stringify(formattedRnD)); } catch (e) {} }
         } else {
           const savedRnD = localStorage.getItem(`cafe-rnd-reports-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-rnd-reports') : null);
           if (savedRnD) {
             const parsedRnD = JSON.parse(savedRnD);
             setRnDReports(parsedRnD);
-            
+          } else {
+            setRnDReports([]);
           }
         }
 
@@ -718,6 +780,7 @@ export default function App() {
         console.warn('Error loading data:', error);
         setDbStatus('offline');
       } finally {
+        currentLoadedBranchRef.current = branch;
         setIsLoading(false);
       }
     };
@@ -2141,27 +2204,27 @@ export default function App() {
             isReadOnly={isReadOnly('dailyStockCountBakery')}
           />
         ) : activeTab === 'logs' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="logs" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyLogs')} />
+          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="logs" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyLogs')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'stockSubmitHistory' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="stockSubmit" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyLogs')} />
+          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="stockSubmit" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyLogs')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'checklistHistory' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="checklist" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyChecklist')} />
+          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="checklist" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyChecklist')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'receivingHistory' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="receiving" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyReceiving')} />
+          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="receiving" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyReceiving')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'bakeryPlanHistory' ? (
-          <BakeryPlanHistory onBack={() => setActiveTab('home')} />
+          <BakeryPlanHistory onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'barChecklist' ? (
           <BarChecklist ingredients={ingredients} onSave={handleSaveChecklist} user={user} checklistRecords={checklistRecords} isReadOnly={isReadOnly('checklistsBar')} />
         ) : activeTab === 'bakeryChecklist' ? (
           <BakeryChecklist onSave={handleSaveChecklist} user={user} checklistRecords={checklistRecords} isReadOnly={isReadOnly('checklistsBakery')} />
         ) : activeTab === 'barWaste' ? (
-          <BarWasteReport ingredients={ingredients} checklistRecords={checklistRecords} />
+          <BarWasteReport ingredients={ingredients} checklistRecords={checklistRecords} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'barWasteLog' ? (
-          <WasteReport department="Bar" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} />
+          <WasteReport department="Bar" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'bakeryWasteLog' ? (
-          <WasteReport department="Bakery" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} />
+          <WasteReport department="Bakery" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'rndReport' ? (
-          <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} />
+          <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'barPurchasing' ? (
           <PurchasingReport ingredients={ingredients} stockRecord={stockRecord} onBack={() => setActiveTab('home')} />
         ) : activeTab === 'dailySales' ? (
