@@ -17,13 +17,15 @@ export const SupabaseStatusBar: React.FC<SupabaseStatusBarProps> = ({
         width: '100%',
         paddingLeft: '20px',
         paddingRight: '20px',
-        paddingTop: '8px',
-        paddingBottom: '8px',
+        paddingTop: '6px',
+        paddingBottom: '6px',
         background: '#FFFFFF',
         borderBottom: '1px solid #E8EFEE',
         position: 'relative',
+        zIndex: 40,
+        flexShrink: 0,
       }}
-      className="w-full bg-white border-b border-[#E8EFEE] px-[20px] py-[8px] flex items-center justify-between relative"
+      className="w-full bg-white border-b border-[#E8EFEE] px-[20px] py-[6px] flex items-center justify-between relative shrink-0 flex-shrink-0 z-40"
     >
       {/* LEFT — Database Status label */}
       <div className="flex items-center gap-[8px]">
