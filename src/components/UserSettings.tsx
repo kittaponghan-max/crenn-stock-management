@@ -13,7 +13,8 @@ import {
   Send, 
   Users, 
   Settings,
-  Pencil
+  Pencil,
+  BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
@@ -590,6 +591,37 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               </table>
             </div>
           </div>
+
+          {/* Section: สิทธิ์การเข้าถึง Daily Record (Admin/CO-FOUNDER only) */}
+          {(currentUser?.role?.toUpperCase() === 'ADMIN' || currentUser?.role?.toUpperCase() === 'CO-FOUNDER' || currentUser?.role?.toUpperCase() === 'OWNER') && (
+            <div className="mt-5 p-3.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl">
+              <h4 className="font-bold text-[#2D4A49] text-xs flex items-center gap-1.5 mb-2">
+                <BookOpen size={14} className="text-[#5A8A88]" />
+                สิทธิ์การเข้าถึง Daily Record
+              </h4>
+              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-[#D4E4E3]">
+                <div>
+                  <p className="text-xs font-semibold text-[#2D4A49]">สามารถกำหนดช่วงวันที่เองได้</p>
+                  <p className="text-[11px] text-[#6B8F8E]">อนุญาตให้ผู้ใช้กำหนดวันเริ่ม-สิ้นสุด ในหน้าบันทึกยอดขายประจำวัน</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={!!formData.permissions.canEditDateRange}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      permissions: { 
+                        ...formData.permissions, 
+                        canEditDateRange: e.target.checked 
+                      } 
+                    })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5A8A88]"></div>
+                </label>
+              </div>
+            </div>
+          )}
           
           <div className="mt-5 flex justify-end gap-2.5">
             <button 
