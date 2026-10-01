@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 interface BarWasteReportProps {
   ingredients: Ingredient[];
   checklistRecords: any[];
+  branch?: 'Rayong' | 'Bangkok';
 }
 
 interface WasteItem {
@@ -16,7 +17,18 @@ interface WasteItem {
   waste: number;
 }
 
-export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReportProps) {
+export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWasteReportProps) {
+  const currentBranch = branch || (() => {
+    try {
+      const savedUser = localStorage.getItem('cafe-user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.branch) return parsed.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
+
   // Reliable data fetching pattern & real-time sync with Supabase
   const [liveChecklists, setLiveChecklists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,23 +44,11 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
       setLoading(true);
       setError(null);
 
-      let branch = 'Rayong';
-      try {
-        const savedUser = localStorage.getItem('cafe-user');
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          if (parsed.branch) branch = parsed.branch;
-        }
-      } catch (e) {}
-
-      let query = supabase
+      const query = supabase
         .from('checklist_records')
         .select('*')
+        .eq('branch', currentBranch)
         .order('timestamp', { ascending: false });
-
-      if (branch) {
-        query = query.eq('branch', branch);
-      }
 
       const { data, error: fetchErr } = await query.limit(150);
 
@@ -65,6 +65,8 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
           ...c.data
         }));
         setLiveChecklists(mapped);
+      } else {
+        setLiveChecklists([]);
       }
     } catch (err: any) {
       console.error('Fetch exception in BarWasteReport:', err);
@@ -73,18 +75,18 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
       setLoading(false);
       setLastFetch(new Date());
     }
-  }, []);
+  }, [currentBranch]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   // Real-time listener for checklist_records
   useEffect(() => {
     if (!supabase) return;
 
     const channel = supabase
-      .channel(`bar-waste-checklist-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`bar-waste-checklist-rt-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'checklist_records' },
@@ -97,7 +99,7 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   // Tab visibility and window focus sync
   useEffect(() => {
@@ -116,7 +118,7 @@ export function BarWasteReport({ ingredients, checklistRecords }: BarWasteReport
     };
   }, [fetchData]);
 
-  const effectiveChecklists = liveChecklists.length > 0 ? liveChecklists : checklistRecords;
+  const effectiveChecklists = !loading ? liveChecklists : (liveChecklists.length > 0 ? liveChecklists : checklistRecords);
 
   // Filter only Coffee Beans ingredients
   const coffeeIngredients = useMemo(() => {
