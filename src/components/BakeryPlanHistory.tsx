@@ -12,7 +12,17 @@ import { BakeryPlan } from './BakeryPlan';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 
-export function BakeryPlanHistory({ onBack }: { onBack: () => void }) {
+export function BakeryPlanHistory({ onBack, branch }: { onBack: () => void; branch?: 'Rayong' | 'Bangkok' }) {
+  const currentBranch = branch || (() => {
+    try {
+      const rawUser = localStorage.getItem('cafe-user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u.branch) return u.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
   const [history, setHistory] = useState<any[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +54,7 @@ export function BakeryPlanHistory({ onBack }: { onBack: () => void }) {
 
       // Check local storage fallback first
       let localFallback: any[] = [];
-      const saved = localStorage.getItem('bakeryPlanHistory');
+      const saved = localStorage.getItem(`bakeryPlanHistory-${currentBranch}`) || (currentBranch === 'Rayong' ? localStorage.getItem('bakeryPlanHistory') : null);
       if (saved) {
         try {
           localFallback = JSON.parse(saved);
@@ -57,23 +67,11 @@ export function BakeryPlanHistory({ onBack }: { onBack: () => void }) {
         return;
       }
 
-      let branch = 'Rayong';
-      try {
-        const rawUser = localStorage.getItem('cafe-user');
-        if (rawUser) {
-          const u = JSON.parse(rawUser);
-          if (u.branch) branch = u.branch;
-        }
-      } catch (e) {}
-
-      let query = supabase
+      const query = supabase
         .from('bakery_plan_records')
         .select('*')
+        .eq('branch', currentBranch)
         .order('week_key', { ascending: false });
-
-      if (branch) {
-        query = query.eq('branch', branch);
-      }
 
       const { data, error: fetchErr } = await query;
 
@@ -93,7 +91,7 @@ export function BakeryPlanHistory({ onBack }: { onBack: () => void }) {
         }));
         setHistory(mapped);
       } else {
-        setHistory(localFallback);
+        setHistory([]);
       }
     } catch (err: any) {
       console.error('Fetch exception in bakery_plan_records:', err);
@@ -102,19 +100,19 @@ export function BakeryPlanHistory({ onBack }: { onBack: () => void }) {
       setLoading(false);
       setLastFetch(new Date());
     }
-  }, []);
+  }, [currentBranch]);
 
   // Fetch on mount
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   // Real-time Supabase subscription
   useEffect(() => {
     if (!supabase) return;
 
     const channel = supabase
-      .channel(`realtime-bakery_plan-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`realtime-bakery_plan-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on(
         'postgres_changes',
         {
