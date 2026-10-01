@@ -32,14 +32,16 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
   const reportDate = format(new Date(), 'yyyy-MM-dd');
   const reporterName = user.name;
   
-  let branch = 'Rayong';
-  try {
-    const savedUser = localStorage.getItem('cafe-user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      if (parsed.branch) branch = parsed.branch;
-    }
-  } catch (e) {}
+  const branch = (user as any)?.branch || (() => {
+    try {
+      const savedUser = localStorage.getItem('cafe-user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.branch) return parsed.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
 
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
