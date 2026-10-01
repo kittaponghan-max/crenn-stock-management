@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Cake, 
   ChevronLeft, 
@@ -76,6 +76,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
   // Data state: records[itemName][dateStr] = BakeryDayRecord
   const [records, setRecords] = useState<Record<string, Record<string, BakeryDayRecord>>>({});
+  const originalRecordsRef = useRef<Record<string, Record<string, BakeryDayRecord>>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [tableExistsWarning, setTableExistsWarning] = useState<string | null>(null);
@@ -154,6 +155,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     }
 
     setRecords(loaded);
+    originalRecordsRef.current = JSON.parse(JSON.stringify(loaded));
   }, [currentBranch, weekDays]);
 
   useEffect(() => {
@@ -209,7 +211,126 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
       console.error('LocalStorage save error:', e);
     }
 
-    // 2. Save to Supabase
+    // 2. Compute granular changes for audit log
+    const changes: Array<{
+      itemName: string;
+      date: string;
+      dayLabel: string;
+      field: string;
+      oldVal: string;
+      newVal: string;
+      unit?: string;
+    }> = [];
+
+    let hasExistingRecord = false;
+
+    Object.entries(records).forEach(([itemName, dateMap]) => {
+      const origItemMap = originalRecordsRef.current[itemName] || {};
+      weekDays.forEach(day => {
+        const d = day.dateStr;
+        const currentDayRec = dateMap[d] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
+        const origDayRec = origItemMap[d] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
+
+        const origHasData = 
+          origDayRec.totalQty !== '' ||
+          origDayRec.lineQty !== '' ||
+          origDayRec.storeQty !== '' ||
+          origDayRec.soldQty !== '' ||
+          (origDayRec.note && origDayRec.note.trim() !== '');
+
+        if (origHasData) {
+          hasExistingRecord = true;
+        }
+
+        const compareField = (
+          fieldName: string,
+          oldV: string | number | undefined,
+          newV: string | number | undefined,
+          unit = 'ชิ้น'
+        ) => {
+          const cleanOld = oldV === undefined || oldV === null || oldV === '' ? '' : String(oldV);
+          const cleanNew = newV === undefined || newV === null || newV === '' ? '' : String(newV);
+          if (cleanOld !== cleanNew) {
+            changes.push({
+              itemName,
+              date: d,
+              dayLabel: `${day.shortDate} (${day.dayName})`,
+              field: fieldName,
+              oldVal: cleanOld ? String(cleanOld) : '-',
+              newVal: cleanNew ? String(cleanNew) : '-',
+              unit,
+            });
+          }
+        };
+
+        compareField('ยอดส่ง (Total)', origDayRec.totalQty, currentDayRec.totalQty);
+        compareField('หน้าร้าน (Line)', origDayRec.lineQty, currentDayRec.lineQty);
+        compareField('ในสต็อก (Store)', origDayRec.storeQty, currentDayRec.storeQty);
+        compareField('ขายได้ (Sold)', origDayRec.soldQty, currentDayRec.soldQty);
+
+        const oldNote = (origDayRec.note || '').trim();
+        const newNote = (currentDayRec.note || '').trim();
+        if (oldNote !== newNote) {
+          changes.push({
+            itemName,
+            date: d,
+            dayLabel: `${day.shortDate} (${day.dayName})`,
+            field: 'หมายเหตุ',
+            oldVal: oldNote || '-',
+            newVal: newNote || '-',
+          });
+        }
+      });
+    });
+
+    const weekStartStr = weekDays[0] ? weekDays[0].shortDate : '';
+    const weekEndStr = weekDays[6] ? weekDays[6].shortDate : '';
+    const weekRangeText = `${weekStartStr} - ${weekEndStr}`;
+
+    const action = hasExistingRecord && changes.length > 0
+      ? 'แก้ไขข้อมูลจำนวนขนมประจำวัน'
+      : 'บันทึกจำนวนขนมประจำวัน';
+
+    const summaryText = changes.length > 0
+      ? `${action} สัปดาห์ ${weekRangeText} (${changes.length} รายการเปลี่ยนแปลง - สาขา ${currentBranch})`
+      : `${action} สัปดาห์ ${weekRangeText} (สาขา ${currentBranch})`;
+
+    const auditPayload = {
+      summary: summaryText,
+      changes,
+      branch: currentBranch,
+      weekRange: weekRangeText
+    };
+
+    const logId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const timestamp = new Date().toISOString();
+    const details = JSON.stringify(auditPayload);
+
+    const newLog = {
+      id: logId,
+      timestamp,
+      userEmail: recorderName,
+      userRole: user?.role || 'Staff',
+      action,
+      details,
+      branch: currentBranch as any
+    };
+
+    // Save to LocalStorage audit logs
+    const branchKey = `cafe-audit-logs-${currentBranch}`;
+    try {
+      const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
+      localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
+    } catch (e) {}
+
+    try {
+      const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
+      localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
+    } catch (e) {}
+
+    // 3. Save to Supabase
     if (supabase) {
       try {
         const recordsToUpsert: any[] = [];
@@ -261,34 +382,8 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               message: 'บันทึกข้อมูลจำนวนขนมประจำวันสำเร็จเรียบร้อย',
             });
 
-            // 3. Record to audit_logs
+            // Record to Supabase audit_logs
             try {
-              const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-              const timestamp = new Date().toISOString();
-              const action = 'บันทึกจำนวนขนมประจำวัน';
-              const weekRangeText = `${weekStartStr} - ${weekEndStr}`;
-              const details = `บันทึกจำนวนขนมขายหน้าร้าน สัปดาห์ ${weekRangeText} จำนวน ${recordsToUpsert.length} รายการ (สาขา ${currentBranch})`;
-
-              const newLog = {
-                id: logId,
-                timestamp,
-                userEmail: recorderName,
-                userRole: user?.role || 'Staff',
-                action,
-                details,
-              };
-
-              const branchKey = `cafe-audit-logs-${currentBranch}`;
-              try {
-                const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
-                localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
-              } catch (e) {}
-
-              try {
-                const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
-                localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
-              } catch (e) {}
-
               await supabase.from('audit_logs').insert({
                 id: logId,
                 branch: currentBranch,
@@ -321,6 +416,9 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
         message: 'บันทึกลงในเครื่องเรียบร้อยแล้ว (ออฟไลน์โหมด)',
       });
     }
+
+    // Update baseline snapshot after save
+    originalRecordsRef.current = JSON.parse(JSON.stringify(records));
 
     setIsSaving(false);
     setTimeout(() => {
