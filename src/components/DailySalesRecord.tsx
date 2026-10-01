@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   BookOpen, 
   ChevronLeft, 
@@ -10,18 +10,22 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Loader2,
-  RefreshCw,
-  Info
+  Info,
+  CalendarRange,
+  Lock,
+  Calendar
 } from 'lucide-react';
-import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, subWeeks, eachDayOfInterval, parseISO, isAfter } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
+import { AppPermissions } from '../types';
 
 export interface DailySalesRecordProps {
   user?: {
     name: string;
     role?: string;
     branch?: string;
+    permissions?: AppPermissions;
   } | null;
   branch?: string;
   onNavigate?: (tab: string) => void;
@@ -44,14 +48,57 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   const currentBranch = branch || user?.branch || 'Rayong';
   const recorderName = user?.name || 'Admin';
 
+  // Admin permission check
+  const isAdmin = useMemo(() => {
+    const role = (user?.role || '').toUpperCase();
+    return (
+      role === 'ADMIN' || 
+      role === 'CO-FOUNDER' || 
+      role === 'OWNER' || 
+      user?.permissions?.canEditDateRange === true
+    );
+  }, [user]);
+
+  // Date range modes: 'week' or 'custom'
+  const [isCustomRangeMode, setIsCustomRangeMode] = useState<boolean>(false);
   const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  
+  // Custom date picker states
+  const [customStartDate, setCustomStartDate] = useState<string>(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  const [customEndDate, setCustomEndDate] = useState<string>(() => format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6), 'yyyy-MM-dd'));
+  const [activeCustomRange, setActiveCustomRange] = useState<{ start: string; end: string } | null>(null);
+
   const [rows, setRows] = useState<DailySalesRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [tableExistsWarning, setTableExistsWarning] = useState<string | null>(null);
 
-  // Generate 7 days for the current week (Mon-Sun)
-  const weekDays = useMemo(() => {
+  // Generate displayed days based on mode (Week or Custom Range)
+  const displayedDays = useMemo(() => {
+    if (isCustomRangeMode && activeCustomRange) {
+      try {
+        const start = parseISO(activeCustomRange.start);
+        const end = parseISO(activeCustomRange.end);
+        
+        const effectiveStart = isAfter(start, end) ? end : start;
+        const effectiveEnd = isAfter(start, end) ? start : end;
+        
+        const days = eachDayOfInterval({ start: effectiveStart, end: effectiveEnd });
+        return days.map(d => {
+          const dayName = format(d, 'EEEE', { locale: th });
+          const shortDate = format(d, 'dd/MM/yyyy');
+          return {
+            dateStr: format(d, 'yyyy-MM-dd'),
+            displayLabel: `${dayName} (${shortDate})`,
+            rawDate: d,
+          };
+        });
+      } catch (e) {
+        console.error('Error generating custom range days', e);
+      }
+    }
+
+    // Default 7 days of the week (Mon-Sun)
     return Array.from({ length: 7 }).map((_, i) => {
       const d = addDays(currentWeek, i);
       const dayName = format(d, 'EEEE', { locale: th });
@@ -59,18 +106,20 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       return {
         dateStr: format(d, 'yyyy-MM-dd'),
         displayLabel: `${dayName} (${shortDate})`,
-        shortDay: format(d, 'EEE dd MMM', { locale: th }),
+        rawDate: d,
       };
     });
-  }, [currentWeek]);
+  }, [isCustomRangeMode, activeCustomRange, currentWeek]);
 
-  // Load data for the week from Supabase or LocalStorage
-  const loadWeekData = useCallback(async () => {
-    const dates = weekDays.map(w => w.dateStr);
+  // Load data for the displayed days from Supabase or LocalStorage
+  const loadData = useCallback(async () => {
+    if (displayedDays.length === 0) return;
+
+    const dates = displayedDays.map(w => w.dateStr);
     const localKey = `daily_sales_${currentBranch}_${dates[0]}`;
     
     // Default empty rows
-    const initialRows: DailySalesRow[] = weekDays.map(w => ({
+    const initialRows: DailySalesRow[] = displayedDays.map(w => ({
       date: w.dateStr,
       dayLabel: w.displayLabel,
       openingCash: '',
@@ -120,12 +169,12 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           data.forEach((rec: any) => {
             loadedMap[rec.date] = {
               date: rec.date,
-              openingCash: rec.opening_cash ?? '',
-              totalRevenue: rec.total_revenue ?? '',
-              transfer: rec.transfer ?? '',
-              cash: rec.cash ?? '',
-              creditCard: rec.credit_card ?? '',
-              closingCash: rec.closing_cash ?? '',
+              openingCash: rec.opening_cash === null || rec.opening_cash === undefined ? '' : Math.round(Number(rec.opening_cash)),
+              totalRevenue: rec.total_revenue === null || rec.total_revenue === undefined ? '' : Math.round(Number(rec.total_revenue)),
+              transfer: rec.transfer === null || rec.transfer === undefined ? '' : Math.round(Number(rec.transfer)),
+              cash: rec.cash === null || rec.cash === undefined ? '' : Math.round(Number(rec.cash)),
+              creditCard: rec.credit_card === null || rec.credit_card === undefined ? '' : Number(rec.credit_card),
+              closingCash: rec.closing_cash === null || rec.closing_cash === undefined ? '' : Math.round(Number(rec.closing_cash)),
               note: rec.note ?? '',
             };
           });
@@ -139,10 +188,10 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     const merged = initialRows.map(row => {
       const found = loadedMap[row.date];
       if (found) {
-        const t = found.transfer === '' || found.transfer === undefined ? 0 : Number(found.transfer);
-        const c = found.cash === '' || found.cash === undefined ? 0 : Number(found.cash);
+        const t = found.transfer === '' || found.transfer === undefined ? 0 : Math.round(Number(found.transfer));
+        const c = found.cash === '' || found.cash === undefined ? 0 : Math.round(Number(found.cash));
         const cc = found.creditCard === '' || found.creditCard === undefined ? 0 : Number(found.creditCard);
-        const autoTot = (t || c || cc) ? (t + c + cc) : '';
+        const autoTot = (t || c || cc) ? Math.round(t + c + cc) : '';
         const rev = found.totalRevenue !== undefined && found.totalRevenue !== '' ? found.totalRevenue : autoTot;
         
         return {
@@ -156,39 +205,52 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     });
 
     setRows(merged);
-  }, [currentBranch, weekDays]);
+  }, [currentBranch, displayedDays]);
 
   useEffect(() => {
-    loadWeekData();
-  }, [loadWeekData]);
+    loadData();
+  }, [loadData]);
 
-  // Handle cell value change
-  const handleChange = (index: number, field: keyof DailySalesRow, value: string) => {
+  // Auto-expand textarea helper
+  const autoExpand = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(32, el.scrollHeight)}px`;
+  };
+
+  // Handle cell value change (Change 3: Integer parsing vs Float for CC)
+  const handleChange = (index: number, field: keyof DailySalesRow, rawValue: string) => {
     setRows(prev => {
       const updated = [...prev];
       const row = { ...updated[index] };
 
       if (field === 'note') {
-        row.note = value;
+        row.note = rawValue;
+      } else if (field === 'creditCard') {
+        // Keep 2 decimal places for credit card
+        const numVal = rawValue === '' ? '' : parseFloat(rawValue);
+        row.creditCard = (numVal === '' || isNaN(numVal)) ? '' : numVal;
       } else {
-        const numVal = value === '' ? '' : Number(value);
-        (row as any)[field] = isNaN(numVal as number) ? '' : numVal;
+        // Integer only for openingCash, transfer, cash, closingCash, totalRevenue
+        const numVal = rawValue === '' ? '' : parseInt(rawValue, 10);
+        (row as any)[field] = (numVal === '' || isNaN(numVal)) ? '' : numVal;
+      }
 
-        // Auto calculate totalRevenue if editing transfer, cash, or creditCard
-        if (field === 'transfer' || field === 'cash' || field === 'creditCard') {
-          const t = field === 'transfer' ? (numVal === '' ? 0 : Number(numVal)) : (row.transfer === '' ? 0 : Number(row.transfer));
-          const c = field === 'cash' ? (numVal === '' ? 0 : Number(numVal)) : (row.cash === '' ? 0 : Number(row.cash));
-          const cc = field === 'creditCard' ? (numVal === '' ? 0 : Number(numVal)) : (row.creditCard === '' ? 0 : Number(row.creditCard));
+      // Auto calculate totalRevenue if editing transfer, cash, or creditCard
+      if (field === 'transfer' || field === 'cash' || field === 'creditCard') {
+        const t = row.transfer === '' ? 0 : Number(row.transfer);
+        const c = row.cash === '' ? 0 : Number(row.cash);
+        const cc = row.creditCard === '' ? 0 : Number(row.creditCard);
 
-          if (t > 0 || c > 0 || cc > 0) {
-            row.totalRevenue = t + c + cc;
-            row.isAutoCalculated = true;
-          } else {
-            row.totalRevenue = '';
-          }
-        } else if (field === 'totalRevenue') {
-          row.isAutoCalculated = false;
+        if (t > 0 || c > 0 || cc > 0) {
+          // Total revenue is formatted as integer or sum
+          row.totalRevenue = Math.round(t + c + cc);
+          row.isAutoCalculated = true;
+        } else {
+          row.totalRevenue = '';
         }
+      } else if (field === 'totalRevenue') {
+        row.isAutoCalculated = false;
       }
 
       updated[index] = row;
@@ -201,7 +263,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     setIsSaving(true);
     setSaveStatus(null);
 
-    const dates = weekDays.map(w => w.dateStr);
+    const dates = displayedDays.map(w => w.dateStr);
     const localKey = `daily_sales_${currentBranch}_${dates[0]}`;
 
     // 1. Save to LocalStorage
@@ -215,16 +277,16 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     if (supabase) {
       try {
         const recordsToUpsert = rows
-          .filter(r => r.openingCash !== '' || r.totalRevenue !== '' || r.transfer !== '' || r.cash !== '' || r.creditCard !== '' || r.closingCash !== '' || r.note.trim() !== '')
+          .filter(r => r.openingCash !== '' || r.totalRevenue !== '' || r.transfer !== '' || r.cash !== '' || r.creditCard !== '' || r.closingCash !== '' || (r.note && r.note.trim() !== ''))
           .map(r => ({
             date: r.date,
             branch: currentBranch,
-            opening_cash: r.openingCash === '' ? 0 : Number(r.openingCash),
-            total_revenue: r.totalRevenue === '' ? 0 : Number(r.totalRevenue),
-            transfer: r.transfer === '' ? 0 : Number(r.transfer),
-            cash: r.cash === '' ? 0 : Number(r.cash),
-            credit_card: r.creditCard === '' ? 0 : Number(r.creditCard),
-            closing_cash: r.closingCash === '' ? 0 : Number(r.closingCash),
+            opening_cash: r.openingCash === '' ? 0 : Math.round(Number(r.openingCash)),
+            total_revenue: r.totalRevenue === '' ? 0 : Math.round(Number(r.totalRevenue)),
+            transfer: r.transfer === '' ? 0 : Math.round(Number(r.transfer)),
+            cash: r.cash === '' ? 0 : Math.round(Number(r.cash)),
+            credit_card: r.creditCard === '' ? 0 : Number(Number(r.creditCard).toFixed(2)),
+            closing_cash: r.closingCash === '' ? 0 : Math.round(Number(r.closingCash)),
             note: r.note || '',
             recorded_by: recorderName,
             created_at: new Date().toISOString(),
@@ -296,12 +358,12 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     rows.forEach(r => {
       const row = [
         `"${r.dayLabel}"`,
-        r.openingCash !== '' ? r.openingCash : 0,
-        r.totalRevenue !== '' ? r.totalRevenue : 0,
-        r.transfer !== '' ? r.transfer : 0,
-        r.cash !== '' ? r.cash : 0,
-        r.creditCard !== '' ? r.creditCard : 0,
-        r.closingCash !== '' ? r.closingCash : 0,
+        r.openingCash !== '' ? Math.round(Number(r.openingCash)) : 0,
+        r.totalRevenue !== '' ? Math.round(Number(r.totalRevenue)) : 0,
+        r.transfer !== '' ? Math.round(Number(r.transfer)) : 0,
+        r.cash !== '' ? Math.round(Number(r.cash)) : 0,
+        r.creditCard !== '' ? Number(r.creditCard).toFixed(2) : '0.00',
+        r.closingCash !== '' ? Math.round(Number(r.closingCash)) : 0,
         `"${(r.note || '').replace(/"/g, '""')}"`,
       ];
       csvRows.push(row.join(','));
@@ -316,13 +378,13 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     const sumClosing = rows.reduce((s, r) => s + (Number(r.closingCash) || 0), 0);
 
     csvRows.push([
-      '"รวมทั้งสัปดาห์"',
-      sumOpening,
-      sumRevenue,
-      sumTransfer,
-      sumCash,
-      sumCredit,
-      sumClosing,
+      `"รวม ${summaryDateRangeLabel}"`,
+      Math.round(sumOpening),
+      Math.round(sumRevenue),
+      Math.round(sumTransfer),
+      Math.round(sumCash),
+      sumCredit.toFixed(2),
+      Math.round(sumClosing),
       '""',
     ].join(','));
 
@@ -330,42 +392,51 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const startStr = format(weekDays[0].dateStr ? new Date(weekDays[0].dateStr) : currentWeek, 'yyyyMMdd');
+    const startStr = displayedDays[0]?.dateStr?.replace(/-/g, '') || 'range';
     link.setAttribute('href', url);
-    link.setAttribute('download', `Daily_Sales_Record_${currentBranch}_${startStr}.csv`);
+    link.setAttribute('download', `Daily_Sales_${currentBranch}_${startStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Export / Print PDF
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // Calculate totals
+  // Change 5: Summary calculations based strictly on displayed rows
   const totals = useMemo(() => {
-    let opening = 0;
-    let revenue = 0;
-    let transfer = 0;
-    let cash = 0;
-    let credit = 0;
-    let closing = 0;
-
-    rows.forEach(r => {
-      if (r.openingCash !== '') opening += Number(r.openingCash);
-      if (r.totalRevenue !== '') revenue += Number(r.totalRevenue);
-      if (r.transfer !== '') transfer += Number(r.transfer);
-      if (r.cash !== '') cash += Number(r.cash);
-      if (r.creditCard !== '') credit += Number(r.creditCard);
-      if (r.closingCash !== '') closing += Number(r.closingCash);
-    });
-
-    return { opening, revenue, transfer, cash, credit, closing };
+    return rows.reduce(
+      (acc, r) => ({
+        opening: acc.opening + (r.openingCash !== '' ? Number(r.openingCash) : 0),
+        revenue: acc.revenue + (r.totalRevenue !== '' ? Number(r.totalRevenue) : 0),
+        transfer: acc.transfer + (r.transfer !== '' ? Number(r.transfer) : 0),
+        cash: acc.cash + (r.cash !== '' ? Number(r.cash) : 0),
+        credit: acc.credit + (r.creditCard !== '' ? Number(r.creditCard) : 0),
+        closing: acc.closing + (r.closingCash !== '' ? Number(r.closingCash) : 0),
+      }),
+      { opening: 0, revenue: 0, transfer: 0, cash: 0, credit: 0, closing: 0 }
+    );
   }, [rows]);
 
-  const weekStartStr = format(currentWeek, 'd MMM yyyy', { locale: th });
+  // Date range label for header and summary
+  const summaryDateRangeLabel = useMemo(() => {
+    if (displayedDays.length === 0) return '';
+    const first = displayedDays[0].rawDate;
+    const last = displayedDays[displayedDays.length - 1].rawDate;
+    const firstStr = format(first, 'd MMM', { locale: th });
+    const lastStr = format(last, 'd MMM yyyy', { locale: th });
+    return `${firstStr} - ${lastStr}`;
+  }, [displayedDays]);
+
+  const weekStartStr = format(currentWeek, 'd MMM', { locale: th });
   const weekEndStr = format(addDays(currentWeek, 6), 'd MMM yyyy', { locale: th });
+
+  // Handle apply custom range
+  const handleApplyCustomRange = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customStartDate || !customEndDate) return;
+    setActiveCustomRange({
+      start: customStartDate,
+      end: customEndDate,
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -394,71 +465,100 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           <div className="flex-1">
             <p className="font-bold">{tableExistsWarning}</p>
             <p className="text-[11px] text-amber-700 mt-0.5">
-              คอลัมน์ที่ต้องสร้างใน Supabase: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px]">date (text), branch (text), opening_cash (numeric), total_revenue (numeric), transfer (numeric), cash (numeric), credit_card (numeric), closing_cash (numeric), note (text), recorded_by (text), created_at (timestamptz)</code> (Primary key: date, branch)
+              คอลัมน์ในตาราง daily_sales_records: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px]">date (text), branch (text), opening_cash (numeric), total_revenue (numeric), transfer (numeric), cash (numeric), credit_card (numeric), closing_cash (numeric), note (text), recorded_by (text), created_at (timestamptz)</code>
             </p>
           </div>
         </div>
       )}
 
-      {/* HEADER CARD */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          HEADER CARD
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="bg-white rounded-2xl border border-[#D4E4E3] p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
-          {/* Left: Title & Badge */}
+          {/* Left: Title & Branch Badge */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3] shadow-xs">
-              <BookOpen size={20} />
+            <div className="w-10 h-10 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3] shadow-xs shrink-0">
+              <BookOpen size={18} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-[#2D4A49] tracking-tight">
+                <h1 className="text-[16px] font-[700] text-[#2D4A49] tracking-tight">
                   บันทึกยอดขายประจำวัน
                 </h1>
-                <span className="text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full border border-[#D4E4E3]">
+                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-2 py-[2px] rounded-[6px] border border-[#D4E4E3]">
                   สาขา {currentBranch}
                 </span>
               </div>
               <p className="text-[11px] text-[#6B8F8E] mt-0.5">
-                บันทึกยอดรายรับ เงินสด เงินโอน บัตรเครดิต และเงินในลิ้นชักประจำวัน
+                บันทึกยอดรายรับและเงินสดประจำวัน
               </p>
             </div>
           </div>
 
-          {/* Right: Week Navigator + Save Button + Export Buttons */}
+          {/* Right: Date Range Control + Save Button + Export Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
             
-            {/* Week Navigator */}
-            <div className="flex items-center bg-[#E8F3F2] border border-[#D4E4E3] rounded-xl p-1 shadow-xs">
-              <button
-                type="button"
-                onClick={() => setCurrentWeek(prev => subWeeks(prev, 1))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#5A8A88] hover:bg-white transition-colors"
-                title="สัปดาห์ก่อนหน้า"
-              >
-                <ChevronLeft size={16} />
-              </button>
+            {/* MODE 1: Week Navigator (Default) */}
+            {!isCustomRangeMode && (
+              <div className="flex items-center bg-[#E8F3F2] border border-[#D4E4E3] rounded-xl p-1 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setCurrentWeek(prev => subWeeks(prev, 1))}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#5A8A88] hover:bg-white transition-colors cursor-pointer"
+                  title="สัปดาห์ก่อนหน้า"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-              <div className="flex items-center gap-1.5 px-3 text-xs font-semibold text-[#2D4A49]">
-                <CalendarIcon size={13} className="text-[#5A8A88]" />
-                <span>สัปดาห์ที่ {weekStartStr} - {weekEndStr}</span>
+                <div className="flex items-center gap-1.5 px-3 text-[12px] font-[500] text-[#2D4A49]">
+                  <CalendarIcon size={13} className="text-[#5A8A88]" />
+                  <span>สัปดาห์ที่ {weekStartStr} - {weekEndStr}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentWeek(prev => addWeeks(prev, 1))}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#5A8A88] hover:bg-white transition-colors cursor-pointer"
+                  title="สัปดาห์ถัดไป"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
+            )}
 
+            {/* Change 4: Admin Toggle for Custom Date Range */}
+            {isAdmin && (
               <button
                 type="button"
-                onClick={() => setCurrentWeek(prev => addWeeks(prev, 1))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#5A8A88] hover:bg-white transition-colors"
-                title="สัปดาห์ถัดไป"
+                onClick={() => {
+                  if (!isCustomRangeMode) {
+                    setIsCustomRangeMode(true);
+                    setActiveCustomRange({ start: customStartDate, end: customEndDate });
+                  } else {
+                    setIsCustomRangeMode(false);
+                    setActiveCustomRange(null);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[12px] font-[500] border transition-all cursor-pointer shadow-xs ${
+                  isCustomRangeMode
+                    ? 'bg-[#2D4A49] text-white border-[#2D4A49]'
+                    : 'bg-[#F0F5F4] text-[#5A8A88] border-[#D4E4E3] hover:bg-[#E8F3F2]'
+                }`}
+                title="กำหนดช่วงวันที่เอง (Admin Only)"
               >
-                <ChevronRight size={16} />
+                <CalendarRange size={13} />
+                <span>{isCustomRangeMode ? 'กลับสู่โหมดสัปดาห์' : 'กำหนดช่วงวันที่เอง'}</span>
               </button>
-            </div>
+            )}
 
             {/* Save Button */}
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[13px] font-semibold rounded-[10px] px-4 py-2 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[12px] font-[600] rounded-[10px] px-4 py-2 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
               {isSaving ? (
                 <>
@@ -477,7 +577,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             <button
               type="button"
               onClick={handleExportExcel}
-              className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-medium rounded-[10px] px-3 py-2 transition-colors shadow-xs"
+              className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-[500] rounded-[10px] px-3 py-2 transition-colors shadow-xs cursor-pointer"
               title="ส่งออกไฟล์ Excel (CSV)"
             >
               <Download size={13} />
@@ -486,8 +586,8 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
 
             <button
               type="button"
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-medium rounded-[10px] px-3 py-2 transition-colors shadow-xs"
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-[500] rounded-[10px] px-3 py-2 transition-colors shadow-xs cursor-pointer"
               title="พิมพ์รายงาน (PDF)"
             >
               <Printer size={13} />
@@ -497,148 +597,249 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           </div>
 
         </div>
+
+        {/* MODE 2: Admin Custom Date Range Form (when toggle is ON) */}
+        {isCustomRangeMode && isAdmin && (
+          <form 
+            onSubmit={handleApplyCustomRange}
+            className="mt-4 pt-3.5 border-t border-[#D4E4E3] flex items-center gap-3 flex-wrap animate-in fade-in duration-200"
+          >
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#2D4A49]">
+              <Lock size={13} className="text-[#5A8A88]" />
+              <span>ช่วงวันที่กำหนดเอง:</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-[#6B8F8E]">วันที่เริ่มต้น</label>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="bg-white border border-[#5A8A88] rounded-[8px] px-3 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:ring-1 focus:ring-[#5A8A88]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-[#6B8F8E]">วันที่สิ้นสุด</label>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="bg-white border border-[#5A8A88] rounded-[8px] px-3 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:ring-1 focus:ring-[#5A8A88]"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[12px] font-[600] rounded-[8px] px-4 py-1.5 transition-colors cursor-pointer shadow-xs"
+            >
+              ดูช่วงนี้
+            </button>
+          </form>
+        )}
       </div>
 
-      {/* TABLE CARD */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          TABLE CARD (Change 2: Tablet View + Auto-expand)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[960px]">
+        <div className="w-full overflow-x-auto">
+          <table 
+            style={{ tableLayout: 'fixed' }} 
+            className="w-full text-left border-collapse min-w-[780px]"
+          >
+            {/* Column Width Specifications */}
+            <colgroup>
+              <col style={{ width: '130px' }} /> {/* วันที่ */}
+              <col style={{ width: '110px' }} /> {/* เงินในลิ้นชักตั้งต้น */}
+              <col style={{ width: '100px' }} /> {/* รายรับรวม */}
+              <col style={{ width: '90px' }} />  {/* เงินโอน */}
+              <col style={{ width: '90px' }} />  {/* เงินสด */}
+              <col style={{ width: '95px' }} />  {/* บัตรเครดิต */}
+              <col style={{ width: '115px' }} /> {/* เงินในลิ้นชักตอนปิดร้าน */}
+              <col style={{ minWidth: '80px', width: 'auto' }} /> {/* หมายเหตุ */}
+            </colgroup>
+
+            {/* Table Header */}
             <thead>
-              <tr className="bg-[#2D4A49] text-white text-[11px] font-semibold border-b border-[#1E3A39]">
-                <th className="py-2.5 px-3 text-center w-[130px]">วันที่</th>
-                <th className="py-2.5 px-3 text-right w-[130px]">เงินในลิ้นชักตั้งต้น</th>
-                <th className="py-2.5 px-3 text-right w-[120px]">รายรับรวม</th>
-                <th className="py-2.5 px-3 text-right w-[110px]">เงินโอน</th>
-                <th className="py-2.5 px-3 text-right w-[110px]">เงินสด</th>
-                <th className="py-2.5 px-3 text-right w-[110px]">บัตรเครดิต</th>
-                <th className="py-2.5 px-3 text-right w-[140px]">เงินในลิ้นชักตอนปิดร้าน</th>
+              <tr className="bg-[#2D4A49] text-white text-[11px] font-[600] border-b border-[#1E3A39]">
+                <th className="py-2.5 px-3 text-center">วันที่</th>
+                <th className="py-2.5 px-2 text-right">เงินในลิ้นชักตั้งต้น</th>
+                <th className="py-2.5 px-2 text-right">รายรับรวม</th>
+                <th className="py-2.5 px-2 text-right">เงินโอน</th>
+                <th className="py-2.5 px-2 text-right">เงินสด</th>
+                <th className="py-2.5 px-2 text-right">บัตรเครดิต</th>
+                <th className="py-2.5 px-2 text-right">เงินในลิ้นชักตอนปิดร้าน</th>
                 <th className="py-2.5 px-3 text-left">หมายเหตุ</th>
               </tr>
             </thead>
+
+            {/* Table Body */}
             <tbody className="divide-y divide-[#F0F5F4] text-xs">
               {rows.map((row, index) => (
                 <tr 
                   key={row.date}
-                  className={`transition-colors hover:bg-[#E8F3F2]/40 ${
+                  className={`transition-colors hover:bg-[#E8F3F2]/40 items-start align-top ${
                     index % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFA]'
                   }`}
+                  style={{ minHeight: '40px' }}
                 >
                   {/* Date Column */}
-                  <td className="py-2 px-3 text-center bg-[#F0F5F4] border-r border-[#D4E4E3] font-semibold text-[#2D4A49] whitespace-nowrap text-[12px]">
+                  <td className="py-2.5 px-3 text-center bg-[#F0F5F4] border-r border-[#D4E4E3] font-[600] text-[#2D4A49] whitespace-nowrap text-[11px] align-top">
                     {row.dayLabel}
                   </td>
 
-                  {/* 1. เงินในลิ้นชักตั้งต้น */}
-                  <td className="py-1.5 px-2">
+                  {/* 1. เงินในลิ้นชักตั้งต้น (Integer only) */}
+                  <td className="py-1.5 px-1.5 align-top">
                     <input
                       type="number"
-                      value={row.openingCash}
+                      step="1"
+                      min="0"
+                      value={row.openingCash === '' ? '' : row.openingCash}
                       onChange={(e) => handleChange(index, 'openingCash', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-white border border-[#D4E4E3] rounded-md text-[12px] font-mono text-right px-2.5 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      placeholder="0"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[6px] text-[12px] font-[400] font-mono text-right px-2 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
                     />
                   </td>
 
-                  {/* 2. รายรับรวม (Auto Calculated / Editable) */}
-                  <td className="py-1.5 px-2">
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={row.totalRevenue}
-                        onChange={(e) => handleChange(index, 'totalRevenue', e.target.value)}
-                        placeholder="0.00"
-                        className={`w-full border rounded-md text-[12px] font-mono font-semibold text-right px-2.5 py-1.5 transition-colors focus:outline-none focus:border-[#5A8A88] ${
-                          row.isAutoCalculated && row.totalRevenue !== ''
-                            ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#5A8A88]'
-                            : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:bg-[#E8F3F2]'
-                        }`}
-                        title={row.isAutoCalculated ? 'คำนวณอัตโนมัติจาก เงินโอน + เงินสด + บัตรเครดิต' : 'ยอดที่ระบุเอง'}
-                      />
-                    </div>
-                  </td>
-
-                  {/* 3. เงินโอน */}
-                  <td className="py-1.5 px-2">
+                  {/* 2. รายรับรวม (Integer only, Auto Calculated / Editable) */}
+                  <td className="py-1.5 px-1.5 align-top">
                     <input
                       type="number"
-                      value={row.transfer}
+                      step="1"
+                      min="0"
+                      value={row.totalRevenue === '' ? '' : row.totalRevenue}
+                      onChange={(e) => handleChange(index, 'totalRevenue', e.target.value)}
+                      placeholder="0"
+                      className={`w-full border rounded-[6px] text-[12px] font-[400] font-mono text-right px-2 py-1.5 transition-colors focus:outline-none focus:border-[#5A8A88] ${
+                        row.isAutoCalculated && row.totalRevenue !== ''
+                          ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#5A8A88] font-[600]'
+                          : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:bg-[#E8F3F2]'
+                      }`}
+                      title={row.isAutoCalculated ? 'คำนวณอัตโนมัติจาก เงินโอน + เงินสด + บัตรเครดิต' : 'ยอดที่ระบุเอง'}
+                    />
+                  </td>
+
+                  {/* 3. เงินโอน (Integer only) */}
+                  <td className="py-1.5 px-1.5 align-top">
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={row.transfer === '' ? '' : row.transfer}
                       onChange={(e) => handleChange(index, 'transfer', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-white border border-[#D4E4E3] rounded-md text-[12px] font-mono text-right px-2.5 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      placeholder="0"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[6px] text-[12px] font-[400] font-mono text-right px-2 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
                     />
                   </td>
 
-                  {/* 4. เงินสด */}
-                  <td className="py-1.5 px-2">
+                  {/* 4. เงินสด (Integer only) */}
+                  <td className="py-1.5 px-1.5 align-top">
                     <input
                       type="number"
-                      value={row.cash}
+                      step="1"
+                      min="0"
+                      value={row.cash === '' ? '' : row.cash}
                       onChange={(e) => handleChange(index, 'cash', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-white border border-[#D4E4E3] rounded-md text-[12px] font-mono text-right px-2.5 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      placeholder="0"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[6px] text-[12px] font-[400] font-mono text-right px-2 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
                     />
                   </td>
 
-                  {/* 5. บัตรเครดิต */}
-                  <td className="py-1.5 px-2">
+                  {/* 5. บัตรเครดิต (2 decimal places) */}
+                  <td className="py-1.5 px-1.5 align-top">
                     <input
                       type="number"
-                      value={row.creditCard}
+                      step="0.01"
+                      min="0"
+                      value={row.creditCard === '' ? '' : row.creditCard}
                       onChange={(e) => handleChange(index, 'creditCard', e.target.value)}
                       placeholder="0.00"
-                      className="w-full bg-white border border-[#D4E4E3] rounded-md text-[12px] font-mono text-right px-2.5 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[6px] text-[12px] font-[400] font-mono text-right px-2 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
                     />
                   </td>
 
-                  {/* 6. เงินในลิ้นชักตอนปิดร้าน */}
-                  <td className="py-1.5 px-2">
+                  {/* 6. เงินในลิ้นชักตอนปิดร้าน (Integer only) */}
+                  <td className="py-1.5 px-1.5 align-top">
                     <input
                       type="number"
-                      value={row.closingCash}
+                      step="1"
+                      min="0"
+                      value={row.closingCash === '' ? '' : row.closingCash}
                       onChange={(e) => handleChange(index, 'closingCash', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-white border border-[#D4E4E3] rounded-md text-[12px] font-mono text-right px-2.5 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      placeholder="0"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[6px] text-[12px] font-[400] font-mono text-right px-2 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
                     />
                   </td>
 
-                  {/* 7. หมายเหตุ */}
-                  <td className="py-1.5 px-2">
-                    <input
-                      type="text"
+                  {/* 7. หมายเหตุ (Change 2: Auto-expanding Textarea) */}
+                  <td className="py-1.5 px-2 align-top">
+                    <textarea
+                      rows={1}
                       value={row.note}
+                      onInput={(e) => autoExpand(e.target as HTMLTextAreaElement)}
                       onChange={(e) => handleChange(index, 'note', e.target.value)}
                       placeholder="หมายเหตุ..."
-                      className="w-full bg-white border border-[#D4E4E3] rounded-md text-[12px] text-left px-2.5 py-1.5 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      style={{
+                        resize: 'none',
+                        overflow: 'hidden',
+                        minHeight: '32px',
+                        lineHeight: '1.4',
+                        transition: 'height 100ms ease',
+                      }}
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[6px] text-[11px] text-left p-[5px_8px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
                     />
                   </td>
                 </tr>
               ))}
 
-              {/* SUMMARY ROW */}
-              <tr className="bg-[#E8F3F2] text-[#2D4A49] text-[12px] font-bold border-t-2 border-[#B8D4D2]">
-                <td className="py-3 px-3 text-center border-r border-[#D4E4E3]">
-                  รวมทั้งสัปดาห์
+              {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  SUMMARY ROW (Change 5: Dynamic calculation & label)
+                  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+              <tr 
+                style={{ background: '#E8F3F2', borderTop: '2px solid #5A8A88' }}
+                className="text-[#2D4A49] text-[12px] font-[700]"
+              >
+                {/* Dynamic Label */}
+                <td className="py-3 px-3 text-left border-r border-[#D4E4E3] font-[700] text-[#2D4A49] whitespace-nowrap">
+                  รวม {summaryDateRangeLabel}
                 </td>
-                <td className="py-3 px-3 text-right font-mono text-[#5A8A88]">
-                  {totals.opening.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                {/* 1. เงินในลิ้นชักตั้งต้น (Integer) */}
+                <td className="py-3 px-2 text-right font-mono text-[#5A8A88]">
+                  {totals.opening > 0 ? Math.round(totals.opening).toLocaleString('th-TH') : '0'}
                 </td>
-                <td className="py-3 px-3 text-right font-mono text-[#2D4A49] font-black">
-                  {totals.revenue.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                {/* 2. รายรับรวม (Integer) */}
+                <td className="py-3 px-2 text-right font-mono text-[#2D4A49] font-[800]">
+                  {totals.revenue > 0 ? Math.round(totals.revenue).toLocaleString('th-TH') : '0'}
                 </td>
-                <td className="py-3 px-3 text-right font-mono text-[#5A8A88]">
-                  {totals.transfer.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                {/* 3. เงินโอน (Integer) */}
+                <td className="py-3 px-2 text-right font-mono text-[#5A8A88]">
+                  {totals.transfer > 0 ? Math.round(totals.transfer).toLocaleString('th-TH') : '0'}
                 </td>
-                <td className="py-3 px-3 text-right font-mono text-[#5A8A88]">
-                  {totals.cash.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                {/* 4. เงินสด (Integer) */}
+                <td className="py-3 px-2 text-right font-mono text-[#5A8A88]">
+                  {totals.cash > 0 ? Math.round(totals.cash).toLocaleString('th-TH') : '0'}
                 </td>
-                <td className="py-3 px-3 text-right font-mono text-[#5A8A88]">
-                  {totals.credit.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                {/* 5. บัตรเครดิต (2 decimal places) */}
+                <td className="py-3 px-2 text-right font-mono text-[#5A8A88]">
+                  {totals.credit > 0 
+                    ? totals.credit.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+                    : '0.00'}
                 </td>
-                <td className="py-3 px-3 text-right font-mono text-[#5A8A88]">
-                  {totals.closing.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+                {/* 6. เงินในลิ้นชักตอนปิดร้าน (Integer) */}
+                <td className="py-3 px-2 text-right font-mono text-[#5A8A88]">
+                  {totals.closing > 0 ? Math.round(totals.closing).toLocaleString('th-TH') : '0'}
                 </td>
+
+                {/* 7. หมายเหตุ column in summary */}
                 <td className="py-3 px-3 text-left text-[11px] text-[#6B8F8E] font-normal">
-                  ยอดรวม 7 วัน
+                  ยอดรวม {displayedDays.length} วัน
                 </td>
               </tr>
             </tbody>
