@@ -67,7 +67,7 @@ const DAY_ABBREV: Record<number, string> = {
   6: 'ส.',
 };
 
-// Format compact date cell
+// Format compact date cell e.g. "จ. 28/09"
 const formatDateCell = (d: Date): string => {
   const abbrev = DAY_ABBREV[d.getDay()] || '';
   const dd = String(d.getDate()).padStart(2, '0');
@@ -149,12 +149,12 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   const [activeNoteInputIdx, setActiveNoteInputIdx] = useState<number | null>(null);
   const [newNoteText, setNewNoteText] = useState<string>('');
 
-  // Scroll to top button visibility
+  // Scroll to top button visibility (FIX 2: Single button, threshold > 150px)
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 200);
+      setShowScrollTop(window.scrollY > 150);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -609,22 +609,23 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          PAGE HEADER CARD
+          PAGE HEADER CARD (FIX 3: Clean 2-row Layout)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+        {/* ROW 1: Title block (left) + Period Navigation (right) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
           
-          {/* Left: Title & Branch Badge */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3] shadow-xs shrink-0">
+          {/* LEFT: Title, Badge & Subtitle */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
               <BookOpen size={18} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-[16px] font-[700] text-[#2D4A49] tracking-tight">
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
                   บันทึกยอดขายประจำวัน
                 </h1>
-                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-2 py-[2px] rounded-[6px] border border-[#D4E4E3]">
+                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
                   สาขา {currentBranch}
                 </span>
               </div>
@@ -634,65 +635,62 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             </div>
           </div>
 
-          {/* Right: Period Navigation with [<] and [>] buttons (Change 6) */}
+          {/* RIGHT: [<] Period label [>] (Change 6) */}
           <div className="flex items-center gap-1.5 self-start md:self-auto">
             <button
               type="button"
               onClick={() => handleNavigatePeriod('prev')}
-              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
               title="ช่วงเวลาก่อนหน้า"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
             </button>
 
-            <span className="text-[12px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3.5 py-1.5 rounded-lg border border-[#D4E4E3] whitespace-nowrap shadow-2xs">
+            <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
               ช่วง: {summaryDateRangeLabel}
             </span>
 
             <button
               type="button"
               onClick={() => handleNavigatePeriod('next')}
-              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
               title="ช่วงเวลาถัดไป"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </button>
           </div>
 
         </div>
 
-        {/* Action Controls & Date Pickers (Change 7: Date Pickers for Authorized Only) */}
-        <div className="mt-3.5 pt-3 border-t border-[#D4E4E3] flex flex-wrap items-center justify-between gap-2.5">
-          {/* Admin Date Inputs */}
+        {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
+        <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
+
+        {/* ROW 2: Date inputs (left, admin only) + Action buttons (right) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+          {/* LEFT: Admin Date Pickers (FIX 3 & Change 7) */}
           {canEditDate ? (
             <form onSubmit={handleApplyRange} className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 bg-[#F0F5F4] px-2 py-1 rounded-lg border border-[#D4E4E3]">
-                <Calendar size={12} className="text-[#5A8A88]" />
-                <label className="text-[10px] font-medium text-[#2D4A49]">เริ่มต้น:</label>
-                <input
-                  type="date"
-                  value={startDateStr}
-                  onChange={(e) => setStartDateStr(e.target.value)}
-                  className="bg-white border border-[#5A8A88] rounded px-1.5 py-0.5 text-[10px] text-[#2D4A49] focus:outline-none"
-                />
-              </div>
+              <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap">เริ่มต้น:</span>
+              <input
+                type="date"
+                value={startDateStr}
+                onChange={(e) => setStartDateStr(e.target.value)}
+                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[11px] text-[#2D4A49] w-[140px] focus:outline-none focus:border-[#5A8A88]"
+              />
 
-              <div className="flex items-center gap-1.5 bg-[#F0F5F4] px-2 py-1 rounded-lg border border-[#D4E4E3]">
-                <Calendar size={12} className="text-[#5A8A88]" />
-                <label className="text-[10px] font-medium text-[#2D4A49]">สิ้นสุด:</label>
-                <input
-                  type="date"
-                  value={endDateStr}
-                  onChange={(e) => setEndDateStr(e.target.value)}
-                  className="bg-white border border-[#5A8A88] rounded px-1.5 py-0.5 text-[10px] text-[#2D4A49] focus:outline-none"
-                />
-              </div>
+              <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap">สิ้นสุด:</span>
+              <input
+                type="date"
+                value={endDateStr}
+                onChange={(e) => setEndDateStr(e.target.value)}
+                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[11px] text-[#2D4A49] w-[140px] focus:outline-none focus:border-[#5A8A88]"
+              />
 
               <button
                 type="submit"
-                className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[11px] font-[600] rounded-[8px] px-3 py-1.5 transition-colors cursor-pointer shadow-xs flex items-center gap-1"
+                className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[11px] font-[600] rounded-[8px] px-3 py-[7px] h-[34px] transition-colors cursor-pointer shadow-xs flex items-center gap-1"
               >
-                <RefreshCw size={11} />
+                <RefreshCw size={12} />
                 <span>ดูช่วงนี้</span>
               </button>
             </form>
@@ -700,35 +698,35 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             <div />
           )}
 
-          {/* Action Buttons: Save + Excel + PDF */}
-          <div className="flex items-center gap-2 ml-auto">
+          {/* RIGHT: Action Buttons (All heights consistent 34px) */}
+          <div className="flex items-center gap-1.5 ml-auto">
             <button
               type="button"
               onClick={() => setShowConfirmModal(true)}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[12px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[12px] font-[600] rounded-[8px] px-3.5 py-[7px] h-[34px] transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              <Save size={13} />
+              <Save size={14} />
               <span>บันทึกข้อมูล</span>
             </button>
 
             <button
               type="button"
               onClick={handleExportExcel}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-[500] rounded-[8px] px-2.5 py-1.5 transition-colors shadow-xs cursor-pointer"
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] rounded-[8px] px-3 py-[7px] h-[34px] transition-colors shadow-2xs cursor-pointer"
               title="ส่งออกไฟล์ Excel (CSV)"
             >
-              <Download size={12} />
+              <Download size={13} className="text-[#5A8A88]" />
               <span className="hidden sm:inline">Excel</span>
             </button>
 
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-[500] rounded-[8px] px-2.5 py-1.5 transition-colors shadow-xs cursor-pointer"
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] rounded-[8px] px-3 py-[7px] h-[34px] transition-colors shadow-2xs cursor-pointer"
               title="พิมพ์รายงาน (PDF)"
             >
-              <Printer size={12} />
+              <Printer size={13} className="text-[#5A8A88]" />
               <span className="hidden sm:inline">PDF</span>
             </button>
           </div>
@@ -821,7 +819,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                   }`}
                   style={{ minHeight: '32px' }}
                 >
-                  {/* 1. วันที่ (Change 2: Compact Abbreviation "จ. 28/09") */}
+                  {/* 1. วันที่ (Compact Abbreviation "จ. 28/09") */}
                   <td 
                     style={{
                       backgroundColor: dayColor.bg,
@@ -923,7 +921,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                     />
                   </td>
 
-                  {/* 8. หมายเหตุ (Change 3 & 4: Multi-notes system & Auto Word-wrap) */}
+                  {/* 8. หมายเหตุ (Multi-notes system & Auto Word-wrap) */}
                   <td className="py-1 px-1.5 align-top">
                     <div className="space-y-1">
                       {/* Notes list */}
@@ -1061,38 +1059,44 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CHANGE 5: SCROLL TO TOP BUTTON
+          FIX 2: SINGLE SCROLL TO TOP BUTTON (Compact 40x40, bottom:72px, right:20px)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {showScrollTop && (
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          title="เลื่อนขึ้นด้านบน"
           style={{
             position: 'fixed',
-            bottom: '76px',
-            right: '16px',
+            bottom: '72px',
+            right: '20px',
             zIndex: 150,
-            background: '#5A8A88',
-            color: 'white',
+            width: '40px',
+            height: '40px',
             borderRadius: '10px',
-            padding: '10px 14px',
-            boxShadow: '0 4px 16px rgba(90,138,136,0.4)',
+            background: '#5A8A88',
+            border: 'none',
+            color: 'white',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '2px',
-            border: '2px solid rgba(255,255,255,0.3)',
+            justifyContent: 'center',
+            gap: '1px',
             cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(90,138,136,0.35)',
+            transition: 'opacity 200ms, transform 200ms',
           }}
           className="hover:scale-105 active:scale-95 transition-all"
         >
           <ChevronUp size={16} />
-          <span style={{ fontSize: '10px', fontWeight: 600 }}>ด้านบน</span>
+          <span style={{ fontSize: '8px', lineHeight: 1 }}>
+            บน
+          </span>
         </button>
       )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CHANGE 8: SAVE CONFIRMATION MODAL
+          SAVE CONFIRMATION MODAL
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {showConfirmModal && (
         <div 
