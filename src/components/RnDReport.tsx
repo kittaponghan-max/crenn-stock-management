@@ -11,9 +11,20 @@ interface RnDReportProps {
   onSave: (log: Omit<RnDReportEntry, 'id' | 'timestamp'>) => void;
   onUpdate?: (id: string, log: Omit<RnDReportEntry, 'id' | 'timestamp'>) => void;
   onBack: () => void;
+  branch?: 'Rayong' | 'Bangkok';
 }
 
-export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: RnDReportProps) {
+export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, branch }: RnDReportProps) {
+  const currentBranch = branch || (() => {
+    try {
+      const savedUser = localStorage.getItem('cafe-user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.branch) return parsed.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,23 +70,11 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
       setLoading(true);
       setError(null);
 
-      let branch = 'Rayong';
-      try {
-        const savedUser = localStorage.getItem('cafe-user');
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          if (parsed.branch) branch = parsed.branch;
-        }
-      } catch (e) {}
-
-      let query = supabase
+      const query = supabase
         .from('rnd_reports')
         .select('id, timestamp, date, menu_name_th, menu_name_en, product_looks, component, taste, flavor, taste_result, improvements, commenter_name, image_url, image_urls, recorder_name')
+        .eq('branch', currentBranch)
         .order('timestamp', { ascending: false });
-
-      if (branch) {
-        query = query.eq('branch', branch);
-      }
 
       const { data, error: fetchErr } = await query.limit(100);
 
@@ -112,6 +111,8 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
           recorderName: r.recorder_name
         }));
         setRecords(mapped);
+      } else {
+        setRecords([]);
       }
     } catch (err: any) {
       console.error('Fetch exception in rnd_reports:', err);
@@ -120,19 +121,19 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
       setLoading(false);
       setLastFetch(new Date());
     }
-  }, []);
+  }, [currentBranch]);
 
   // Fetch on mount
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   // Real-time Supabase subscription
   useEffect(() => {
     if (!supabase) return;
 
     const channel = supabase
-      .channel(`realtime-rnd_reports-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`realtime-rnd_reports-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on(
         'postgres_changes',
         {
@@ -149,7 +150,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   // Re-fetch on tab focus / visibilitychange
   useEffect(() => {
@@ -172,9 +173,9 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack }: Rn
   }, [fetchData]);
 
   const effectiveReports = useMemo(() => {
-    if (records.length > 0) return records;
-    return reports;
-  }, [records, reports]);
+    if (!loading) return records;
+    return records.length > 0 ? records : reports;
+  }, [records, reports, loading]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
