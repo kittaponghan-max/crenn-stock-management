@@ -133,7 +133,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'dailySales',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-72',
+      dropdownWidth: 'w-72 min-w-[280px]',
       groups: [
         {
           items: [
@@ -158,7 +158,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'barStock',
       showBadge: outOfStockCount > 0,
       hasDropdown: true,
-      dropdownWidth: 'w-56',
+      dropdownWidth: 'w-64 min-w-[240px]',
       groups: [
         {
           items: [
@@ -175,7 +175,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'logs',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-72',
+      dropdownWidth: 'w-72 min-w-[280px]',
       groups: [
         {
           title: 'รายงานประจำวัน',
@@ -206,7 +206,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'barChecklist',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-64',
+      dropdownWidth: 'w-72 min-w-[280px]',
       groups: [
         {
           items: [
@@ -232,7 +232,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'bakeryPlan',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-64',
+      dropdownWidth: 'w-72 min-w-[280px]',
       groups: [
         {
           items: [
@@ -295,7 +295,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   return (
     <div
       ref={containerRef}
-      className="hidden md:flex items-center justify-center gap-[2px] flex-1 px-[8px] relative"
+      className="hidden md:flex items-center justify-center gap-[2px] flex-1 px-[8px] relative overflow-visible"
     >
       {NAV_ITEMS.map((item) => {
         const active = isItemActive(item.id, activeTab);
@@ -314,7 +314,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
         }
 
         return (
-          <div key={item.id} className="relative">
+          <div key={item.id} className="relative overflow-visible">
             <button
               type="button"
               onClick={() => handleTabClick(item)}
@@ -408,9 +408,11 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                   top: 'calc(100% + 4px)',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  zIndex: 60,
+                  zIndex: 100,
+                  minWidth: '260px',
+                  boxShadow: '0 8px 24px rgba(45,74,73,0.12)',
                 }}
-                className={`absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 ${item.dropdownWidth || 'w-64'} bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] overflow-y-auto`}
+                className={`absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 ${item.dropdownWidth || 'w-72 min-w-[260px]'} bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-2 z-[100] animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] overflow-y-auto`}
               >
                 {/* Invisible hover bridge to prevent mouseleave between button and menu */}
                 <div 
@@ -442,9 +444,11 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                                 : 'text-slate-700 hover:bg-[#F0F5F4] hover:text-[#1E3A3A] font-medium'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-1">
                               <span className="text-sm shrink-0 leading-none">{subItem.emoji}</span>
-                              <span className="truncate text-[12px]">{subItem.label}</span>
+                              <span className="whitespace-normal break-words text-[12px] text-[#2D4A49] flex-1 text-left leading-tight">
+                                {subItem.label}
+                              </span>
                             </div>
                             {isSubActive ? (
                               <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0 ml-2" />
