@@ -378,7 +378,7 @@ export function HomeScreen({
   const outOpacity = !hasActiveKPI ? 1 : isOutActive ? 1 : 0.4;
 
   return (
-    <div className="w-full bg-[#F4F8F7] text-slate-800 pb-6 font-sans">
+    <div className="min-h-screen bg-[#F4F8F7] text-slate-800 pb-28 font-sans">
       
       {/* 1. TOP BAR: CRENN + 🔔 + avatar */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#D4E4E3] shadow-xs px-4 py-3">
