@@ -13,6 +13,7 @@ interface WasteReportProps {
   onSave: (log: Omit<WasteLogEntry, 'id' | 'timestamp'> | Omit<WasteLogEntry, 'id' | 'timestamp'>[]) => Promise<void> | void;
   onUpdate?: (id: string, updates: Partial<WasteLogEntry>) => Promise<void> | void;
   onBack: () => void;
+  branch?: 'Rayong' | 'Bangkok';
 }
 
 export interface WasteFormItem {
@@ -33,7 +34,18 @@ const createNewItem = (): WasteFormItem => ({
   imageUrl: ''
 });
 
-export function WasteReport({ department, ingredients, wasteLogs, currentUser, onSave, onUpdate, onBack }: WasteReportProps) {
+export function WasteReport({ department, ingredients, wasteLogs, currentUser, onSave, onUpdate, onBack, branch }: WasteReportProps) {
+  const currentBranch = branch || (() => {
+    try {
+      const savedUser = localStorage.getItem('cafe-user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.branch) return parsed.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -61,23 +73,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       setLoading(true);
       setError(null);
 
-      let branch = 'Rayong';
-      try {
-        const savedUser = localStorage.getItem('cafe-user');
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          if (parsed.branch) branch = parsed.branch;
-        }
-      } catch (e) {}
-
-      let query = supabase
+      const query = supabase
         .from('waste_logs')
         .select('id, timestamp, date, department, ingredient_id, ingredient_name, quantity, unit, cause, solution, image_url, recorder_name')
+        .eq('branch', currentBranch)
         .order('timestamp', { ascending: false });
-
-      if (branch) {
-        query = query.eq('branch', branch);
-      }
 
       const { data, error: fetchErr } = await query.limit(150);
 
@@ -108,19 +108,19 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       setLoading(false);
       setLastFetch(new Date());
     }
-  }, []);
+  }, [currentBranch]);
 
   // Initial fetch on mount & re-fetch if department/branch changes
   useEffect(() => {
     fetchData();
-  }, [fetchData, department]);
+  }, [fetchData, department, currentBranch]);
 
   // Real-time Supabase subscription
   useEffect(() => {
     if (!supabase) return;
 
     const channel = supabase
-      .channel(`realtime-waste_logs-${department}-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`realtime-waste_logs-${department}-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on(
         'postgres_changes',
         {
@@ -137,7 +137,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchData, department]);
+  }, [fetchData, department, currentBranch]);
 
   // Re-fetch on tab return / window focus
   useEffect(() => {
@@ -161,9 +161,11 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
   // Blend fetched records with props fallback
   const effectiveWasteLogs = useMemo(() => {
-    if (records.length > 0) return records;
-    return wasteLogs;
-  }, [records, wasteLogs]);
+    if (!loading) {
+      return records;
+    }
+    return records.length > 0 ? records : wasteLogs;
+  }, [records, wasteLogs, loading]);
 
   // Always resolve the freshest log from wasteLogs state
   const activeSelectedLog = useMemo(() => {
