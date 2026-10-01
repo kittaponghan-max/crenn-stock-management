@@ -36,6 +36,7 @@ interface AuditLogProps {
   initialTab?: 'logs' | 'checklist' | 'receiving' | 'stockSubmit';
   onDeleteReceivingRecord?: (id: string) => void;
   isReadOnly?: boolean;
+  branch?: 'Rayong' | 'Bangkok';
 }
 
 export function AuditLog({ 
@@ -45,8 +46,20 @@ export function AuditLog({
   ingredients = [], 
   initialTab = 'logs', 
   onDeleteReceivingRecord, 
-  isReadOnly = false 
+  isReadOnly = false,
+  branch
 }: AuditLogProps) {
+  const currentBranch = branch || (() => {
+    try {
+      const raw = localStorage.getItem('cafe-user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u.branch) return u.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
+
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeTab, setActiveTab] = React.useState<'logs' | 'checklist' | 'receiving' | 'stockSubmit'>(initialTab);
   const [expandedLogIds, setExpandedLogIds] = React.useState<Record<string, boolean>>({});
@@ -68,23 +81,14 @@ export function AuditLog({
     try {
       setLoading(true);
 
-      let branch = 'Rayong';
-      try {
-        const raw = localStorage.getItem('cafe-user');
-        if (raw) {
-          const u = JSON.parse(raw);
-          if (u.branch) branch = u.branch;
-        }
-      } catch (e) {}
-
       const [
         { data: logsData },
         { data: checkData },
         { data: recData }
       ] = await Promise.all([
-        supabase.from('audit_logs').select('*').eq('branch', branch).order('timestamp', { ascending: false }).limit(150),
-        supabase.from('checklist_records').select('*').eq('branch', branch).order('timestamp', { ascending: false }).limit(150),
-        supabase.from('receiving_records').select('*').eq('branch', branch).order('receive_date', { ascending: false }).limit(200)
+        supabase.from('audit_logs').select('*').eq('branch', currentBranch).order('timestamp', { ascending: false }).limit(150),
+        supabase.from('checklist_records').select('*').eq('branch', currentBranch).order('timestamp', { ascending: false }).limit(150),
+        supabase.from('receiving_records').select('*').eq('branch', currentBranch).order('receive_date', { ascending: false }).limit(200)
       ]);
 
       if (logsData) {
@@ -96,6 +100,8 @@ export function AuditLog({
           action: l.action,
           details: l.details
         })));
+      } else {
+        setLiveLogs([]);
       }
 
       if (checkData) {
@@ -107,6 +113,8 @@ export function AuditLog({
           reporterName: c.reporter_name,
           ...c.data
         })));
+      } else {
+        setLiveChecklists([]);
       }
 
       if (recData) {
@@ -119,6 +127,8 @@ export function AuditLog({
           expiryDate: r.expiry_date,
           userName: r.user_name || '-'
         })));
+      } else {
+        setLiveReceiving([]);
       }
     } catch (err: any) {
       console.error('Fetch exception in AuditLog:', err);
@@ -126,28 +136,28 @@ export function AuditLog({
       setLoading(false);
       setLastFetch(new Date());
     }
-  }, []);
+  }, [currentBranch]);
 
   React.useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   // Real-time Supabase subscriptions
   React.useEffect(() => {
     if (!supabase) return;
 
     const channel1 = supabase
-      .channel(`audit-logs-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`audit-logs-rt-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => fetchData())
       .subscribe();
 
     const channel2 = supabase
-      .channel(`checklist-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`checklist-rt-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_records' }, () => fetchData())
       .subscribe();
 
     const channel3 = supabase
-      .channel(`receiving-rt-${Math.random().toString(36).substring(2, 7)}`)
+      .channel(`receiving-rt-${currentBranch}-${Math.random().toString(36).substring(2, 7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'receiving_records' }, () => fetchData())
       .subscribe();
 
@@ -156,7 +166,7 @@ export function AuditLog({
       supabase.removeChannel(channel2);
       supabase.removeChannel(channel3);
     };
-  }, [fetchData]);
+  }, [fetchData, currentBranch]);
 
   React.useEffect(() => {
     const handleVis = () => {
@@ -171,9 +181,9 @@ export function AuditLog({
     };
   }, [fetchData]);
 
-  const effectiveLogs = liveLogs.length > 0 ? liveLogs : logs;
-  const effectiveChecklists = liveChecklists.length > 0 ? liveChecklists : checklistRecords;
-  const effectiveReceiving = liveReceiving.length > 0 ? liveReceiving : receivingRecords;
+  const effectiveLogs = !loading ? liveLogs : (liveLogs.length > 0 ? liveLogs : logs);
+  const effectiveChecklists = !loading ? liveChecklists : (liveChecklists.length > 0 ? liveChecklists : checklistRecords);
+  const effectiveReceiving = !loading ? liveReceiving : (liveReceiving.length > 0 ? liveReceiving : receivingRecords);
 
   // Reset active tab when initialTab changes
   React.useEffect(() => {
