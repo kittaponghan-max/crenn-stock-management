@@ -38,6 +38,7 @@ interface NavItemConfig {
   showBadge: boolean;
   hasDropdown: boolean;
   dropdownWidth?: string;
+  dropdownAlignment?: 'left' | 'center' | 'right';
   groups?: SubMenuGroup[];
 }
 
@@ -133,7 +134,8 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'dailySales',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-72 min-w-[280px]',
+      dropdownWidth: 'min-w-[260px] w-auto',
+      dropdownAlignment: 'left',
       groups: [
         {
           items: [
@@ -158,7 +160,8 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'barStock',
       showBadge: outOfStockCount > 0,
       hasDropdown: true,
-      dropdownWidth: 'w-64 min-w-[240px]',
+      dropdownWidth: 'min-w-[240px] w-auto',
+      dropdownAlignment: 'left',
       groups: [
         {
           items: [
@@ -175,7 +178,8 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'logs',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-72 min-w-[280px]',
+      dropdownWidth: 'min-w-[280px] w-auto',
+      dropdownAlignment: 'center',
       groups: [
         {
           title: 'รายงานประจำวัน',
@@ -206,7 +210,8 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'barChecklist',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-72 min-w-[280px]',
+      dropdownWidth: 'min-w-[280px] w-auto',
+      dropdownAlignment: 'center',
       groups: [
         {
           items: [
@@ -232,7 +237,8 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'bakeryPlan',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'w-72 min-w-[280px]',
+      dropdownWidth: 'min-w-[280px] w-auto',
+      dropdownAlignment: 'right',
       groups: [
         {
           items: [
@@ -290,6 +296,38 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
     clearCloseTimer();
     setOpenDropdownId(null);
     onNavigate?.(route);
+  };
+
+  const getDropdownStyle = (item: NavItemConfig): React.CSSProperties => {
+    const baseStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 'calc(100% + 4px)',
+      zIndex: 100,
+      minWidth: '260px',
+      boxShadow: '0 8px 24px rgba(45,74,73,0.12)',
+    };
+
+    if (item.dropdownAlignment === 'left') {
+      return {
+        ...baseStyle,
+        left: 0,
+        right: 'auto',
+        transform: 'none',
+      };
+    }
+    if (item.dropdownAlignment === 'right') {
+      return {
+        ...baseStyle,
+        right: 0,
+        left: 'auto',
+        transform: 'none',
+      };
+    }
+    return {
+      ...baseStyle,
+      left: '50%',
+      transform: 'translateX(-50%)',
+    };
   };
 
   return (
@@ -403,16 +441,14 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
               <div
                 onMouseEnter={handleDropdownMouseEnter}
                 onMouseLeave={handleDropdownMouseLeave}
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 4px)',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 100,
-                  minWidth: '260px',
-                  boxShadow: '0 8px 24px rgba(45,74,73,0.12)',
-                }}
-                className={`absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 ${item.dropdownWidth || 'w-72 min-w-[260px]'} bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-2 z-[100] animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] overflow-y-auto`}
+                style={getDropdownStyle(item)}
+                className={`absolute top-[calc(100%+4px)] ${
+                  item.dropdownAlignment === 'left'
+                    ? 'left-0'
+                    : item.dropdownAlignment === 'right'
+                    ? 'right-0'
+                    : 'left-1/2 -translate-x-1/2'
+                } ${item.dropdownWidth || 'min-w-[260px] w-auto'} bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-2 z-[100] animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] overflow-y-auto`}
               >
                 {/* Invisible hover bridge to prevent mouseleave between button and menu */}
                 <div 
