@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Home, 
+  BookOpen,
   Package, 
   ClipboardList, 
   CheckSquare, 
@@ -88,6 +89,9 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
 
   const isItemActive = (id: string, currentTab: string) => {
     if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard';
+    if (id === 'dailyrecord') {
+      return ['dailySales', 'dailyBakery'].includes(currentTab);
+    }
     if (id === 'stock') {
       return ['barStock', 'bakeryStock', 'stock'].includes(currentTab);
     }
@@ -121,6 +125,31 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'home',
       showBadge: false,
       hasDropdown: false,
+    },
+    {
+      id: 'dailyrecord',
+      label: 'Daily Record',
+      icon: BookOpen,
+      route: 'dailySales',
+      showBadge: false,
+      hasDropdown: true,
+      dropdownWidth: 'w-72',
+      groups: [
+        {
+          items: [
+            {
+              route: 'dailySales',
+              label: 'บันทึกยอดขายประจำวัน',
+              emoji: '💰'
+            },
+            {
+              route: 'dailyBakery',
+              label: 'บันทึกจำนวนขนมประจำวัน',
+              emoji: '🧁'
+            },
+          ],
+        },
+      ],
     },
     {
       id: 'stock',
