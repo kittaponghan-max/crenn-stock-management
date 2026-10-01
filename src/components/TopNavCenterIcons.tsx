@@ -128,7 +128,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
     },
     {
       id: 'dailyrecord',
-      label: 'Daily Record',
+      label: 'Daily Rec.',
       icon: BookOpen,
       route: 'dailySales',
       showBadge: false,
@@ -295,7 +295,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   return (
     <div
       ref={containerRef}
-      className="hidden md:flex items-center justify-center gap-[4px] flex-1 px-[16px] relative"
+      className="hidden md:flex items-center justify-center gap-[2px] flex-1 px-[8px] relative"
     >
       {NAV_ITEMS.map((item) => {
         const active = isItemActive(item.id, activeTab);
@@ -326,9 +326,9 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '2px',
-                padding: '6px 10px',
+                padding: '6px 8px',
                 borderRadius: '8px',
-                minWidth: '48px',
+                minWidth: '40px',
                 cursor: 'pointer',
                 position: 'relative',
                 transition: 'all 150ms ease',
@@ -336,7 +336,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                 border: 'none',
                 outline: 'none',
               }}
-              className={`flex flex-col items-center justify-center gap-[2px] px-[10px] py-[6px] rounded-lg min-w-[48px] cursor-pointer relative transition-all duration-150 ${
+              className={`flex flex-col items-center justify-center gap-[2px] px-[8px] py-[6px] rounded-lg min-w-[40px] cursor-pointer relative transition-all duration-150 ${
                 active || isOpen
                   ? 'bg-[#E8F3F2]'
                   : 'hover:bg-[#F0F5F4]'
@@ -364,17 +364,20 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '2px',
+                  maxWidth: '52px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   transition: 'color 150ms ease',
                 }}
-                className={`text-[9px] leading-none whitespace-nowrap flex items-center gap-[2px] ${
+                className={`text-[9px] leading-none whitespace-nowrap flex items-center gap-[2px] max-w-[52px] truncate ${
                   active || isOpen ? 'font-semibold text-[#5A8A88]' : 'font-normal text-[#A8BCBB]'
                 }`}
               >
                 {item.label}
                 {item.hasDropdown && (
                   <ChevronDown 
-                    size={8} 
-                    className={`transition-transform duration-150 ${isOpen ? 'rotate-180 text-[#5A8A88]' : 'text-current opacity-60'}`} 
+                    size={7} 
+                    className={`transition-transform duration-150 shrink-0 ${isOpen ? 'rotate-180 text-[#5A8A88]' : 'text-current opacity-60'}`} 
                   />
                 )}
               </span>
