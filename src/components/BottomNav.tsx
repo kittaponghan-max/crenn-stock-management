@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, 
+  BookOpen,
   Package, 
   ClipboardList, 
   CheckSquare, 
@@ -93,6 +94,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
 
   const isTabActive = (tabId: string) => {
     if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard';
+    if (tabId === 'dailyrecord') {
+      return activeTab === 'dailySales' || activeTab === 'dailyBakery';
+    }
     if (tabId === 'stock') return activeTab === 'barStock' || activeTab === 'bakeryStock';
     if (tabId === 'reports') {
       return [
@@ -114,6 +118,31 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'หน้าหลัก', 
       icon: Home, 
       hasDropdown: false 
+    },
+    {
+      id: 'dailyrecord',
+      label: 'Daily Record',
+      mobileLabel: 'บันทึก',
+      icon: BookOpen,
+      hasDropdown: true,
+      dropdownWidth: 'w-[260px] sm:w-[280px]',
+      alignmentClass: 'left-0 sm:left-1/2 sm:-translate-x-1/2',
+      groups: [
+        {
+          items: [
+            {
+              route: 'dailySales',
+              label: 'บันทึกยอดขายประจำวัน',
+              emoji: '💰'
+            },
+            {
+              route: 'dailyBakery',
+              label: 'บันทึกจำนวนขนมประจำวัน',
+              emoji: '🧁'
+            },
+          ],
+        },
+      ],
     },
     { 
       id: 'stock', 
