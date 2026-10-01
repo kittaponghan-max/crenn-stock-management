@@ -667,43 +667,129 @@ export function AuditLog({
               <p className="text-[12px]">ไม่พบประวัติการแก้ไข</p>
             </div>
           ) : (
-            filteredLogs.map((log) => (
-              <div 
-                key={log.id} 
-                className="flex items-start gap-3 py-3.5 border-b border-[#F0F5F4] last:border-0 hover:bg-[#FAFCFC] rounded-lg hover:px-2 transition-all"
-              >
-                {/* LEFT — Icon circle (ประวัติการแก้ไขข้อมูล: bg #E8F3F2, icon #5A8A88) */}
-                <div className="w-8 h-8 rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0 mt-0.5">
-                  <Clock size={14} className="text-[#5A8A88]" />
-                </div>
+            filteredLogs.map((log) => {
+              let summaryText = log.action === 'System Backup' ? '[ข้อมูลสำรองระบบอัตโนมัติซ่อนอยู่]' : log.details;
+              let changesList: any[] = [];
+              let isJsonData = false;
+              try {
+                const parsed = JSON.parse(log.details);
+                if (parsed && typeof parsed === 'object' && parsed.summary) {
+                  summaryText = parsed.summary;
+                  if (Array.isArray(parsed.changes)) {
+                    changesList = parsed.changes;
+                    isJsonData = true;
+                  }
+                }
+              } catch (e) {}
 
-                {/* MIDDLE — Content block */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-semibold text-[#2D4A49] mb-1">
-                    {log.action}
+              const hasChanges = isJsonData && changesList.length > 0;
+              const isExpanded = !!expandedLogIds[log.id];
+
+              return (
+                <div 
+                  key={log.id} 
+                  onClick={() => {
+                    if (hasChanges) {
+                      setExpandedLogIds(prev => ({
+                        ...prev,
+                        [log.id]: !prev[log.id]
+                      }));
+                    }
+                  }}
+                  className={cn(
+                    "flex items-start gap-3 py-3.5 border-b border-[#F0F5F4] last:border-0 hover:bg-[#FAFCFC] rounded-lg hover:px-2 transition-all",
+                    hasChanges && "cursor-pointer",
+                    isExpanded && "bg-[#FAFCFC]"
+                  )}
+                >
+                  {/* LEFT — Icon circle (ประวัติการแก้ไขข้อมูล: bg #E8F3F2, icon #5A8A88) */}
+                  <div className="w-8 h-8 rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0 mt-0.5">
+                    <Clock size={14} className="text-[#5A8A88]" />
                   </div>
 
-                  <p className="text-[11px] font-normal text-[#6B8F8E] leading-[1.4] mb-1.5 break-words">
-                    {log.action === 'System Backup' ? '[ข้อมูลสำรองระบบอัตโนมัติซ่อนอยู่]' : log.details}
-                  </p>
+                  {/* MIDDLE — Content block */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-[12px] font-semibold text-[#2D4A49]">
+                        {log.action}
+                      </span>
+                      {hasChanges && (
+                        <span className="text-[9px] font-medium text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded-full px-2 py-0.2">
+                          มีการแก้ไข ({changesList.length} รายการ)
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <User size={11} className="text-[#A8BCBB]" />
-                    <span className="text-[11px] font-medium text-[#5A8A88]">
-                      {log.userEmail}
-                    </span>
-                    <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5 tracking-[0.05em] uppercase">
-                      {log.userRole || 'USER'}
-                    </span>
+                    <p className="text-[11px] font-normal text-[#6B8F8E] leading-[1.4] mb-1.5 break-words">
+                      {summaryText}
+                    </p>
+
+                    {/* Collapsible Changes List */}
+                    {isExpanded && hasChanges && (
+                      <div 
+                        className="my-2.5 pl-3 border-l-2 border-[#5A8A88] space-y-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {changesList.map((ch, idx) => (
+                            <div key={idx} className="p-2 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px] flex flex-col gap-1">
+                              <div className="flex items-center justify-between gap-1 flex-wrap">
+                                {ch.itemName && (
+                                  <span className="font-bold text-[#2D4A49] bg-white px-1.5 py-0.5 rounded border border-[#D4E4E3] text-[10px] truncate max-w-[130px]">
+                                    {ch.itemName}
+                                  </span>
+                                )}
+                                {(ch.dayLabel || ch.date) && (
+                                  <span className="text-[10px] text-[#5A8A88] font-medium bg-[#E8F3F2] px-1.5 py-0.2 rounded">
+                                    {ch.dayLabel || ch.date}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between gap-1.5 mt-0.5">
+                                <span className="font-medium text-[#4A6B6A] truncate max-w-[140px]">
+                                  {ch.field || ch.ingredientName || 'รายการ'}
+                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[#A8BCBB] line-through text-[10px]">({ch.oldVal})</span>
+                                  <span className="text-[#6B8F8E]">➜</span>
+                                  <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.5 rounded font-bold text-[10px] border border-[#D4E4E3]">
+                                    {ch.newVal} {ch.unit || ''}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <User size={11} className="text-[#A8BCBB]" />
+                        <span className="text-[11px] font-medium text-[#5A8A88]">
+                          {log.userEmail}
+                        </span>
+                        <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] border border-[#D4E4E3] rounded px-1.5 py-0.5 tracking-[0.05em] uppercase">
+                          {log.userRole || 'USER'}
+                        </span>
+                      </div>
+
+                      {hasChanges && (
+                        <div className="flex items-center gap-1 text-[10px] font-medium text-[#5A8A88]">
+                          <span>{isExpanded ? 'ย่อข้อมูล' : 'ดูรายละเอียดการแก้ไข'}</span>
+                          <ChevronDown size={12} className={cn("transition-transform duration-200", isExpanded && "rotate-180")} />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* RIGHT — Timestamp */}
-                <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap shrink-0 ml-3 self-start mt-0.5">
-                  {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
-                </span>
-              </div>
-            ))
+                  {/* RIGHT — Timestamp */}
+                  <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap shrink-0 ml-3 self-start mt-0.5">
+                    {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+                  </span>
+                </div>
+              );
+            })
           )
         )}
 
