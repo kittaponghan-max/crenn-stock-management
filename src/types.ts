@@ -111,6 +111,7 @@ export interface AppPermissions {
   
   manageIngredients: PermissionLevel;
   adminTools: PermissionLevel;
+  canEditDateRange?: boolean;
 }
 
 export interface AppUser {
