@@ -22,6 +22,8 @@ import { WasteReport } from './components/WasteReport';
 import { RnDReport } from './components/RnDReport';
 import { PurchasingReport } from './components/PurchasingReport';
 import { UserSettings } from './components/UserSettings';
+import { DailySalesRecord } from './components/DailySalesRecord';
+import { DailyBakeryRecord } from './components/DailyBakeryRecord';
 import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
 import { cn, generateUUID, isValidUUID } from './lib/utils';
@@ -2162,6 +2164,18 @@ export default function App() {
           <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} />
         ) : activeTab === 'barPurchasing' ? (
           <PurchasingReport ingredients={ingredients} stockRecord={stockRecord} onBack={() => setActiveTab('home')} />
+        ) : activeTab === 'dailySales' ? (
+          <DailySalesRecord
+            user={user}
+            branch={user?.branch}
+            onNavigate={(tab) => setActiveTab(tab as any)}
+          />
+        ) : activeTab === 'dailyBakery' ? (
+          <DailyBakeryRecord
+            user={user}
+            branch={user?.branch}
+            onNavigate={(tab) => setActiveTab(tab as any)}
+          />
         ) : activeTab === 'userSettings' ? (
           <UserSettings currentUser={user} onCurrentUserUpdated={setUser} branch={user?.branch} />
         ) : (
