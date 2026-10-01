@@ -514,6 +514,46 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
               type: 'success',
               message: 'บันทึกข้อมูลสำเร็จ',
             });
+
+            // 3. Record to audit_logs
+            try {
+              const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+              const timestamp = new Date().toISOString();
+              const action = 'บันทึกยอดขายประจำวัน';
+              const details = `บันทึกยอดขาย ช่วง ${summaryDateRangeLabel} จำนวน ${recordsToUpsert.length} วัน (สาขา ${currentBranch})`;
+
+              const newLog = {
+                id: logId,
+                timestamp,
+                userEmail: recorderName,
+                userRole: user?.role || 'Staff',
+                action,
+                details,
+              };
+
+              const branchKey = `cafe-audit-logs-${currentBranch}`;
+              try {
+                const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
+                localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
+              } catch (e) {}
+
+              try {
+                const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
+                localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
+              } catch (e) {}
+
+              await supabase.from('audit_logs').insert({
+                id: logId,
+                branch: currentBranch,
+                timestamp,
+                user_email: recorderName,
+                user_role: user?.role || 'Staff',
+                action,
+                details,
+              });
+            } catch (logErr) {
+              console.warn('Audit log recording error:', logErr);
+            }
           }
         } else {
           setSaveStatus({
