@@ -42,6 +42,7 @@ interface SubMenuGroup {
 interface NavTabConfig {
   id: string;
   label: string;
+  mobileLabel?: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; className?: string }>;
   hasDropdown: boolean;
   dropdownWidth?: string;
@@ -119,7 +120,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'สต็อก', 
       icon: Package, 
       hasDropdown: true,
-      dropdownWidth: 'min-w-[220px]',
+      dropdownWidth: 'w-[220px] sm:w-[230px]',
       alignmentClass: 'left-0 sm:left-1/2 sm:-translate-x-1/2',
       groups: [
         {
@@ -135,8 +136,8 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'รายงาน', 
       icon: ClipboardList, 
       hasDropdown: true,
-      dropdownWidth: 'min-w-[240px]',
-      alignmentClass: 'left-1/2 -translate-x-1/2',
+      dropdownWidth: 'w-[260px] sm:w-[280px]',
+      alignmentClass: 'left-[-30px] sm:left-1/2 sm:-translate-x-1/2',
       groups: [
         {
           title: 'รายงานประจำวัน',
@@ -165,7 +166,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'Check-in', 
       icon: CheckSquare, 
       hasDropdown: true,
-      dropdownWidth: 'min-w-[240px]',
+      dropdownWidth: 'w-[230px] sm:w-[250px]',
       alignmentClass: 'left-1/2 -translate-x-1/2',
       groups: [
         {
@@ -180,6 +181,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
     { 
       id: 'purchasing', 
       label: 'Purchasing', 
+      mobileLabel: 'สั่งซื้อ',
       icon: ShoppingCart, 
       hasDropdown: false 
     },
@@ -188,8 +190,8 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'Bakery', 
       icon: Cake, 
       hasDropdown: true,
-      dropdownWidth: 'min-w-[230px]',
-      alignmentClass: 'right-[-20px] left-auto sm:left-1/2 sm:-translate-x-1/2',
+      dropdownWidth: 'w-[230px] sm:w-[240px]',
+      alignmentClass: 'right-[-30px] left-auto sm:left-1/2 sm:-translate-x-1/2',
       groups: [
         {
           items: [
@@ -210,7 +212,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'เพิ่มเติม', 
       icon: MoreHorizontal, 
       hasDropdown: true,
-      dropdownWidth: 'min-w-[220px]',
+      dropdownWidth: 'w-[220px] sm:w-[230px]',
       alignmentClass: 'right-0 left-auto sm:left-1/2 sm:-translate-x-1/2',
       groups: [
         {
@@ -276,24 +278,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       <nav 
         ref={bottomNavRef}
         aria-label="Main Navigation"
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          overflow: 'visible',
-          background: '#FFFFFF',
-          borderTop: '1px solid #D4E4E3',
-          paddingTop: '8px',
-          paddingBottom: '8px',
-        }}
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-[#D4E4E3] shadow-lg select-none py-2 overflow-visible"
+        className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-[#D4E4E3] shadow-lg select-none overflow-visible pb-[env(safe-area-inset-bottom)] h-[56px] md:h-[64px] flex items-center"
       >
-        <div 
-          style={{ overflow: 'visible' }}
-          className="max-w-xl mx-auto flex items-center justify-around px-2 relative"
-        >
+        <div className="w-full max-w-xl mx-auto flex items-center justify-between px-1 md:px-2 relative overflow-visible h-full">
           {NAV_TABS.map(tab => {
             const Icon = tab.icon;
             const active = isTabActive(tab.id);
@@ -302,50 +289,43 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
             return (
               <div 
                 key={tab.id}
-                style={{ position: 'relative' }}
-                className="relative shrink-0"
+                className="flex-1 min-w-0 flex justify-center relative shrink-0"
               >
                 <button
                   type="button"
                   onClick={() => handleTabClick(tab)}
                   onMouseEnter={() => handleTabMouseEnter(tab)}
                   onMouseLeave={() => handleTabMouseLeave(tab)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '42px',
-                    padding: '4px 6px',
-                    borderRadius: '9999px',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'all 150ms ease',
-                    background: active || isOpen ? '#E8F3F2' : 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                  }}
-                  className={`flex flex-col items-center justify-center min-w-[42px] sm:min-w-[52px] py-1 px-1.5 sm:px-2 rounded-full transition-all select-none shrink-0 relative ${
+                  className={`flex flex-col items-center justify-center w-full min-w-0 py-[5px] px-[2px] md:px-2 md:py-1.5 rounded-lg md:rounded-full transition-all select-none cursor-pointer relative ${
                     active || isOpen
-                      ? 'bg-[#E8F3F2] shadow-xs'
-                      : 'hover:bg-[#F0F5F4]'
+                      ? 'bg-[#E8F3F2] shadow-xs text-[#5A8A88]'
+                      : 'hover:bg-[#F0F5F4] text-[#A8BCBB]'
                   }`}
                   aria-expanded={isOpen}
                   aria-haspopup={tab.hasDropdown}
                 >
                   <div className="relative flex items-center justify-center">
-                    <Icon 
-                      size={18} 
-                      strokeWidth={active || isOpen ? 2.5 : 2} 
-                      style={{ color: active || isOpen ? '#5A8A88' : '#A8BCBB' }}
-                    />
+                    <span className="md:hidden flex items-center justify-center">
+                      <Icon 
+                        size={16} 
+                        strokeWidth={active || isOpen ? 2.5 : 2} 
+                        style={{ color: active || isOpen ? '#5A8A88' : '#A8BCBB' }}
+                      />
+                    </span>
+                    <span className="hidden md:flex items-center justify-center">
+                      <Icon 
+                        size={18} 
+                        strokeWidth={active || isOpen ? 2.5 : 2} 
+                        style={{ color: active || isOpen ? '#5A8A88' : '#A8BCBB' }}
+                      />
+                    </span>
                     {tab.hasDropdown && (
                       <ChevronUp 
-                        size={8} 
+                        size={7} 
                         style={{
                           position: 'absolute',
-                          top: '-4px',
-                          right: '-6px',
+                          top: '-3px',
+                          right: '-5px',
                           color: isOpen ? '#5A8A88' : '#A8BCBB',
                           transform: isOpen ? 'rotate(180deg)' : 'none',
                           transition: 'transform 150ms ease, color 150ms ease',
@@ -354,19 +334,18 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
                     )}
                   </div>
                   <span 
-                    style={{
-                      fontSize: '10px',
-                      marginTop: '2px',
-                      lineHeight: 1.1,
-                      fontWeight: active || isOpen ? 700 : 500,
-                      color: active || isOpen ? '#5A8A88' : '#A8BCBB',
-                      whiteSpace: 'nowrap',
-                    }}
-                    className={`text-[10px] mt-0.5 leading-tight tracking-tight whitespace-nowrap ${
-                      active || isOpen ? 'text-[#5A8A88] font-bold' : 'text-[#A8BCBB] font-medium'
+                    className={`text-[8px] md:text-[9px] mt-0.5 leading-tight tracking-tight whitespace-nowrap truncate max-w-full text-center ${
+                      active || isOpen ? 'text-[#5A8A88] font-bold' : 'text-[#A8BCBB] font-normal'
                     }`}
                   >
-                    {tab.label}
+                    {tab.mobileLabel ? (
+                      <>
+                        <span className="md:hidden">{tab.mobileLabel}</span>
+                        <span className="hidden md:inline">{tab.label}</span>
+                      </>
+                    ) : (
+                      tab.label
+                    )}
                   </span>
                 </button>
 
@@ -387,7 +366,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
                       boxShadow: '0 -8px 24px rgba(45,74,73,0.12)',
                       zIndex: 200,
                     }}
-                    className={`absolute bottom-[calc(100%+6px)] ${tab.alignmentClass || 'left-1/2 -translate-x-1/2'} ${tab.dropdownWidth || 'min-w-[220px]'} bg-white border border-[#D4E4E3] rounded-[12px] p-1.5 shadow-[-8px_24px_rgba(45,74,73,0.12)] z-[200] max-h-[70vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150`}
+                    className={`absolute bottom-[calc(100%+6px)] ${tab.alignmentClass || 'left-1/2 -translate-x-1/2'} ${tab.dropdownWidth || 'w-[220px]'} bg-white border border-[#D4E4E3] rounded-[12px] p-1.5 shadow-[-8px_24px_rgba(45,74,73,0.12)] z-[200] max-h-[70vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150`}
                   >
                     {/* Invisible hover bridge to prevent mouseleave between button and upward menu */}
                     <div 
