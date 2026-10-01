@@ -260,6 +260,47 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               type: 'success',
               message: 'บันทึกข้อมูลจำนวนขนมประจำวันสำเร็จเรียบร้อย',
             });
+
+            // 3. Record to audit_logs
+            try {
+              const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+              const timestamp = new Date().toISOString();
+              const action = 'บันทึกจำนวนขนมประจำวัน';
+              const weekRangeText = `${weekStartStr} - ${weekEndStr}`;
+              const details = `บันทึกจำนวนขนมขายหน้าร้าน สัปดาห์ ${weekRangeText} จำนวน ${recordsToUpsert.length} รายการ (สาขา ${currentBranch})`;
+
+              const newLog = {
+                id: logId,
+                timestamp,
+                userEmail: recorderName,
+                userRole: user?.role || 'Staff',
+                action,
+                details,
+              };
+
+              const branchKey = `cafe-audit-logs-${currentBranch}`;
+              try {
+                const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
+                localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
+              } catch (e) {}
+
+              try {
+                const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
+                localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
+              } catch (e) {}
+
+              await supabase.from('audit_logs').insert({
+                id: logId,
+                branch: currentBranch,
+                timestamp,
+                user_email: recorderName,
+                user_role: user?.role || 'Staff',
+                action,
+                details,
+              });
+            } catch (logErr) {
+              console.warn('Audit log recording error:', logErr);
+            }
           }
         } else {
           setSaveStatus({
