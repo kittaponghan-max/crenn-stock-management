@@ -11,7 +11,6 @@ import {
   Calendar, 
   ChevronLeft, 
   ChevronRight, 
-  ChevronUp, 
   ChevronDown,
   Plus, 
   X, 
@@ -167,17 +166,6 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isExportOpen]);
-
-  // Scroll to top button visibility (FIX 2: Single button, threshold > 150px)
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 150);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Generate displayed days from appliedRange
   const displayedDays = useMemo(() => {
@@ -1097,43 +1085,6 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           </tfoot>
         </table>
       </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          FIX 2: SINGLE SCROLL TO TOP BUTTON (Compact 40x40, bottom:72px, right:20px)
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {showScrollTop && (
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          title="เลื่อนขึ้นด้านบน"
-          style={{
-            position: 'fixed',
-            bottom: '72px',
-            right: '20px',
-            zIndex: 150,
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: '#5A8A88',
-            border: 'none',
-            color: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '1px',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(90,138,136,0.35)',
-            transition: 'opacity 200ms, transform 200ms',
-          }}
-          className="hover:scale-105 active:scale-95 transition-all"
-        >
-          <ChevronUp size={16} />
-          <span style={{ fontSize: '8px', lineHeight: 1 }}>
-            บน
-          </span>
-        </button>
-      )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           SAVE CONFIRMATION MODAL
