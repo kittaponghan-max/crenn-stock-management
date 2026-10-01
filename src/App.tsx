@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch } from './types';
 import { IngredientForm } from './components/IngredientForm';
@@ -2049,29 +2049,12 @@ export default function App() {
     return { lowStock, outOfStock };
   }, [ingredients, stockRecord]);
 
-  const mainRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (mainRef.current) {
-      mainRef.current.scrollTo({ top: 0, behavior: 'auto' });
-    }
-  }, [activeTab]);
-
   if (!user) {
     return <LoginForm onLogin={(userData) => setUser(userData)} />;
   }
 
   return (
-    <div 
-      className="flex flex-col bg-[#F0F5F4] text-[#2D4A49] font-sans w-full h-[100vh] h-[100dvh]"
-      style={{
-        height: '100dvh',
-        maxHeight: '100dvh',
-        overflow: 'hidden',
-        position: 'relative',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-      }}
-    >
+    <div className="min-h-screen bg-[#F0F5F4] text-[#2D4A49] font-sans">
       {/* Print Header */}
       <div className="print-header">
         <h1>Cafe Management - Weekly Report</h1>
@@ -2097,16 +2080,7 @@ export default function App() {
       )}
 
       {/* Main Content */}
-      <main 
-        ref={mainRef}
-        className={cn(
-          "flex-1 w-full overflow-y-auto overflow-x-hidden overscroll-contain",
-          activeTab === 'home' ? "pb-4" : "max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-8"
-        )}
-        style={{
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
+      <main className={activeTab === 'home' ? "w-full pb-10" : "max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24"}>
 
         {activeTab === 'home' ? (
           <HomeScreen
@@ -2425,13 +2399,7 @@ export default function App() {
         <div className="mt-12 pt-6 border-t border-[#D4E4E3] flex items-center justify-end print:hidden">
           <button 
             id="scroll-to-top-btn"
-            onClick={() => {
-              if (mainRef.current) {
-                mainRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-              } else {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-2 text-[#5A8A88] hover:text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-5 py-2.5 rounded-lg text-[14px] font-bold transition-all shadow-xs hover:shadow active:scale-95 duration-150 cursor-pointer"
           >
             <ChevronUp size={18} />
