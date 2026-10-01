@@ -6,13 +6,17 @@ import {
   Printer, 
   CheckCircle2, 
   AlertCircle, 
-  Loader2,
-  Info,
-  Calendar,
-  Lock,
-  RefreshCw
+  Loader2, 
+  Info, 
+  Calendar, 
+  ChevronLeft, 
+  ChevronRight, 
+  ChevronUp, 
+  Plus, 
+  X, 
+  RefreshCw 
 } from 'lucide-react';
-import { format, eachDayOfInterval, parseISO, isAfter } from 'date-fns';
+import { format, eachDayOfInterval, parseISO, isAfter, addMonths, subMonths } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { AppPermissions } from '../types';
@@ -37,7 +41,7 @@ export interface DailySalesRow {
   creditCard: number | '';
   totalRevenue: number | '';
   closingCash: number | '';
-  note: string;
+  notes: string[];
   isAutoCalculated?: boolean;
 }
 
@@ -52,72 +56,49 @@ const DAY_COLORS: Record<number, { bg: string; text: string; fontWeight: number 
   6: { bg: '#FFF7ED', text: '#7C2D12', fontWeight: 600 }, // Saturday (soft orange)
 };
 
+// Day name abbreviations in Thai
+const DAY_ABBREV: Record<number, string> = {
+  0: 'อา.',
+  1: 'จ.',
+  2: 'อ.',
+  3: 'พ.',
+  4: 'พฤ.',
+  5: 'ศ.',
+  6: 'ส.',
+};
+
+// Format compact date cell
+const formatDateCell = (d: Date): string => {
+  const abbrev = DAY_ABBREV[d.getDay()] || '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${abbrev} ${dd}/${mm}`;
+};
+
 // Branch-specific default date range helper
 const getDefaultDateRange = (branchName: string) => {
   const today = new Date();
   const currentDay = today.getDate();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
+  const cutoffDay = branchName === 'Bangkok' ? 28 : 25;
 
-  if (branchName === 'Rayong') {
-    // 25th to 25th of next month
-    let startMonth = currentMonth;
-    let startYear = currentYear;
-
-    if (currentDay < 25) {
-      startMonth = currentMonth - 1;
-      if (startMonth < 0) {
-        startMonth = 11;
-        startYear = currentYear - 1;
-      }
-    }
-
-    const start = new Date(startYear, startMonth, 25);
-    const end = new Date(
-      startMonth === 11 ? startYear + 1 : startYear,
-      startMonth === 11 ? 0 : startMonth + 1,
-      25
-    );
-    return { start, end };
-  }
-
-  if (branchName === 'Bangkok') {
-    // 28th to 28th of next month
-    let startMonth = currentMonth;
-    let startYear = currentYear;
-
-    if (currentDay < 28) {
-      startMonth = currentMonth - 1;
-      if (startMonth < 0) {
-        startMonth = 11;
-        startYear = currentYear - 1;
-      }
-    }
-
-    const start = new Date(startYear, startMonth, 28);
-    const end = new Date(
-      startMonth === 11 ? startYear + 1 : startYear,
-      startMonth === 11 ? 0 : startMonth + 1,
-      28
-    );
-    return { start, end };
-  }
-
-  // Fallback: 25th to 25th
   let startMonth = currentMonth;
   let startYear = currentYear;
-  if (currentDay < 25) {
+
+  if (currentDay < cutoffDay) {
     startMonth = currentMonth - 1;
     if (startMonth < 0) {
       startMonth = 11;
       startYear = currentYear - 1;
     }
   }
-  const start = new Date(startYear, startMonth, 25);
+
+  const start = new Date(startYear, startMonth, cutoffDay);
   const end = new Date(
     startMonth === 11 ? startYear + 1 : startYear,
     startMonth === 11 ? 0 : startMonth + 1,
-    25
+    cutoffDay
   );
   return { start, end };
 };
@@ -126,8 +107,8 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   const currentBranch = branch || user?.branch || 'Rayong';
   const recorderName = user?.name || 'Admin';
 
-  // Admin check for editable date range
-  const isAdmin = useMemo(() => {
+  // Admin / Authorized check for custom date range editing
+  const canEditDate = useMemo(() => {
     const role = (user?.role || '').toUpperCase();
     return (
       role === 'ADMIN' || 
@@ -142,7 +123,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   const [startDateStr, setStartDateStr] = useState<string>(() => format(initialRange.start, 'yyyy-MM-dd'));
   const [endDateStr, setEndDateStr] = useState<string>(() => format(initialRange.end, 'yyyy-MM-dd'));
   
-  // Applied date range (triggers re-load)
+  // Applied date range
   const [appliedRange, setAppliedRange] = useState<{ start: string; end: string }>({
     start: format(initialRange.start, 'yyyy-MM-dd'),
     end: format(initialRange.end, 'yyyy-MM-dd'),
@@ -160,8 +141,24 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
 
   const [rows, setRows] = useState<DailySalesRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [tableExistsWarning, setTableExistsWarning] = useState<string | null>(null);
+
+  // Active adding note index and text
+  const [activeNoteInputIdx, setActiveNoteInputIdx] = useState<number | null>(null);
+  const [newNoteText, setNewNoteText] = useState<string>('');
+
+  // Scroll to top button visibility
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 200);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Generate displayed days from appliedRange
   const displayedDays = useMemo(() => {
@@ -174,11 +171,9 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       
       const days = eachDayOfInterval({ start: effectiveStart, end: effectiveEnd });
       return days.map(d => {
-        const dayName = format(d, 'EEEE', { locale: th });
-        const shortDate = format(d, 'dd/MM/yyyy');
         return {
           dateStr: format(d, 'yyyy-MM-dd'),
-          displayLabel: `${dayName} (${shortDate})`,
+          displayLabel: formatDateCell(d),
           rawDate: d,
           dayOfWeek: d.getDay(),
         };
@@ -196,7 +191,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     const dates = displayedDays.map(w => w.dateStr);
     const localKey = `daily_sales_${currentBranch}_${dates[0]}`;
     
-    // Default empty rows with new column order
+    // Default empty rows
     const initialRows: DailySalesRow[] = displayedDays.map(w => ({
       date: w.dateStr,
       dayLabel: w.displayLabel,
@@ -206,7 +201,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
       creditCard: '',
       totalRevenue: '',
       closingCash: '',
-      note: '',
+      notes: [],
       isAutoCalculated: true,
     }));
 
@@ -219,7 +214,15 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
           parsed.forEach((item: any) => {
-            if (item.date) loadedMap[item.date] = item;
+            if (item.date) {
+              let notesArr: string[] = [];
+              if (Array.isArray(item.notes)) {
+                notesArr = item.notes;
+              } else if (typeof item.note === 'string' && item.note.trim()) {
+                notesArr = item.note.split('\n').filter(Boolean);
+              }
+              loadedMap[item.date] = { ...item, notes: notesArr };
+            }
           });
         }
       }
@@ -245,6 +248,10 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
         } else if (data && data.length > 0) {
           setTableExistsWarning(null);
           data.forEach((rec: any) => {
+            let notesArr: string[] = [];
+            if (typeof rec.note === 'string' && rec.note.trim()) {
+              notesArr = rec.note.split('\n').map((s: string) => s.trim()).filter(Boolean);
+            }
             loadedMap[rec.date] = {
               date: rec.date,
               openingCash: rec.opening_cash === null || rec.opening_cash === undefined ? '' : Math.round(Number(rec.opening_cash)),
@@ -253,7 +260,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
               creditCard: rec.credit_card === null || rec.credit_card === undefined ? '' : Number(rec.credit_card),
               totalRevenue: rec.total_revenue === null || rec.total_revenue === undefined ? '' : Math.round(Number(rec.total_revenue)),
               closingCash: rec.closing_cash === null || rec.closing_cash === undefined ? '' : Math.round(Number(rec.closing_cash)),
-              note: rec.note ?? '',
+              notes: notesArr,
             };
           });
         }
@@ -276,6 +283,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           ...row,
           ...found,
           totalRevenue: rev,
+          notes: found.notes || [],
           isAutoCalculated: found.totalRevenue === undefined || found.totalRevenue === '' || found.totalRevenue === autoTot,
         };
       }
@@ -289,22 +297,13 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     loadData();
   }, [loadData]);
 
-  // Auto-expand textarea helper
-  const autoExpand = (el: HTMLTextAreaElement | null) => {
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.max(28, el.scrollHeight)}px`;
-  };
-
   // Handle cell value change
   const handleChange = (index: number, field: keyof DailySalesRow, rawValue: string) => {
     setRows(prev => {
       const updated = [...prev];
       const row = { ...updated[index] };
 
-      if (field === 'note') {
-        row.note = rawValue;
-      } else if (field === 'creditCard') {
+      if (field === 'creditCard') {
         const numVal = rawValue === '' ? '' : parseFloat(rawValue);
         row.creditCard = (numVal === '' || isNaN(numVal)) ? '' : numVal;
       } else {
@@ -333,9 +332,74 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     });
   };
 
+  // Add a note to a row
+  const handleAddNote = (rowIndex: number, noteText: string) => {
+    const text = noteText.trim();
+    if (!text) {
+      setActiveNoteInputIdx(null);
+      setNewNoteText('');
+      return;
+    }
+
+    setRows(prev => {
+      const updated = [...prev];
+      const currentNotes = updated[rowIndex].notes || [];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        notes: [...currentNotes, text],
+      };
+      return updated;
+    });
+
+    setActiveNoteInputIdx(null);
+    setNewNoteText('');
+  };
+
+  // Delete a note from a row
+  const handleDeleteNote = (rowIndex: number, noteIndex: number) => {
+    setRows(prev => {
+      const updated = [...prev];
+      const currentNotes = [...(updated[rowIndex].notes || [])];
+      currentNotes.splice(noteIndex, 1);
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        notes: currentNotes,
+      };
+      return updated;
+    });
+  };
+
+  // Auto-expand textarea helper
+  const autoExpand = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(24, el.scrollHeight)}px`;
+  };
+
+  // Period Navigation (< and > buttons)
+  const handleNavigatePeriod = (direction: 'prev' | 'next') => {
+    try {
+      const currentStart = parseISO(appliedRange.start);
+      const currentEnd = parseISO(appliedRange.end);
+      
+      const newStart = direction === 'next' ? addMonths(currentStart, 1) : subMonths(currentStart, 1);
+      const newEnd = direction === 'next' ? addMonths(currentEnd, 1) : subMonths(currentEnd, 1);
+      
+      const sStr = format(newStart, 'yyyy-MM-dd');
+      const eStr = format(newEnd, 'yyyy-MM-dd');
+      
+      setStartDateStr(sStr);
+      setEndDateStr(eStr);
+      setAppliedRange({ start: sStr, end: eStr });
+    } catch (e) {
+      console.error('Period navigation error', e);
+    }
+  };
+
   // Save to Supabase and LocalStorage
-  const handleSave = async () => {
+  const executeSave = async () => {
     setIsSaving(true);
+    setShowConfirmModal(false);
     setSaveStatus(null);
 
     const dates = displayedDays.map(w => w.dateStr);
@@ -352,7 +416,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     if (supabase) {
       try {
         const recordsToUpsert = rows
-          .filter(r => r.openingCash !== '' || r.totalRevenue !== '' || r.transfer !== '' || r.cash !== '' || r.creditCard !== '' || r.closingCash !== '' || (r.note && r.note.trim() !== ''))
+          .filter(r => r.openingCash !== '' || r.totalRevenue !== '' || r.transfer !== '' || r.cash !== '' || r.creditCard !== '' || r.closingCash !== '' || (r.notes && r.notes.length > 0))
           .map(r => ({
             date: r.date,
             branch: currentBranch,
@@ -362,7 +426,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             credit_card: r.creditCard === '' ? 0 : Number(Number(r.creditCard).toFixed(2)),
             total_revenue: r.totalRevenue === '' ? 0 : Math.round(Number(r.totalRevenue)),
             closing_cash: r.closingCash === '' ? 0 : Math.round(Number(r.closingCash)),
-            note: r.note || '',
+            note: (r.notes || []).join('\n'),
             recorded_by: recorderName,
             created_at: new Date().toISOString(),
           }));
@@ -386,7 +450,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             setTableExistsWarning(null);
             setSaveStatus({
               type: 'success',
-              message: 'บันทึกข้อมูลยอดขายประจำวันสำเร็จเรียบร้อย',
+              message: 'บันทึกข้อมูลสำเร็จ',
             });
           }
         } else {
@@ -405,7 +469,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     } else {
       setSaveStatus({
         type: 'success',
-        message: 'บันทึกลงในเครื่องเรียบร้อยแล้ว (ออฟไลน์โหมด)',
+        message: 'บันทึกข้อมูลสำเร็จ (ออฟไลน์โหมด)',
       });
     }
 
@@ -415,7 +479,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     }, 4000);
   };
 
-  // Export to CSV / Excel (with new column order)
+  // Export to CSV / Excel
   const handleExportExcel = () => {
     const headers = [
       'วันที่',
@@ -431,6 +495,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     const csvRows = [headers.join(',')];
 
     rows.forEach(r => {
+      const notesJoined = (r.notes || []).join('; ');
       const row = [
         `"${r.dayLabel}"`,
         r.openingCash !== '' ? Math.round(Number(r.openingCash)) : 0,
@@ -439,7 +504,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
         r.creditCard !== '' ? Number(r.creditCard).toFixed(2) : '0.00',
         r.totalRevenue !== '' ? Math.round(Number(r.totalRevenue)) : 0,
         r.closingCash !== '' ? Math.round(Number(r.closingCash)) : 0,
-        `"${(r.note || '').replace(/"/g, '""')}"`,
+        `"${notesJoined.replace(/"/g, '""')}"`,
       ];
       csvRows.push(row.join(','));
     });
@@ -475,7 +540,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     document.body.removeChild(link);
   };
 
-  // Summary calculations based strictly on displayed rows (new order)
+  // Summary calculations based on displayed rows
   const totals = useMemo(() => {
     return rows.reduce(
       (acc, r) => ({
@@ -490,7 +555,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     );
   }, [rows]);
 
-  // Date range label for header and summary
+  // Date range label
   const summaryDateRangeLabel = useMemo(() => {
     if (displayedDays.length === 0) return '';
     const first = displayedDays[0].rawDate;
@@ -500,7 +565,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     return `${firstStr} – ${lastStr}`;
   }, [displayedDays]);
 
-  // Apply new date range on button click
+  // Apply new date range from inputs
   const handleApplyRange = (e: React.FormEvent) => {
     e.preventDefault();
     if (!startDateStr || !endDateStr) return;
@@ -521,7 +586,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             ? 'bg-rose-50 border-rose-300 text-rose-800'
             : 'bg-amber-50 border-amber-300 text-amber-800'
         }`}>
-          <div className="flex items-center gap-2 text-xs font-medium">
+          <div className="flex items-center gap-2 text-xs font-semibold">
             {saveStatus.type === 'success' && <CheckCircle2 size={15} className="text-[#5A8A88] shrink-0" />}
             {saveStatus.type === 'error' && <AlertCircle size={15} className="text-rose-600 shrink-0" />}
             {saveStatus.type === 'info' && <Info size={15} className="text-amber-600 shrink-0" />}
@@ -537,14 +602,14 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           <div className="flex-1">
             <p className="font-bold">{tableExistsWarning}</p>
             <p className="text-[10px] text-amber-700 mt-0.5">
-              คอลัมน์ในตาราง daily_sales_records: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[9px]">date (text), branch (text), opening_cash (numeric), transfer (numeric), cash (numeric), credit_card (numeric), total_revenue (numeric), closing_cash (numeric), note (text), recorded_by (text), created_at (timestamptz)</code>
+              คอลัมน์ในตาราง daily_sales_records: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[9px]">date, branch, opening_cash, transfer, cash, credit_card, total_revenue, closing_cash, note, recorded_by, created_at</code>
             </p>
           </div>
         </div>
       )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          PAGE HEADER CARD (Simplified Layout, Always-on Date Range)
+          PAGE HEADER CARD
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5">
@@ -569,90 +634,82 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             </div>
           </div>
 
-          {/* Right: Date Range Label */}
-          <div className="text-right">
-            <span className="text-[12px] font-[700] text-[#2D4A49] bg-[#F0F5F4] px-3 py-1.5 rounded-lg border border-[#D4E4E3] inline-block">
+          {/* Right: Period Navigation with [<] and [>] buttons (Change 6) */}
+          <div className="flex items-center gap-1.5 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => handleNavigatePeriod('prev')}
+              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              title="ช่วงเวลาก่อนหน้า"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <span className="text-[12px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3.5 py-1.5 rounded-lg border border-[#D4E4E3] whitespace-nowrap shadow-2xs">
               ช่วง: {summaryDateRangeLabel}
             </span>
+
+            <button
+              type="button"
+              onClick={() => handleNavigatePeriod('next')}
+              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              title="ช่วงเวลาถัดไป"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
 
         </div>
 
-        {/* Date Pickers Form + Action Buttons */}
-        <form 
-          onSubmit={handleApplyRange}
-          className="mt-3.5 pt-3 border-t border-[#D4E4E3] flex flex-wrap items-center justify-between gap-2.5"
-        >
-          {/* Start Date & End Date Inputs */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-[#F0F5F4] px-2.5 py-1 rounded-lg border border-[#D4E4E3]">
-              <Calendar size={13} className="text-[#5A8A88]" />
-              <label className="text-[11px] font-medium text-[#2D4A49]">เริ่มต้น:</label>
-              <input
-                type="date"
-                value={startDateStr}
-                onChange={(e) => setStartDateStr(e.target.value)}
-                readOnly={!isAdmin}
-                className={`bg-white border rounded px-2 py-1 text-[11px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] ${
-                  !isAdmin ? 'cursor-not-allowed bg-slate-50 opacity-90 border-[#D4E4E3]' : 'border-[#5A8A88]'
-                }`}
-                title={!isAdmin ? 'เฉพาะ Admin เท่านั้นที่สามารถเปลี่ยนช่วงวันที่ได้' : 'เลือกวันที่เริ่มต้น'}
-              />
-            </div>
+        {/* Action Controls & Date Pickers (Change 7: Date Pickers for Authorized Only) */}
+        <div className="mt-3.5 pt-3 border-t border-[#D4E4E3] flex flex-wrap items-center justify-between gap-2.5">
+          {/* Admin Date Inputs */}
+          {canEditDate ? (
+            <form onSubmit={handleApplyRange} className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-[#F0F5F4] px-2 py-1 rounded-lg border border-[#D4E4E3]">
+                <Calendar size={12} className="text-[#5A8A88]" />
+                <label className="text-[10px] font-medium text-[#2D4A49]">เริ่มต้น:</label>
+                <input
+                  type="date"
+                  value={startDateStr}
+                  onChange={(e) => setStartDateStr(e.target.value)}
+                  className="bg-white border border-[#5A8A88] rounded px-1.5 py-0.5 text-[10px] text-[#2D4A49] focus:outline-none"
+                />
+              </div>
 
-            <div className="flex items-center gap-1.5 bg-[#F0F5F4] px-2.5 py-1 rounded-lg border border-[#D4E4E3]">
-              <Calendar size={13} className="text-[#5A8A88]" />
-              <label className="text-[11px] font-medium text-[#2D4A49]">สิ้นสุด:</label>
-              <input
-                type="date"
-                value={endDateStr}
-                onChange={(e) => setEndDateStr(e.target.value)}
-                readOnly={!isAdmin}
-                className={`bg-white border rounded px-2 py-1 text-[11px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] ${
-                  !isAdmin ? 'cursor-not-allowed bg-slate-50 opacity-90 border-[#D4E4E3]' : 'border-[#5A8A88]'
-                }`}
-                title={!isAdmin ? 'เฉพาะ Admin เท่านั้นที่สามารถเปลี่ยนช่วงวันที่ได้' : 'เลือกวันที่สิ้นสุด'}
-              />
-            </div>
+              <div className="flex items-center gap-1.5 bg-[#F0F5F4] px-2 py-1 rounded-lg border border-[#D4E4E3]">
+                <Calendar size={12} className="text-[#5A8A88]" />
+                <label className="text-[10px] font-medium text-[#2D4A49]">สิ้นสุด:</label>
+                <input
+                  type="date"
+                  value={endDateStr}
+                  onChange={(e) => setEndDateStr(e.target.value)}
+                  className="bg-white border border-[#5A8A88] rounded px-1.5 py-0.5 text-[10px] text-[#2D4A49] focus:outline-none"
+                />
+              </div>
 
-            {!isAdmin && (
-              <span className="flex items-center gap-1 text-[10px] text-[#6B8F8E]">
-                <Lock size={11} className="text-[#6B8F8E]" />
-                (ช่วงวันเริ่มต้นตามรอบสาขา)
-              </span>
-            )}
-
-            {/* Apply Button */}
-            {isAdmin && (
               <button
                 type="submit"
-                className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[11px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-colors cursor-pointer shadow-xs flex items-center gap-1"
+                className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[11px] font-[600] rounded-[8px] px-3 py-1.5 transition-colors cursor-pointer shadow-xs flex items-center gap-1"
               >
                 <RefreshCw size={11} />
                 <span>ดูช่วงนี้</span>
               </button>
-            )}
-          </div>
+            </form>
+          ) : (
+            <div />
+          )}
 
           {/* Action Buttons: Save + Excel + PDF */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => setShowConfirmModal(true)}
               disabled={isSaving}
               className="flex items-center gap-1.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[12px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>กำลังบันทึก...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={13} />
-                  <span>บันทึกข้อมูล</span>
-                </>
-              )}
+              <Save size={13} />
+              <span>บันทึกข้อมูล</span>
             </button>
 
             <button
@@ -675,7 +732,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
               <span className="hidden sm:inline">PDF</span>
             </button>
           </div>
-        </form>
+        </div>
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -696,17 +753,57 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
         >
           <colgroup><col style={{ width: '100px' }} /><col style={{ width: '85px' }} /><col style={{ width: '72px' }} /><col style={{ width: '72px' }} /><col style={{ width: '78px' }} /><col style={{ width: '82px' }} /><col style={{ width: '90px' }} /><col style={{ width: 'auto' }} /></colgroup>
 
-          {/* Frozen Sticky Header (Change 2) */}
+          {/* Frozen Sticky Header (Change 1: Full Visibility & Wrapping) */}
           <thead className="sticky top-0 z-10 bg-[#2D4A49]">
             <tr className="bg-[#2D4A49] text-white text-[9px] font-[600] border-b border-[#1E3A39]">
-              <th className="py-2 px-1.5 text-center sticky top-0 bg-[#2D4A49]">วันที่</th>
-              <th className="py-2 px-1 text-right sticky top-0 bg-[#2D4A49]">ลิ้นชักตั้งต้น</th>
-              <th className="py-2 px-1 text-right sticky top-0 bg-[#2D4A49]">เงินโอน</th>
-              <th className="py-2 px-1 text-right sticky top-0 bg-[#2D4A49]">เงินสด</th>
-              <th className="py-2 px-1 text-right sticky top-0 bg-[#2D4A49]">บัตรเครดิต</th>
-              <th className="py-2 px-1 text-right sticky top-0 bg-[#2D4A49] bg-[#243d3c]">รายรับรวม</th>
-              <th className="py-2 px-1 text-right sticky top-0 bg-[#2D4A49]">ลิ้นชักปิดร้าน</th>
-              <th className="py-2 px-2 text-left sticky top-0 bg-[#2D4A49]">หมายเหตุ</th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                วันที่
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                ลิ้นชักตั้งต้น
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                เงินโอน
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                เงินสด
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                บัตรเครดิต
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49] bg-[#243d3c]"
+              >
+                รายรับรวม
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                ลิ้นชักปิดร้าน
+              </th>
+              <th 
+                style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
+                className="sticky top-0 bg-[#2D4A49]"
+              >
+                หมายเหตุ
+              </th>
             </tr>
           </thead>
 
@@ -724,7 +821,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                   }`}
                   style={{ minHeight: '32px' }}
                 >
-                  {/* 1. วันที่ (Change 3: Pastel Day Color) */}
+                  {/* 1. วันที่ (Change 2: Compact Abbreviation "จ. 28/09") */}
                   <td 
                     style={{
                       backgroundColor: dayColor.bg,
@@ -732,7 +829,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                       fontWeight: dayColor.fontWeight,
                       fontSize: '9px',
                     }}
-                    className="py-1.5 px-1.5 text-center border-r border-[#D4E4E3] whitespace-nowrap align-middle"
+                    className="py-1.5 px-1 text-center border-r border-[#D4E4E3] whitespace-nowrap align-middle"
                   >
                     {row.dayLabel}
                   </td>
@@ -793,7 +890,7 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                     />
                   </td>
 
-                  {/* 6. รายรับรวม (MOVED HERE after Credit Card, Integer only) */}
+                  {/* 6. รายรับรวม (Integer only) */}
                   <td className="py-1 px-1 align-top">
                     <input
                       type="number"
@@ -826,82 +923,275 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
                     />
                   </td>
 
-                  {/* 8. หมายเหตุ (Change 2: Auto-expanding Textarea, 9px) */}
+                  {/* 8. หมายเหตุ (Change 3 & 4: Multi-notes system & Auto Word-wrap) */}
                   <td className="py-1 px-1.5 align-top">
-                    <textarea
-                      rows={1}
-                      value={row.note}
-                      onInput={(e) => autoExpand(e.target as HTMLTextAreaElement)}
-                      onChange={(e) => handleChange(index, 'note', e.target.value)}
-                      placeholder="หมายเหตุ..."
-                      style={{
-                        resize: 'none',
-                        overflow: 'hidden',
-                        minHeight: '28px',
-                        lineHeight: '1.4',
-                        padding: '3px 5px',
-                        fontSize: '9px',
-                        transition: 'height 100ms ease',
-                      }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] text-left text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
-                    />
+                    <div className="space-y-1">
+                      {/* Notes list */}
+                      {row.notes && row.notes.length > 0 && (
+                        <div className="space-y-0.5">
+                          {row.notes.map((noteItem, nIdx) => (
+                            <div 
+                              key={nIdx}
+                              className="flex items-start gap-1 text-[9px] text-[#2D4A49] leading-tight group"
+                            >
+                              <span className="text-[#5A8A88] shrink-0">•</span>
+                              <span className="flex-1 break-words whitespace-pre-wrap">{noteItem}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteNote(index, nIdx)}
+                                className="text-[#A8BCBB] hover:text-[#EF4444] opacity-70 hover:opacity-100 p-0.5 cursor-pointer shrink-0 transition-opacity"
+                                title="ลบหมายเหตุนี้"
+                              >
+                                <X size={9} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Adding Note Textarea or "+ เพิ่มหมายเหตุ" button */}
+                      {activeNoteInputIdx === index ? (
+                        <div className="mt-1">
+                          <textarea
+                            autoFocus
+                            rows={1}
+                            value={newNoteText}
+                            onInput={(e) => autoExpand(e.target as HTMLTextAreaElement)}
+                            onChange={(e) => setNewNoteText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAddNote(index, newNoteText);
+                              } else if (e.key === 'Escape') {
+                                setActiveNoteInputIdx(null);
+                                setNewNoteText('');
+                              }
+                            }}
+                            onBlur={() => {
+                              if (newNoteText.trim()) {
+                                handleAddNote(index, newNoteText);
+                              } else {
+                                setActiveNoteInputIdx(null);
+                              }
+                            }}
+                            placeholder="พิมพ์หมายเหตุ (กด Enter เพื่อบันทึก)..."
+                            style={{
+                              resize: 'none',
+                              overflow: 'hidden',
+                              minHeight: '24px',
+                              lineHeight: '1.4',
+                              padding: '3px 5px',
+                              fontSize: '9px',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                            }}
+                            className="w-full bg-white border border-[#5A8A88] rounded-[4px] text-left text-[#2D4A49] focus:outline-none focus:bg-[#E8F3F2]"
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveNoteInputIdx(index);
+                            setNewNoteText('');
+                          }}
+                          className="flex items-center gap-0.5 text-[8px] text-[#5A8A88] hover:text-[#2D4A49] cursor-pointer pt-0.5 transition-colors"
+                        >
+                          <Plus size={10} className="text-[#5A8A88]" />
+                          <span>เพิ่มหมายเหตุ</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
           </tbody>
 
-          {/* Sticky Frozen Summary Row (Change 2 & Change 4) */}
+          {/* Sticky Frozen Summary Row */}
           <tfoot className="sticky bottom-0 z-10 bg-[#E8F3F2]">
             <tr 
               style={{ background: '#E8F3F2', borderTop: '2px solid #5A8A88' }}
               className="text-[#2D4A49] text-[9px] font-[700] shadow-xs"
             >
               {/* 1. Date range label */}
-              <td className="py-2 px-1.5 text-left border-r border-[#D4E4E3] font-[700] text-[#2D4A49] whitespace-nowrap sticky bottom-0 bg-[#E8F3F2]">
-                รวม {summaryDateRangeLabel}
+              <td className="py-2 px-1 text-center border-r border-[#D4E4E3] font-[700] text-[#2D4A49] whitespace-nowrap sticky bottom-0 bg-[#E8F3F2]">
+                รวม ({displayedDays.length} วัน)
               </td>
 
-              {/* 2. เงินในลิ้นชักตั้งต้น (Integer) */}
+              {/* 2. เงินในลิ้นชักตั้งต้น */}
               <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.opening > 0 ? Math.round(totals.opening).toLocaleString('th-TH') : '0'}
               </td>
 
-              {/* 3. เงินโอน (Integer) */}
+              {/* 3. เงินโอน */}
               <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.transfer > 0 ? Math.round(totals.transfer).toLocaleString('th-TH') : '0'}
               </td>
 
-              {/* 4. เงินสด (Integer) */}
+              {/* 4. เงินสด */}
               <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.cash > 0 ? Math.round(totals.cash).toLocaleString('th-TH') : '0'}
               </td>
 
-              {/* 5. บัตรเครดิต (2 decimal places) */}
+              {/* 5. บัตรเครดิต */}
               <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.credit > 0 
                   ? totals.credit.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
                   : '0.00'}
               </td>
 
-              {/* 6. รายรับรวม (Integer, bold) */}
+              {/* 6. รายรับรวม */}
               <td className="py-2 px-1 text-right font-mono text-[#2D4A49] font-[800] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.revenue > 0 ? Math.round(totals.revenue).toLocaleString('th-TH') : '0'}
               </td>
 
-              {/* 7. เงินในลิ้นชักตอนปิดร้าน (Integer) */}
+              {/* 7. เงินในลิ้นชักตอนปิดร้าน */}
               <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.closing > 0 ? Math.round(totals.closing).toLocaleString('th-TH') : '0'}
               </td>
 
               {/* 8. หมายเหตุ */}
-              <td className="py-2 px-2 text-left text-[9px] text-[#6B8F8E] font-normal sticky bottom-0 bg-[#E8F3F2]">
-                รวม {displayedDays.length} วัน
+              <td className="py-2 px-1.5 text-left text-[9px] text-[#6B8F8E] font-normal sticky bottom-0 bg-[#E8F3F2]">
+                ยอดรวมประจำรอบ
               </td>
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          CHANGE 5: SCROLL TO TOP BUTTON
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          style={{
+            position: 'fixed',
+            bottom: '76px',
+            right: '16px',
+            zIndex: 150,
+            background: '#5A8A88',
+            color: 'white',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            boxShadow: '0 4px 16px rgba(90,138,136,0.4)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '2px',
+            border: '2px solid rgba(255,255,255,0.3)',
+            cursor: 'pointer',
+          }}
+          className="hover:scale-105 active:scale-95 transition-all"
+        >
+          <ChevronUp size={16} />
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>ด้านบน</span>
+        </button>
+      )}
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          CHANGE 8: SAVE CONFIRMATION MODAL
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {showConfirmModal && (
+        <div 
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200 }}
+          className="flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div 
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '20px',
+              padding: '28px 24px',
+              maxWidth: '340px',
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            }}
+            className="animate-in zoom-in-95 duration-200"
+          >
+            {/* Top icon */}
+            <div 
+              style={{ width: '56px', height: '56px', background: '#E8F3F2', borderRadius: '50%' }}
+              className="flex items-center justify-center mx-auto text-[#5A8A88]"
+            >
+              <Save size={24} />
+            </div>
+
+            {/* Title */}
+            <h3 
+              style={{ fontSize: '16px', fontWeight: 700, color: '#2D4A49' }}
+              className="text-center mt-3"
+            >
+              ยืนยันการบันทึกข้อมูล
+            </h3>
+
+            {/* Summary info */}
+            <div className="text-center mt-2 space-y-1">
+              <p style={{ fontSize: '12px', color: '#6B8F8E' }}>
+                ช่วงวันที่: <span className="font-semibold text-[#2D4A49]">{summaryDateRangeLabel}</span>
+              </p>
+              <p style={{ fontSize: '12px', color: '#6B8F8E' }}>
+                จำนวน: <span className="font-semibold text-[#2D4A49]">{displayedDays.length} วัน</span> | สาขา: <span className="font-semibold text-[#2D4A49]">{currentBranch}</span>
+              </p>
+              <p style={{ fontSize: '12px', color: '#6B8F8E' }}>
+                บันทึกโดย: <span className="font-semibold text-[#2D4A49]">{recorderName}</span>
+              </p>
+            </div>
+
+            {/* Warning note */}
+            <p 
+              style={{ fontSize: '11px', color: '#A8BCBB' }}
+              className="text-center mt-2.5"
+            >
+              ข้อมูลที่บันทึกแล้วสามารถแก้ไขได้ภายหลัง
+            </p>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                style={{
+                  background: '#F0F5F4',
+                  color: '#6B8F8E',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+                className="flex-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+
+              <button
+                type="button"
+                onClick={executeSave}
+                disabled={isSaving}
+                style={{
+                  background: '#5A8A88',
+                  color: 'white',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+                className="flex-1 hover:bg-[#4A7A78] transition-colors cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <span>✅ บันทึก</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
