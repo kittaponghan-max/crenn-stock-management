@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   BookOpen, 
   Save, 
@@ -12,6 +12,7 @@ import {
   ChevronLeft, 
   ChevronRight, 
   ChevronUp, 
+  ChevronDown,
   Plus, 
   X, 
   RefreshCw 
@@ -148,6 +149,24 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
   // Active adding note index and text
   const [activeNoteInputIdx, setActiveNoteInputIdx] = useState<number | null>(null);
   const [newNoteText, setNewNoteText] = useState<string>('');
+
+  // Export dropdown state and outside click
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportOpen(false);
+      }
+    };
+    if (isExportOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isExportOpen]);
 
   // Scroll to top button visibility (FIX 2: Single button, threshold > 150px)
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -666,31 +685,31 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
         <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
 
         {/* ROW 2: Date inputs (left, admin only) + Action buttons (right) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 w-full">
           {/* LEFT: Admin Date Pickers (FIX 3 & Change 7) */}
           {canEditDate ? (
-            <form onSubmit={handleApplyRange} className="flex items-center gap-2 flex-wrap">
+            <form onSubmit={handleApplyRange} className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
               <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap">เริ่มต้น:</span>
               <input
                 type="date"
                 value={startDateStr}
                 onChange={(e) => setStartDateStr(e.target.value)}
-                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[11px] text-[#2D4A49] w-[140px] focus:outline-none focus:border-[#5A8A88]"
+                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2 py-1 text-[11px] text-[#2D4A49] w-[125px] sm:w-[130px] h-[32px] focus:outline-none focus:border-[#5A8A88]"
               />
 
-              <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap">สิ้นสุด:</span>
+              <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap ml-0.5 sm:ml-0">สิ้นสุด:</span>
               <input
                 type="date"
                 value={endDateStr}
                 onChange={(e) => setEndDateStr(e.target.value)}
-                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[11px] text-[#2D4A49] w-[140px] focus:outline-none focus:border-[#5A8A88]"
+                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2 py-1 text-[11px] text-[#2D4A49] w-[125px] sm:w-[130px] h-[32px] focus:outline-none focus:border-[#5A8A88]"
               />
 
               <button
                 type="submit"
-                className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[11px] font-[600] rounded-[8px] px-3 py-[7px] h-[34px] transition-colors cursor-pointer shadow-xs flex items-center gap-1"
+                className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[11px] font-[600] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors cursor-pointer shadow-xs flex items-center gap-1 shrink-0"
               >
-                <RefreshCw size={12} />
+                <RefreshCw size={11} />
                 <span>ดูช่วงนี้</span>
               </button>
             </form>
@@ -698,37 +717,58 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
             <div />
           )}
 
-          {/* RIGHT: Action Buttons (All heights consistent 34px) */}
-          <div className="flex items-center gap-1.5 ml-auto">
+          {/* RIGHT: Action Buttons (Save + Export Dropdown) */}
+          <div className="flex items-center gap-1.5 ml-auto relative">
             <button
               type="button"
               onClick={() => setShowConfirmModal(true)}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[12px] font-[600] rounded-[8px] px-3.5 py-[7px] h-[34px] transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap"
             >
-              <Save size={14} />
+              <Save size={13} />
               <span>บันทึกข้อมูล</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] rounded-[8px] px-3 py-[7px] h-[34px] transition-colors shadow-2xs cursor-pointer"
-              title="ส่งออกไฟล์ Excel (CSV)"
-            >
-              <Download size={13} className="text-[#5A8A88]" />
-              <span className="hidden sm:inline">Excel</span>
-            </button>
+            {/* Export Dropdown (Excel + PDF) */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsExportOpen(!isExportOpen)}
+                className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                title="ส่งออกข้อมูล (Excel, PDF)"
+              >
+                <Download size={13} className="text-[#5A8A88]" />
+                <span>ส่งออก</span>
+                <ChevronDown size={11} className={`text-[#5A8A88] transition-transform duration-150 ${isExportOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] rounded-[8px] px-3 py-[7px] h-[34px] transition-colors shadow-2xs cursor-pointer"
-              title="พิมพ์รายงาน (PDF)"
-            >
-              <Printer size={13} className="text-[#5A8A88]" />
-              <span className="hidden sm:inline">PDF</span>
-            </button>
+              {isExportOpen && (
+                <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      handleExportExcel();
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download size={13} className="text-[#5A8A88]" />
+                    <span>Excel (.csv)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      window.print();
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Printer size={13} className="text-[#5A8A88]" />
+                    <span>พิมพ์ PDF</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
