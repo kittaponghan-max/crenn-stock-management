@@ -292,237 +292,247 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-300" id="checklist-report">
-      {/* Header Card (White Card Style like Bar Check-in) */}
-      <div className="bg-white rounded-2xl p-5 sm:px-6 sm:py-5 border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.08)] mb-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-[44px] h-[44px] rounded-full bg-[#E8F3F2] border border-[#D4E4E3] flex items-center justify-center shrink-0">
-              <ChefHat size={20} className="text-[#5A8A88]" />
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300" id="checklist-report">
+      {/* Header Card */}
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] overflow-hidden">
+        <div className="bg-white p-5 sm:p-6 border-b border-[#D4E4E3]">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
+                <ChefHat size={22} className="text-[#5A8A88]" />
+              </div>
+              <div>
+                <h2 className="text-[18px] font-bold text-[#2D4A49]">Kitchen Check-in & Check-out</h2>
+                <p className="text-[#6B8F8E] text-[11px] max-w-[500px] leading-[1.5] mt-0.5">
+                  {type === 'Check-in' 
+                    ? 'การเตรียมตัวก่อนเปิดครัวในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อเตรียมความพร้อมสำหรับการทำขนมและเบเกอรี่ตลอดทั้งวัน'
+                    : 'การทำ Checklist ช่วงปิดครัวที่ดีจะช่วยให้คนมาเปิดครัวในวันถัดไปทำงานได้ง่ายขึ้น และรักษามาตรฐานความสะอาดของส่วนครัว'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-[18px] font-bold text-[#2D4A49]">Kitchen Check-in & Check-out</h2>
-              <p className="text-[11px] text-[#6B8F8E] mt-0.5 max-w-[480px] leading-relaxed">
-                {type === 'Check-in' 
-                  ? 'การเตรียมตัวก่อนเปิดครัวในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อเตรียมความพร้อมสำหรับการทำขนมและเบเกอรี่ตลอดทั้งวัน'
-                  : 'การทำ Checklist ช่วงปิดครัวที่ดีจะช่วยให้คนมาเปิดครัวในวันถัดไปทำงานได้ง่ายขึ้น และรักษามาตรฐานความสะอาดของส่วนครัว'}
-              </p>
+            
+            <div className="relative print:hidden z-20 self-start md:self-auto">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExportDropdownOpen(!isExportDropdownOpen);
+                }}
+                className="flex items-center justify-center gap-1.5 bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] px-3.5 py-2 rounded-lg text-[12px] font-medium transition-all cursor-pointer shadow-xs"
+              >
+                <Printer size={15} className="text-[#5A8A88]" />
+                <span>Export / Print</span>
+                <ChevronDown size={13} className={cn("transition-transform text-[#6B8F8E]", isExportDropdownOpen && "rotate-180")} />
+              </button>
+
+              {isExportDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportExcel();
+                      setIsExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
+                  >
+                    <FileDown size={14} className="text-[#5A8A88]" />
+                    <span>Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportPDF();
+                      setIsExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
+                  >
+                    <Printer size={14} className="text-[#5A8A88]" />
+                    <span>PDF / Print</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="relative print:hidden z-20 self-start md:self-auto">
+          {/* Segmented Toggle Control */}
+          <div className="mt-5 p-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl flex items-center gap-1.5">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExportDropdownOpen(!isExportDropdownOpen);
-              }}
-              className="bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] rounded-[10px] text-[#2D4A49] text-[12px] font-medium px-3.5 py-2 flex items-center gap-2 transition-all shadow-sm active:scale-95"
+              type="button"
+              onClick={() => setType('Check-in')}
+              className={cn(
+                "flex-1 py-2.5 px-3 rounded-lg text-[13px] transition-all flex items-center justify-center gap-2 cursor-pointer",
+                type === 'Check-in'
+                  ? "bg-[#5A8A88] text-white font-bold shadow-sm"
+                  : "bg-transparent text-[#6B8F8E] font-medium hover:text-[#2D4A49] hover:bg-white/50"
+              )}
             >
-              <Printer size={14} className="text-[#5A8A88]" />
-              Export / Print
-              <ChevronDown size={12} className={cn("transition-transform text-[#A8BCBB]", isExportDropdownOpen && "rotate-180")} />
+              <span>☀️</span>
+              <span>เช็คลิสต์เปิดครัว (Check-in)</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setType('Check-out')}
+              className={cn(
+                "flex-1 py-2.5 px-3 rounded-lg text-[13px] transition-all flex items-center justify-center gap-2 cursor-pointer",
+                type === 'Check-out'
+                  ? "bg-[#5A8A88] text-white font-bold shadow-sm"
+                  : "bg-transparent text-[#6B8F8E] font-medium hover:text-[#2D4A49] hover:bg-white/50"
+              )}
+            >
+              <span>🌙</span>
+              <span>เช็คลิสต์ปิดครัว (Check-out)</span>
+            </button>
+          </div>
 
-            {isExportDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    exportExcel();
-                    setIsExportDropdownOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
-                >
-                  <FileDown size={15} className="text-emerald-600" />
-                  Excel (.xlsx)
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    exportPDF();
-                    setIsExportDropdownOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
-                >
-                  <Printer size={15} className="text-blue-600" />
-                  PDF / Print
-                </button>
+          {/* Meta Info Row */}
+          <div className="mt-4 flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49]">
+              <Calendar size={14} className="text-[#5A8A88]" />
+              <span>วันที่: {format(new Date(reportDate), 'dd/MM/yyyy')}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49]">
+              <MapPin size={14} className="text-[#5A8A88]" />
+              <span>สาขา: {branch}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49]">
+              <User size={14} className="text-[#5A8A88]" />
+              <span>ผู้บันทึก: {reporterName}</span>
+            </div>
+            
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-[11px] font-medium text-[#6B8F8E]">
+                ความคืบหน้า <strong className="text-[#2D4A49]">{checkedItems}/{totalItems}</strong>
+              </span>
+              <div className="w-24 sm:w-32 h-2 bg-[#D4E4E3] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-[#5A8A88] transition-all duration-300 rounded-full" 
+                  style={{ width: `${progress}%` }} 
+                />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Checklist Content */}
+        <div className="p-4 sm:p-6 bg-[#F8FAF9]/50 space-y-6">
+          <div className={cn("space-y-6", isReadOnly && "pointer-events-none opacity-80")}>
+            {categories.map((category) => {
+              const catChecked = category.items.filter(i => i.checked).length;
+              const catTotal = category.items.length;
+
+              return (
+                <div 
+                  key={category.id} 
+                  className="bg-white rounded-2xl border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.05)] overflow-hidden"
+                >
+                  {/* Section Header */}
+                  <div className="p-3.5 sm:px-5 sm:py-3.5 bg-white border-b border-[#E2EAE9] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-[#E8F3F2] flex items-center justify-center shrink-0 text-[#5A8A88]">
+                        {category.icon}
+                      </div>
+                      <h3 className="text-[13px] font-bold text-[#2D4A49]">{category.title}</h3>
+                    </div>
+                    
+                    <div className={cn(
+                      "px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0",
+                      catChecked === catTotal && catTotal > 0
+                        ? "bg-[#E8F3F2] text-[#5A8A88]"
+                        : "bg-[#F0F5F4] text-[#6B8F8E]"
+                    )}>
+                      <span>{catChecked}/{catTotal} สำเร็จ</span>
+                    </div>
+                  </div>
+
+                  {/* Section Items */}
+                  <div className="p-3.5 sm:p-4 space-y-2">
+                    {category.items.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => toggleItem(category.id, item.id)}
+                        className={cn(
+                          "w-full p-3 sm:px-4 sm:py-3 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer group",
+                          item.checked
+                            ? "bg-[#F8FAF9] border-[#D4E4E3]"
+                            : "bg-white border-[#E2EAE9] hover:border-[#B8D4D2] hover:bg-[#F8FAF9]"
+                        )}
+                      >
+                        <div className="mt-0.5 shrink-0 transition-colors">
+                          {item.checked ? (
+                            <div className="w-5 h-5 rounded-md bg-[#5A8A88] flex items-center justify-center text-white shadow-xs">
+                              <Check size={14} strokeWidth={3} />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 rounded-md border-2 border-[#B8D4D2] bg-white group-hover:border-[#5A8A88] transition-colors" />
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-[13px] leading-relaxed select-none",
+                          item.checked ? "line-through text-[#6B8F8E]" : "text-[#2D4A49] font-medium"
+                        )}>
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Submit Action Button */}
+          <div className="mt-8 pt-6 border-t border-[#E2EAE9] flex justify-end print:hidden">
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="w-full h-12 bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[14px] font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                <CheckCircle2 size={18} />
+                <span>บันทึกรายการตรวจสอบ ({type})</span>
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Tab Switcher (Large Full-Width Pill Tabs) */}
-      <div className="flex bg-[#F0F5F4] rounded-[12px] p-1 gap-1 w-full my-3">
-        <button
-          onClick={() => setType('Check-in')}
-          className={cn(
-            "flex-1 text-[13px] font-semibold rounded-[10px] py-2.5 px-4 text-center flex items-center justify-center gap-2 transition-all active:scale-[0.99]",
-            type === 'Check-in'
-              ? "bg-[#2D4A49] text-white shadow-sm"
-              : "bg-transparent text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
-          )}
-        >
-          <Clock size={15} className={type === 'Check-in' ? "text-white" : "text-[#A8BCBB]"} />
-          🌅 เช็คลิสต์เปิดครัว (Check-in)
-        </button>
-        <button
-          onClick={() => setType('Check-out')}
-          className={cn(
-            "flex-1 text-[13px] font-semibold rounded-[10px] py-2.5 px-4 text-center flex items-center justify-center gap-2 transition-all active:scale-[0.99]",
-            type === 'Check-out'
-              ? "bg-[#2D4A49] text-white shadow-sm"
-              : "bg-transparent text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
-          )}
-        >
-          <LogOut size={15} className={type === 'Check-out' ? "text-white" : "text-[#A8BCBB]"} />
-          🌙 เช็คลิสต์ปิดครัว (Check-out)
-        </button>
-      </div>
-
-      {/* Info Bar (Horizontal Pill Badges & Progress in same row) */}
-      <div className="flex items-center justify-between gap-3 flex-wrap my-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] font-medium text-[#2D4A49] flex items-center gap-1.5">
-            <Calendar size={13} className="text-[#5A8A88]" />
-            <span>วันที่: {format(new Date(reportDate), 'dd/MM/yyyy')}</span>
-          </div>
-          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] font-medium text-[#2D4A49] flex items-center gap-1.5">
-            <MapPin size={13} className="text-[#5A8A88]" />
-            <span>สาขา: {branch}</span>
-          </div>
-          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] font-medium text-[#2D4A49] flex items-center gap-1.5">
-            <User size={13} className="text-[#5A8A88]" />
-            <span>ผู้บันทึก: {reporterName}</span>
-          </div>
-        </div>
-
-        {/* Progress Indicator (Right Aligned on Same Row) */}
-        <div className="flex items-center gap-2 ml-auto">
-          <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap">ความคืบหน้า</span>
-          <span className="text-[13px] font-bold text-[#2D4A49]">{checkedItems}/{totalItems}</span>
-          <div className="w-[100px] h-[6px] bg-[#D4E4E3] rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.3 }}
-              className="h-full bg-[#5A8A88] rounded-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Checklist Sections */}
-      <div className={cn("space-y-5 mt-4", isReadOnly && "pointer-events-none opacity-80")}>
-        {categories.map((category) => {
-          const catCheckedCount = category.items.filter(i => i.checked).length;
-          const catTotalCount = category.items.length;
-          const isCatComplete = catCheckedCount === catTotalCount && catTotalCount > 0;
-
-          return (
-            <div key={category.id} className="space-y-2">
-              {/* Section Header */}
-              <div className="flex items-center justify-between py-2 border-b border-[#E8F3F2]">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-[28px] h-[28px] rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0">
-                    {React.isValidElement(category.icon)
-                      ? React.cloneElement(category.icon as React.ReactElement<any>, { size: 16, className: 'text-[#5A8A88]' })
-                      : category.icon}
-                  </div>
-                  <h3 className="text-[13px] font-bold text-[#2D4A49]">{category.title}</h3>
-                </div>
-
-                {/* Progress Badge */}
-                <div className={cn(
-                  "text-[11px] font-medium rounded-[6px] px-2 py-0.5 transition-colors",
-                  isCatComplete 
-                    ? "bg-[#E8F3F2] text-[#22C55E]" 
-                    : "bg-[#F0F5F4] text-[#6B8F8E]"
-                )}>
-                  {catCheckedCount}/{catTotalCount} สำเร็จ {isCatComplete ? '✓' : ''}
-                </div>
-              </div>
-
-              {/* Items List */}
-              <div className="grid gap-1.5">
-                {category.items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => toggleItem(category.id, item.id)}
-                    className={cn(
-                      "w-full flex items-start gap-3 p-3 sm:px-4 sm:py-3 rounded-[10px] transition-all text-left group cursor-pointer mb-1",
-                      item.checked 
-                        ? "bg-[#E8F3F2] border border-[#B8D4D2]" 
-                        : "bg-white border border-[#D4E4E3] shadow-[0_1px_4px_rgba(90,138,136,0.06)] hover:bg-[#F0F5F4] hover:border-[#A8BCBB]"
-                    )}
-                  >
-                    <div className="mt-0.5 shrink-0 transition-colors">
-                      {item.checked ? (
-                        <div className="w-5 h-5 rounded-md bg-[#5A8A88] flex items-center justify-center text-white shadow-xs">
-                          <Check size={14} strokeWidth={3} />
-                        </div>
-                      ) : (
-                        <div className="w-5 h-5 rounded-md border-2 border-[#D4E4E3] bg-white group-hover:border-[#5A8A88] transition-colors" />
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-[12px] leading-relaxed font-medium select-none transition-colors",
-                      item.checked ? "line-through text-[#6B8F8E]" : "text-[#2D4A49]"
-                    )}>
-                      {item.checked ? item.label : highlightKeywords(item.label)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Submit Button */}
-      <div className="mt-8 flex justify-end print:hidden">
-        {!isReadOnly && (
-          <button
-            onClick={handleSubmit}
-            disabled={!isAllChecked}
-            className="flex items-center gap-2 bg-[#5A8A88] hover:bg-[#4A7876] disabled:bg-[#D4E4E3] disabled:text-[#A8BCBB] disabled:cursor-not-allowed text-white text-sm font-bold py-2.5 px-7 rounded-xl transition-all shadow-md shadow-[#5A8A88]/20 active:scale-95"
-          >
-            <Save size={18} />
-            บันทึก Checklist
-          </button>
-        )}
-      </div>
-
       {/* Confirmation Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm print:hidden">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-6 rounded-2xl max-w-sm w-full border border-[#D4E4E3] shadow-xl"
+            className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-[#D4E4E3]"
           >
-            <div className="w-14 h-14 bg-[#E8F3F2] text-[#5A8A88] rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={30} />
-            </div>
-            <h3 className="text-lg font-bold text-center text-[#2D4A49] mb-1.5">ยืนยันการบันทึก</h3>
-            <p className="text-[#6B8F8E] text-center mb-6 text-xs leading-relaxed">
-              คุณต้องการบันทึก {type} Checklist ของครัวใช่หรือไม่? <br/> ข้อมูลจะถูกบันทึกและไม่สามารถย้อนกลับได้
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={confirmSubmit}
-                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-[#5A8A88] hover:bg-[#4A7876] transition-colors shadow-md shadow-[#5A8A88]/20 flex items-center justify-center gap-1.5"
-              >
-                <Save size={16} />
-                บันทึก
-              </button>
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-[#E8F3F2] text-[#5A8A88] rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 size={28} />
+              </div>
+              <h3 className="text-[16px] font-bold text-[#2D4A49] mb-1.5">ยืนยันการบันทึกรายการ?</h3>
+              <p className="text-[12px] text-[#6B8F8E] mb-5">
+                คุณต้องการบันทึก {type} Checklist ของครัวใช่หรือไม่? ข้อมูลจะถูกบันทึกและไม่สามารถย้อนกลับได้
+              </p>
+              
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(false)}
+                  className="px-4 py-2.5 bg-[#F0F5F4] text-[#6B8F8E] hover:text-[#2D4A49] rounded-xl text-[12px] font-semibold hover:bg-[#E2EAE9] transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmSubmit}
+                  className="px-4 py-2.5 bg-[#5A8A88] text-white rounded-xl text-[12px] font-semibold hover:bg-[#4A7A78] transition-colors shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Save size={16} />
+                  บันทึก
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>
