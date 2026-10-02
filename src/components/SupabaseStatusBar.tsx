@@ -9,7 +9,7 @@ export const SupabaseStatusBar: React.FC<SupabaseStatusBarProps> = ({
   dbStatus = 'connected',
 }) => {
   return (
-    <section className="w-full relative bg-white/80 backdrop-blur-xs border-b border-[#D4E4E3] shadow-xs px-4 md:px-6 lg:px-8 py-2.5 z-40 shrink-0">
+    <section className="w-full relative bg-white/80 backdrop-blur-xs border-b border-[#D4E4E3] shadow-xs px-4 md:px-6 lg:px-8 py-2.5 z-10 shrink-0">
       <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
           <Database size={14} className="text-slate-500" />
