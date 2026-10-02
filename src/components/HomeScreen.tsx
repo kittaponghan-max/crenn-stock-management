@@ -21,6 +21,7 @@ import {
 import { Ingredient, StockRecord, Branch, AppPermissions } from '../types';
 import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
+import { SupabaseStatusBar } from './SupabaseStatusBar';
 
 export interface HomeScreenProps {
   user: {
@@ -378,7 +379,7 @@ export function HomeScreen({
   const outOpacity = !hasActiveKPI ? 1 : isOutActive ? 1 : 0.4;
 
   return (
-    <div className="min-h-screen bg-[#F4F8F7] text-slate-800 pb-28 font-sans">
+    <div className="w-full bg-[#F4F8F7] text-slate-800 pb-6 font-sans">
       
       {/* 1. TOP BAR: CRENN + 🔔 + avatar */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#D4E4E3] shadow-xs px-4 py-3">
@@ -485,41 +486,8 @@ export function HomeScreen({
         </div>
       </header>
 
-      {/* Supabase status bar — MOVED */}
-      <section className="w-full relative bg-white/80 backdrop-blur-xs border-b border-[#D4E4E3] shadow-xs px-4 md:px-6 lg:px-8 py-2.5">
-        <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <Database size={14} className="text-slate-500" />
-            <span className="font-medium text-slate-600 text-[11px]">Database Status</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 font-semibold text-[11px]">
-            {dbStatus === 'connected' && (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E] shadow-[0_0_6px_#22C55E]"></span>
-                </span>
-                <span className="text-emerald-700">Supabase ● Connected</span>
-              </>
-            )}
-
-            {dbStatus === 'checking' && (
-              <>
-                <Loader2 size={12} className="animate-spin text-amber-500" />
-                <span className="text-amber-700">Supabase ● Connecting...</span>
-              </>
-            )}
-
-            {dbStatus === 'offline' && (
-              <>
-                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                <span className="text-rose-700">Supabase ● Disconnected (Offline)</span>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+      {/* Supabase status bar */}
+      <SupabaseStatusBar dbStatus={dbStatus} />
 
       {/* Main Container */}
       <main className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto px-4 md:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
