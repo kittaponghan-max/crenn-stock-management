@@ -25,6 +25,19 @@ interface BakeryChecklistProps {
   isReadOnly?: boolean;
 }
 
+function highlightKeywords(label: string) {
+  const keywords = ['เช็ค', 'ตรวจสอบ', 'ตั้งค่า', 'ทำความสะอาด'];
+  const regex = new RegExp(`(${keywords.join('|')})`, 'g');
+  const parts = label.split(regex);
+  return parts.map((part, i) =>
+    keywords.includes(part) ? (
+      <span key={i} className="text-[#5A8A88] font-bold">{part}</span>
+    ) : (
+      part
+    )
+  );
+}
+
 export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnly = false }: BakeryChecklistProps) {
   const [type, setType] = useState<'Check-in' | 'Check-out'>('Check-in');
   const reportDate = format(new Date(), 'yyyy-MM-dd');
@@ -368,30 +381,28 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
         </button>
       </div>
 
-      {/* Info Bar (Horizontal Pill Badges) */}
+      {/* Info Bar (Horizontal Pill Badges & Progress in same row) */}
       <div className="flex items-center justify-between gap-3 flex-wrap my-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] font-medium text-[#2D4A49] flex items-center gap-1.5">
             <Calendar size={13} className="text-[#5A8A88]" />
             <span>วันที่: {format(new Date(reportDate), 'dd/MM/yyyy')}</span>
           </div>
-          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] font-medium text-[#2D4A49] flex items-center gap-1.5">
             <MapPin size={13} className="text-[#5A8A88]" />
             <span>สาขา: {branch}</span>
           </div>
-          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] font-medium text-[#2D4A49] flex items-center gap-1.5">
             <User size={13} className="text-[#5A8A88]" />
             <span>ผู้บันทึก: {reporterName}</span>
           </div>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="flex items-center gap-3 ml-auto">
-          <div className="text-right">
-            <span className="text-[11px] text-[#6B8F8E] block">ความคืบหน้า</span>
-            <span className="text-[14px] font-bold text-[#2D4A49]">{checkedItems}/{totalItems}</span>
-          </div>
-          <div className="w-[120px] h-[6px] bg-[#D4E4E3] rounded-full overflow-hidden">
+        {/* Progress Indicator (Right Aligned on Same Row) */}
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap">ความคืบหน้า</span>
+          <span className="text-[13px] font-bold text-[#2D4A49]">{checkedItems}/{totalItems}</span>
+          <div className="w-[100px] h-[6px] bg-[#D4E4E3] rounded-full overflow-hidden">
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
@@ -440,29 +451,26 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                     key={item.id}
                     onClick={() => toggleItem(category.id, item.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3 sm:px-4 sm:py-3 rounded-[10px] transition-all text-left group cursor-pointer",
+                      "w-full flex items-start gap-3 p-3 sm:px-4 sm:py-3 rounded-[10px] transition-all text-left group cursor-pointer mb-1",
                       item.checked 
                         ? "bg-[#E8F3F2] border border-[#B8D4D2]" 
-                        : "bg-white border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.04)] hover:bg-[#F0F5F4] hover:border-[#A8BCBB]"
+                        : "bg-white border border-[#D4E4E3] shadow-[0_1px_4px_rgba(90,138,136,0.06)] hover:bg-[#F0F5F4] hover:border-[#A8BCBB]"
                     )}
                   >
-                    <div className={cn(
-                      "w-[18px] h-[18px] rounded-[4px] border-2 transition-all shrink-0 flex items-center justify-center",
-                      item.checked 
-                        ? "bg-[#5A8A88] border-[#5A8A88] text-white" 
-                        : "border-[#D4E4E3] bg-white group-hover:border-[#5A8A88]"
-                    )}>
+                    <div className="mt-0.5 shrink-0 transition-colors">
                       {item.checked ? (
-                        <Check size={12} className="text-white stroke-[3]" />
-                      ) : null}
+                        <div className="w-5 h-5 rounded-md bg-[#5A8A88] flex items-center justify-center text-white shadow-xs">
+                          <Check size={14} strokeWidth={3} />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-md border-2 border-[#D4E4E3] bg-white group-hover:border-[#5A8A88] transition-colors" />
+                      )}
                     </div>
                     <span className={cn(
-                      "text-[12px] leading-relaxed font-medium transition-colors",
-                      item.checked 
-                        ? "text-[#6B8F8E] line-through opacity-90" 
-                        : "text-[#2D4A49]"
+                      "text-[12px] leading-relaxed font-medium select-none transition-colors",
+                      item.checked ? "line-through text-[#6B8F8E]" : "text-[#2D4A49]"
                     )}>
-                      {item.label}
+                      {item.checked ? item.label : highlightKeywords(item.label)}
                     </span>
                   </button>
                 ))}
