@@ -2118,6 +2118,7 @@ export default function App() {
             activeTab={activeTab}
             onNavigate={(tab) => setActiveTab(tab as any)}
             userName={user.name}
+            userRole={user.role}
             onLogoClick={() => setActiveTab('home')}
             onAvatarClick={() => setActiveTab('userSettings')}
             outCount={stockSummary.outOfStock}
