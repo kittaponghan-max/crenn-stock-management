@@ -471,7 +471,7 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                           )}
                         </div>
                         <span className={cn(
-                          "text-[10px] leading-relaxed select-none",
+                          "text-[11px] leading-relaxed select-none",
                           item.checked ? "line-through text-[#6B8F8E]" : "text-[#2D4A49] font-medium"
                         )}>
                           {item.label}
