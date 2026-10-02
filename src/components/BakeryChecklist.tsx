@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CheckCircle2, Circle, ClipboardList, Save, Send, Clock, MapPin, Coffee, Package, CreditCard, Sparkles, AlertCircle, Calendar, User, Printer, LogOut, ChevronDown, FileDown, ChefHat, Check } from 'lucide-react';
+import { CheckCircle2, Circle, ClipboardList, Save, Send, Clock, MapPin, Coffee, Package, CreditCard, Sparkles, AlertCircle, Calendar, User, Printer, LogOut, ChevronDown, FileDown, ChefHat, Check, Download } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -318,15 +318,16 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                   e.stopPropagation();
                   setIsExportDropdownOpen(!isExportDropdownOpen);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer shadow-xs"
+                className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                title="ส่งออกข้อมูล (Excel, PDF)"
               >
-                <Printer size={14} className="text-[#5A8A88]" />
-                <span>Export / Print</span>
-                <ChevronDown size={12} className={cn("transition-transform text-[#6B8F8E]", isExportDropdownOpen && "rotate-180")} />
+                <Download size={13} className="text-[#5A8A88]" />
+                <span>ส่งออก</span>
+                <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportDropdownOpen && "rotate-180")} />
               </button>
 
               {isExportDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -334,9 +335,9 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                       exportExcel();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                   >
-                    <FileDown size={13} className="text-[#5A8A88]" />
+                    <Download size={13} className="text-[#5A8A88]" />
                     <span>Excel (.xlsx)</span>
                   </button>
                   <button
@@ -346,10 +347,10 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                       exportPDF();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Printer size={13} className="text-[#5A8A88]" />
-                    <span>PDF / Print</span>
+                    <span>PDF / พิมพ์</span>
                   </button>
                 </div>
               )}
@@ -470,7 +471,7 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                           )}
                         </div>
                         <span className={cn(
-                          "text-[9px] leading-relaxed select-none",
+                          "text-[10px] leading-relaxed select-none",
                           item.checked ? "line-through text-[#6B8F8E]" : "text-[#2D4A49] font-medium"
                         )}>
                           {item.label}
