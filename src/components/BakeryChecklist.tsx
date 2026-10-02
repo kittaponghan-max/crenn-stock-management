@@ -261,60 +261,65 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
 
       pdf.save(`Bakery_${type}_${format(new Date(reportDate), 'yyyyMMdd')}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.warn('Error generating PDF:', error);
       alert('เกิดข้อผิดพลาดในการสร้างไฟล์ PDF โปรดลองอีกครั้ง');
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300" id="checklist-report">
+    <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-300" id="checklist-report">
       {/* Header Card */}
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200">
-        <div className="bg-amber-500 p-8 text-white relative rounded-t-3xl">
-          <div className="absolute inset-0 overflow-hidden rounded-t-3xl pointer-events-none">
-            <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
-              <ClipboardList size={120} />
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-[#D4E4E3]">
+        <div 
+          className="p-5 sm:p-6 text-white relative rounded-t-2xl sm:rounded-t-3xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #2D4A49 0%, #3D6B69 50%, #5A8A88 100%)'
+          }}
+        >
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -bottom-5 -right-5 opacity-10 text-white">
+              <ChefHat size={120} />
             </div>
           </div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-amber-400 rounded-xl">
-                  <ChefHat size={24} />
+              <div className="flex items-center gap-3.5 mb-2">
+                <div className="p-2.5 bg-white/15 border border-white/25 rounded-xl flex items-center justify-center">
+                  <ChefHat size={22} className="text-white" />
                 </div>
-                <h2 className="text-2xl font-bold">Kitchen Check-in & Check-out</h2>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white">Kitchen Check-in & Check-out</h2>
               </div>
-              <p className="text-amber-50 text-sm max-w-xl">
+              <p className="text-white/75 text-xs sm:text-sm max-w-[480px] leading-relaxed">
                 {type === 'Check-in' 
                   ? 'การเตรียมตัวก่อนเปิดครัวในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อเตรียมความพร้อมสำหรับการทำขนมและเบเกอรี่ตลอดทั้งวัน'
                   : 'การทำ Checklist ช่วงปิดครัวที่ดีจะช่วยให้คนมาเปิดครัวในวันถัดไปทำงานได้ง่ายขึ้น และรักษามาตรฐานความสะอาดของส่วนครัว'}
               </p>
             </div>
             
-            <div className="relative print:hidden z-20">
+            <div className="relative print:hidden z-20 self-start md:self-auto">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsExportDropdownOpen(!isExportDropdownOpen);
                 }}
-                className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 border border-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
+                className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border border-white/35 text-white px-3.5 py-2 rounded-[10px] text-xs font-semibold transition-all shadow-sm active:scale-95"
               >
-                <Printer size={16} />
+                <Printer size={14} className="text-white" />
                 Export / Print
-                <ChevronDown size={14} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
+                <ChevronDown size={12} className={cn("transition-transform text-white", isExportDropdownOpen && "rotate-180")} />
               </button>
 
               {isExportDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       exportExcel();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-[14px] text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors font-medium"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
                   >
-                    <FileDown size={16} className="text-emerald-600" />
+                    <FileDown size={15} className="text-emerald-600" />
                     Excel (.xlsx)
                   </button>
                   <button
@@ -323,9 +328,9 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                       exportPDF();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-[14px] text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors font-medium"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
                   >
-                    <Printer size={16} className="text-blue-600" />
+                    <Printer size={15} className="text-blue-600" />
                     PDF / Print
                   </button>
                 </div>
@@ -334,111 +339,128 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                <Calendar size={14} />
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-white p-4 sm:p-5 rounded-xl border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-[#6B8F8E] flex items-center gap-1.5">
+                <Calendar size={13} className="text-[#A8BCBB]" />
                 วันที่รายงาน
               </label>
-              <div className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 shadow-sm flex items-center">
+              <div className="px-3.5 py-2.5 bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg text-xs sm:text-sm font-medium text-[#2D4A49] flex items-center">
                 {format(new Date(reportDate), 'dd/MM/yyyy')}
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                <User size={14} />
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-[#6B8F8E] flex items-center gap-1.5">
+                <User size={13} className="text-[#A8BCBB]" />
                 ผู้ทำรายงาน
               </label>
-              <div className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 shadow-sm flex items-center">
+              <div className="px-3.5 py-2.5 bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg text-xs sm:text-sm font-medium text-[#2D4A49] flex items-center">
                 {reporterName}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+            <div className="flex bg-[#F0F5F4] p-1 rounded-[10px] gap-1 w-full sm:w-auto">
               <button
                 onClick={() => setType('Check-in')}
                 className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-                  type === 'Check-in' ? "bg-white text-amber-600 shadow-md" : "text-slate-500 hover:text-slate-700"
+                  "flex-1 sm:flex-none justify-center px-4 py-2 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-2 active:scale-95",
+                  type === 'Check-in' 
+                    ? "bg-[#5A8A88] text-white shadow-sm" 
+                    : "text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
                 )}
               >
-                <Clock size={18} />
+                <Clock size={14} className={type === 'Check-in' ? "text-white" : "text-[#6B8F8E]"} />
                 Check-in (เช้า)
               </button>
               <button
                 onClick={() => setType('Check-out')}
                 className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-                  type === 'Check-out' ? "bg-white text-amber-600 shadow-md" : "text-slate-500 hover:text-slate-700"
+                  "flex-1 sm:flex-none justify-center px-4 py-2 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-2 active:scale-95",
+                  type === 'Check-out' 
+                    ? "bg-[#5A8A88] text-white shadow-sm" 
+                    : "text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
                 )}
               >
-                <LogOut size={18} />
+                <LogOut size={14} className={type === 'Check-out' ? "text-white" : "text-[#6B8F8E]"} />
                 Check-out (เย็น)
               </button>
             </div>
 
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">ความคืบหน้า</div>
-                <div className="text-lg font-black text-slate-800">{checkedItems} / {totalItems}</div>
+                <div className="text-[11px] text-[#6B8F8E] font-medium mb-0.5">ความคืบหน้า</div>
+                <div className="text-[16px] font-bold text-[#2D4A49]">{checkedItems} / {totalItems}</div>
               </div>
-              <div className="w-32 h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+              <div className="w-[140px] h-[6px] bg-[#D4E4E3] rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
-                  className="h-full bg-amber-500"
+                  transition={{ duration: 0.3 }}
+                  className="h-full bg-[#5A8A88] rounded-full"
                 />
               </div>
             </div>
           </div>
 
-          <div className={cn("space-y-8", isReadOnly && "pointer-events-none opacity-80")}>
+          <div className={cn("space-y-6", isReadOnly && "pointer-events-none opacity-80")}>
             {categories.map((category) => (
-              <div key={category.id} className="space-y-4">
-                <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                  <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-                    {category.icon}
+              <div key={category.id} className="space-y-2.5">
+                <div className="flex items-center gap-2.5 border-l-[3px] border-l-[#5A8A88] pl-3 mt-5 mb-2">
+                  <div className="w-6 h-6 rounded-[6px] bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center shrink-0">
+                    {React.isValidElement(category.icon)
+                      ? React.cloneElement(category.icon as React.ReactElement<any>, { size: 16, className: 'text-[#5A8A88]' })
+                      : category.icon}
                   </div>
-                  <h3 className="font-bold text-slate-800">{category.title}</h3>
+                  <h3 className="text-[13px] font-bold text-[#2D4A49]">{category.title}</h3>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-1.5">
                   {category.items.map((item) => (
-                    <div key={item.id} className="space-y-2">
-                      <button
-                        onClick={() => toggleItem(category.id, item.id)}
-                        className={cn(
-                          "w-full flex items-start gap-4 p-4 rounded-2xl border transition-all text-left group",
-                          item.checked 
-                            ? "bg-amber-50 border-amber-200 text-amber-900" 
-                            : "bg-white border-slate-200 text-slate-600 hover:border-amber-200 hover:bg-slate-50"
-                        )}
-                      >
-                        <div className={cn(
-                          "mt-0.5 shrink-0 transition-colors",
-                          item.checked ? "text-amber-600" : "text-slate-300 group-hover:text-amber-400"
-                        )}>
-                          {item.checked ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-                        </div>
-                        <span className="text-[14px] leading-relaxed font-medium">{item.label}</span>
-                      </button>
-                    </div>
+                    <button
+                      key={item.id}
+                      onClick={() => toggleItem(category.id, item.id)}
+                      className={cn(
+                        "w-full flex items-start gap-3.5 p-3 sm:px-4 sm:py-3 rounded-[10px] transition-all text-left group cursor-pointer",
+                        item.checked 
+                          ? "bg-[#E8F3F2] border border-[#B8D4D2]" 
+                          : "bg-white border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.04)] hover:bg-[#F0F5F4] hover:border-[#A8BCBB]"
+                      )}
+                    >
+                      <div className={cn(
+                        "mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors",
+                        item.checked 
+                          ? "bg-[#5A8A88] border-2 border-[#5A8A88] text-white" 
+                          : "border-2 border-[#D4E4E3] bg-white group-hover:border-[#5A8A88]"
+                      )}>
+                        {item.checked ? (
+                          <CheckCircle2 className="w-4 h-4 text-white fill-[#5A8A88]" />
+                        ) : null}
+                      </div>
+                      <span className={cn(
+                        "text-[12px] leading-relaxed font-medium transition-colors",
+                        item.checked 
+                          ? "text-[#6B8F8E] line-through opacity-90" 
+                          : "text-[#2D4A49]"
+                      )}>
+                        {item.label}
+                      </span>
+                    </button>
                   ))}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-12 flex justify-end print:hidden">
+          <div className="mt-8 flex justify-end print:hidden">
             {!isReadOnly && (
               <button
                 onClick={handleSubmit}
                 disabled={!isAllChecked}
-                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md shadow-amber-500/20"
+                className="flex items-center gap-2 bg-[#5A8A88] hover:bg-[#4A7876] disabled:bg-[#D4E4E3] disabled:text-[#A8BCBB] disabled:cursor-not-allowed text-white text-sm font-bold py-2.5 px-7 rounded-xl transition-all shadow-md shadow-[#5A8A88]/20 active:scale-95"
               >
-                <Save size={20} />
+                <Save size={18} />
                 บันทึก Checklist
               </button>
             )}
@@ -447,31 +469,31 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
       </div>
 
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm print:hidden">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-6 rounded-3xl max-w-sm w-full border border-slate-200 shadow-xl"
+            className="bg-white p-6 rounded-2xl max-w-sm w-full border border-[#D4E4E3] shadow-xl"
           >
-            <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={32} />
+            <div className="w-14 h-14 bg-[#E8F3F2] text-[#5A8A88] rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={30} />
             </div>
-            <h3 className="text-xl font-bold text-center text-slate-800 mb-2">ยืนยันการบันทึก</h3>
-            <p className="text-slate-500 text-center mb-6 text-sm">
+            <h3 className="text-lg font-bold text-center text-[#2D4A49] mb-1.5">ยืนยันการบันทึก</h3>
+            <p className="text-[#6B8F8E] text-center mb-6 text-xs leading-relaxed">
               คุณต้องการบันทึก {type} Checklist ของครัวใช่หรือไม่? <br/> ข้อมูลจะถูกบันทึกและไม่สามารถย้อนกลับได้
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={confirmSubmit}
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-amber-500 hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-[#5A8A88] hover:bg-[#4A7876] transition-colors shadow-md shadow-[#5A8A88]/20 flex items-center justify-center gap-1.5"
               >
-                <Save size={18} />
+                <Save size={16} />
                 บันทึก
               </button>
             </div>
