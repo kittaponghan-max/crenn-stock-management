@@ -382,7 +382,7 @@ export function HomeScreen({
     <div className="w-full bg-[#F4F8F7] text-slate-800 pb-6 font-sans">
       
       {/* 1. TOP BAR: CRENN + 🔔 + avatar */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#D4E4E3] shadow-xs px-4 py-3">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#D4E4E3] shadow-xs px-4 py-3">
         <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between">
           
           {/* Brand Name CRENN */}
