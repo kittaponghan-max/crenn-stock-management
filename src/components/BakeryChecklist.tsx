@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CheckCircle2, Circle, ClipboardList, Save, Send, Clock, MapPin, Coffee, Package, CreditCard, Sparkles, AlertCircle, Calendar, User, Printer, LogOut, ChevronDown, FileDown, ChefHat } from 'lucide-react';
+import { CheckCircle2, Circle, ClipboardList, Save, Send, Clock, MapPin, Coffee, Package, CreditCard, Sparkles, AlertCircle, Calendar, User, Printer, LogOut, ChevronDown, FileDown, ChefHat, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -29,6 +29,18 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
   const [type, setType] = useState<'Check-in' | 'Check-out'>('Check-in');
   const reportDate = format(new Date(), 'yyyy-MM-dd');
   const reporterName = user.name;
+
+  const branch = (user as any)?.branch || (() => {
+    try {
+      const savedUser = localStorage.getItem('cafe-user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.branch) return parsed.branch;
+      }
+    } catch (e) {}
+    return 'Rayong';
+  })();
+
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -267,207 +279,214 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-300" id="checklist-report">
-      {/* Header Card */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-[#D4E4E3]">
-        <div 
-          className="p-5 sm:p-6 text-white relative rounded-t-2xl sm:rounded-t-3xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #2D4A49 0%, #3D6B69 50%, #5A8A88 100%)'
-          }}
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -bottom-5 -right-5 opacity-10 text-white">
-              <ChefHat size={120} />
+    <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-300" id="checklist-report">
+      {/* Header Card (White Card Style like Bar Check-in) */}
+      <div className="bg-white rounded-2xl p-5 sm:px-6 sm:py-5 border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.08)] mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-[44px] h-[44px] rounded-full bg-[#E8F3F2] border border-[#D4E4E3] flex items-center justify-center shrink-0">
+              <ChefHat size={20} className="text-[#5A8A88]" />
             </div>
-          </div>
-          <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3.5 mb-2">
-                <div className="p-2.5 bg-white/15 border border-white/25 rounded-xl flex items-center justify-center">
-                  <ChefHat size={22} className="text-white" />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white">Kitchen Check-in & Check-out</h2>
-              </div>
-              <p className="text-white/75 text-xs sm:text-sm max-w-[480px] leading-relaxed">
+              <h2 className="text-[18px] font-bold text-[#2D4A49]">Kitchen Check-in & Check-out</h2>
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5 max-w-[480px] leading-relaxed">
                 {type === 'Check-in' 
                   ? 'การเตรียมตัวก่อนเปิดครัวในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อเตรียมความพร้อมสำหรับการทำขนมและเบเกอรี่ตลอดทั้งวัน'
                   : 'การทำ Checklist ช่วงปิดครัวที่ดีจะช่วยให้คนมาเปิดครัวในวันถัดไปทำงานได้ง่ายขึ้น และรักษามาตรฐานความสะอาดของส่วนครัว'}
               </p>
             </div>
-            
-            <div className="relative print:hidden z-20 self-start md:self-auto">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExportDropdownOpen(!isExportDropdownOpen);
-                }}
-                className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border border-white/35 text-white px-3.5 py-2 rounded-[10px] text-xs font-semibold transition-all shadow-sm active:scale-95"
-              >
-                <Printer size={14} className="text-white" />
-                Export / Print
-                <ChevronDown size={12} className={cn("transition-transform text-white", isExportDropdownOpen && "rotate-180")} />
-              </button>
+          </div>
 
-              {isExportDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      exportExcel();
-                      setIsExportDropdownOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
-                  >
-                    <FileDown size={15} className="text-emerald-600" />
-                    Excel (.xlsx)
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      exportPDF();
-                      setIsExportDropdownOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
-                  >
-                    <Printer size={15} className="text-blue-600" />
-                    PDF / Print
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="relative print:hidden z-20 self-start md:self-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExportDropdownOpen(!isExportDropdownOpen);
+              }}
+              className="bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] rounded-[10px] text-[#2D4A49] text-[12px] font-medium px-3.5 py-2 flex items-center gap-2 transition-all shadow-sm active:scale-95"
+            >
+              <Printer size={14} className="text-[#5A8A88]" />
+              Export / Print
+              <ChevronDown size={12} className={cn("transition-transform text-[#A8BCBB]", isExportDropdownOpen && "rotate-180")} />
+            </button>
+
+            {isExportDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    exportExcel();
+                    setIsExportDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
+                >
+                  <FileDown size={15} className="text-emerald-600" />
+                  Excel (.xlsx)
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    exportPDF();
+                    setIsExportDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors font-medium"
+                >
+                  <Printer size={15} className="text-blue-600" />
+                  PDF / Print
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tab Switcher (Large Full-Width Pill Tabs) */}
+      <div className="flex bg-[#F0F5F4] rounded-[12px] p-1 gap-1 w-full my-3">
+        <button
+          onClick={() => setType('Check-in')}
+          className={cn(
+            "flex-1 text-[13px] font-semibold rounded-[10px] py-2.5 px-4 text-center flex items-center justify-center gap-2 transition-all active:scale-[0.99]",
+            type === 'Check-in'
+              ? "bg-[#2D4A49] text-white shadow-sm"
+              : "bg-transparent text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
+          )}
+        >
+          <Clock size={15} className={type === 'Check-in' ? "text-white" : "text-[#A8BCBB]"} />
+          🌅 เช็คลิสต์เปิดครัว (Check-in)
+        </button>
+        <button
+          onClick={() => setType('Check-out')}
+          className={cn(
+            "flex-1 text-[13px] font-semibold rounded-[10px] py-2.5 px-4 text-center flex items-center justify-center gap-2 transition-all active:scale-[0.99]",
+            type === 'Check-out'
+              ? "bg-[#2D4A49] text-white shadow-sm"
+              : "bg-transparent text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
+          )}
+        >
+          <LogOut size={15} className={type === 'Check-out' ? "text-white" : "text-[#A8BCBB]"} />
+          🌙 เช็คลิสต์ปิดครัว (Check-out)
+        </button>
+      </div>
+
+      {/* Info Bar (Horizontal Pill Badges) */}
+      <div className="flex items-center justify-between gap-3 flex-wrap my-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+            <Calendar size={13} className="text-[#5A8A88]" />
+            <span>วันที่: {format(new Date(reportDate), 'dd/MM/yyyy')}</span>
+          </div>
+          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+            <MapPin size={13} className="text-[#5A8A88]" />
+            <span>สาขา: {branch}</span>
+          </div>
+          <div className="bg-[#F0F5F4] border border-[#D4E4E3] rounded-full px-3 py-1.5 text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+            <User size={13} className="text-[#5A8A88]" />
+            <span>ผู้บันทึก: {reporterName}</span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-white p-4 sm:p-5 rounded-xl border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-[#6B8F8E] flex items-center gap-1.5">
-                <Calendar size={13} className="text-[#A8BCBB]" />
-                วันที่รายงาน
-              </label>
-              <div className="px-3.5 py-2.5 bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg text-xs sm:text-sm font-medium text-[#2D4A49] flex items-center">
-                {format(new Date(reportDate), 'dd/MM/yyyy')}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-[#6B8F8E] flex items-center gap-1.5">
-                <User size={13} className="text-[#A8BCBB]" />
-                ผู้ทำรายงาน
-              </label>
-              <div className="px-3.5 py-2.5 bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg text-xs sm:text-sm font-medium text-[#2D4A49] flex items-center">
-                {reporterName}
-              </div>
-            </div>
+        {/* Progress Indicator */}
+        <div className="flex items-center gap-3 ml-auto">
+          <div className="text-right">
+            <span className="text-[11px] text-[#6B8F8E] block">ความคืบหน้า</span>
+            <span className="text-[14px] font-bold text-[#2D4A49]">{checkedItems}/{totalItems}</span>
           </div>
-
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-            <div className="flex bg-[#F0F5F4] p-1 rounded-[10px] gap-1 w-full sm:w-auto">
-              <button
-                onClick={() => setType('Check-in')}
-                className={cn(
-                  "flex-1 sm:flex-none justify-center px-4 py-2 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-2 active:scale-95",
-                  type === 'Check-in' 
-                    ? "bg-[#5A8A88] text-white shadow-sm" 
-                    : "text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
-                )}
-              >
-                <Clock size={14} className={type === 'Check-in' ? "text-white" : "text-[#6B8F8E]"} />
-                Check-in (เช้า)
-              </button>
-              <button
-                onClick={() => setType('Check-out')}
-                className={cn(
-                  "flex-1 sm:flex-none justify-center px-4 py-2 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-2 active:scale-95",
-                  type === 'Check-out' 
-                    ? "bg-[#5A8A88] text-white shadow-sm" 
-                    : "text-[#6B8F8E] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
-                )}
-              >
-                <LogOut size={14} className={type === 'Check-out' ? "text-white" : "text-[#6B8F8E]"} />
-                Check-out (เย็น)
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-[11px] text-[#6B8F8E] font-medium mb-0.5">ความคืบหน้า</div>
-                <div className="text-[16px] font-bold text-[#2D4A49]">{checkedItems} / {totalItems}</div>
-              </div>
-              <div className="w-[140px] h-[6px] bg-[#D4E4E3] rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
-                  className="h-full bg-[#5A8A88] rounded-full"
-                />
-              </div>
-            </div>
+          <div className="w-[120px] h-[6px] bg-[#D4E4E3] rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.3 }}
+              className="h-full bg-[#5A8A88] rounded-full"
+            />
           </div>
+        </div>
+      </div>
 
-          <div className={cn("space-y-6", isReadOnly && "pointer-events-none opacity-80")}>
-            {categories.map((category) => (
-              <div key={category.id} className="space-y-2.5">
-                <div className="flex items-center gap-2.5 border-l-[3px] border-l-[#5A8A88] pl-3 mt-5 mb-2">
-                  <div className="w-6 h-6 rounded-[6px] bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center shrink-0">
+      {/* Checklist Sections */}
+      <div className={cn("space-y-5 mt-4", isReadOnly && "pointer-events-none opacity-80")}>
+        {categories.map((category) => {
+          const catCheckedCount = category.items.filter(i => i.checked).length;
+          const catTotalCount = category.items.length;
+          const isCatComplete = catCheckedCount === catTotalCount && catTotalCount > 0;
+
+          return (
+            <div key={category.id} className="space-y-2">
+              {/* Section Header */}
+              <div className="flex items-center justify-between py-2 border-b border-[#E8F3F2]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-[28px] h-[28px] rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0">
                     {React.isValidElement(category.icon)
                       ? React.cloneElement(category.icon as React.ReactElement<any>, { size: 16, className: 'text-[#5A8A88]' })
                       : category.icon}
                   </div>
                   <h3 className="text-[13px] font-bold text-[#2D4A49]">{category.title}</h3>
                 </div>
-                <div className="grid gap-1.5">
-                  {category.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => toggleItem(category.id, item.id)}
-                      className={cn(
-                        "w-full flex items-start gap-3.5 p-3 sm:px-4 sm:py-3 rounded-[10px] transition-all text-left group cursor-pointer",
-                        item.checked 
-                          ? "bg-[#E8F3F2] border border-[#B8D4D2]" 
-                          : "bg-white border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.04)] hover:bg-[#F0F5F4] hover:border-[#A8BCBB]"
-                      )}
-                    >
-                      <div className={cn(
-                        "mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors",
-                        item.checked 
-                          ? "bg-[#5A8A88] border-2 border-[#5A8A88] text-white" 
-                          : "border-2 border-[#D4E4E3] bg-white group-hover:border-[#5A8A88]"
-                      )}>
-                        {item.checked ? (
-                          <CheckCircle2 className="w-4 h-4 text-white fill-[#5A8A88]" />
-                        ) : null}
-                      </div>
-                      <span className={cn(
-                        "text-[12px] leading-relaxed font-medium transition-colors",
-                        item.checked 
-                          ? "text-[#6B8F8E] line-through opacity-90" 
-                          : "text-[#2D4A49]"
-                      )}>
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
+
+                {/* Progress Badge */}
+                <div className={cn(
+                  "text-[11px] font-medium rounded-[6px] px-2 py-0.5 transition-colors",
+                  isCatComplete 
+                    ? "bg-[#E8F3F2] text-[#22C55E]" 
+                    : "bg-[#F0F5F4] text-[#6B8F8E]"
+                )}>
+                  {catCheckedCount}/{catTotalCount} สำเร็จ {isCatComplete ? '✓' : ''}
                 </div>
               </div>
-            ))}
-          </div>
 
-          <div className="mt-8 flex justify-end print:hidden">
-            {!isReadOnly && (
-              <button
-                onClick={handleSubmit}
-                disabled={!isAllChecked}
-                className="flex items-center gap-2 bg-[#5A8A88] hover:bg-[#4A7876] disabled:bg-[#D4E4E3] disabled:text-[#A8BCBB] disabled:cursor-not-allowed text-white text-sm font-bold py-2.5 px-7 rounded-xl transition-all shadow-md shadow-[#5A8A88]/20 active:scale-95"
-              >
-                <Save size={18} />
-                บันทึก Checklist
-              </button>
-            )}
-          </div>
-        </div>
+              {/* Items List */}
+              <div className="grid gap-1.5">
+                {category.items.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => toggleItem(category.id, item.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 sm:px-4 sm:py-3 rounded-[10px] transition-all text-left group cursor-pointer",
+                      item.checked 
+                        ? "bg-[#E8F3F2] border border-[#B8D4D2]" 
+                        : "bg-white border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.04)] hover:bg-[#F0F5F4] hover:border-[#A8BCBB]"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-[18px] h-[18px] rounded-[4px] border-2 transition-all shrink-0 flex items-center justify-center",
+                      item.checked 
+                        ? "bg-[#5A8A88] border-[#5A8A88] text-white" 
+                        : "border-[#D4E4E3] bg-white group-hover:border-[#5A8A88]"
+                    )}>
+                      {item.checked ? (
+                        <Check size={12} className="text-white stroke-[3]" />
+                      ) : null}
+                    </div>
+                    <span className={cn(
+                      "text-[12px] leading-relaxed font-medium transition-colors",
+                      item.checked 
+                        ? "text-[#6B8F8E] line-through opacity-90" 
+                        : "text-[#2D4A49]"
+                    )}>
+                      {item.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
+      {/* Submit Button */}
+      <div className="mt-8 flex justify-end print:hidden">
+        {!isReadOnly && (
+          <button
+            onClick={handleSubmit}
+            disabled={!isAllChecked}
+            className="flex items-center gap-2 bg-[#5A8A88] hover:bg-[#4A7876] disabled:bg-[#D4E4E3] disabled:text-[#A8BCBB] disabled:cursor-not-allowed text-white text-sm font-bold py-2.5 px-7 rounded-xl transition-all shadow-md shadow-[#5A8A88]/20 active:scale-95"
+          >
+            <Save size={18} />
+            บันทึก Checklist
+          </button>
+        )}
+      </div>
+
+      {/* Confirmation Modal */}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm print:hidden">
           <motion.div 
