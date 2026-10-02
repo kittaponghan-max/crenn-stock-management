@@ -302,7 +302,7 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                 <ChefHat size={22} className="text-[#5A8A88]" />
               </div>
               <div>
-                <h2 className="text-[18px] font-bold text-[#2D4A49]">Kitchen Check-in & Check-out</h2>
+                <h2 className="text-[16px] sm:text-[17px] font-bold text-[#2D4A49]">Kitchen Check-in & Check-out</h2>
                 <p className="text-[#6B8F8E] text-[11px] max-w-[500px] leading-[1.5] mt-0.5">
                   {type === 'Check-in' 
                     ? 'การเตรียมตัวก่อนเปิดครัวในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อเตรียมความพร้อมสำหรับการทำขนมและเบเกอรี่ตลอดทั้งวัน'
@@ -318,15 +318,15 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                   e.stopPropagation();
                   setIsExportDropdownOpen(!isExportDropdownOpen);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] px-3.5 py-2 rounded-lg text-[12px] font-medium transition-all cursor-pointer shadow-xs"
+                className="flex items-center justify-center gap-1.5 bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer shadow-xs"
               >
-                <Printer size={15} className="text-[#5A8A88]" />
+                <Printer size={14} className="text-[#5A8A88]" />
                 <span>Export / Print</span>
-                <ChevronDown size={13} className={cn("transition-transform text-[#6B8F8E]", isExportDropdownOpen && "rotate-180")} />
+                <ChevronDown size={12} className={cn("transition-transform text-[#6B8F8E]", isExportDropdownOpen && "rotate-180")} />
               </button>
 
               {isExportDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -334,9 +334,9 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                       exportExcel();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
                   >
-                    <FileDown size={14} className="text-[#5A8A88]" />
+                    <FileDown size={13} className="text-[#5A8A88]" />
                     <span>Excel (.xlsx)</span>
                   </button>
                   <button
@@ -346,9 +346,9 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                       exportPDF();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium text-left cursor-pointer"
                   >
-                    <Printer size={14} className="text-[#5A8A88]" />
+                    <Printer size={13} className="text-[#5A8A88]" />
                     <span>PDF / Print</span>
                   </button>
                 </div>
@@ -357,12 +357,12 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
           </div>
 
           {/* Segmented Toggle Control */}
-          <div className="mt-5 p-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl flex items-center gap-1.5">
+          <div className="mt-4 p-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl flex items-center gap-1">
             <button
               type="button"
               onClick={() => setType('Check-in')}
               className={cn(
-                "flex-1 py-2.5 px-3 rounded-lg text-[13px] transition-all flex items-center justify-center gap-2 cursor-pointer",
+                "flex-1 py-1.5 px-2.5 rounded-lg text-[11px] transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                 type === 'Check-in'
                   ? "bg-[#5A8A88] text-white font-bold shadow-sm"
                   : "bg-transparent text-[#6B8F8E] font-medium hover:text-[#2D4A49] hover:bg-white/50"
@@ -375,7 +375,7 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
               type="button"
               onClick={() => setType('Check-out')}
               className={cn(
-                "flex-1 py-2.5 px-3 rounded-lg text-[13px] transition-all flex items-center justify-center gap-2 cursor-pointer",
+                "flex-1 py-1.5 px-2.5 rounded-lg text-[11px] transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                 type === 'Check-out'
                   ? "bg-[#5A8A88] text-white font-bold shadow-sm"
                   : "bg-transparent text-[#6B8F8E] font-medium hover:text-[#2D4A49] hover:bg-white/50"
@@ -387,25 +387,25 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
           </div>
 
           {/* Meta Info Row */}
-          <div className="mt-4 flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49]">
-              <Calendar size={14} className="text-[#5A8A88]" />
+          <div className="mt-3.5 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px] font-medium text-[#2D4A49]">
+              <Calendar size={13} className="text-[#5A8A88]" />
               <span>วันที่: {format(new Date(reportDate), 'dd/MM/yyyy')}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49]">
-              <MapPin size={14} className="text-[#5A8A88]" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px] font-medium text-[#2D4A49]">
+              <MapPin size={13} className="text-[#5A8A88]" />
               <span>สาขา: {branch}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[12px] font-medium text-[#2D4A49]">
-              <User size={14} className="text-[#5A8A88]" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[11px] font-medium text-[#2D4A49]">
+              <User size={13} className="text-[#5A8A88]" />
               <span>ผู้บันทึก: {reporterName}</span>
             </div>
             
-            <div className="ml-auto flex items-center gap-3">
-              <span className="text-[11px] font-medium text-[#6B8F8E]">
+            <div className="ml-auto flex items-center gap-2.5">
+              <span className="text-[10px] sm:text-[11px] font-medium text-[#6B8F8E]">
                 ความคืบหน้า <strong className="text-[#2D4A49]">{checkedItems}/{totalItems}</strong>
               </span>
-              <div className="w-24 sm:w-32 h-2 bg-[#D4E4E3] rounded-full overflow-hidden">
+              <div className="w-20 sm:w-28 h-1.5 bg-[#D4E4E3] rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-[#5A8A88] transition-all duration-300 rounded-full" 
                   style={{ width: `${progress}%` }} 
@@ -416,8 +416,8 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
         </div>
 
         {/* Checklist Content */}
-        <div className="p-4 sm:p-6 bg-[#F8FAF9]/50 space-y-6">
-          <div className={cn("space-y-6", isReadOnly && "pointer-events-none opacity-80")}>
+        <div className="p-4 sm:p-5 bg-[#F8FAF9]/50 space-y-5">
+          <div className={cn("space-y-5", isReadOnly && "pointer-events-none opacity-80")}>
             {categories.map((category) => {
               const catChecked = category.items.filter(i => i.checked).length;
               const catTotal = category.items.length;
@@ -425,19 +425,19 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
               return (
                 <div 
                   key={category.id} 
-                  className="bg-white rounded-2xl border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.05)] overflow-hidden"
+                  className="bg-white rounded-xl border border-[#D4E4E3] shadow-[0_1px_3px_rgba(90,138,136,0.05)] overflow-hidden"
                 >
                   {/* Section Header */}
-                  <div className="p-3.5 sm:px-5 sm:py-3.5 bg-white border-b border-[#E2EAE9] flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-[#E8F3F2] flex items-center justify-center shrink-0 text-[#5A8A88]">
+                  <div className="p-3 sm:px-4 sm:py-2.5 bg-white border-b border-[#E2EAE9] flex items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#E8F3F2] flex items-center justify-center shrink-0 text-[#5A8A88]">
                         {category.icon}
                       </div>
-                      <h3 className="text-[13px] font-bold text-[#2D4A49]">{category.title}</h3>
+                      <h3 className="text-[12px] sm:text-[13px] font-bold text-[#2D4A49]">{category.title}</h3>
                     </div>
                     
                     <div className={cn(
-                      "px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0",
+                      "px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shrink-0",
                       catChecked === catTotal && catTotal > 0
                         ? "bg-[#E8F3F2] text-[#5A8A88]"
                         : "bg-[#F0F5F4] text-[#6B8F8E]"
@@ -447,14 +447,14 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                   </div>
 
                   {/* Section Items */}
-                  <div className="p-3.5 sm:p-4 space-y-2">
+                  <div className="p-2.5 sm:p-3 space-y-1.5">
                     {category.items.map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => toggleItem(category.id, item.id)}
                         className={cn(
-                          "w-full p-3 sm:px-4 sm:py-3 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer group",
+                          "w-full p-2 sm:px-3 sm:py-2 rounded-lg border text-left transition-all flex items-start gap-2.5 cursor-pointer group",
                           item.checked
                             ? "bg-[#F8FAF9] border-[#D4E4E3]"
                             : "bg-white border-[#E2EAE9] hover:border-[#B8D4D2] hover:bg-[#F8FAF9]"
@@ -462,15 +462,15 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                       >
                         <div className="mt-0.5 shrink-0 transition-colors">
                           {item.checked ? (
-                            <div className="w-5 h-5 rounded-md bg-[#5A8A88] flex items-center justify-center text-white shadow-xs">
-                              <Check size={14} strokeWidth={3} />
+                            <div className="w-4 h-4 rounded-md bg-[#5A8A88] flex items-center justify-center text-white shadow-xs">
+                              <Check size={11} strokeWidth={3} />
                             </div>
                           ) : (
-                            <div className="w-5 h-5 rounded-md border-2 border-[#B8D4D2] bg-white group-hover:border-[#5A8A88] transition-colors" />
+                            <div className="w-4 h-4 rounded-md border-2 border-[#B8D4D2] bg-white group-hover:border-[#5A8A88] transition-colors" />
                           )}
                         </div>
                         <span className={cn(
-                          "text-[13px] leading-relaxed select-none",
+                          "text-[9px] leading-relaxed select-none",
                           item.checked ? "line-through text-[#6B8F8E]" : "text-[#2D4A49] font-medium"
                         )}>
                           {item.label}
