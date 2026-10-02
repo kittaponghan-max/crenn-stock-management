@@ -276,20 +276,7 @@ const INITIAL_INGREDIENTS: Ingredient[] = [
 ];
 
 export default function App() {
-  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(() => {
-    try {
-      const saved = localStorage.getItem('cafe-user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.name && parsed.branch) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('Failed parsing saved cafe-user', e);
-    }
-    return null;
-  });
+  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(null);
 
   // Sync user object to cafe-user in localStorage so all components share the active branch
   useEffect(() => {
