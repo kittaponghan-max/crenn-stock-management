@@ -888,18 +888,18 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
         <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
 
         {/* ROW 2: View Mode + Date Chunk Selector + Save + Export (ALL IN ONE ROW) */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 w-full pt-0.5">
+        <div className="flex items-center justify-between gap-2 w-full pt-0.5 flex-wrap sm:flex-nowrap">
           
           {/* LEFT: View Mode Tabs + Date Chunk Selector on SAME ROW */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">มุมมองประจำวัน:</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+            <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">มุมมอง:</span>
             
             {/* View Mode Tabs: 1วัน, 2วัน, 3วัน, ดูทั้ง 7วัน */}
-            <div className="flex items-center gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
               <button
                 type="button"
                 onClick={() => setViewMode('1day')}
-                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                className={`px-2 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
                   viewMode === '1day'
                     ? 'bg-[#5A8A88] text-white shadow-xs'
                     : 'text-[#2D4A49] hover:bg-white'
@@ -910,7 +910,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               <button
                 type="button"
                 onClick={() => setViewMode('2days')}
-                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                className={`px-2 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
                   viewMode === '2days'
                     ? 'bg-[#5A8A88] text-white shadow-xs'
                     : 'text-[#2D4A49] hover:bg-white'
@@ -921,7 +921,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               <button
                 type="button"
                 onClick={() => setViewMode('3days')}
-                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                className={`px-2 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
                   viewMode === '3days'
                     ? 'bg-[#5A8A88] text-white shadow-xs'
                     : 'text-[#2D4A49] hover:bg-white'
@@ -932,7 +932,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               <button
                 type="button"
                 onClick={() => setViewMode('7days')}
-                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                className={`px-2 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
                   viewMode === '7days'
                     ? 'bg-[#2D4A49] text-white shadow-xs'
                     : 'text-[#2D4A49] hover:bg-white'
@@ -944,13 +944,13 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
             {/* Chunk / Day selector buttons on SAME ROW */}
             {viewMode === '1day' && (
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap sm:flex-nowrap">
                 {weekDays.map((d, i) => (
                   <button
                     key={d.dateStr}
                     type="button"
                     onClick={() => setActiveChunkIdx(i)}
-                    className={`px-2 py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                    className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
                       activeChunkIdx === i
                         ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
                         : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
@@ -963,7 +963,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
             )}
 
             {viewMode === '2days' && (
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap sm:flex-nowrap">
                 {[
                   { idx: 0, label: 'จ.-อ.' },
                   { idx: 1, label: 'พ.-พฤ.' },
@@ -974,7 +974,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     key={chunk.idx}
                     type="button"
                     onClick={() => setActiveChunkIdx(chunk.idx)}
-                    className={`px-2 py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                    className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
                       activeChunkIdx === chunk.idx
                         ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
                         : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
@@ -987,7 +987,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
             )}
 
             {viewMode === '3days' && (
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap sm:flex-nowrap">
                 {[
                   { idx: 0, label: 'จ.-พ.' },
                   { idx: 1, label: 'พฤ.-ส.' },
@@ -997,7 +997,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     key={chunk.idx}
                     type="button"
                     onClick={() => setActiveChunkIdx(chunk.idx)}
-                    className={`px-2 py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                    className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
                       activeChunkIdx === chunk.idx
                         ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
                         : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
@@ -1012,7 +1012,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
           </div>
 
           {/* RIGHT: Action Buttons (Save + Export Dropdown - On SAME ROW) */}
-          <div className="flex items-center gap-1.5 ml-auto relative">
+          <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
             
             {/* Save Button */}
             <button
@@ -1083,23 +1083,23 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
       {/* TABLE CARD */}
       <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[760px]">
+        <div>
+          <table className="w-full text-left border-collapse table-fixed">
             
             {/* Top Header with Date Groups */}
             <thead>
               <tr className="bg-[#2D4A49] text-white text-[11px] font-bold border-b border-[#1E3A39]">
-                <th className="py-2.5 px-3 w-[220px] min-w-[200px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69]">
+                <th className="py-2.5 px-2 sm:px-3 w-[22%] sm:w-[20%] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69]">
                   <div className="flex items-center justify-between">
-                    <span>รายการขนม</span>
+                    <span className="truncate">รายการขนม</span>
                     <button
                       type="button"
                       onClick={() => handleAddItem()}
-                      className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                      className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5 cursor-pointer shrink-0"
                       title="เพิ่มรายการขนม"
                     >
-                      <Plus size={11} />
-                      <span>เพิ่ม</span>
+                      <Plus size={10} />
+                      <span className="hidden sm:inline">เพิ่ม</span>
                     </button>
                   </div>
                 </th>
@@ -1107,7 +1107,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                   <th
                     key={day.dateStr}
                     colSpan={5}
-                    className="py-2 px-3 text-center border-r-2 border-[#1E3A39] bg-[#2D4A49]"
+                    className="py-2 px-1 text-center border-r-2 border-[#1E3A39] bg-[#2D4A49] text-[10px] sm:text-[11px] truncate"
                   >
                     วันที่: {day.dayName} ({day.shortDate})
                   </th>
@@ -1115,17 +1115,17 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               </tr>
 
               {/* Sub Header for Columns in each Date Group */}
-              <tr className="bg-[#3D6B69] text-white text-[10px] font-semibold border-b border-[#2D4A49]">
-                <th className="py-2 px-3 sticky left-0 z-20 bg-[#3D6B69] border-r border-[#2D4A49]">
+              <tr className="bg-[#3D6B69] text-white text-[9px] sm:text-[10px] font-semibold border-b border-[#2D4A49]">
+                <th className="py-2 px-2 sm:px-3 sticky left-0 z-20 bg-[#3D6B69] border-r border-[#2D4A49]">
                   เมนู / หมวดหมู่
                 </th>
                 {displayedDays.map(day => (
                   <React.Fragment key={`sub-${day.dateStr}`}>
-                    <th className="py-2 px-1.5 text-right w-[65px]">ทั้งหมด</th>
-                    <th className="py-2 px-1.5 text-right w-[65px]">Line</th>
-                    <th className="py-2 px-1.5 text-right w-[65px] bg-[#345D5B]">หน้าร้าน</th>
-                    <th className="py-2 px-1.5 text-right w-[65px] bg-[#2A4D4B]">ขายได้</th>
-                    <th className="py-2 px-2 text-left w-[110px] border-r-2 border-[#2D4A49]">หมายเหตุ</th>
+                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] truncate">ทั้งหมด</th>
+                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] truncate">Line</th>
+                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] bg-[#345D5B] truncate">หน้าร้าน</th>
+                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] bg-[#2A4D4B] truncate">ขายได้</th>
+                    <th className="py-1.5 px-1 text-left w-[32%] sm:w-[28%] border-r-2 border-[#2D4A49] truncate">หมายเหตุ</th>
                   </React.Fragment>
                 ))}
               </tr>
