@@ -112,6 +112,18 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
   const [newItemCat, setNewItemCat] = useState('');
   const [newCatName, setNewCatName] = useState('');
 
+  // Cell Note Management state (Matches DailySalesRecord)
+  const [activeNoteCell, setActiveNoteCell] = useState<{ itemName: string; dateStr: string } | null>(null);
+  const [editingNoteCell, setEditingNoteCell] = useState<{ itemName: string; dateStr: string; noteIndex: number; text: string } | null>(null);
+  const [newCellNoteText, setNewCellNoteText] = useState<string>('');
+
+  // Auto-expand textarea helper
+  const autoExpand = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(24, el.scrollHeight)}px`;
+  };
+
   // Export dropdown state
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -184,7 +196,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     return weekDays;
   }, [weekDays, viewMode, activeChunkIdx]);
 
-  // Reset activeChunkIdx when viewMode changes to prevent out of bounds
+  // Reset activeChunkIdx when viewMode changes
   useEffect(() => {
     setActiveChunkIdx(0);
   }, [viewMode]);
@@ -283,6 +295,104 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     });
   };
 
+  // ━━━━ CELL NOTE MANAGEMENT FUNCTIONS (Matches DailySalesRecord) ━━━━
+
+  // Add note to cell
+  const handleAddCellNote = (itemName: string, dateStr: string, noteText: string) => {
+    const text = noteText.trim();
+    if (!text) {
+      setActiveNoteCell(null);
+      setNewCellNoteText('');
+      return;
+    }
+
+    setRecords(prev => {
+      const itemMap = { ...(prev[itemName] || {}) };
+      const currentRec = { ...(itemMap[dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' }) };
+      const currentNotes = (currentRec.note || '').split('\n').map(s => s.trim()).filter(Boolean);
+      
+      currentRec.note = [...currentNotes, text].join('\n');
+      itemMap[dateStr] = currentRec;
+
+      return {
+        ...prev,
+        [itemName]: itemMap
+      };
+    });
+
+    setActiveNoteCell(null);
+    setNewCellNoteText('');
+  };
+
+  // Delete note from cell
+  const handleDeleteCellNote = (itemName: string, dateStr: string, noteIndex: number) => {
+    if (editingNoteCell && editingNoteCell.itemName === itemName && editingNoteCell.dateStr === dateStr && editingNoteCell.noteIndex === noteIndex) {
+      setEditingNoteCell(null);
+    }
+
+    setRecords(prev => {
+      const itemMap = { ...(prev[itemName] || {}) };
+      const currentRec = { ...(itemMap[dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' }) };
+      const currentNotes = (currentRec.note || '').split('\n').map(s => s.trim()).filter(Boolean);
+      currentNotes.splice(noteIndex, 1);
+      
+      currentRec.note = currentNotes.join('\n');
+      itemMap[dateStr] = currentRec;
+
+      return {
+        ...prev,
+        [itemName]: itemMap
+      };
+    });
+  };
+
+  // Start editing a cell note
+  const startEditCellNote = (itemName: string, dateStr: string, noteIndex: number, currentText: string) => {
+    setActiveNoteCell(null);
+    setNewCellNoteText('');
+    setEditingNoteCell({
+      itemName,
+      dateStr,
+      noteIndex,
+      text: currentText,
+    });
+  };
+
+  // Save edited cell note
+  const saveEditCellNote = () => {
+    if (!editingNoteCell) return;
+    const trimmed = editingNoteCell.text.trim();
+    const { itemName, dateStr, noteIndex } = editingNoteCell;
+
+    if (!trimmed) {
+      handleDeleteCellNote(itemName, dateStr, noteIndex);
+    } else {
+      setRecords(prev => {
+        const itemMap = { ...(prev[itemName] || {}) };
+        const currentRec = { ...(itemMap[dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' }) };
+        const currentNotes = (currentRec.note || '').split('\n').map(s => s.trim()).filter(Boolean);
+        
+        if (currentNotes[noteIndex] !== undefined) {
+          currentNotes[noteIndex] = trimmed;
+          currentRec.note = currentNotes.join('\n');
+          itemMap[dateStr] = currentRec;
+        }
+
+        return {
+          ...prev,
+          [itemName]: itemMap
+        };
+      });
+    }
+
+    setEditingNoteCell(null);
+  };
+
+  // Cancel editing cell note
+  const cancelEditCellNote = () => {
+    setEditingNoteCell(null);
+  };
+
   // ━━━━ CATEGORY & ITEM MANAGEMENT FUNCTIONS ━━━━
 
   // Add Item
@@ -316,7 +426,6 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
     setBakeryItems(prev => prev.map(i => {
       if (i.id === editingItem.id) {
-        // If name changed, rename key in records too
         if (i.name !== trimmed) {
           setRecords(prevRecs => {
             const updated = { ...prevRecs };
@@ -351,7 +460,6 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
   const confirmAddCategory = () => {
     const trimmed = newCatName.trim();
     if (!trimmed) return;
-    // Add dummy item under new category to create it
     const newId = `cat-item-${Date.now()}`;
     const newItem: BakeryItemDef = { id: newId, name: `รายการใหม่ (${trimmed})`, category: trimmed };
 
@@ -779,14 +887,14 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
         {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
         <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
 
-        {/* ROW 2: View Mode Controls (left) + Actions (right) */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 w-full">
+        {/* ROW 2: View Mode + Date Chunk Selector + Save + Export (ALL IN ONE ROW) */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 w-full pt-0.5">
           
-          {/* LEFT: View Mode Selectors (1 - 3 วัน / 7 วัน) & Manage Buttons */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-medium text-[#6B8F8E] mr-0.5">มุมมองประจำวัน:</span>
+          {/* LEFT: View Mode Tabs + Date Chunk Selector on SAME ROW */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">มุมมองประจำวัน:</span>
             
-            {/* View Mode Tabs: 1 วัน, 2 วัน, 3 วัน, 7 วัน */}
+            {/* View Mode Tabs: 1วัน, 2วัน, 3วัน, ดูทั้ง 7วัน */}
             <div className="flex items-center gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
               <button
                 type="button"
@@ -797,7 +905,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     : 'text-[#2D4A49] hover:bg-white'
                 }`}
               >
-                1 วัน
+                1วัน
               </button>
               <button
                 type="button"
@@ -808,7 +916,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     : 'text-[#2D4A49] hover:bg-white'
                 }`}
               >
-                2 วัน
+                2วัน
               </button>
               <button
                 type="button"
@@ -819,7 +927,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     : 'text-[#2D4A49] hover:bg-white'
                 }`}
               >
-                3 วัน
+                3วัน
               </button>
               <button
                 type="button"
@@ -830,13 +938,13 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     : 'text-[#2D4A49] hover:bg-white'
                 }`}
               >
-                ดูทั้ง 7 วัน
+                ดูทั้ง 7วัน
               </button>
             </div>
 
-            {/* Chunk selector buttons for 1-3 days */}
+            {/* Chunk / Day selector buttons on SAME ROW */}
             {viewMode === '1day' && (
-              <div className="flex items-center gap-1 flex-wrap ml-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 {weekDays.map((d, i) => (
                   <button
                     key={d.dateStr}
@@ -855,7 +963,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
             )}
 
             {viewMode === '2days' && (
-              <div className="flex items-center gap-1 flex-wrap ml-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 {[
                   { idx: 0, label: 'จ.-อ.' },
                   { idx: 1, label: 'พ.-พฤ.' },
@@ -879,7 +987,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
             )}
 
             {viewMode === '3days' && (
-              <div className="flex items-center gap-1 flex-wrap ml-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 {[
                   { idx: 0, label: 'จ.-พ.' },
                   { idx: 1, label: 'พฤ.-ส.' },
@@ -901,32 +1009,9 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               </div>
             )}
 
-            {/* Quick Manage Category/Item buttons */}
-            <div className="flex items-center gap-1 ml-auto md:ml-2">
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                className="flex items-center gap-1 bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#5A8A88] text-[11px] font-[600] rounded-[8px] px-2.5 py-[6px] h-[32px] border border-[#D4E4E3] transition-colors cursor-pointer whitespace-nowrap"
-                title="เพิ่มกลุ่มรายการขนมใหม่"
-              >
-                <FolderPlus size={13} />
-                <span className="hidden sm:inline">+ หมวดหมู่</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleAddItem()}
-                className="flex items-center gap-1 bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#5A8A88] text-[11px] font-[600] rounded-[8px] px-2.5 py-[6px] h-[32px] border border-[#D4E4E3] transition-colors cursor-pointer whitespace-nowrap"
-                title="เพิ่มรายการขนมใหม่"
-              >
-                <Plus size={13} />
-                <span>+ เพิ่มขนม</span>
-              </button>
-            </div>
-
           </div>
 
-          {/* RIGHT: Action Buttons (Save + Export Dropdown - Matches DailySalesRecord) */}
+          {/* RIGHT: Action Buttons (Save + Export Dropdown - On SAME ROW) */}
           <div className="flex items-center gap-1.5 ml-auto relative">
             
             {/* Save Button */}
@@ -949,7 +1034,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
               )}
             </button>
 
-            {/* Export Dropdown (Matches DailySalesRecord) */}
+            {/* Export Dropdown */}
             <div className="relative" ref={exportMenuRef}>
               <button
                 type="button"
@@ -1010,10 +1095,11 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     <button
                       type="button"
                       onClick={() => handleAddItem()}
-                      className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-2 py-0.5 rounded transition-colors"
+                      className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer"
                       title="เพิ่มรายการขนม"
                     >
-                      + เพิ่ม
+                      <Plus size={11} />
+                      <span>เพิ่ม</span>
                     </button>
                   </div>
                 </th>
@@ -1068,7 +1154,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             <button
                               type="button"
                               onClick={() => startEditCategory(category.name)}
-                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors"
+                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
                               title="แก้ไขชื่อหมวดหมู่"
                             >
                               <Pencil size={12} />
@@ -1076,7 +1162,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             <button
                               type="button"
                               onClick={() => handleDeleteCategory(category.name)}
-                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors"
+                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
                               title="ลบหมวดหมู่นี้"
                             >
                               <Trash2 size={12} />
@@ -1087,7 +1173,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                         <button
                           type="button"
                           onClick={() => handleAddItem(category.name)}
-                          className="text-[10px] font-semibold bg-white/80 hover:bg-white text-[#5A8A88] px-2 py-0.5 rounded border border-[#D4E4E3] transition-colors"
+                          className="text-[10px] font-semibold bg-white/80 hover:bg-white text-[#5A8A88] px-2 py-0.5 rounded border border-[#D4E4E3] transition-colors cursor-pointer"
                         >
                           + เพิ่มรายการในหมวดนี้
                         </button>
@@ -1115,7 +1201,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             <button
                               type="button"
                               onClick={() => startEditItem(item)}
-                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors"
+                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
                               title="แก้ไขชื่อรายการ"
                             >
                               <Pencil size={11} />
@@ -1123,7 +1209,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             <button
                               type="button"
                               onClick={() => handleDeleteItem(item.id, item.name)}
-                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors"
+                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
                               title="ลบรายการนี้"
                             >
                               <Trash2 size={11} />
@@ -1136,11 +1222,15 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                       {displayedDays.map(day => {
                         const rec = records[item.name]?.[day.dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
                         const isUnderTarget = rec.soldQty !== '' && rec.storeQty !== '' && Number(rec.soldQty) < Number(rec.storeQty);
+                        
+                        // Parse note items list
+                        const noteList = (rec.note || '').split('\n').map(s => s.trim()).filter(Boolean);
+                        const isAddingNoteToThisCell = activeNoteCell && activeNoteCell.itemName === item.name && activeNoteCell.dateStr === day.dateStr;
 
                         return (
                           <React.Fragment key={`${item.id}-${day.dateStr}`}>
                             {/* 1. จำนวนขนมทั้งหมด */}
-                            <td className="py-1 px-1 text-right">
+                            <td className="py-1 px-1 text-right align-top">
                               <input
                                 type="number"
                                 value={rec.totalQty}
@@ -1151,7 +1241,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             </td>
 
                             {/* 2. Official Line */}
-                            <td className="py-1 px-1 text-right">
+                            <td className="py-1 px-1 text-right align-top">
                               <input
                                 type="number"
                                 value={rec.lineQty}
@@ -1162,7 +1252,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             </td>
 
                             {/* 3. ขายหน้าร้าน (Auto / Editable) */}
-                            <td className="py-1 px-1 text-right bg-[#F9FBFA]">
+                            <td className="py-1 px-1 text-right bg-[#F9FBFA] align-top">
                               <input
                                 type="number"
                                 value={rec.storeQty}
@@ -1174,7 +1264,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                             </td>
 
                             {/* 4. ขายได้จริง (Highlight warning if sold < store target) */}
-                            <td className={`py-1 px-1 text-right ${isUnderTarget ? 'bg-amber-50' : ''}`}>
+                            <td className={`py-1 px-1 text-right align-top ${isUnderTarget ? 'bg-amber-50' : ''}`}>
                               <input
                                 type="number"
                                 value={rec.soldQty}
@@ -1189,26 +1279,161 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                               />
                             </td>
 
-                            {/* 5. หมายเหตุ (With Quick Clear/Edit Button) */}
-                            <td className="py-1 px-1 border-r-2 border-[#D4E4E3]">
-                              <div className="relative flex items-center">
-                                <input
-                                  type="text"
-                                  value={rec.note}
-                                  onChange={(e) => handleChange(item.name, day.dateStr, 'note', e.target.value)}
-                                  placeholder="หมายเหตุ"
-                                  className="w-full bg-white border border-[#D4E4E3] rounded text-[10px] text-left px-1.5 py-1 text-[#2D4A49] pr-5 focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
-                                />
-                                {rec.note && (
+                            {/* 5. หมายเหตุ (Identical Note UI & Logic to DailySalesRecord) */}
+                            <td className="py-1 px-1.5 border-r-2 border-[#D4E4E3] align-top w-[110px]">
+                              <div className="flex flex-col gap-1 min-h-[28px] justify-center">
+                                
+                                {/* Existing notes list */}
+                                {noteList.length > 0 && (
+                                  <div className="flex flex-col gap-0.5">
+                                    {noteList.map((noteItem, nIdx) => {
+                                      const isEditingThisNote = editingNoteCell && 
+                                        editingNoteCell.itemName === item.name && 
+                                        editingNoteCell.dateStr === day.dateStr && 
+                                        editingNoteCell.noteIndex === nIdx;
+
+                                      if (isEditingThisNote) {
+                                        return (
+                                          <div key={nIdx} className="flex items-start gap-1 mt-0.5">
+                                            <textarea
+                                              autoFocus
+                                              rows={1}
+                                              value={editingNoteCell.text}
+                                              onInput={(e) => autoExpand(e.target as HTMLTextAreaElement)}
+                                              onChange={(e) => setEditingNoteCell({ ...editingNoteCell, text: e.target.value })}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                  e.preventDefault();
+                                                  saveEditCellNote();
+                                                } else if (e.key === 'Escape') {
+                                                  cancelEditCellNote();
+                                                }
+                                              }}
+                                              style={{
+                                                resize: 'none',
+                                                overflow: 'hidden',
+                                                minHeight: '24px',
+                                                lineHeight: '1.3',
+                                                padding: '3px 4px',
+                                                fontSize: '9px',
+                                              }}
+                                              className="w-full bg-white border border-[#5A8A88] rounded-[4px] text-left text-[#2D4A49] focus:outline-none"
+                                            />
+                                            <button
+                                              type="button"
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                saveEditCellNote();
+                                              }}
+                                              title="บันทึกการแก้ไข"
+                                              className="text-[#22C55E] bg-[#DCFCE7] hover:bg-[#BBF7D0] p-1 rounded-[3px] cursor-pointer shrink-0 transition-colors mt-0.5"
+                                            >
+                                              <Check size={10} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                cancelEditCellNote();
+                                              }}
+                                              title="ยกเลิก"
+                                              className="text-[#EF4444] bg-[#FEE2E2] hover:bg-[#FECACA] p-1 rounded-[3px] cursor-pointer shrink-0 transition-colors mt-0.5"
+                                            >
+                                              <X size={10} />
+                                            </button>
+                                          </div>
+                                        );
+                                      }
+
+                                      return (
+                                        <div 
+                                          key={nIdx}
+                                          className="flex items-start gap-1 text-[9px] text-[#2D4A49] leading-tight group rounded-[3px] p-0.5 -mx-0.5 transition-colors"
+                                        >
+                                          <span className="text-[#5A8A88] shrink-0">•</span>
+                                          <span 
+                                            onClick={() => startEditCellNote(item.name, day.dateStr, nIdx, noteItem)}
+                                            title="คลิกเพื่อแก้ไขหมายเหตุ"
+                                            className="flex-1 break-words whitespace-pre-wrap cursor-pointer rounded-[3px] px-0.5 py-[1px] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors"
+                                          >
+                                            {noteItem}
+                                          </span>
+                                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                              type="button"
+                                              onClick={() => startEditCellNote(item.name, day.dateStr, nIdx, noteItem)}
+                                              className="text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#E8F3F2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                              title="แก้ไขหมายเหตุ"
+                                            >
+                                              <Pencil size={10} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteCellNote(item.name, day.dateStr, nIdx)}
+                                              className="text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                              title="ลบหมายเหตุนี้"
+                                            >
+                                              <X size={10} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* Adding Note Textarea or "+ เพิ่มหมายเหตุ" button */}
+                                {isAddingNoteToThisCell ? (
+                                  <div className="mt-0.5">
+                                    <textarea
+                                      autoFocus
+                                      rows={1}
+                                      value={newCellNoteText}
+                                      onInput={(e) => autoExpand(e.target as HTMLTextAreaElement)}
+                                      onChange={(e) => setNewCellNoteText(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                          e.preventDefault();
+                                          handleAddCellNote(item.name, day.dateStr, newCellNoteText);
+                                        } else if (e.key === 'Escape') {
+                                          setActiveNoteCell(null);
+                                          setNewCellNoteText('');
+                                        }
+                                      }}
+                                      onBlur={() => {
+                                        if (newCellNoteText.trim()) {
+                                          handleAddCellNote(item.name, day.dateStr, newCellNoteText);
+                                        } else {
+                                          setActiveNoteCell(null);
+                                        }
+                                      }}
+                                      placeholder="พิมพ์หมายเหตุ (กด Enter เพื่อบันทึก)..."
+                                      style={{
+                                        resize: 'none',
+                                        overflow: 'hidden',
+                                        minHeight: '24px',
+                                        lineHeight: '1.3',
+                                        padding: '3px 4px',
+                                        fontSize: '9px',
+                                      }}
+                                      className="w-full bg-white border border-[#5A8A88] rounded-[4px] text-left text-[#2D4A49] focus:outline-none focus:bg-[#E8F3F2]"
+                                    />
+                                  </div>
+                                ) : (
                                   <button
                                     type="button"
-                                    onClick={() => handleChange(item.name, day.dateStr, 'note', '')}
-                                    className="absolute right-1 text-[#6B8F8E] hover:text-rose-600 transition-colors p-0.5 cursor-pointer"
-                                    title="ลบหมายเหตุ"
+                                    onClick={() => {
+                                      setEditingNoteCell(null);
+                                      setActiveNoteCell({ itemName: item.name, dateStr: day.dateStr });
+                                      setNewCellNoteText('');
+                                    }}
+                                    className="flex items-center gap-0.5 text-[8px] text-[#5A8A88] hover:text-[#2D4A49] cursor-pointer pt-0.5 transition-colors"
                                   >
-                                    <X size={10} />
+                                    <Plus size={10} className="text-[#5A8A88]" />
+                                    <span>เพิ่มหมายเหตุ</span>
                                   </button>
                                 )}
+
                               </div>
                             </td>
                           </React.Fragment>
