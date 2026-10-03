@@ -11,7 +11,14 @@ import {
   AlertCircle, 
   Loader2,
   Info,
-  CalendarDays
+  CalendarDays,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  ChevronDown,
+  FolderPlus,
+  Check
 } from 'lucide-react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -70,9 +77,55 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
   const recorderName = user?.name || 'Admin';
 
   const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  // active Day pair index: 0 = Mon-Tue, 1 = Wed-Thu, 2 = Fri-Sat, 3 = Sun (+Mon next)
-  const [dayPairIndex, setDayPairIndex] = useState<number>(0);
-  const [viewAllDays, setViewAllDays] = useState<boolean>(false);
+  
+  // View mode: '1day' | '2days' | '3days' | '7days'
+  const [viewMode, setViewMode] = useState<'1day' | '2days' | '3days' | '7days'>('2days');
+  const [activeChunkIdx, setActiveChunkIdx] = useState<number>(0);
+
+  // Dynamic Bakery Items state (persisted in LocalStorage)
+  const [bakeryItems, setBakeryItems] = useState<BakeryItemDef[]>(() => {
+    try {
+      const saved = localStorage.getItem(`cafe_bakery_items_${currentBranch}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_BAKERY_ITEMS;
+  });
+
+  // Save items to LocalStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(bakeryItems));
+    } catch (e) {}
+  }, [bakeryItems, currentBranch]);
+
+  // Modals / Dialogs state for Items & Categories management
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [showAddCatModal, setShowAddCatModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<{ id: string; name: string; category: string } | null>(null);
+  const [editingCat, setEditingCat] = useState<{ oldName: string; newName: string } | null>(null);
+
+  // Form input states for modals
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemCat, setNewItemCat] = useState('');
+  const [newCatName, setNewCatName] = useState('');
+
+  // Export dropdown state
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Data state: records[itemName][dateStr] = BakeryDayRecord
   const [records, setRecords] = useState<Record<string, Record<string, BakeryDayRecord>>>({});
@@ -95,12 +148,46 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     });
   }, [currentWeek]);
 
-  // Determine which dates are currently shown (either 2 selected dates or all 7)
+  // Categories list
+  const categories = useMemo(() => {
+    const cats: { name: string; items: BakeryItemDef[] }[] = [];
+    bakeryItems.forEach(item => {
+      let found = cats.find(c => c.name === item.category);
+      if (!found) {
+        found = { name: item.category, items: [] };
+        cats.push(found);
+      }
+      found.items.push(item);
+    });
+    return cats;
+  }, [bakeryItems]);
+
+  // Determine displayed days based on viewMode & activeChunkIdx
   const displayedDays = useMemo(() => {
-    if (viewAllDays) return weekDays;
-    const startIdx = dayPairIndex * 2;
-    return weekDays.slice(startIdx, Math.min(startIdx + 2, 7));
-  }, [weekDays, dayPairIndex, viewAllDays]);
+    if (viewMode === '7days') return weekDays;
+    
+    if (viewMode === '1day') {
+      const idx = Math.min(Math.max(0, activeChunkIdx), 6);
+      return [weekDays[idx]];
+    }
+
+    if (viewMode === '2days') {
+      const startIdx = activeChunkIdx * 2;
+      return weekDays.slice(startIdx, Math.min(startIdx + 2, 7));
+    }
+
+    if (viewMode === '3days') {
+      const startIdx = activeChunkIdx * 3;
+      return weekDays.slice(startIdx, Math.min(startIdx + 3, 7));
+    }
+
+    return weekDays;
+  }, [weekDays, viewMode, activeChunkIdx]);
+
+  // Reset activeChunkIdx when viewMode changes to prevent out of bounds
+  useEffect(() => {
+    setActiveChunkIdx(0);
+  }, [viewMode]);
 
   // Load data from LocalStorage & Supabase
   const loadWeekData = useCallback(async () => {
@@ -162,7 +249,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     loadWeekData();
   }, [loadWeekData]);
 
-  // Handle input change
+  // Handle cell value change
   const handleChange = (itemName: string, dateStr: string, field: keyof BakeryDayRecord, value: string) => {
     setRecords(prev => {
       const itemMap = { ...(prev[itemName] || {}) };
@@ -194,6 +281,114 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
         [itemName]: itemMap,
       };
     });
+  };
+
+  // ━━━━ CATEGORY & ITEM MANAGEMENT FUNCTIONS ━━━━
+
+  // Add Item
+  const handleAddItem = (categoryName?: string) => {
+    setNewItemCat(categoryName || (categories[0]?.name || 'ครัวซอง & เดนิส'));
+    setNewItemName('');
+    setShowAddItemModal(true);
+  };
+
+  const confirmAddItem = () => {
+    const trimmed = newItemName.trim();
+    if (!trimmed) return;
+    const cat = newItemCat.trim() || 'เบเกอรี่ทั่วไป';
+    const newId = `custom-${Date.now()}`;
+    const newItem: BakeryItemDef = { id: newId, name: trimmed, category: cat };
+
+    setBakeryItems(prev => [...prev, newItem]);
+    setShowAddItemModal(false);
+    setNewItemName('');
+  };
+
+  // Edit Item Name / Category
+  const startEditItem = (item: BakeryItemDef) => {
+    setEditingItem({ id: item.id, name: item.name, category: item.category });
+  };
+
+  const saveEditItem = () => {
+    if (!editingItem) return;
+    const trimmed = editingItem.name.trim();
+    if (!trimmed) return;
+
+    setBakeryItems(prev => prev.map(i => {
+      if (i.id === editingItem.id) {
+        // If name changed, rename key in records too
+        if (i.name !== trimmed) {
+          setRecords(prevRecs => {
+            const updated = { ...prevRecs };
+            if (updated[i.name]) {
+              updated[trimmed] = updated[i.name];
+              delete updated[i.name];
+            }
+            return updated;
+          });
+        }
+        return { ...i, name: trimmed, category: editingItem.category };
+      }
+      return i;
+    }));
+
+    setEditingItem(null);
+  };
+
+  // Delete Item
+  const handleDeleteItem = (itemId: string, itemName: string) => {
+    if (window.confirm(`คุณต้องการลบรายการ "${itemName}" ออกจากระบบใช่หรือไม่?`)) {
+      setBakeryItems(prev => prev.filter(i => i.id !== itemId));
+    }
+  };
+
+  // Add Category
+  const handleAddCategory = () => {
+    setNewCatName('');
+    setShowAddCatModal(true);
+  };
+
+  const confirmAddCategory = () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    // Add dummy item under new category to create it
+    const newId = `cat-item-${Date.now()}`;
+    const newItem: BakeryItemDef = { id: newId, name: `รายการใหม่ (${trimmed})`, category: trimmed };
+
+    setBakeryItems(prev => [...prev, newItem]);
+    setShowAddCatModal(false);
+    setNewCatName('');
+  };
+
+  // Edit Category Name
+  const startEditCategory = (catName: string) => {
+    setEditingCat({ oldName: catName, newName: catName });
+  };
+
+  const saveEditCategory = () => {
+    if (!editingCat) return;
+    const oldN = editingCat.oldName;
+    const newN = editingCat.newName.trim();
+    if (!newN || oldN === newN) {
+      setEditingCat(null);
+      return;
+    }
+
+    setBakeryItems(prev => prev.map(i => {
+      if (i.category === oldN) {
+        return { ...i, category: newN };
+      }
+      return i;
+    }));
+
+    setEditingCat(null);
+  };
+
+  // Delete Category
+  const handleDeleteCategory = (catName: string) => {
+    if (window.confirm(`คุณต้องการลบหมวดหมู่ "${catName}" และรายการขนมทั้งหมดในหมวดนี้ใช่หรือไม่?`)) {
+      setBakeryItems(prev => prev.filter(i => i.category !== catName));
+    }
   };
 
   // Save to Supabase and LocalStorage
@@ -428,7 +623,6 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
   // Export to CSV / Excel
   const handleExportExcel = () => {
-    const dates = weekDays.map(w => w.dateStr);
     const headers = ['หมวดหมู่', 'รายการ'];
     
     weekDays.forEach(w => {
@@ -441,7 +635,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
     const csvRows = [headers.join(',')];
 
-    DEFAULT_BAKERY_ITEMS.forEach(item => {
+    bakeryItems.forEach(item => {
       const row = [`"${item.category}"`, `"${item.name}"`];
       weekDays.forEach(w => {
         const rec = records[item.name]?.[w.dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
@@ -466,20 +660,6 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     document.body.removeChild(link);
   };
 
-  // Categories
-  const categories = useMemo(() => {
-    const cats: { name: string; items: BakeryItemDef[] }[] = [];
-    DEFAULT_BAKERY_ITEMS.forEach(item => {
-      let found = cats.find(c => c.name === item.category);
-      if (!found) {
-        found = { name: item.category, items: [] };
-        cats.push(found);
-      }
-      found.items.push(item);
-    });
-    return cats;
-  }, []);
-
   // Calculate day totals for displayed days
   const dayTotals = useMemo(() => {
     const totals: Record<string, { totalQty: number; lineQty: number; storeQty: number; soldQty: number }> = {};
@@ -488,7 +668,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
       let line = 0;
       let store = 0;
       let sold = 0;
-      DEFAULT_BAKERY_ITEMS.forEach(item => {
+      bakeryItems.forEach(item => {
         const rec = records[item.name]?.[day.dateStr];
         if (rec) {
           if (rec.totalQty !== '') total += Number(rec.totalQty);
@@ -500,10 +680,13 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
       totals[day.dateStr] = { totalQty: total, lineQty: line, storeQty: store, soldQty: sold };
     });
     return totals;
-  }, [displayedDays, records]);
+  }, [displayedDays, records, bakeryItems]);
 
   const weekStartStr = format(currentWeek, 'd MMM yyyy', { locale: th });
   const weekEndStr = format(addDays(currentWeek, 6), 'd MMM yyyy', { locale: th });
+
+  // Period Label for Header
+  const summaryDateRangeLabel = `${weekStartStr} - ${weekEndStr}`;
 
   return (
     <div className="space-y-4">
@@ -532,27 +715,31 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
           <div className="flex-1">
             <p className="font-bold">{tableExistsWarning}</p>
             <p className="text-[11px] text-amber-700 mt-0.5">
-              คอลัมน์ที่ต้องสร้างใน Supabase: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px]">date (text), branch (text), item_name (text), total_qty (numeric), line_qty (numeric), store_qty (numeric), sold_qty (numeric), note (text), recorded_by (text), created_at (timestamptz)</code> (Primary key: date, branch, item_name)
+              คอลัมน์ที่ต้องสร้างใน Supabase: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px]">date (text), branch (text), item_name (text), total_qty (numeric), line_qty (numeric), store_qty (numeric), sold_qty (numeric), note (text), recorded_by (text), created_at (timestamptz)</code>
             </p>
           </div>
         </div>
       )}
 
-      {/* HEADER CARD */}
-      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PAGE HEADER CARD (Matches DailySalesRecord Layout & Style)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+        
+        {/* ROW 1: Title block (left) + Period Navigation (right) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
           
-          {/* Left: Title & Badge */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3] shadow-xs">
-              <Cake size={20} />
+          {/* LEFT: Title, Badge & Subtitle */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+              <Cake size={18} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-[#2D4A49] tracking-tight">
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
                   บันทึกจำนวนขนมประจำวัน
                 </h1>
-                <span className="text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full border border-[#D4E4E3]">
+                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
                   สาขา {currentBranch}
                 </span>
               </div>
@@ -562,120 +749,249 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
             </div>
           </div>
 
-          {/* Right: Week Navigator + Save Button + Export Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* RIGHT: Period Navigation [<] สัปดาห์... [>] */}
+          <div className="flex items-center gap-1.5 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setCurrentWeek(prev => subWeeks(prev, 1))}
+              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              title="สัปดาห์ก่อนหน้า"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
+              สัปดาห์: {summaryDateRangeLabel}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setCurrentWeek(prev => addWeeks(prev, 1))}
+              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              title="สัปดาห์ถัดไป"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+        </div>
+
+        {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
+        <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
+
+        {/* ROW 2: View Mode Controls (left) + Actions (right) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 w-full">
+          
+          {/* LEFT: View Mode Selectors (1 - 3 วัน / 7 วัน) & Manage Buttons */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-medium text-[#6B8F8E] mr-0.5">มุมมองประจำวัน:</span>
             
-            {/* Week Navigator */}
-            <div className="flex items-center bg-[#E8F3F2] border border-[#D4E4E3] rounded-xl p-1 shadow-xs">
+            {/* View Mode Tabs: 1 วัน, 2 วัน, 3 วัน, 7 วัน */}
+            <div className="flex items-center gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
               <button
                 type="button"
-                onClick={() => setCurrentWeek(prev => subWeeks(prev, 1))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#5A8A88] hover:bg-white transition-colors"
-                title="สัปดาห์ก่อนหน้า"
+                onClick={() => setViewMode('1day')}
+                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                  viewMode === '1day'
+                    ? 'bg-[#5A8A88] text-white shadow-xs'
+                    : 'text-[#2D4A49] hover:bg-white'
+                }`}
               >
-                <ChevronLeft size={16} />
+                1 วัน
               </button>
-
-              <div className="flex items-center gap-1.5 px-3 text-xs font-semibold text-[#2D4A49]">
-                <CalendarIcon size={13} className="text-[#5A8A88]" />
-                <span>สัปดาห์ที่ {weekStartStr} - {weekEndStr}</span>
-              </div>
-
               <button
                 type="button"
-                onClick={() => setCurrentWeek(prev => addWeeks(prev, 1))}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#5A8A88] hover:bg-white transition-colors"
-                title="สัปดาห์ถัดไป"
+                onClick={() => setViewMode('2days')}
+                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                  viewMode === '2days'
+                    ? 'bg-[#5A8A88] text-white shadow-xs'
+                    : 'text-[#2D4A49] hover:bg-white'
+                }`}
               >
-                <ChevronRight size={16} />
+                2 วัน
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('3days')}
+                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                  viewMode === '3days'
+                    ? 'bg-[#5A8A88] text-white shadow-xs'
+                    : 'text-[#2D4A49] hover:bg-white'
+                }`}
+              >
+                3 วัน
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('7days')}
+                className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer ${
+                  viewMode === '7days'
+                    ? 'bg-[#2D4A49] text-white shadow-xs'
+                    : 'text-[#2D4A49] hover:bg-white'
+                }`}
+              >
+                ดูทั้ง 7 วัน
               </button>
             </div>
 
+            {/* Chunk selector buttons for 1-3 days */}
+            {viewMode === '1day' && (
+              <div className="flex items-center gap-1 flex-wrap ml-1">
+                {weekDays.map((d, i) => (
+                  <button
+                    key={d.dateStr}
+                    type="button"
+                    onClick={() => setActiveChunkIdx(i)}
+                    className={`px-2 py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                      activeChunkIdx === i
+                        ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
+                        : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
+                    }`}
+                  >
+                    {d.shortDay}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {viewMode === '2days' && (
+              <div className="flex items-center gap-1 flex-wrap ml-1">
+                {[
+                  { idx: 0, label: 'จ.-อ.' },
+                  { idx: 1, label: 'พ.-พฤ.' },
+                  { idx: 2, label: 'ศ.-ส.' },
+                  { idx: 3, label: 'อา.' },
+                ].map(chunk => (
+                  <button
+                    key={chunk.idx}
+                    type="button"
+                    onClick={() => setActiveChunkIdx(chunk.idx)}
+                    className={`px-2 py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                      activeChunkIdx === chunk.idx
+                        ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
+                        : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
+                    }`}
+                  >
+                    {chunk.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {viewMode === '3days' && (
+              <div className="flex items-center gap-1 flex-wrap ml-1">
+                {[
+                  { idx: 0, label: 'จ.-พ.' },
+                  { idx: 1, label: 'พฤ.-ส.' },
+                  { idx: 2, label: 'อา.' },
+                ].map(chunk => (
+                  <button
+                    key={chunk.idx}
+                    type="button"
+                    onClick={() => setActiveChunkIdx(chunk.idx)}
+                    className={`px-2 py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                      activeChunkIdx === chunk.idx
+                        ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
+                        : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
+                    }`}
+                  >
+                    {chunk.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Quick Manage Category/Item buttons */}
+            <div className="flex items-center gap-1 ml-auto md:ml-2">
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                className="flex items-center gap-1 bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#5A8A88] text-[11px] font-[600] rounded-[8px] px-2.5 py-[6px] h-[32px] border border-[#D4E4E3] transition-colors cursor-pointer whitespace-nowrap"
+                title="เพิ่มกลุ่มรายการขนมใหม่"
+              >
+                <FolderPlus size={13} />
+                <span className="hidden sm:inline">+ หมวดหมู่</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAddItem()}
+                className="flex items-center gap-1 bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#5A8A88] text-[11px] font-[600] rounded-[8px] px-2.5 py-[6px] h-[32px] border border-[#D4E4E3] transition-colors cursor-pointer whitespace-nowrap"
+                title="เพิ่มรายการขนมใหม่"
+              >
+                <Plus size={13} />
+                <span>+ เพิ่มขนม</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* RIGHT: Action Buttons (Save + Export Dropdown - Matches DailySalesRecord) */}
+          <div className="flex items-center gap-1.5 ml-auto relative">
+            
             {/* Save Button */}
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[13px] font-semibold rounded-[10px] px-4 py-2 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap"
             >
               {isSaving ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" />
+                  <Loader2 size={13} className="animate-spin" />
                   <span>กำลังบันทึก...</span>
                 </>
               ) : (
                 <>
-                  <Save size={14} />
+                  <Save size={13} />
                   <span>บันทึกข้อมูล</span>
                 </>
               )}
             </button>
 
-            {/* Export Buttons */}
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-medium rounded-[10px] px-3 py-2 transition-colors shadow-xs"
-              title="ส่งออกไฟล์ Excel (CSV)"
-            >
-              <Download size={13} />
-              <span className="hidden sm:inline">Excel</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] text-[12px] font-medium rounded-[10px] px-3 py-2 transition-colors shadow-xs"
-              title="พิมพ์รายงาน (PDF)"
-            >
-              <Printer size={13} />
-              <span className="hidden sm:inline">PDF</span>
-            </button>
-
-          </div>
-
-        </div>
-
-        {/* 2-Day View Selector Tabs */}
-        <div className="mt-4 pt-3 border-t border-[#D4E4E3] flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-semibold text-[#6B8F8E] mr-1">มุมมอง 2 วันต่อหน้า:</span>
-            {[
-              { idx: 0, label: 'จันทร์ - อังคาร' },
-              { idx: 1, label: 'พุธ - พฤหัสฯ' },
-              { idx: 2, label: 'ศุกร์ - เสาร์' },
-              { idx: 3, label: 'อาทิตย์' },
-            ].map(pair => (
+            {/* Export Dropdown (Matches DailySalesRecord) */}
+            <div className="relative" ref={exportMenuRef}>
               <button
-                key={pair.idx}
                 type="button"
-                onClick={() => {
-                  setDayPairIndex(pair.idx);
-                  setViewAllDays(false);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  !viewAllDays && dayPairIndex === pair.idx
-                    ? 'bg-[#5A8A88] text-white shadow-xs'
-                    : 'bg-[#F0F5F4] text-[#2D4A49] hover:bg-[#E8F3F2] border border-[#D4E4E3]'
-                }`}
+                onClick={() => setIsExportOpen(!isExportOpen)}
+                className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                title="ส่งออกข้อมูล (Excel, PDF)"
               >
-                {pair.label}
+                <Download size={13} className="text-[#5A8A88]" />
+                <span>ส่งออก</span>
+                <ChevronDown size={11} className={`text-[#5A8A88] transition-transform duration-150 ${isExportOpen ? 'rotate-180' : ''}`} />
               </button>
-            ))}
+
+              {isExportOpen && (
+                <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      handleExportExcel();
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download size={13} className="text-[#5A8A88]" />
+                    <span>Excel (.csv)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      window.print();
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Printer size={13} className="text-[#5A8A88]" />
+                    <span>PDF / พิมพ์</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
 
-          <button
-            type="button"
-            onClick={() => setViewAllDays(prev => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-              viewAllDays
-                ? 'bg-[#2D4A49] text-white border-[#2D4A49]'
-                : 'bg-white text-[#5A8A88] border-[#D4E4E3] hover:bg-[#E8F3F2]'
-            }`}
-          >
-            <CalendarDays size={13} />
-            <span>{viewAllDays ? 'กำลังแสดงครบ 7 วัน' : 'ดูทั้ง 7 วัน'}</span>
-          </button>
         </div>
 
       </div>
@@ -684,11 +1000,22 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
       <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[760px]">
+            
             {/* Top Header with Date Groups */}
             <thead>
               <tr className="bg-[#2D4A49] text-white text-[11px] font-bold border-b border-[#1E3A39]">
-                <th className="py-2.5 px-3 w-[160px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69]">
-                  รายการขนม
+                <th className="py-2.5 px-3 w-[220px] min-w-[200px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69]">
+                  <div className="flex items-center justify-between">
+                    <span>รายการขนม</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddItem()}
+                      className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-2 py-0.5 rounded transition-colors"
+                      title="เพิ่มรายการขนม"
+                    >
+                      + เพิ่ม
+                    </button>
+                  </div>
                 </th>
                 {displayedDays.map(day => (
                   <th
@@ -712,7 +1039,7 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                     <th className="py-2 px-1.5 text-right w-[65px]">Line</th>
                     <th className="py-2 px-1.5 text-right w-[65px] bg-[#345D5B]">หน้าร้าน</th>
                     <th className="py-2 px-1.5 text-right w-[65px] bg-[#2A4D4B]">ขายได้</th>
-                    <th className="py-2 px-2 text-left w-[85px] border-r-2 border-[#2D4A49]">หมายเหตุ</th>
+                    <th className="py-2 px-2 text-left w-[110px] border-r-2 border-[#2D4A49]">หมายเหตุ</th>
                   </React.Fragment>
                 ))}
               </tr>
@@ -722,13 +1049,49 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
             <tbody className="divide-y divide-[#F0F5F4] text-xs">
               {categories.map(category => (
                 <React.Fragment key={category.name}>
-                  {/* Category Header Row */}
-                  <tr className="bg-[#E8F3F2] border-y border-[#D4E4E3]">
+                  
+                  {/* Category Header Row (With Edit/Delete/Add Item Actions) */}
+                  <tr className="bg-[#E8F3F2] border-y border-[#D4E4E3] group/cat">
                     <td 
                       colSpan={1 + displayedDays.length * 5}
                       className="py-2 px-3 font-bold text-[#5A8A88] text-[11px] tracking-wide"
                     >
-                      📁 {category.name}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>📁 {category.name}</span>
+                          <span className="text-[10px] font-normal text-[#6B8F8E] bg-white/70 px-1.5 py-0.2 rounded-full">
+                            ({category.items.length} รายการ)
+                          </span>
+                          
+                          {/* Category Edit & Delete buttons */}
+                          <div className="flex items-center gap-1 opacity-70 group-hover/cat:opacity-100 transition-opacity ml-1">
+                            <button
+                              type="button"
+                              onClick={() => startEditCategory(category.name)}
+                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors"
+                              title="แก้ไขชื่อหมวดหมู่"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(category.name)}
+                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors"
+                              title="ลบหมวดหมู่นี้"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddItem(category.name)}
+                          className="text-[10px] font-semibold bg-white/80 hover:bg-white text-[#5A8A88] px-2 py-0.5 rounded border border-[#D4E4E3] transition-colors"
+                        >
+                          + เพิ่มรายการในหมวดนี้
+                        </button>
+                      </div>
                     </td>
                   </tr>
 
@@ -736,13 +1099,37 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                   {category.items.map((item, itemIdx) => (
                     <tr 
                       key={item.id}
-                      className={`transition-colors hover:bg-[#E8F3F2]/40 ${
+                      className={`transition-colors hover:bg-[#E8F3F2]/40 group/item ${
                         itemIdx % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFA]'
                       }`}
                     >
-                      {/* Item Name (Sticky Left) */}
-                      <td className="py-1.5 px-3 font-semibold text-[#2D4A49] bg-[#F0F5F4] border-r border-[#D4E4E3] sticky left-0 z-10 whitespace-nowrap text-[12px]">
-                        {item.name}
+                      {/* Item Name (Sticky Left with Action Buttons) */}
+                      <td className="py-1.5 px-3 font-semibold text-[#2D4A49] bg-[#F0F5F4] border-r border-[#D4E4E3] sticky left-0 z-10 whitespace-nowrap text-[11px]">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="truncate max-w-[150px]" title={item.name}>
+                            {item.name}
+                          </span>
+
+                          {/* Item Edit & Delete Action Buttons */}
+                          <div className="flex items-center gap-0.5 opacity-60 group-hover/item:opacity-100 transition-opacity shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEditItem(item)}
+                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors"
+                              title="แก้ไขชื่อรายการ"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id, item.name)}
+                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors"
+                              title="ลบรายการนี้"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Day Columns */}
@@ -802,15 +1189,27 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                               />
                             </td>
 
-                            {/* 5. หมายเหตุ */}
-                            <td className="py-1 px-1.5 border-r-2 border-[#D4E4E3]">
-                              <input
-                                type="text"
-                                value={rec.note}
-                                onChange={(e) => handleChange(item.name, day.dateStr, 'note', e.target.value)}
-                                placeholder="หมายเหตุ"
-                                className="w-full bg-white border border-[#D4E4E3] rounded text-[10px] text-left px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
-                              />
+                            {/* 5. หมายเหตุ (With Quick Clear/Edit Button) */}
+                            <td className="py-1 px-1 border-r-2 border-[#D4E4E3]">
+                              <div className="relative flex items-center">
+                                <input
+                                  type="text"
+                                  value={rec.note}
+                                  onChange={(e) => handleChange(item.name, day.dateStr, 'note', e.target.value)}
+                                  placeholder="หมายเหตุ"
+                                  className="w-full bg-white border border-[#D4E4E3] rounded text-[10px] text-left px-1.5 py-1 text-[#2D4A49] pr-5 focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                />
+                                {rec.note && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleChange(item.name, day.dateStr, 'note', '')}
+                                    className="absolute right-1 text-[#6B8F8E] hover:text-rose-600 transition-colors p-0.5 cursor-pointer"
+                                    title="ลบหมายเหตุ"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </React.Fragment>
                         );
@@ -852,6 +1251,254 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
           </table>
         </div>
       </div>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          MODALS FOR MANAGING ITEMS & CATEGORIES
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+
+      {/* 1. Add Item Modal */}
+      {showAddItemModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-[#D4E4E3] overflow-hidden">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Plus size={16} />
+                <span>เพิ่มรายการขนมใหม่</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowAddItemModal(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  หมวดหมู่ขนม
+                </label>
+                <input
+                  type="text"
+                  value={newItemCat}
+                  onChange={(e) => setNewItemCat(e.target.value)}
+                  placeholder="เช่น ครัวซอง & เดนิส, เค้ก"
+                  className="w-full bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg px-3 py-2 text-xs text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  ชื่อรายการขนมใหม่
+                </label>
+                <input
+                  type="text"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  placeholder="เช่น พายแอปเปิ้ล, คุกกี้แมคคาเดเมีย"
+                  className="w-full bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg px-3 py-2 text-xs text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-white"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddItemModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmAddItem}
+                  disabled={!newItemName.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#5A8A88] hover:bg-[#4A7A78] text-white transition-colors disabled:opacity-50"
+                >
+                  บันทึกรายการ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Add Category Modal */}
+      {showAddCatModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-[#D4E4E3] overflow-hidden">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <FolderPlus size={16} />
+                <span>เพิ่มกลุ่มรายการขนม (หมวดหมู่ใหม่)</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowAddCatModal(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  ชื่อกลุ่ม / หมวดหมู่ขนมใหม่
+                </label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="เช่น ขนมปังสด, พาสทรี้สด, เครื่องดื่มร้อน"
+                  className="w-full bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg px-3 py-2 text-xs text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-white"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCatModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmAddCategory}
+                  disabled={!newCatName.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#5A8A88] hover:bg-[#4A7A78] text-white transition-colors disabled:opacity-50"
+                >
+                  บันทึกหมวดหมู่
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Edit Item Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-[#D4E4E3] overflow-hidden">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Pencil size={16} />
+                <span>แก้ไขชื่อรายการขนม</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setEditingItem(null)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  หมวดหมู่
+                </label>
+                <input
+                  type="text"
+                  value={editingItem.category}
+                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                  className="w-full bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg px-3 py-2 text-xs text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  ชื่อรายการขนม
+                </label>
+                <input
+                  type="text"
+                  value={editingItem.name}
+                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  className="w-full bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg px-3 py-2 text-xs text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-white"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEditItem}
+                  disabled={!editingItem.name.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#5A8A88] hover:bg-[#4A7A78] text-white transition-colors disabled:opacity-50"
+                >
+                  บันทึกการแก้ไข
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Edit Category Modal */}
+      {editingCat && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-[#D4E4E3] overflow-hidden">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Pencil size={16} />
+                <span>แก้ไขชื่อกลุ่ม / หมวดหมู่ขนม</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setEditingCat(null)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  ชื่อหมวดหมู่ขนม
+                </label>
+                <input
+                  type="text"
+                  value={editingCat.newName}
+                  onChange={(e) => setEditingCat({ ...editingCat, newName: e.target.value })}
+                  className="w-full bg-[#F8FAFA] border border-[#D4E4E3] rounded-lg px-3 py-2 text-xs text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-white"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCat(null)}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEditCategory}
+                  disabled={!editingCat.newName.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#5A8A88] hover:bg-[#4A7A78] text-white transition-colors disabled:opacity-50"
+                >
+                  บันทึกการแก้ไข
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
