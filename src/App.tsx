@@ -318,6 +318,15 @@ export default function App() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
+  // Daily Sales Unsaved Changes Prompt State
+  const [isDailySalesDirty, setIsDailySalesDirty] = useState(false);
+  const [showDailySalesUnsavedPrompt, setShowDailySalesUnsavedPrompt] = useState(false);
+  const dailySalesHandlerRef = React.useRef<{
+    hasUnsavedChanges: () => boolean;
+    handleSave: () => Promise<boolean>;
+    handleDiscard: () => void;
+  } | null>(null);
+
   // Daily Bakery Unsaved Changes Prompt State
   const [isDailyBakeryDirty, setIsDailyBakeryDirty] = useState(false);
   const [showDailyBakeryUnsavedPrompt, setShowDailyBakeryUnsavedPrompt] = useState(false);
@@ -333,6 +342,15 @@ export default function App() {
     if (activeTab === targetTab) return;
 
     if (
+      activeTab === 'dailySales' && 
+      (isDailySalesDirty || dailySalesHandlerRef.current?.hasUnsavedChanges())
+    ) {
+      setPendingNavTab(targetTab);
+      setShowDailySalesUnsavedPrompt(true);
+      return;
+    }
+
+    if (
       activeTab === 'dailyBakery' && 
       (isDailyBakeryDirty || dailyBakeryHandlerRef.current?.hasUnsavedChanges())
     ) {
@@ -342,6 +360,29 @@ export default function App() {
     }
 
     setActiveTab(targetTab as any);
+  };
+
+  // Logout Interceptor
+  const handleLogout = () => {
+    if (
+      activeTab === 'dailySales' && 
+      (isDailySalesDirty || dailySalesHandlerRef.current?.hasUnsavedChanges())
+    ) {
+      setPendingNavTab('__LOGOUT__');
+      setShowDailySalesUnsavedPrompt(true);
+      return;
+    }
+
+    if (
+      activeTab === 'dailyBakery' && 
+      (isDailyBakeryDirty || dailyBakeryHandlerRef.current?.hasUnsavedChanges())
+    ) {
+      setPendingNavTab('__LOGOUT__');
+      setShowDailyBakeryUnsavedPrompt(true);
+      return;
+    }
+
+    setUser(null);
   };
   
 
@@ -2245,7 +2286,11 @@ export default function App() {
           <DailySalesRecord
             user={user}
             branch={user?.branch}
-            onNavigate={(tab) => setActiveTab(tab as any)}
+            onNavigate={(tab) => handleTabNavigate(tab)}
+            onDirtyChange={setIsDailySalesDirty}
+            registerSaveHandler={(handler) => {
+              dailySalesHandlerRef.current = handler;
+            }}
           />
         ) : activeTab === 'dailyBakery' ? (
           <DailyBakeryRecord
@@ -2724,6 +2769,71 @@ export default function App() {
         </div>
       )}
 
+      {/* Daily Sales Unsaved Changes Alert Modal */}
+      {showDailySalesUnsavedPrompt && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[999] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-[#D4E4E3] overflow-hidden">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center gap-2.5">
+              <AlertCircle size={20} className="text-amber-400 shrink-0" />
+              <h3 className="font-bold text-sm">มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</h3>
+            </div>
+            <div className="p-5">
+              <p className="text-xs text-[#2D4A49] leading-relaxed mb-6">
+                คุณมีการแก้ไขหรือเปลี่ยนแปลงข้อมูลในหน้า <strong>บันทึกยอดขายประจำวัน</strong> ที่ยังไม่ได้บันทึก คุณต้องการบันทึกข้อมูลก่อนเปลี่ยนหน้า หรือละทิ้งการเปลี่ยนแปลง (Discard)?
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDailySalesUnsavedPrompt(false);
+                    setPendingNavTab(null);
+                  }}
+                  className="w-full sm:w-auto px-3.5 py-2 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors cursor-pointer text-center"
+                >
+                  ยกเลิก (อยู่หน้านี้ต่อ)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dailySalesHandlerRef.current?.handleDiscard();
+                    setIsDailySalesDirty(false);
+                    setShowDailySalesUnsavedPrompt(false);
+                    if (pendingNavTab === '__LOGOUT__') {
+                      setUser(null);
+                    } else if (pendingNavTab) {
+                      setActiveTab(pendingNavTab as any);
+                    }
+                    setPendingNavTab(null);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer text-center"
+                >
+                  ละทิ้งการเปลี่ยนแปลง (Discard)
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (dailySalesHandlerRef.current) {
+                      await dailySalesHandlerRef.current.handleSave();
+                    }
+                    setIsDailySalesDirty(false);
+                    setShowDailySalesUnsavedPrompt(false);
+                    if (pendingNavTab === '__LOGOUT__') {
+                      setUser(null);
+                    } else if (pendingNavTab) {
+                      setActiveTab(pendingNavTab as any);
+                    }
+                    setPendingNavTab(null);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-[#2D4A49] hover:bg-[#203635] text-white shadow-xs transition-colors cursor-pointer text-center"
+                >
+                  บันทึกข้อมูล (Save)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Daily Bakery Unsaved Changes Alert Modal */}
       {showDailyBakeryUnsavedPrompt && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[999] flex items-center justify-center p-4 animate-in fade-in duration-150">
@@ -2753,10 +2863,12 @@ export default function App() {
                     dailyBakeryHandlerRef.current?.handleDiscard();
                     setIsDailyBakeryDirty(false);
                     setShowDailyBakeryUnsavedPrompt(false);
-                    if (pendingNavTab) {
+                    if (pendingNavTab === '__LOGOUT__') {
+                      setUser(null);
+                    } else if (pendingNavTab) {
                       setActiveTab(pendingNavTab as any);
-                      setPendingNavTab(null);
                     }
+                    setPendingNavTab(null);
                   }}
                   className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer text-center"
                 >
@@ -2770,10 +2882,12 @@ export default function App() {
                     }
                     setIsDailyBakeryDirty(false);
                     setShowDailyBakeryUnsavedPrompt(false);
-                    if (pendingNavTab) {
+                    if (pendingNavTab === '__LOGOUT__') {
+                      setUser(null);
+                    } else if (pendingNavTab) {
                       setActiveTab(pendingNavTab as any);
-                      setPendingNavTab(null);
                     }
+                    setPendingNavTab(null);
                   }}
                   className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-[#2D4A49] hover:bg-[#203635] text-white shadow-xs transition-colors cursor-pointer text-center"
                 >
@@ -2789,7 +2903,7 @@ export default function App() {
       <BottomNav
         activeTab={activeTab}
         onNavigate={(tab) => handleTabNavigate(tab)}
-        onLogout={() => setUser(null)}
+        onLogout={handleLogout}
         user={user}
       />
 
