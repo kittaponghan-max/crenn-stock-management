@@ -32,6 +32,12 @@ export interface DailySalesRecordProps {
   } | null;
   branch?: string;
   onNavigate?: (tab: string) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  registerSaveHandler?: (handler: {
+    hasUnsavedChanges: () => boolean;
+    handleSave: () => Promise<boolean>;
+    handleDiscard: () => void;
+  }) => void;
 }
 
 export interface DailySalesRow {
@@ -105,7 +111,13 @@ const getDefaultDateRange = (branchName: string) => {
   return { start, end };
 };
 
-export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailySalesRecordProps) {
+export function DailySalesRecord({ 
+  user, 
+  branch = 'Rayong', 
+  onNavigate,
+  onDirtyChange,
+  registerSaveHandler 
+}: DailySalesRecordProps) {
   const currentBranch = branch || user?.branch || 'Rayong';
   const recorderName = user?.name || 'Admin';
 
@@ -667,6 +679,8 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
           type: 'error',
           message: `เกิดข้อผิดพลาดในการบันทึก: ${err.message || 'กรุณาลองใหม่อีกครั้ง'}`,
         });
+        setIsSaving(false);
+        return false;
       }
     } else {
       setSaveStatus({
@@ -682,7 +696,87 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
     setTimeout(() => {
       setSaveStatus(null);
     }, 4000);
+    return true;
   };
+
+  // ━━━━ UNSAVED CHANGES & DISCARD HANDLERS ━━━━
+
+  // Discard changes and revert to last saved baseline
+  const handleDiscard = useCallback(() => {
+    if (originalRowsRef.current && originalRowsRef.current.length > 0) {
+      setRows(JSON.parse(JSON.stringify(originalRowsRef.current)));
+    }
+    setActiveNoteInputIdx(null);
+    setNewNoteText('');
+    setEditingNote(null);
+    setShowConfirmModal(false);
+  }, []);
+
+  // Check if there are unsaved changes
+  const checkHasUnsavedChanges = useCallback(() => {
+    const orig = originalRowsRef.current || [];
+    if (orig.length === 0 && rows.length === 0) return false;
+    if (orig.length !== rows.length) return true;
+
+    for (let i = 0; i < rows.length; i++) {
+      const cur = rows[i];
+      const o = orig[i];
+      if (!o) return true;
+
+      const norm = (v: any) => (v === '' || v === null || v === undefined ? '' : String(v));
+
+      if (norm(cur.openingCash) !== norm(o.openingCash)) return true;
+      if (norm(cur.transfer) !== norm(o.transfer)) return true;
+      if (norm(cur.cash) !== norm(o.cash)) return true;
+      if (norm(cur.creditCard) !== norm(o.creditCard)) return true;
+      if (norm(cur.totalRevenue) !== norm(o.totalRevenue)) return true;
+      if (norm(cur.closingCash) !== norm(o.closingCash)) return true;
+
+      const cNotes = (cur.notes || []).join('\n');
+      const oNotes = (o.notes || []).join('\n');
+      if (cNotes !== oNotes) return true;
+    }
+
+    return false;
+  }, [rows]);
+
+  const isDirty = useMemo(() => {
+    return checkHasUnsavedChanges();
+  }, [checkHasUnsavedChanges]);
+
+  // Notify parent of dirty status changes
+  useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(isDirty);
+    }
+  }, [isDirty, onDirtyChange]);
+
+  // Register save and discard handlers with parent
+  useEffect(() => {
+    if (registerSaveHandler) {
+      registerSaveHandler({
+        hasUnsavedChanges: () => checkHasUnsavedChanges(),
+        handleSave: async () => {
+          return await executeSave();
+        },
+        handleDiscard: () => {
+          handleDiscard();
+        },
+      });
+    }
+  }, [registerSaveHandler, checkHasUnsavedChanges, handleDiscard, rows]);
+
+  // Browser beforeunload protection
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (checkHasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [checkHasUnsavedChanges]);
 
   // Export to CSV / Excel
   const handleExportExcel = () => {
@@ -909,10 +1003,29 @@ export function DailySalesRecord({ user, branch = 'Rayong', onNavigate }: DailyS
               type="button"
               onClick={() => setShowConfirmModal(true)}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap"
+              className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                isDirty 
+                  ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                  : 'bg-[#2D4A49] hover:bg-[#203635]'
+              }`}
             >
-              <Save size={13} />
-              <span>บันทึกข้อมูล</span>
+              {isSaving ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>กำลังบันทึก...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={13} />
+                  <span>บันทึกข้อมูล</span>
+                  {isDirty && (
+                    <span 
+                      className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                      title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                    />
+                  )}
+                </>
+              )}
             </button>
 
             {/* Export Dropdown (Excel + PDF) */}
