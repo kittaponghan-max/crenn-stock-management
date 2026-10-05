@@ -94,8 +94,8 @@ export function DailyBakeryRecord({
 
   const [currentWeek, setCurrentWeek] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   
-  // View mode: '1day' | '2days' | '3days' | '7days'
-  const [viewMode, setViewMode] = useState<'1day' | '2days' | '3days' | '7days'>('2days');
+  // View mode: '1day' | '2days' | '3days'
+  const [viewMode, setViewMode] = useState<'1day' | '2days' | '3days'>('2days');
   const [activeChunkIdx, setActiveChunkIdx] = useState<number>(0);
 
   // Dynamic Bakery Items state (persisted in LocalStorage)
@@ -212,8 +212,6 @@ export function DailyBakeryRecord({
 
   // Determine displayed days based on viewMode & activeChunkIdx
   const displayedDays = useMemo(() => {
-    if (viewMode === '7days') return weekDays;
-    
     if (viewMode === '1day') {
       const idx = Math.min(Math.max(0, activeChunkIdx), 6);
       return [weekDays[idx]];
@@ -1220,7 +1218,7 @@ export function DailyBakeryRecord({
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
             <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">มุมมอง:</span>
             
-            {/* View Mode Tabs: 1วัน, 2วัน, 3วัน, ดูทั้ง 7วัน */}
+            {/* View Mode Tabs: 1วัน, 2วัน, 3วัน */}
             <div className="flex items-center gap-0.5 sm:gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
               <button
                 type="button"
@@ -1254,17 +1252,6 @@ export function DailyBakeryRecord({
                 }`}
               >
                 3วัน
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('7days')}
-                className={`px-2 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
-                  viewMode === '7days'
-                    ? 'bg-[#2D4A49] text-white shadow-xs'
-                    : 'text-[#2D4A49] hover:bg-white'
-                }`}
-              >
-                ดูทั้ง 7วัน
               </button>
             </div>
 
@@ -1337,27 +1324,9 @@ export function DailyBakeryRecord({
 
           </div>
 
-          {/* RIGHT: Action Buttons (Import Excel + Save + Export Dropdown - On SAME ROW) */}
+          {/* RIGHT: Action Buttons (Save + Import + Export Dropdown - On SAME ROW) */}
           <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
             
-            {/* Import Excel Button & Hidden File Input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-              title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
-            >
-              <Upload size={13} className="text-[#5A8A88]" />
-              <span>นำเข้า Excel</span>
-            </button>
-
             {/* Save Button */}
             <button
               type="button"
@@ -1386,6 +1355,24 @@ export function DailyBakeryRecord({
                   )}
                 </>
               )}
+            </button>
+
+            {/* Import Excel Button & Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+              title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
+            >
+              <Upload size={13} className="text-[#5A8A88]" />
+              <span>นำเข้า</span>
             </button>
 
             {/* Export Dropdown */}
