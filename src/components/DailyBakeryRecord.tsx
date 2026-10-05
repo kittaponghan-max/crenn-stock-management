@@ -18,10 +18,14 @@ import {
   X,
   ChevronDown,
   FolderPlus,
-  Check
+  Check,
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle
 } from 'lucide-react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { th } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 
 export interface DailyBakeryRecordProps {
@@ -32,6 +36,12 @@ export interface DailyBakeryRecordProps {
   } | null;
   branch?: string;
   onNavigate?: (tab: string) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  registerSaveHandler?: (handler: {
+    hasUnsavedChanges: () => boolean;
+    handleSave: () => Promise<boolean>;
+    handleDiscard: () => void;
+  }) => void;
 }
 
 export interface BakeryItemDef {
@@ -72,7 +82,13 @@ const DEFAULT_BAKERY_ITEMS: BakeryItemDef[] = [
   { id: '18', name: 'ชีสเค้ก', category: 'ขนม & เค้กอื่นๆ' },
 ];
 
-export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: DailyBakeryRecordProps) {
+export function DailyBakeryRecord({ 
+  user, 
+  branch = 'Rayong', 
+  onNavigate,
+  onDirtyChange,
+  registerSaveHandler 
+}: DailyBakeryRecordProps) {
   const currentBranch = branch || user?.branch || 'Rayong';
   const recorderName = user?.name || 'Admin';
 
@@ -107,10 +123,30 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
   const [editingItem, setEditingItem] = useState<{ id: string; name: string; category: string } | null>(null);
   const [editingCat, setEditingCat] = useState<{ oldName: string; newName: string } | null>(null);
 
+  // Delete Confirmation Modals state (replaces window.confirm)
+  const [deletingItem, setDeletingItem] = useState<{ id: string; name: string } | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<{ name: string; count: number } | null>(null);
+
+  // Excel Import state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importPreview, setImportPreview] = useState<{
+    fileName: string;
+    items: { category: string; name: string }[];
+    importMode: 'append' | 'replace';
+  } | null>(null);
+
   // Form input states for modals
   const [newItemName, setNewItemName] = useState('');
   const [newItemCat, setNewItemCat] = useState('');
   const [newCatName, setNewCatName] = useState('');
+
+  // Baseline snapshots for tracking unsaved changes
+  const originalItemsRef = useRef<BakeryItemDef[]>([]);
+  useEffect(() => {
+    if (originalItemsRef.current.length === 0 && bakeryItems.length > 0) {
+      originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
+    }
+  }, [bakeryItems]);
 
   // Cell Note Management state (Matches DailySalesRecord)
   const [activeNoteCell, setActiveNoteCell] = useState<{ itemName: string; dateStr: string } | null>(null);
@@ -255,7 +291,10 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
     setRecords(loaded);
     originalRecordsRef.current = JSON.parse(JSON.stringify(loaded));
-  }, [currentBranch, weekDays]);
+    if (originalItemsRef.current.length === 0 && bakeryItems.length > 0) {
+      originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
+    }
+  }, [currentBranch, weekDays, bakeryItems]);
 
   useEffect(() => {
     loadWeekData();
@@ -444,11 +483,15 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     setEditingItem(null);
   };
 
-  // Delete Item
+  // Delete Item (replaces window.confirm with Custom React Modal)
   const handleDeleteItem = (itemId: string, itemName: string) => {
-    if (window.confirm(`คุณต้องการลบรายการ "${itemName}" ออกจากระบบใช่หรือไม่?`)) {
-      setBakeryItems(prev => prev.filter(i => i.id !== itemId));
-    }
+    setDeletingItem({ id: itemId, name: itemName });
+  };
+
+  const confirmDeleteItem = () => {
+    if (!deletingItem) return;
+    setBakeryItems(prev => prev.filter(i => i.id !== deletingItem.id));
+    setDeletingItem(null);
   };
 
   // Add Category
@@ -492,11 +535,16 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
     setEditingCat(null);
   };
 
-  // Delete Category
+  // Delete Category (replaces window.confirm with Custom React Modal)
   const handleDeleteCategory = (catName: string) => {
-    if (window.confirm(`คุณต้องการลบหมวดหมู่ "${catName}" และรายการขนมทั้งหมดในหมวดนี้ใช่หรือไม่?`)) {
-      setBakeryItems(prev => prev.filter(i => i.category !== catName));
-    }
+    const count = bakeryItems.filter(i => i.category === catName).length;
+    setDeletingCategory({ name: catName, count });
+  };
+
+  const confirmDeleteCategory = () => {
+    if (!deletingCategory) return;
+    setBakeryItems(prev => prev.filter(i => i.category !== deletingCategory.name));
+    setDeletingCategory(null);
   };
 
   // Save to Supabase and LocalStorage
@@ -712,6 +760,8 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
           type: 'error',
           message: `เกิดข้อผิดพลาดในการบันทึก: ${err.message || 'กรุณาลองใหม่อีกครั้ง'}`,
         });
+        setIsSaving(false);
+        return false;
       }
     } else {
       setSaveStatus({
@@ -722,11 +772,287 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
     // Update baseline snapshot after save
     originalRecordsRef.current = JSON.parse(JSON.stringify(records));
+    originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
 
     setIsSaving(false);
     setTimeout(() => {
       setSaveStatus(null);
     }, 4000);
+    return true;
+  };
+
+  // ━━━━ UNSAVED CHANGES & DISCARD HANDLERS ━━━━
+
+  // Discard changes and revert to last saved baseline
+  const handleDiscard = useCallback(() => {
+    if (originalRecordsRef.current) {
+      setRecords(JSON.parse(JSON.stringify(originalRecordsRef.current)));
+    }
+    if (originalItemsRef.current && originalItemsRef.current.length > 0) {
+      setBakeryItems(JSON.parse(JSON.stringify(originalItemsRef.current)));
+      try {
+        localStorage.setItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(originalItemsRef.current));
+      } catch (e) {}
+    }
+    setActiveNoteCell(null);
+    setEditingNoteCell(null);
+    setEditingItem(null);
+    setEditingCat(null);
+    setDeletingItem(null);
+    setDeletingCategory(null);
+    setImportPreview(null);
+  }, [currentBranch]);
+
+  // Check if there are unsaved changes
+  const checkHasUnsavedChanges = useCallback(() => {
+    // 1. Check items list changes
+    const origItems = originalItemsRef.current;
+    if (origItems && origItems.length > 0) {
+      if (origItems.length !== bakeryItems.length) return true;
+      for (let i = 0; i < bakeryItems.length; i++) {
+        if (
+          bakeryItems[i].id !== origItems[i]?.id ||
+          bakeryItems[i].name !== origItems[i]?.name ||
+          bakeryItems[i].category !== origItems[i]?.category
+        ) {
+          return true;
+        }
+      }
+    }
+
+    // 2. Check record cell values and notes
+    const origRecs = originalRecordsRef.current || {};
+    const allItems = new Set([...Object.keys(records), ...Object.keys(origRecs)]);
+    for (const item of allItems) {
+      const curItemMap = records[item] || {};
+      const origItemMap = origRecs[item] || {};
+      const allDates = new Set([...Object.keys(curItemMap), ...Object.keys(origItemMap)]);
+      for (const d of allDates) {
+        const c = curItemMap[d] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
+        const o = origItemMap[d] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
+        if (
+          String(c.totalQty ?? '') !== String(o.totalQty ?? '') ||
+          String(c.lineQty ?? '') !== String(o.lineQty ?? '') ||
+          String(c.storeQty ?? '') !== String(o.storeQty ?? '') ||
+          String(c.soldQty ?? '') !== String(o.soldQty ?? '') ||
+          String(c.note ?? '').trim() !== String(o.note ?? '').trim()
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }, [bakeryItems, records]);
+
+  const isDirty = useMemo(() => {
+    return checkHasUnsavedChanges();
+  }, [checkHasUnsavedChanges, records, bakeryItems]);
+
+  // Notify parent of dirty status changes
+  useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(isDirty);
+    }
+  }, [isDirty, onDirtyChange]);
+
+  // Register save and discard handlers with parent
+  useEffect(() => {
+    if (registerSaveHandler) {
+      registerSaveHandler({
+        hasUnsavedChanges: () => checkHasUnsavedChanges(),
+        handleSave: async () => {
+          return await handleSave();
+        },
+        handleDiscard: () => {
+          handleDiscard();
+        },
+      });
+    }
+  }, [registerSaveHandler, checkHasUnsavedChanges, handleDiscard, records, bakeryItems]);
+
+  // Browser beforeunload protection
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (checkHasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [checkHasUnsavedChanges]);
+
+  // ━━━━ EXCEL IMPORT HANDLERS ━━━━
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        alert('ไม่พบแผ่นงาน (Sheet) ในไฟล์ Excel ที่เลือก');
+        return;
+      }
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+
+      if (!rows || rows.length === 0) {
+        alert('ไม่พบข้อมูลในไฟล์ Excel ที่เลือก');
+        return;
+      }
+
+      let catCol = -1;
+      let itemCol = -1;
+      let startRow = 0;
+
+      // Scan first 5 rows for header row
+      for (let r = 0; r < Math.min(rows.length, 5); r++) {
+        const row = rows[r];
+        if (!Array.isArray(row)) continue;
+        row.forEach((cell, colIdx) => {
+          const str = String(cell || '').toLowerCase().trim();
+          if (str.includes('หมวด') || str.includes('category') || str.includes('กลุ่ม') || str.includes('group')) {
+            catCol = colIdx;
+            startRow = r + 1;
+          }
+          if (str.includes('รายการ') || str.includes('ขนม') || str.includes('name') || str.includes('item') || str.includes('เมนู') || str.includes('ชื่อ')) {
+            itemCol = colIdx;
+            startRow = r + 1;
+          }
+        });
+        if (itemCol !== -1) break;
+      }
+
+      // If no explicit header recognized
+      if (itemCol === -1) {
+        startRow = 0;
+        const firstDataRow = rows[0] || [];
+        if (firstDataRow.length >= 2) {
+          catCol = 0;
+          itemCol = 1;
+        } else {
+          catCol = -1;
+          itemCol = 0;
+        }
+      }
+
+      const parsed: { category: string; name: string }[] = [];
+      let currentCat = 'เบเกอรี่ทั่วไป';
+
+      for (let r = startRow; r < rows.length; r++) {
+        const row = rows[r];
+        if (!Array.isArray(row) || row.length === 0) continue;
+
+        const rawCat = catCol !== -1 ? String(row[catCol] || '').trim() : '';
+        const rawName = itemCol !== -1 ? String(row[itemCol] || '').trim() : '';
+
+        if (rawCat && !rawCat.includes('หมวดหมู่') && !rawCat.includes('category')) {
+          currentCat = rawCat;
+        }
+
+        if (
+          rawName && 
+          !rawName.includes('รายการขนม') && 
+          !rawName.includes('item name') && 
+          !rawName.includes('เมนู') &&
+          rawName !== 'รายการ'
+        ) {
+          parsed.push({
+            category: rawCat || currentCat || 'เบเกอรี่ทั่วไป',
+            name: rawName,
+          });
+        }
+      }
+
+      if (parsed.length === 0) {
+        alert('ไม่พบรายการขนมในไฟล์ Excel ที่สามารถนำเข้าได้ กรุณาตรวจสอบหัวตาราง (เช่น หมวดหมู่, รายการขนม)');
+        return;
+      }
+
+      setImportPreview({
+        fileName: file.name,
+        items: parsed,
+        importMode: 'append',
+      });
+    } catch (err: any) {
+      console.error('Excel parse error:', err);
+      alert(`เกิดข้อผิดพลาดในการอ่านไฟล์ Excel: ${err.message || 'รูปแบบไฟล์ไม่ถูกต้อง'}`);
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const confirmImportExcel = () => {
+    if (!importPreview) return;
+
+    const { items, importMode } = importPreview;
+
+    if (importMode === 'replace') {
+      const newItemsList: BakeryItemDef[] = items.map((it, idx) => ({
+        id: `import-${Date.now()}-${idx}`,
+        name: it.name,
+        category: it.category,
+      }));
+      setBakeryItems(newItemsList);
+      setSaveStatus({
+        type: 'success',
+        message: `นำเข้ารายการขนมใหม่ ${newItemsList.length} รายการ (แทนที่รายการเดิม) สำเร็จ`,
+      });
+    } else {
+      // Append mode: only add items whose name doesn't already exist
+      const existingNames = new Set(bakeryItems.map(b => b.name.trim().toLowerCase()));
+      const toAdd: BakeryItemDef[] = [];
+
+      items.forEach((it, idx) => {
+        const key = it.name.trim().toLowerCase();
+        if (!existingNames.has(key)) {
+          existingNames.add(key);
+          toAdd.push({
+            id: `import-${Date.now()}-${idx}`,
+            name: it.name.trim(),
+            category: it.category.trim() || 'เบเกอรี่ทั่วไป',
+          });
+        }
+      });
+
+      if (toAdd.length === 0) {
+        setSaveStatus({
+          type: 'info',
+          message: 'รายการขนมทั้งหมดในไฟล์มีอยู่ในระบบอยู่แล้ว (ไม่มีรายการใหม่)',
+        });
+      } else {
+        setBakeryItems(prev => [...prev, ...toAdd]);
+        setSaveStatus({
+          type: 'success',
+          message: `เพิ่มรายการขนมใหม่ ${toAdd.length} รายการ จาก Excel เรียบร้อยแล้ว`,
+        });
+      }
+    }
+
+    setImportPreview(null);
+  };
+
+  const handleDownloadSampleExcel = () => {
+    const sampleData = [
+      ['หมวดหมู่', 'รายการขนม'],
+      ['ครัวซอง & เดนิส', 'ครัวซอง เนยสด'],
+      ['ครัวซอง & เดนิส', 'อัลมอนด์'],
+      ['ครัวซอง & เดนิส', 'แฮมชีส'],
+      ['เค้ก', 'เค้กช็อกโกแลตหน้านิ่ม'],
+      ['เค้ก', 'ชีสเค้กหน้าไหม้'],
+      ['ขนมปังสด', 'ขนมปังเนยสด'],
+      ['ขนมปังสด', 'ขนมปังกระเทียมครีมชีส'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'รายการขนม');
+    XLSX.writeFile(wb, 'Bakery_Items_Template.xlsx');
   };
 
   // Export to CSV / Excel
@@ -1011,15 +1337,37 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
 
           </div>
 
-          {/* RIGHT: Action Buttons (Save + Export Dropdown - On SAME ROW) */}
+          {/* RIGHT: Action Buttons (Import Excel + Save + Export Dropdown - On SAME ROW) */}
           <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
             
+            {/* Import Excel Button & Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+              title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
+            >
+              <Upload size={13} className="text-[#5A8A88]" />
+              <span>นำเข้า Excel</span>
+            </button>
+
             {/* Save Button */}
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap"
+              className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                isDirty 
+                  ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                  : 'bg-[#2D4A49] hover:bg-[#203635]'
+              }`}
             >
               {isSaving ? (
                 <>
@@ -1030,6 +1378,12 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                 <>
                   <Save size={13} />
                   <span>บันทึกข้อมูล</span>
+                  {isDirty && (
+                    <span 
+                      className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                      title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                    />
+                  )}
                 </>
               )}
             </button>
@@ -1719,6 +2073,180 @@ export function DailyBakeryRecord({ user, branch = 'Rayong', onNavigate }: Daily
                   บันทึกการแก้ไข
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Delete Item Confirmation Modal (replaces window.confirm) */}
+      {deletingItem && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[110] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-rose-100 overflow-hidden">
+            <div className="p-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center mb-3">
+                <Trash2 size={22} />
+              </div>
+              <h3 className="text-sm font-bold text-[#2D4A49] mb-1">ยืนยันการลบรายการขนม</h3>
+              <p className="text-xs text-[#6B8F8E] mb-4">
+                คุณต้องการลบรายการ <span className="font-semibold text-rose-600">"{deletingItem.name}"</span> ออกจากระบบใช่หรือไม่?
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingItem(null)}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteItem}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer shadow-xs"
+                >
+                  ยืนยันการลบ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Delete Category Confirmation Modal (replaces window.confirm) */}
+      {deletingCategory && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[110] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-rose-100 overflow-hidden">
+            <div className="p-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center mb-3">
+                <Trash2 size={22} />
+              </div>
+              <h3 className="text-sm font-bold text-[#2D4A49] mb-1">ยืนยันการลบหมวดหมู่ขนม</h3>
+              <p className="text-xs text-[#6B8F8E] mb-4">
+                คุณต้องการลบหมวดหมู่ <span className="font-semibold text-rose-600">"{deletingCategory.name}"</span> และรายการขนมทั้งหมด ({deletingCategory.count} รายการ) ในหมวดนี้ใช่หรือไม่?
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingCategory(null)}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteCategory}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer shadow-xs"
+                >
+                  ยืนยันการลบหมวดหมู่
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Excel Import Preview Modal */}
+      {importPreview && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[110] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full border border-[#D4E4E3] overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <FileSpreadsheet size={18} className="text-[#A8BCBB]" />
+                <span>นำเข้ารายการขนมจาก Excel</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setImportPreview(null)}
+                className="text-white/80 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div className="bg-[#F0F5F4] p-3 rounded-xl border border-[#D4E4E3] flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-[#2D4A49] flex items-center gap-1.5">
+                    <span>📄 {importPreview.fileName}</span>
+                  </div>
+                  <div className="text-[11px] text-[#5A8A88] mt-0.5">
+                    พบ {importPreview.items.length} รายการ (ใน {new Set(importPreview.items.map(i => i.category)).size} หมวดหมู่)
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleExcel}
+                  className="text-[10px] text-[#5A8A88] hover:text-[#2D4A49] underline cursor-pointer"
+                >
+                  โหลดไฟล์ตัวอย่าง (.xlsx)
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1.5">
+                  รูปแบบการนำเข้า
+                </label>
+                <div className="space-y-1.5 text-xs text-[#2D4A49]">
+                  <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-[#D4E4E3] hover:bg-[#F8FAFA]">
+                    <input
+                      type="radio"
+                      name="importMode"
+                      checked={importPreview.importMode === 'append'}
+                      onChange={() => setImportPreview({ ...importPreview, importMode: 'append' })}
+                      className="text-[#5A8A88] focus:ring-[#5A8A88]"
+                    />
+                    <div>
+                      <span className="font-semibold">นำเข้าเพิ่มจากรายการเดิม</span>
+                      <span className="text-[#6B8F8E] text-[11px] block">(เพิ่มเฉพาะรายการใหม่ ไม่เพิ่มรายการที่ชื่อซ้ำในระบบ)</span>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-[#D4E4E3] hover:bg-[#F8FAFA]">
+                    <input
+                      type="radio"
+                      name="importMode"
+                      checked={importPreview.importMode === 'replace'}
+                      onChange={() => setImportPreview({ ...importPreview, importMode: 'replace' })}
+                      className="text-[#5A8A88] focus:ring-[#5A8A88]"
+                    />
+                    <div>
+                      <span className="font-semibold text-rose-700">แทนที่รายการขนมเดิมทั้งหมด</span>
+                      <span className="text-[#6B8F8E] text-[11px] block">(ลบรายการเดิมออกแล้วแทนที่ด้วยรายการจากไฟล์นี้)</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">
+                  ตัวอย่างรายการที่พบ ({importPreview.items.length} รายการ)
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-[#D4E4E3] rounded-lg divide-y divide-[#F0F5F4] bg-[#F8FAFA]">
+                  {importPreview.items.map((it, idx) => (
+                    <div key={idx} className="p-2 px-3 flex items-center justify-between text-xs">
+                      <span className="font-medium text-[#2D4A49] truncate mr-2">{it.name}</span>
+                      <span className="text-[10px] text-[#5A8A88] bg-white px-2 py-0.5 rounded border border-[#D4E4E3] shrink-0">
+                        {it.category}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setImportPreview(null)}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={confirmImportExcel}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#2D4A49] hover:bg-[#203635] text-white transition-colors cursor-pointer shadow-xs"
+              >
+                ยืนยันการนำเข้า ({importPreview.items.length} รายการ)
+              </button>
             </div>
           </div>
         </div>
