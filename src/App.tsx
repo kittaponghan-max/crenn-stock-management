@@ -318,6 +318,32 @@ export default function App() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
+  // Daily Bakery Unsaved Changes Prompt State
+  const [isDailyBakeryDirty, setIsDailyBakeryDirty] = useState(false);
+  const [showDailyBakeryUnsavedPrompt, setShowDailyBakeryUnsavedPrompt] = useState(false);
+  const [pendingNavTab, setPendingNavTab] = useState<string | null>(null);
+  const dailyBakeryHandlerRef = React.useRef<{
+    hasUnsavedChanges: () => boolean;
+    handleSave: () => Promise<boolean>;
+    handleDiscard: () => void;
+  } | null>(null);
+
+  // Tab Navigation Interceptor
+  const handleTabNavigate = (targetTab: string) => {
+    if (activeTab === targetTab) return;
+
+    if (
+      activeTab === 'dailyBakery' && 
+      (isDailyBakeryDirty || dailyBakeryHandlerRef.current?.hasUnsavedChanges())
+    ) {
+      setPendingNavTab(targetTab);
+      setShowDailyBakeryUnsavedPrompt(true);
+      return;
+    }
+
+    setActiveTab(targetTab as any);
+  };
+  
 
   // Permission Helpers
   const hasPermission = (funcId: keyof AppPermissions) => {
@@ -2116,11 +2142,11 @@ export default function App() {
         <>
           <TopNav
             activeTab={activeTab}
-            onNavigate={(tab) => setActiveTab(tab as any)}
+            onNavigate={(tab) => handleTabNavigate(tab)}
             userName={user.name}
             userRole={user.role}
-            onLogoClick={() => setActiveTab('home')}
-            onAvatarClick={() => setActiveTab('userSettings')}
+            onLogoClick={() => handleTabNavigate('home')}
+            onAvatarClick={() => handleTabNavigate('userSettings')}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
             needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
@@ -2225,7 +2251,11 @@ export default function App() {
           <DailyBakeryRecord
             user={user}
             branch={user?.branch}
-            onNavigate={(tab) => setActiveTab(tab as any)}
+            onNavigate={(tab) => handleTabNavigate(tab)}
+            onDirtyChange={setIsDailyBakeryDirty}
+            registerSaveHandler={(handler) => {
+              dailyBakeryHandlerRef.current = handler;
+            }}
           />
         ) : activeTab === 'userSettings' ? (
           <UserSettings currentUser={user} onCurrentUserUpdated={setUser} branch={user?.branch} />
@@ -2694,10 +2724,71 @@ export default function App() {
         </div>
       )}
 
+      {/* Daily Bakery Unsaved Changes Alert Modal */}
+      {showDailyBakeryUnsavedPrompt && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[999] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-[#D4E4E3] overflow-hidden">
+            <div className="bg-[#2D4A49] text-white p-4 flex items-center gap-2.5">
+              <AlertCircle size={20} className="text-amber-400 shrink-0" />
+              <h3 className="font-bold text-sm">มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</h3>
+            </div>
+            <div className="p-5">
+              <p className="text-xs text-[#2D4A49] leading-relaxed mb-6">
+                คุณมีการแก้ไขหรือเปลี่ยนแปลงข้อมูลในหน้า <strong>บันทึกจำนวนขนมประจำวัน</strong> ที่ยังไม่ได้บันทึก คุณต้องการบันทึกข้อมูลก่อนเปลี่ยนหน้า หรือละทิ้งการเปลี่ยนแปลง (Discard)?
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDailyBakeryUnsavedPrompt(false);
+                    setPendingNavTab(null);
+                  }}
+                  className="w-full sm:w-auto px-3.5 py-2 rounded-lg text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] transition-colors cursor-pointer text-center"
+                >
+                  ยกเลิก (อยู่หน้านี้ต่อ)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dailyBakeryHandlerRef.current?.handleDiscard();
+                    setIsDailyBakeryDirty(false);
+                    setShowDailyBakeryUnsavedPrompt(false);
+                    if (pendingNavTab) {
+                      setActiveTab(pendingNavTab as any);
+                      setPendingNavTab(null);
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer text-center"
+                >
+                  ละทิ้งการเปลี่ยนแปลง (Discard)
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (dailyBakeryHandlerRef.current) {
+                      await dailyBakeryHandlerRef.current.handleSave();
+                    }
+                    setIsDailyBakeryDirty(false);
+                    setShowDailyBakeryUnsavedPrompt(false);
+                    if (pendingNavTab) {
+                      setActiveTab(pendingNavTab as any);
+                      setPendingNavTab(null);
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-[#2D4A49] hover:bg-[#203635] text-white shadow-xs transition-colors cursor-pointer text-center"
+                >
+                  บันทึกข้อมูล (Save)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Navigation */}
       <BottomNav
         activeTab={activeTab}
-        onNavigate={(tab) => setActiveTab(tab)}
+        onNavigate={(tab) => handleTabNavigate(tab)}
         onLogout={() => setUser(null)}
         user={user}
       />
