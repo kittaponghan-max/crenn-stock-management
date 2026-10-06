@@ -30,6 +30,7 @@ import { cn, generateUUID, isValidUUID } from './lib/utils';
 import { supabase } from './lib/supabase';
 import { DEFAULT_LINE_NOTIFY_SETTINGS, sendLineNotification } from './lib/lineNotify';
 import { DEFAULT_DISCORD_NOTIFY_SETTINGS, sendDiscordNotification } from './lib/discordNotify';
+import { freeUpLocalStorageSpace } from './utils/safeStorage';
 
 import { Logo } from './components/Logo';
 import { HomeScreen } from './components/HomeScreen';
@@ -384,6 +385,11 @@ export default function App() {
 
     setUser(null);
   };
+
+  // Proactively free up LocalStorage quota on app mount
+  useEffect(() => {
+    freeUpLocalStorageSpace();
+  }, []);
   
 
   // Permission Helpers
