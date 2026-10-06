@@ -135,6 +135,7 @@ export function DailyBakeryRecord({
         if (!error && isMounted && data?.setting_value && Array.isArray(data.setting_value) && data.setting_value.length > 0) {
           setBakeryItems(data.setting_value);
           originalItemsRef.current = JSON.parse(JSON.stringify(data.setting_value));
+          setSaveCounter(c => c + 1);
           safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(data.setting_value));
         }
       } catch (err) {
@@ -173,9 +174,13 @@ export function DailyBakeryRecord({
 
   // Baseline snapshots for tracking unsaved changes
   const originalItemsRef = useRef<BakeryItemDef[]>([]);
+  const [saveCounter, setSaveCounter] = useState(0);
+  const [justSaved, setJustSaved] = useState(false);
+
   useEffect(() => {
     if (originalItemsRef.current.length === 0 && bakeryItems.length > 0) {
       originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
+      setSaveCounter(c => c + 1);
     }
   }, [bakeryItems]);
 
@@ -320,6 +325,7 @@ export function DailyBakeryRecord({
 
     setRecords(loaded);
     originalRecordsRef.current = JSON.parse(JSON.stringify(loaded));
+    setSaveCounter(c => c + 1);
     if (originalItemsRef.current.length === 0 && bakeryItems.length > 0) {
       originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
     }
@@ -748,16 +754,23 @@ export function DailyBakeryRecord({
         }
 
         // B. Save daily_bakery_records for all items in bakeryItems across the week
-        const recordsToUpsert: any[] = [];
-        const processedSet = new Set<string>();
+        // Use a Map keyed by normalized `${dateStr}__${itemName.toLowerCase()}` to guarantee no duplicate rows in the upsert batch (avoids Postgres 21000 cardinality violation)
+        const recordsMap = new Map<string, any>();
+
+        const parseNum = (val: any) => {
+          if (val === '' || val === null || val === undefined) return 0;
+          const n = Number(val);
+          return isNaN(n) ? 0 : n;
+        };
 
         // 1. Process all active bakery items across all days of the current week
         bakeryItems.forEach(item => {
-          weekDays.forEach(day => {
-            const key = `${day.dateStr}__${item.name}`;
-            processedSet.add(key);
+          const trimmedName = (item.name || '').trim();
+          if (!trimmedName) return;
 
-            const rec = records[item.name]?.[day.dateStr] || {
+          weekDays.forEach(day => {
+            const key = `${day.dateStr}__${trimmedName.toLowerCase()}`;
+            const rec = records[item.name]?.[day.dateStr] || records[trimmedName]?.[day.dateStr] || {
               totalQty: '',
               lineQty: '',
               storeQty: '',
@@ -765,15 +778,15 @@ export function DailyBakeryRecord({
               note: ''
             };
 
-            recordsToUpsert.push({
+            recordsMap.set(key, {
               date: day.dateStr,
               branch: currentBranch,
-              item_name: item.name,
-              total_qty: rec.totalQty === '' ? 0 : Number(rec.totalQty),
-              line_qty: rec.lineQty === '' ? 0 : Number(rec.lineQty),
-              store_qty: rec.storeQty === '' ? 0 : Number(rec.storeQty),
-              sold_qty: rec.soldQty === '' ? 0 : Number(rec.soldQty),
-              note: rec.note || '',
+              item_name: trimmedName,
+              total_qty: parseNum(rec.totalQty),
+              line_qty: parseNum(rec.lineQty),
+              store_qty: parseNum(rec.storeQty),
+              sold_qty: parseNum(rec.soldQty),
+              note: (rec.note || '').trim(),
               recorded_by: recorderName,
               created_at: timestamp,
             });
@@ -782,19 +795,21 @@ export function DailyBakeryRecord({
 
         // 2. Also process any records that were edited but might not be in bakeryItems
         Object.entries(records).forEach(([itemName, dateMap]) => {
+          const trimmedName = (itemName || '').trim();
+          if (!trimmedName) return;
+
           Object.entries(dateMap).forEach(([dateStr, rec]) => {
-            const key = `${dateStr}__${itemName}`;
-            if (!processedSet.has(key)) {
-              processedSet.add(key);
-              recordsToUpsert.push({
+            const key = `${dateStr}__${trimmedName.toLowerCase()}`;
+            if (!recordsMap.has(key)) {
+              recordsMap.set(key, {
                 date: dateStr,
                 branch: currentBranch,
-                item_name: itemName,
-                total_qty: rec.totalQty === '' ? 0 : Number(rec.totalQty),
-                line_qty: rec.lineQty === '' ? 0 : Number(rec.lineQty),
-                store_qty: rec.storeQty === '' ? 0 : Number(rec.storeQty),
-                sold_qty: rec.soldQty === '' ? 0 : Number(rec.soldQty),
-                note: rec.note || '',
+                item_name: trimmedName,
+                total_qty: parseNum(rec.totalQty),
+                line_qty: parseNum(rec.lineQty),
+                store_qty: parseNum(rec.storeQty),
+                sold_qty: parseNum(rec.soldQty),
+                note: (rec.note || '').trim(),
                 recorded_by: recorderName,
                 created_at: timestamp,
               });
@@ -802,20 +817,26 @@ export function DailyBakeryRecord({
           });
         });
 
-        if (recordsToUpsert.length > 0) {
-          const { error: upsertError } = await supabase
-            .from('daily_bakery_records')
-            .upsert(recordsToUpsert, { onConflict: 'date,branch,item_name' });
+        const recordsToUpsert = Array.from(recordsMap.values());
 
-          if (upsertError) {
-            if (upsertError.code === '42P01' || upsertError.message?.includes('does not exist')) {
-              setTableExistsWarning('กรุณาสร้างตาราง daily_bakery_records ใน Supabase ก่อนใช้งาน');
-            } else {
-              throw upsertError;
+        // Upsert in safe chunks of 80 records per batch
+        if (recordsToUpsert.length > 0) {
+          const CHUNK_SIZE = 80;
+          for (let i = 0; i < recordsToUpsert.length; i += CHUNK_SIZE) {
+            const chunk = recordsToUpsert.slice(i, i + CHUNK_SIZE);
+            const { error: upsertError } = await supabase
+              .from('daily_bakery_records')
+              .upsert(chunk, { onConflict: 'date,branch,item_name' });
+
+            if (upsertError) {
+              if (upsertError.code === '42P01' || upsertError.message?.includes('does not exist')) {
+                setTableExistsWarning('กรุณาสร้างตาราง daily_bakery_records ใน Supabase ก่อนใช้งาน');
+              } else {
+                throw upsertError;
+              }
             }
-          } else {
-            setTableExistsWarning(null);
           }
+          setTableExistsWarning(null);
         }
 
         // C. Record to Supabase audit_logs
@@ -835,7 +856,7 @@ export function DailyBakeryRecord({
 
         setSaveStatus({
           type: 'success',
-          message: 'บันทึกข้อมูลจำนวนขนมประจำวันสำเร็จเรียบร้อย',
+          message: `บันทึกข้อมูลจำนวนขนมประจำวันสำเร็จเรียบร้อย (${recordsToUpsert.length} รายการ บน Supabase)`,
         });
       } catch (err: any) {
         console.error('Save error:', err);
@@ -856,6 +877,11 @@ export function DailyBakeryRecord({
     // 5. Update baseline snapshots after successful save
     originalRecordsRef.current = JSON.parse(JSON.stringify(records));
     originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
+    setSaveCounter(c => c + 1);
+    setJustSaved(true);
+    setTimeout(() => {
+      setJustSaved(false);
+    }, 2500);
 
     setIsSaving(false);
     setTimeout(() => {
@@ -875,6 +901,7 @@ export function DailyBakeryRecord({
       setBakeryItems(JSON.parse(JSON.stringify(originalItemsRef.current)));
       safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(originalItemsRef.current));
     }
+    setSaveCounter(c => c + 1);
     setActiveNoteCell(null);
     setEditingNoteCell(null);
     setEditingItem(null);
@@ -924,11 +951,11 @@ export function DailyBakeryRecord({
     }
 
     return false;
-  }, [bakeryItems, records]);
+  }, [bakeryItems, records, saveCounter]);
 
   const isDirty = useMemo(() => {
     return checkHasUnsavedChanges();
-  }, [checkHasUnsavedChanges, records, bakeryItems]);
+  }, [checkHasUnsavedChanges, records, bakeryItems, saveCounter]);
 
   // Notify parent of dirty status changes
   useEffect(() => {
@@ -1437,15 +1464,22 @@ export function DailyBakeryRecord({
               onClick={handleSave}
               disabled={isSaving}
               className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
-                isDirty 
-                  ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
-                  : 'bg-[#2D4A49] hover:bg-[#203635]'
+                justSaved
+                  ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                  : isDirty 
+                    ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                    : 'bg-[#2D4A49] hover:bg-[#203635]'
               }`}
             >
               {isSaving ? (
                 <>
                   <Loader2 size={13} className="animate-spin" />
                   <span>กำลังบันทึก...</span>
+                </>
+              ) : justSaved ? (
+                <>
+                  <CheckCircle2 size={13} className="text-white" />
+                  <span>บันทึกสำเร็จ</span>
                 </>
               ) : (
                 <>
