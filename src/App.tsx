@@ -24,7 +24,7 @@ import { PurchasingReport } from './components/PurchasingReport';
 import { UserSettings } from './components/UserSettings';
 import { DailySalesRecord } from './components/DailySalesRecord';
 import { DailyBakeryRecord } from './components/DailyBakeryRecord';
-import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell } from 'lucide-react';
+import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
 import { cn, generateUUID, isValidUUID } from './lib/utils';
 import { supabase } from './lib/supabase';
@@ -2413,15 +2413,9 @@ export default function App() {
                     accept=".xlsx, .xls, .csv" 
                     onChange={handleFileUpload} 
                   />
+                  {/* 1. โหลดเทมเพลต */}
                   <button
-                    onClick={handleImportExcel}
-                    className="flex items-center gap-1.5 bg-[#5A8A88] text-white px-4 h-9 rounded-lg text-[11px] font-medium hover:bg-[#4A7A78] transition-all shadow-xs transform hover:scale-105 active:scale-95"
-                    title="นำเข้าวัตถุดิบจากไฟล์ Excel"
-                  >
-                    <FileUp size={13} strokeWidth={2.5} />
-                    Import Excel
-                  </button>
-                  <button
+                    type="button"
                     onClick={async () => {
                       const ws = XLSX.utils.json_to_sheet([
                         { 
@@ -2453,44 +2447,63 @@ export default function App() {
                       XLSX.utils.book_append_sheet(wb, ws, "Template");
                       XLSX.writeFile(wb, "Ingredient_Template.xlsx");
                     }}
-                    className="flex items-center gap-1.5 bg-white text-[#2D4A49] border border-[#D4E4E3] px-4 h-9 rounded-lg text-[11px] font-medium hover:bg-[#F0F5F4] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                    title="ดาวน์โหลดไฟล์ตัวอย่างเทมเพลต Excel"
                   >
-                    โหลดเทมเพลต (Template)
+                    <Download size={13} className="text-[#5A8A88]" />
+                    <span>โหลดเทมเพลต</span>
                   </button>
+
+                  {/* 2. นำเข้า - Matches DailyBakeryRecord design and function */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                    title="นำเข้ารายการวัตถุดิบจากไฟล์ Excel (.xlsx, .xls, .csv)"
+                  >
+                    <Upload size={13} className="text-[#5A8A88]" />
+                    <span>นำเข้า</span>
+                  </button>
+
+                  {/* 3. ส่งออก Dropdown - Matches DailyBakeryRecord design and function */}
                   <div className="relative">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsExportDropdownOpen(!isExportDropdownOpen);
                       }}
-                      className="flex items-center gap-1.5 bg-[#7A9E9C] text-white px-4 h-9 rounded-lg text-[11px] font-medium hover:bg-[#6B8E8C] transition-all shadow-xs transform hover:scale-105 active:scale-95"
+                      className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                      title="ส่งออกข้อมูล (Excel, PDF)"
                     >
-                      <FileDown size={13} strokeWidth={2.5} />
-                      Export File
-                      <ChevronDown size={11} className={cn("transition-transform", isExportDropdownOpen && "rotate-180")} />
+                      <Download size={13} className="text-[#5A8A88]" />
+                      <span>ส่งออก</span>
+                      <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportDropdownOpen && "rotate-180")} />
                     </button>
                     
                     {isExportDropdownOpen && (
-                      <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-[#D4E4E3] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 text-[#2D4A49]">
+                      <div className="absolute left-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
                         <button
+                          type="button"
                           onClick={() => {
                             exportExcel();
                             setIsExportDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                         >
-                          <FileDown size={14} className="text-[#5A8A88]" />
-                          Excel (.xlsx)
+                          <Download size={13} className="text-[#5A8A88]" />
+                          <span>Excel (.xlsx)</span>
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             handlePrint();
                             setIsExportDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                         >
-                          <Printer size={14} className="text-[#7A9E9C]" />
-                          PDF / Print
+                          <Printer size={13} className="text-[#5A8A88]" />
+                          <span>PDF / พิมพ์</span>
                         </button>
                       </div>
                     )}
@@ -2502,9 +2515,9 @@ export default function App() {
               {hasPermission('manageIngredients') && (
                 <button
                   onClick={() => setIsFormOpen(true)}
-                  className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-4 h-9 rounded-lg text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs transform hover:scale-105 active:scale-95 ml-auto sm:ml-0"
+                  className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 h-[32px] rounded-[8px] text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs ml-auto sm:ml-0 cursor-pointer"
                 >
-                  <Plus size={14} strokeWidth={3} />
+                  <Plus size={14} strokeWidth={2.5} />
                   เพิ่มรายการวัตถุดิบ
                 </button>
               )}
