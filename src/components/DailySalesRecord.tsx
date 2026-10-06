@@ -787,12 +787,12 @@ export function DailySalesRecord({
   const handleExportExcel = () => {
     const headers = [
       'วันที่',
-      'เงินในลิ้นชักตั้งต้น (บาท)',
+      'เงินสดตั้งต้น (บาท)',
       'เงินโอน (บาท)',
       'เงินสด (บาท)',
       'บัตรเครดิต (บาท)',
       'รายรับรวม (บาท)',
-      'เงินในลิ้นชักตอนปิดร้าน (บาท)',
+      'เงินสดปิดร้าน (บาท)',
       'หมายเหตุ',
     ];
 
@@ -1115,7 +1115,7 @@ export function DailySalesRecord({
                 style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
                 className="sticky top-0 bg-[#2D4A49]"
               >
-                ลิ้นชักตั้งต้น
+                เงินสดตั้งต้น
               </th>
               <th 
                 style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
@@ -1145,7 +1145,7 @@ export function DailySalesRecord({
                 style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
                 className="sticky top-0 bg-[#2D4A49]"
               >
-                ลิ้นชักปิดร้าน
+                เงินสดปิดร้าน
               </th>
               <th 
                 style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
