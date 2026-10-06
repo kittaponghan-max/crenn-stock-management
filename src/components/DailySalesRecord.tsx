@@ -156,7 +156,6 @@ export function DailySalesRecord({
 
   const [rows, setRows] = useState<DailySalesRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [tableExistsWarning, setTableExistsWarning] = useState<string | null>(null);
   const [saveCounter, setSaveCounter] = useState(0);
@@ -477,9 +476,8 @@ export function DailySalesRecord({
   };
 
   // Save to Supabase and LocalStorage
-  const executeSave = async () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setShowConfirmModal(false);
     setSaveStatus(null);
 
     const dates = displayedDays.map(w => w.dateStr);
@@ -704,6 +702,8 @@ export function DailySalesRecord({
     return true;
   };
 
+  const executeSave = handleSave;
+
   // ━━━━ UNSAVED CHANGES & DISCARD HANDLERS ━━━━
 
   // Discard changes and revert to last saved baseline
@@ -715,7 +715,6 @@ export function DailySalesRecord({
     setActiveNoteInputIdx(null);
     setNewNoteText('');
     setEditingNote(null);
-    setShowConfirmModal(false);
   }, []);
 
   // Check if there are unsaved changes
@@ -1007,7 +1006,7 @@ export function DailySalesRecord({
           <div className="flex items-center gap-1.5 ml-auto relative">
             <button
               type="button"
-              onClick={() => setShowConfirmModal(true)}
+              onClick={handleSave}
               disabled={isSaving}
               className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
                 justSaved
@@ -1496,108 +1495,6 @@ export function DailySalesRecord({
           </tfoot>
         </table>
       </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          SAVE CONFIRMATION MODAL
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {showConfirmModal && (
-        <div 
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 200 }}
-          className="flex items-center justify-center p-4 animate-in fade-in duration-200"
-        >
-          <div 
-            style={{
-              background: '#FFFFFF',
-              borderRadius: '20px',
-              padding: '28px 24px',
-              maxWidth: '340px',
-              width: '90%',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-            }}
-            className="animate-in zoom-in-95 duration-200"
-          >
-            {/* Top icon */}
-            <div 
-              style={{ width: '56px', height: '56px', background: '#E8F3F2', borderRadius: '50%' }}
-              className="flex items-center justify-center mx-auto text-[#5A8A88]"
-            >
-              <Save size={24} />
-            </div>
-
-            {/* Title */}
-            <h3 
-              style={{ fontSize: '16px', fontWeight: 700, color: '#2D4A49' }}
-              className="text-center mt-3"
-            >
-              ยืนยันการบันทึกข้อมูล
-            </h3>
-
-            {/* Summary info */}
-            <div className="text-center mt-2 space-y-1">
-              <p style={{ fontSize: '12px', color: '#6B8F8E' }}>
-                ช่วงวันที่: <span className="font-semibold text-[#2D4A49]">{summaryDateRangeLabel}</span>
-              </p>
-              <p style={{ fontSize: '12px', color: '#6B8F8E' }}>
-                จำนวน: <span className="font-semibold text-[#2D4A49]">{displayedDays.length} วัน</span> | สาขา: <span className="font-semibold text-[#2D4A49]">{currentBranch}</span>
-              </p>
-              <p style={{ fontSize: '12px', color: '#6B8F8E' }}>
-                บันทึกโดย: <span className="font-semibold text-[#2D4A49]">{recorderName}</span>
-              </p>
-            </div>
-
-            {/* Warning note */}
-            <p 
-              style={{ fontSize: '11px', color: '#A8BCBB' }}
-              className="text-center mt-2.5"
-            >
-              ข้อมูลที่บันทึกแล้วสามารถแก้ไขได้ภายหลัง
-            </p>
-
-            {/* Action buttons */}
-            <div className="flex gap-2 mt-5">
-              <button
-                type="button"
-                onClick={() => setShowConfirmModal(false)}
-                style={{
-                  background: '#F0F5F4',
-                  color: '#6B8F8E',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                }}
-                className="flex-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
-              >
-                ยกเลิก
-              </button>
-
-              <button
-                type="button"
-                onClick={executeSave}
-                disabled={isSaving}
-                style={{
-                  background: '#5A8A88',
-                  color: 'white',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                }}
-                className="flex-1 hover:bg-[#4A7A78] transition-colors cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin" />
-                    <span>กำลังบันทึก...</span>
-                  </>
-                ) : (
-                  <span>✅ บันทึก</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
