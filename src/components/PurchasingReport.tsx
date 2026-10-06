@@ -20,9 +20,10 @@ import { cn } from '../lib/utils';
 
 interface PurchasingReportProps {
   ingredients: Ingredient[];
-  stockRecord: Record<string, Record<string, number | { remaining: number; waste: number; usageInfo: string }>>;
+  stockRecord: Record<string, Record<string, number | { in?: number; out?: number; remaining?: number; waste?: number; usageInfo?: string }>>;
   onBack: () => void;
   allowedDepartments?: ('Bar' | 'Bakery')[];
+  branch?: string;
 }
 
 type DepartmentFilter = 'All' | 'Bar' | 'Bakery';
@@ -32,6 +33,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   stockRecord,
   onBack,
   allowedDepartments = ['Bar', 'Bakery'],
+  branch,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
@@ -68,8 +70,13 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   }, []);
 
   const allPurchasesToMake = useMemo(() => {
-    // Filter ingredients by department first
-    const allowedIngs = ingredients.filter(ing => allowedDepartments.includes(ing.department as any));
+    // 1. Strict branch isolation: ensure ingredients belong to the active branch
+    const branchIngredients = branch 
+      ? ingredients.filter(ing => !ing.branch || ing.branch === branch)
+      : ingredients;
+
+    // 2. Filter ingredients by department
+    const allowedIngs = branchIngredients.filter(ing => allowedDepartments.includes(ing.department as any));
     const departmentIngredients = activeDepartment === 'All' 
       ? allowedIngs 
       : allowedIngs.filter(ing => ing.department === activeDepartment);
@@ -104,12 +111,13 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
     const toBuy: (Ingredient & { currentStock: number; suggestedOrder: number })[] = [];
     departmentIngredients.forEach(item => {
-      const currentStock = currentRemaining[item.id] || 0;
-      if (currentStock < item.minStock) {
+      const currentStock = currentRemaining[item.id] !== undefined ? currentRemaining[item.id] : 0;
+      // Must match home/dashboard and stock summary condition: remaining <= minStock
+      if (currentStock <= item.minStock) {
         toBuy.push({
           ...item,
           currentStock,
-          suggestedOrder: item.minOrder || (item.minStock - currentStock > 0 ? item.minStock - currentStock : 1),
+          suggestedOrder: item.minOrder || (item.minStock - currentStock > 0 ? item.minStock - currentStock : item.minStock || 1),
         });
       }
     });
@@ -119,7 +127,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       if (a.supplier !== b.supplier) return (a.supplier || '').localeCompare(b.supplier || '');
       return a.name.localeCompare(b.name);
     });
-  }, [ingredients, stockRecord, selectedDate, activeDepartment, allowedDepartments]);
+  }, [ingredients, stockRecord, selectedDate, activeDepartment, allowedDepartments, branch]);
 
   const suppliers = useMemo(() => {
     const supplierSet = new Set<string>();
@@ -248,9 +256,16 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
               <ShoppingCart size={18} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
-                สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)
-              </h1>
+              <div className="flex items-center">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                  สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)
+                </h1>
+                {branch && (
+                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
+                    สาขา {branch}
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-[#6B8F8E] mt-0.5">
                 อ้างอิงจากรายการตรวจนับสต็อกประจำวัน
               </p>
