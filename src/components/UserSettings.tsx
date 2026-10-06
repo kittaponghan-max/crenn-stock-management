@@ -555,6 +555,15 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
   const fetchUsers = async () => {
     setIsLoading(true);
+    // Get locally saved backup
+    let localSavedUsers: AppUser[] = [];
+    try {
+      const saved = localStorage.getItem('cafe-app-users');
+      if (saved) localSavedUsers = JSON.parse(saved);
+    } catch (e) {
+      console.warn(e);
+    }
+
     if (supabase) {
       try {
         let query = supabase.from('app_users').select('*');
@@ -562,28 +571,76 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
           query = query.eq('branch', branch);
         }
         const { data, error } = await query;
+
+        // Fetch cloud backup from app_settings if available
+        let cloudPermissionsMap: Record<string, any> = {};
+        try {
+          const { data: settingsData } = await supabase
+            .from('app_settings')
+            .select('setting_value')
+            .eq('setting_key', 'user_permissions_map')
+            .single();
+          if (settingsData && settingsData.setting_value) {
+            cloudPermissionsMap = settingsData.setting_value;
+          }
+        } catch (settingsErr) {
+          console.warn('Could not fetch cloud user_permissions_map:', settingsErr);
+        }
+
         if (!error && data && data.length > 0) {
-          setUsers(data as AppUser[]);
+          const merged = (data as AppUser[]).map(dbUser => {
+            const localUser = localSavedUsers.find(u => u.id === dbUser.id || u.name === dbUser.name);
+            let userSpecificSaved: any = null;
+            try {
+              const uSaved = localStorage.getItem(`cafe_user_permissions_${dbUser.id}`) || localStorage.getItem(`cafe_user_permissions_${dbUser.name}`);
+              if (uSaved) userSpecificSaved = JSON.parse(uSaved);
+            } catch (e) {
+              console.warn(e);
+            }
+
+            const perms = dbUser.permissions || cloudPermissionsMap[dbUser.id] || cloudPermissionsMap[dbUser.name] || userSpecificSaved || localUser?.permissions;
+            return {
+              ...dbUser,
+              permissions: perms
+            };
+          });
+          setUsers(merged);
+          localStorage.setItem('cafe-app-users', JSON.stringify(merged));
+          localStorage.setItem('app_users', JSON.stringify(merged));
         } else {
           // Fallback check if users exist without branch filter
           const { data: allData, error: allError } = await supabase.from('app_users').select('*');
           if (!allError && allData && allData.length > 0) {
-            setUsers(allData as AppUser[]);
-          } else {
-            const saved = localStorage.getItem('cafe-app-users');
-            if (saved) setUsers(JSON.parse(saved));
+            const merged = (allData as AppUser[]).map(dbUser => {
+              const localUser = localSavedUsers.find(u => u.id === dbUser.id || u.name === dbUser.name);
+              let userSpecificSaved: any = null;
+              try {
+                const uSaved = localStorage.getItem(`cafe_user_permissions_${dbUser.id}`) || localStorage.getItem(`cafe_user_permissions_${dbUser.name}`);
+                if (uSaved) userSpecificSaved = JSON.parse(uSaved);
+              } catch (e) {
+                console.warn(e);
+              }
+              const perms = dbUser.permissions || cloudPermissionsMap[dbUser.id] || cloudPermissionsMap[dbUser.name] || userSpecificSaved || localUser?.permissions;
+              return {
+                ...dbUser,
+                permissions: perms
+              };
+            });
+            setUsers(merged);
+            localStorage.setItem('cafe-app-users', JSON.stringify(merged));
+            localStorage.setItem('app_users', JSON.stringify(merged));
+          } else if (localSavedUsers.length > 0) {
+            setUsers(localSavedUsers);
           }
         }
       } catch (err) {
         console.warn('Error fetching users from Supabase:', err);
-        const saved = localStorage.getItem('cafe-app-users');
-        if (saved) setUsers(JSON.parse(saved));
+        if (localSavedUsers.length > 0) setUsers(localSavedUsers);
       }
     } else {
       // Offline mock data
-      const saved = localStorage.getItem('cafe-app-users');
-      if (saved) {
-        setUsers(JSON.parse(saved));
+      if (localSavedUsers.length > 0) {
+        setUsers(localSavedUsers);
       } else {
         const defaultUsers: AppUser[] = [
           { id: '1', name: 'Admin', role: 'Admin' },
@@ -698,7 +755,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
     const savePerms = buildSavePermissions(formData.permissions as UserPermissions);
 
+    const targetUserId = editingUser ? editingUser.id : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
+
     const payload: any = {
+      id: targetUserId,
       name: formData.name.trim(),
       role: formData.role,
       permissions: savePerms
@@ -715,16 +775,22 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     let isSuccess = false;
     let errorMessage = '';
 
+    // 1. Save to Supabase
     if (supabase) {
       try {
         if (editingUser) {
           const { error: updateError } = await supabase
             .from('app_users')
-            .update(payload)
+            .update({
+              name: payload.name,
+              role: payload.role,
+              permissions: payload.permissions,
+              ...(payload.branch ? { branch: payload.branch } : {})
+            })
             .eq('id', editingUser.id);
           
           if (updateError) {
-            console.warn('Supabase update user error:', updateError);
+            console.warn('Supabase update app_users error:', updateError);
             errorMessage = updateError.message;
           } else {
             isSuccess = true;
@@ -746,7 +812,30 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
           }
         }
 
-        // Record to Supabase audit_logs
+        // 2. Cloud Backup of permissions in app_settings (ensures permissions persist even if app_users column missing)
+        try {
+          const { data: existingSettings } = await supabase
+            .from('app_settings')
+            .select('setting_value')
+            .eq('setting_key', 'user_permissions_map')
+            .single();
+          
+          const currentMap = (existingSettings && existingSettings.setting_value) || {};
+          currentMap[payload.id] = savePerms;
+          currentMap[payload.name] = savePerms;
+
+          await supabase
+            .from('app_settings')
+            .upsert({
+              branch,
+              setting_key: 'user_permissions_map',
+              setting_value: currentMap
+            });
+        } catch (cloudBackupErr) {
+          console.warn('Cloud permissions map backup notice:', cloudBackupErr);
+        }
+
+        // 3. Record to Supabase audit_logs
         try {
           const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
           await supabase.from('audit_logs').insert({
@@ -767,19 +856,26 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       }
     }
 
-    // Always update local state and localStorage to guarantee offline & instant persistence
+    // 4. Always save user-specific permissions to LocalStorage for instant and reliable persistence
+    try {
+      localStorage.setItem(`cafe_user_permissions_${payload.id}`, JSON.stringify(savePerms));
+      localStorage.setItem(`cafe_user_permissions_${payload.name}`, JSON.stringify(savePerms));
+    } catch (e) {
+      console.warn(e);
+    }
+
+    // 5. Update local state and localStorage
     let updatedUsers = [...users];
     if (editingUser) {
       updatedUsers = updatedUsers.map(u => u.id === editingUser.id ? { ...u, ...payload } : u);
     } else {
-      const id = payload.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
-      updatedUsers.push({ id, ...payload });
+      updatedUsers.push({ ...payload });
     }
     setUsers(updatedUsers);
     localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
     localStorage.setItem('app_users', JSON.stringify(updatedUsers));
 
-    // Check if we just updated the currently logged in user
+    // 6. Check if we just updated the currently logged in user
     if (editingUser && currentUser && (currentUser.name === editingUser.name || currentUser.name === payload.name) && onCurrentUserUpdated) {
       onCurrentUserUpdated({
         name: payload.name,
@@ -795,7 +891,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     if (errorMessage && !isSuccess && supabase) {
       setUserSaveStatus({
         type: 'error',
-        message: `บันทึกลงในเครื่องเรียบร้อยแล้ว (เกิดปัญหาบนเซิร์ฟเวอร์: ${errorMessage})`
+        message: `บันทึกลงในเครื่องเรียบร้อยแล้ว (พบข้อผิดพลาดบนคลาวด์: ${errorMessage})`
       });
     } else {
       setUserSaveStatus({
@@ -866,7 +962,16 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
   const openEditForm = (user: AppUser) => {
     setEditingUser(user);
-    const existingPermissions = user.permissions || {};
+    // Retrieve existing permissions from user object or local backup
+    let existingPermissions = user.permissions;
+    if (!existingPermissions) {
+      try {
+        const uSaved = localStorage.getItem(`cafe_user_permissions_${user.id}`) || localStorage.getItem(`cafe_user_permissions_${user.name}`);
+        if (uSaved) existingPermissions = JSON.parse(uSaved);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
     const normalized = normalizePermissions(existingPermissions, user.role);
     setFormData({
       name: user.name,
