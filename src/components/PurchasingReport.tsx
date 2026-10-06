@@ -38,18 +38,24 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>(initialDept);
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
   const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState<boolean>(false);
+  const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close supplier dropdown on outside click or Escape
+  // Close dropdowns on outside click or Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
         setIsSupplierDropdownOpen(false);
       }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportOpen(false);
+      }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsSupplierDropdownOpen(false);
+        setIsExportOpen(false);
       }
     };
 
@@ -220,203 +226,239 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   }, [allPurchasesToMake, selectedSupplier]);
 
   return (
-    <div className="flex flex-col h-full bg-[#F0F5F4] space-y-5 animate-in fade-in duration-300">
+    <div className="flex flex-col h-full bg-[#F0F5F4] space-y-4 animate-in fade-in duration-300">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          HEADER CARD (Main card at top)
+          PAGE HEADER CARD (Matches DailyBakeryRecord Layout & Style)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 overflow-visible">
-        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-          {/* Left info */}
-          <div className="flex items-center gap-3">
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+        
+        {/* ROW 1: Title block (left) + Date Selector (right) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+          
+          {/* LEFT: Back Button + Title + Subtitle */}
+          <div className="flex items-center gap-2.5">
             <button 
               onClick={onBack}
               title="ย้อนกลับ"
-              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-xs"
+              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
-              <ChevronLeft size={16} strokeWidth={2} />
+              <ChevronLeft size={15} strokeWidth={2} />
             </button>
-            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] shrink-0">
-              <ShoppingCart size={18} strokeWidth={2} />
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+              <ShoppingCart size={18} />
             </div>
-            <div>
-              <h2 className="text-[16px] font-bold text-[#2D4A49] leading-tight">
+            <div className="flex flex-col">
+              <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
                 สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing)
-              </h2>
-              <p className="text-[11px] text-[#6B8F8E] font-normal mt-0.5">
+              </h1>
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5">
                 อ้างอิงจากรายการตรวจนับสต็อกประจำวัน
               </p>
             </div>
           </div>
 
-          {/* FILTER ROW 1 (Location Tabs + Date + Excel + PDF) */}
-          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
-            {/* Location tabs [ทั้งหมด] [บาร์] [ครัว] */}
-            <div className="flex bg-[#F0F5F4] p-1 rounded-xl border border-[#D4E4E3] gap-1">
-              {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
-                .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
-                .map((dept) => {
-                  const isActive = activeDepartment === dept;
-                  const Icon = dept === 'All' ? LayoutGrid : dept === 'Bar' ? Coffee : ChefHat;
-                  
-                  return (
-                    <button
-                      key={dept}
-                      onClick={() => setActiveDepartment(dept)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-4 h-[36px] rounded-lg text-[12px] transition-all cursor-pointer",
-                        isActive 
-                          ? "bg-[#5A8A88] text-white font-semibold shadow-xs" 
-                          : "bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#E8F3F2]"
-                      )}
-                    >
-                      <Icon size={14} />
-                      <span>{dept === 'All' ? 'ทั้งหมด' : dept === 'Bar' ? 'บาร์' : 'ครัว'}</span>
-                    </button>
-                  );
-                })}
-            </div>
-
-            {/* Date input */}
-            <div className="flex items-center gap-2 bg-white px-3 h-[36px] rounded-lg border border-[#D4E4E3] shadow-xs">
+          {/* RIGHT: Date Selector */}
+          <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+            <div className="flex items-center gap-1.5 bg-white px-2.5 h-[32px] rounded-[8px] border border-[#D4E4E3] shadow-2xs hover:bg-[#F0F5F4] transition-colors">
               <Calendar size={13} className="text-[#5A8A88] shrink-0" />
               <input 
                 type="date" 
-                className="bg-transparent border-none focus:outline-none text-[12px] font-medium text-[#2D4A49] w-[120px] cursor-pointer"
+                className="bg-transparent border-none focus:outline-none text-[11px] font-medium text-[#2D4A49] cursor-pointer"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
-            
-            {/* Excel export button */}
-            <button
-              onClick={exportExcel}
-              disabled={purchasesToMake.length === 0}
-              className="flex items-center gap-1.5 px-3.5 h-[36px] bg-[#5A8A88] hover:bg-[#4d7775] text-white font-medium text-[12px] rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-            >
-              <Download size={13} className="text-white" />
-              <span>Excel</span>
-            </button>
-
-            {/* PDF export button */}
-            <button
-              onClick={printReport}
-              disabled={purchasesToMake.length === 0}
-              className="flex items-center gap-1.5 px-3.5 h-[36px] bg-white text-[#2D4A49] font-medium text-[12px] rounded-lg hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3] disabled:opacity-50 cursor-pointer shadow-xs"
-            >
-              <Printer size={13} className="text-[#5A8A88]" />
-              <span>PDF</span>
-            </button>
           </div>
+
         </div>
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            FILTER ROW 2 (ผู้จัดจำหน่าย Dropdown Selector)
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {suppliers.length > 0 && (
-          <div className="flex items-center gap-3 pt-4 border-t border-[#D4E4E3] mt-4">
-            <span className="text-[12px] font-medium text-[#6B8F8E] whitespace-nowrap flex items-center gap-1.5">
-              <Building2 size={14} className="text-[#5A8A88]" />
-              <span>ผู้จัดจำหน่าย:</span>
-            </span>
+        {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
+        <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
 
-            {/* Dropdown container */}
-            <div className="relative" ref={supplierDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsSupplierDropdownOpen(prev => !prev)}
-                className={cn(
-                  "flex items-center justify-between gap-2 bg-white border border-[#D4E4E3] rounded-lg px-3.5 h-[36px] text-[12px] text-[#2D4A49] min-w-[200px] cursor-pointer transition-colors shadow-xs",
-                  isSupplierDropdownOpen ? "border-[#5A8A88] bg-[#E8F3F2]" : "hover:bg-[#F0F5F4]"
-                )}
-                aria-haspopup="listbox"
-                aria-expanded={isSupplierDropdownOpen}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Building2 size={14} className="text-[#5A8A88] shrink-0" />
-                  <span className="truncate font-medium">
-                    {selectedSupplier ? selectedSupplier : 'ทั้งหมด'} ({selectedSupplierCount})
-                  </span>
-                </div>
-                <ChevronDown size={12} className={cn("text-[#A8BCBB] transition-transform duration-150 shrink-0", isSupplierDropdownOpen && "rotate-180 text-[#5A8A88]")} />
-              </button>
-
-              {/* Dropdown list (opens downward) */}
-              {isSupplierDropdownOpen && (
-                <div className="absolute left-0 top-[calc(100%+4px)] w-[260px] sm:w-[280px] bg-white border border-[#D4E4E3] rounded-[10px] shadow-[0_8px_24px_rgba(45,74,73,0.12)] max-h-[300px] overflow-y-auto z-50 p-1 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar">
-                  {/* Option: ทั้งหมด */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSupplier(null);
-                      setIsSupplierDropdownOpen(false);
-                    }}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-[9px] rounded-[7px] text-[12px] transition-colors cursor-pointer text-left group",
-                      selectedSupplier === null
-                        ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
-                        : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <LayoutGrid size={14} className="text-[#5A8A88] shrink-0" />
-                      <span className="truncate">ทั้งหมด</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold rounded px-1.5 py-0.5">
-                        ({allPurchasesToMake.length})
-                      </span>
-                      {selectedSupplier === null && (
-                        <Check size={14} className="text-[#5A8A88]" />
-                      )}
-                    </div>
-                  </button>
-
-                  <div className="h-[1px] bg-[#F0F5F4] my-1" />
-
-                  {/* Options: Suppliers */}
-                  {suppliers.map(sup => {
-                    const isSelected = selectedSupplier === sup;
-                    const count = allPurchasesToMake.filter(i => i.supplier === sup).length;
+        {/* ROW 2: Department Tabs + Supplier Filter + Export Dropdown (ALL IN ONE ROW) */}
+        <div className="flex items-center justify-between gap-2 w-full pt-0.5 flex-wrap">
+          
+          {/* LEFT: Department Tabs + Supplier Selector */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            
+            {/* Department tabs */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">แผนก:</span>
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
+                {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
+                  .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
+                  .map((dept) => {
+                    const isActive = activeDepartment === dept;
+                    const Icon = dept === 'All' ? LayoutGrid : dept === 'Bar' ? Coffee : ChefHat;
                     
                     return (
                       <button
-                        key={sup}
+                        key={dept}
+                        type="button"
+                        onClick={() => setActiveDepartment(dept)}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer",
+                          isActive 
+                            ? "bg-[#5A8A88] text-white shadow-xs" 
+                            : "text-[#2D4A49] hover:bg-white"
+                        )}
+                      >
+                        <Icon size={12} />
+                        <span>{dept === 'All' ? 'ทั้งหมด' : dept === 'Bar' ? 'บาร์' : 'ครัว'}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Supplier dropdown */}
+            {suppliers.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">ผู้จัดจำหน่าย:</span>
+                <div className="relative" ref={supplierDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSupplierDropdownOpen(prev => !prev)}
+                    className={cn(
+                      "flex items-center justify-between gap-1.5 bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-[6px] h-[32px] text-[11px] text-[#2D4A49] min-w-[140px] max-w-[220px] cursor-pointer transition-colors shadow-2xs",
+                      isSupplierDropdownOpen ? "border-[#5A8A88] bg-[#E8F3F2]" : "hover:bg-[#F0F5F4]"
+                    )}
+                    aria-haspopup="listbox"
+                    aria-expanded={isSupplierDropdownOpen}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Building2 size={12} className="text-[#5A8A88] shrink-0" />
+                      <span className="truncate font-medium">
+                        {selectedSupplier ? selectedSupplier : 'ทั้งหมด'} ({selectedSupplierCount})
+                      </span>
+                    </div>
+                    <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150 shrink-0", isSupplierDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {/* Dropdown list */}
+                  {isSupplierDropdownOpen && (
+                    <div className="absolute left-0 top-[calc(100%+4px)] w-[240px] sm:w-[260px] bg-white border border-[#D4E4E3] rounded-xl shadow-lg max-h-[280px] overflow-y-auto z-50 p-1 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar">
+                      {/* Option: ทั้งหมด */}
+                      <button
                         type="button"
                         onClick={() => {
-                          setSelectedSupplier(sup);
+                          setSelectedSupplier(null);
                           setIsSupplierDropdownOpen(false);
                         }}
                         className={cn(
-                          "w-full flex items-center justify-between px-3 py-[9px] rounded-[7px] text-[12px] transition-colors cursor-pointer text-left group",
-                          isSelected
+                          "w-full flex items-center justify-between px-2.5 py-1.5 rounded-[6px] text-[11px] transition-colors cursor-pointer text-left",
+                          selectedSupplier === null
                             ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
                             : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
                         )}
                       >
-                        <span className="truncate pr-2">{sup}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <LayoutGrid size={12} className="text-[#5A8A88] shrink-0" />
+                          <span className="truncate">ทั้งหมด</span>
+                        </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="bg-[#F0F5F4] text-[#6B8F8E] text-[10px] rounded px-1.5 py-0.5">
-                            {count}
+                          <span className="bg-[#E8F3F2] text-[#5A8A88] text-[9px] font-semibold rounded px-1.5 py-0.5">
+                            ({allPurchasesToMake.length})
                           </span>
-                          {isSelected && (
-                            <Check size={14} className="text-[#5A8A88]" />
+                          {selectedSupplier === null && (
+                            <Check size={12} className="text-[#5A8A88]" />
                           )}
                         </div>
                       </button>
-                    );
-                  })}
+
+                      <div className="h-[1px] bg-[#F0F5F4] my-1" />
+
+                      {/* Options: Suppliers */}
+                      {suppliers.map(sup => {
+                        const isSelected = selectedSupplier === sup;
+                        const count = allPurchasesToMake.filter(i => i.supplier === sup).length;
+                        
+                        return (
+                          <button
+                            key={sup}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSupplier(sup);
+                              setIsSupplierDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between px-2.5 py-1.5 rounded-[6px] text-[11px] transition-colors cursor-pointer text-left",
+                              isSelected
+                                ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
+                                : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
+                            )}
+                          >
+                            <span className="truncate pr-2">{sup}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="bg-[#F0F5F4] text-[#6B8F8E] text-[9px] rounded px-1.5 py-0.5">
+                                {count}
+                              </span>
+                              {isSelected && (
+                                <Check size={12} className="text-[#5A8A88]" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
           </div>
-        )}
+
+          {/* RIGHT: Export Dropdown (Matches DailyBakeryRecord design and function) */}
+          <div className="relative ml-auto shrink-0" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsExportOpen(!isExportOpen)}
+              disabled={purchasesToMake.length === 0}
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              title="ส่งออกข้อมูล (Excel, PDF)"
+            >
+              <Download size={13} className="text-[#5A8A88]" />
+              <span>ส่งออก</span>
+              <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportOpen && "rotate-180")} />
+            </button>
+
+            {isExportOpen && (
+              <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExportOpen(false);
+                    exportExcel();
+                  }}
+                  className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Download size={13} className="text-[#5A8A88]" />
+                  <span>Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExportOpen(false);
+                    printReport();
+                  }}
+                  className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Printer size={13} className="text-[#5A8A88]" />
+                  <span>PDF / พิมพ์</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+        </div>
+
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           MAIN CONTENT AREA (Table & Groups)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="flex-1 overflow-auto custom-scrollbar" id="purchasing-report-content">
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5">
           {/* Printable Header */}
           <div className="hidden print:block text-center mb-6">
             <h1 className="text-xl font-black text-[#2D4A49]">สรุปยอดสั่งซื้อวัตถุดิบ (Purchasing Report)</h1>
@@ -425,12 +467,12 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
           {/* Empty State */}
           {purchasesToMake.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-[#D4E4E3] p-12 text-center">
-              <div className="w-16 h-16 bg-[#E8F3F2] rounded-full flex items-center justify-center mx-auto mb-3 text-[#5A8A88]">
-                <PackageCheck size={32} />
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-10 text-center">
+              <div className="w-14 h-14 bg-[#E8F3F2] rounded-full flex items-center justify-center mx-auto mb-3 text-[#5A8A88]">
+                <PackageCheck size={28} />
               </div>
-              <p className="text-[16px] font-bold text-[#2D4A49]">ไม่มีรายการที่ต้องสั่งซื้อ</p>
-              <p className="text-[12px] text-[#6B8F8E] mt-1 max-w-sm mx-auto">
+              <p className="text-[14px] font-bold text-[#2D4A49]">ไม่มีรายการที่ต้องสั่งซื้อ</p>
+              <p className="text-[11px] text-[#6B8F8E] mt-1 max-w-sm mx-auto">
                 ยอดคงเหลือของทุกรายการอยู่ในเกณฑ์ปกติ หรือยังไม่มีการบันทึกตรวจนับสต็อกในวันที่เลือก
               </p>
             </div>
@@ -442,15 +484,15 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
               return (
                 <div 
                   key={supplier} 
-                  className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.06)] border border-[#D4E4E3] overflow-hidden"
+                  className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] overflow-hidden"
                 >
                   {/* Supplier Group Header */}
-                  <div className="bg-[#F0F5F4] border-l-[3px] border-l-[#5A8A88] pl-3 pr-4 py-3 border-b border-[#D4E4E3] flex items-center justify-between">
-                    <h4 className="font-bold text-[13px] text-[#2D4A49] flex items-center gap-2">
-                      <Building2 size={15} className="text-[#5A8A88]" />
+                  <div className="bg-[#F0F5F4] border-l-[3px] border-l-[#5A8A88] pl-3 pr-4 py-2.5 border-b border-[#D4E4E3] flex items-center justify-between">
+                    <h4 className="font-bold text-[12px] sm:text-[13px] text-[#2D4A49] flex items-center gap-2">
+                      <Building2 size={14} className="text-[#5A8A88]" />
                       <span>ผู้จัดจำหน่าย: {supplier}</span>
                     </h4>
-                    <span className="bg-[#E8F3F2] text-[#5A8A88] text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-[#D4E4E3]">
+                    <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
                       {totalItems} รายการ
                     </span>
                   </div>
@@ -459,14 +501,14 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                   <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[650px]">
                       <thead>
-                        <tr className="bg-[#2D4A49] text-white text-[11px] font-semibold border-b border-[#2D4A49]">
-                          <th className="py-2.5 px-3 text-center w-[8%] border-r border-[#3d605f]">รูป</th>
-                          <th className="py-2.5 px-3 text-left w-[30%] border-r border-[#3d605f]">รายการสินค้า</th>
-                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#3d605f]">หมวดหมู่</th>
-                          <th className="py-2.5 px-3 text-left w-[14%] border-r border-[#3d605f]">ขนาด/หน่วย</th>
-                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#3d605f]">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2.5 px-3 text-center w-[11%] border-r border-[#3d605f]">ยอดตรวจนับ</th>
-                          <th className="py-2.5 px-3 text-center w-[12%]">ยอดสั่งแนะนำ</th>
+                        <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold border-b border-[#2D4A49]">
+                          <th className="py-2 px-3 text-center w-[8%] border-r border-[#3d605f]">รูป</th>
+                          <th className="py-2 px-3 text-left w-[30%] border-r border-[#3d605f]">รายการสินค้า</th>
+                          <th className="py-2 px-3 text-left w-[14%] border-r border-[#3d605f]">หมวดหมู่</th>
+                          <th className="py-2 px-3 text-left w-[14%] border-r border-[#3d605f]">ขนาด/หน่วย</th>
+                          <th className="py-2 px-3 text-center w-[11%] border-r border-[#3d605f]">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-3 text-center w-[11%] border-r border-[#3d605f]">ยอดตรวจนับ</th>
+                          <th className="py-2 px-3 text-center w-[12%]">ยอดสั่งแนะนำ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -475,7 +517,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
                               <td colSpan={7} className="px-3 py-1.5">
-                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5A8A88]">
+                                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
                                 </div>
@@ -495,24 +537,24 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   )}
                                 >
                                   {/* Item Image */}
-                                  <td className="p-2 border-r border-[#F0F5F4] text-center w-[8%]">
+                                  <td className="p-1.5 border-r border-[#F0F5F4] text-center w-[8%]">
                                     {item.image ? (
                                       <img 
                                         src={item.image} 
                                         alt={item.name} 
-                                        className="w-9 h-9 object-cover rounded-md border border-[#D4E4E3] mx-auto shadow-xs"
+                                        className="w-8 h-8 object-cover rounded-md border border-[#D4E4E3] mx-auto shadow-2xs" 
                                         referrerPolicy="no-referrer"
                                       />
                                     ) : (
-                                      <div className="w-9 h-9 rounded-md border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
-                                        <ShoppingCart size={14} />
+                                      <div className="w-8 h-8 rounded-md border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                        <ShoppingCart size={13} />
                                       </div>
                                     )}
                                   </td>
 
                                   {/* Item Name & Subtitle */}
-                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] w-[30%]">
-                                    <div className="font-medium text-[#2D4A49] text-[12px] leading-tight" title={item.name}>
+                                  <td className="px-3 py-2 border-r border-[#F0F5F4] w-[30%]">
+                                    <div className="font-medium text-[#2D4A49] text-[11px] leading-tight" title={item.name}>
                                       {item.name}
                                     </div>
                                     {item.brand && (
@@ -523,38 +565,38 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   </td>
 
                                   {/* Category Badge */}
-                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] w-[14%]">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
+                                  <td className="px-3 py-2 border-r border-[#F0F5F4] w-[14%]">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-[5px] text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
                                       {item.category}
                                     </span>
                                   </td>
 
                                   {/* Size / Unit */}
-                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] text-[11px] text-[#6B8F8E] w-[14%]">
+                                  <td className="px-3 py-2 border-r border-[#F0F5F4] text-[10px] text-[#6B8F8E] w-[14%]">
                                     {item.sizePerUnit || '-'}
                                   </td>
 
                                   {/* Min Stock (คงเหลือขั้นต่ำ) */}
-                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] text-center w-[11%]">
+                                  <td className="px-3 py-2 border-r border-[#F0F5F4] text-center w-[11%]">
                                     {isLow ? (
-                                      <span className="inline-block px-2 py-0.5 rounded-md bg-[#FEE2E2] text-[#EF4444] font-bold text-[12px] font-mono">
+                                      <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono">
                                         {item.minStock} {item.unit}
                                       </span>
                                     ) : (
-                                      <span className="text-[#2D4A49] font-mono text-[12px]">
+                                      <span className="text-[#2D4A49] font-mono text-[10px]">
                                         {item.minStock} {item.unit}
                                       </span>
                                     )}
                                   </td>
 
                                   {/* Current Stock (ยอดตรวจนับ) */}
-                                  <td className="px-3 py-2.5 border-r border-[#F0F5F4] font-mono text-[12px] text-center text-[#6B8F8E] w-[11%]">
+                                  <td className="px-3 py-2 border-r border-[#F0F5F4] font-mono text-[10px] text-center text-[#6B8F8E] w-[11%]">
                                     {item.currentStock} {item.unit}
                                   </td>
 
                                   {/* Suggested Order (ยอดสั่งแนะนำ) */}
-                                  <td className="px-3 py-2.5 font-mono text-[12px] text-center w-[12%]">
-                                    <span className="inline-block px-2 py-0.5 rounded-md bg-[#E8F3F2] text-[#5A8A88] font-bold text-[12px]">
+                                  <td className="px-3 py-2 font-mono text-[10px] text-center w-[12%]">
+                                    <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#E8F3F2] text-[#5A8A88] font-bold text-[10px]">
                                       {item.suggestedOrder} {item.unit}
                                     </span>
                                   </td>
@@ -573,21 +615,21 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
           {/* Summary Footer Card */}
           {purchasesToMake.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 sm:p-6 print:hidden">
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-4 sm:p-5 print:hidden">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                  <h4 className="text-[14px] font-bold text-[#2D4A49]">สรุปภาพรวมการสั่งซื้อ</h4>
+                  <h4 className="text-[13px] font-bold text-[#2D4A49]">สรุปภาพรวมการสั่งซื้อ</h4>
                   <p className="text-[11px] text-[#6B8F8E] mt-0.5">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center sm:text-right">
                     <div className="text-[10px] font-bold text-[#6B8F8E] uppercase">จำนวนรายการทั้งหมด</div>
-                    <div className="text-[20px] font-black text-[#5A8A88]">{purchasesToMake.length} รายการ</div>
+                    <div className="text-[18px] font-black text-[#5A8A88]">{purchasesToMake.length} รายการ</div>
                   </div>
-                  <div className="w-[1px] h-8 bg-[#D4E4E3]" />
+                  <div className="w-[1px] h-7 bg-[#D4E4E3]" />
                   <div className="text-center sm:text-right">
                     <div className="text-[10px] font-bold text-[#6B8F8E] uppercase">ผู้จัดจำหน่าย</div>
-                    <div className="text-[20px] font-black text-[#2D4A49]">{Object.keys(groupedPurchases).length} ราย</div>
+                    <div className="text-[18px] font-black text-[#2D4A49]">{Object.keys(groupedPurchases).length} ราย</div>
                   </div>
                 </div>
               </div>
