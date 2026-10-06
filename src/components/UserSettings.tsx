@@ -228,7 +228,7 @@ export const normalizePermissions = (raw: any, role: string): UserPermissions =>
   };
 
   return {
-    dashboard: toLevel(parsed.dashboard !== undefined ? parsed.dashboard : parsed.dashboardBar, defaults.dashboard),
+    dashboard: toLevel(parsed.dashboard !== undefined ? parsed.dashboard : (parsed.dashboardBar || parsed.dashboardBakery), defaults.dashboard),
     dailySales: toLevel(parsed.dailySales !== undefined ? parsed.dailySales : parsed.dailyRecord, defaults.dailySales),
     dailyBakery: toLevel(parsed.dailyBakery !== undefined ? parsed.dailyBakery : parsed.dailyRecord, defaults.dailyBakery),
 
@@ -253,12 +253,10 @@ export const normalizePermissions = (raw: any, role: string): UserPermissions =>
     history_checkin: toLevel(parsed.history_checkin !== undefined ? parsed.history_checkin : parsed.historyChecklist, defaults.history_checkin),
     history_stock: toLevel(parsed.history_stock !== undefined ? parsed.history_stock : parsed.historyLogs, defaults.history_stock),
     history_receiving: toLevel(parsed.history_receiving !== undefined ? parsed.history_receiving : parsed.historyReceiving, defaults.history_receiving),
-    history_bakery: toLevel(parsed.history_bakery !== undefined ? parsed.history_bakery : parsed.bakeryPlan, defaults.history_bakery),
+    history_bakery: toLevel(parsed.history_bakery !== undefined ? parsed.history_bakery : parsed.historyBakery, defaults.history_bakery),
 
     userSettings: toLevel(parsed.userSettings !== undefined ? parsed.userSettings : parsed.adminTools, defaults.userSettings),
-    canEditDateRange: typeof parsed.canEditDateRange === 'boolean' ? parsed.canEditDateRange : defaults.canEditDateRange,
-
-    ...parsed
+    canEditDateRange: typeof parsed.canEditDateRange === 'boolean' ? parsed.canEditDateRange : defaults.canEditDateRange
   };
 };
 
@@ -266,29 +264,52 @@ export const buildSavePermissions = (perms: UserPermissions) => {
   const toLegacy = (lvl: PagePermission) => lvl === 'edit' ? 'Edit' : lvl === 'read' ? 'Review' : 'Hidden';
   return {
     ...perms,
+    // Modern standard lowercase permissions
+    dashboard: perms.dashboard,
     dailySales: perms.dailySales,
     dailyBakery: perms.dailyBakery,
+    bar_stock: perms.bar_stock,
+    bar_receiving: perms.bar_receiving,
+    bar_stockcount: perms.bar_stockcount,
+    bar_waste: perms.bar_waste,
+    bar_checkin: perms.bar_checkin,
+    bar_coffeeWaste: perms.bar_coffeeWaste,
+    kitchen_stock: perms.kitchen_stock,
+    kitchen_receiving: perms.kitchen_receiving,
+    kitchen_stockcount: perms.kitchen_stockcount,
+    kitchen_waste: perms.kitchen_waste,
+    kitchen_checkin: perms.kitchen_checkin,
+    bakeryPlan: perms.bakeryPlan,
+    purchasing: perms.purchasing,
+    rndReport: perms.rndReport,
+    history_edit: perms.history_edit,
+    history_checkin: perms.history_checkin,
+    history_stock: perms.history_stock,
+    history_receiving: perms.history_receiving,
+    history_bakery: perms.history_bakery,
+    userSettings: perms.userSettings,
+    canEditDateRange: !!perms.canEditDateRange,
+
+    // Legacy fields for backward compatibility
     dailyRecord: perms.dailySales,
     dashboardBar: toLegacy(perms.dashboard),
     dashboardBakery: toLegacy(perms.dashboard),
     stockTableBar: toLegacy(perms.bar_stock),
     stockTableBakery: toLegacy(perms.kitchen_stock),
-    bakeryPlan: toLegacy(perms.bakeryPlan),
     barReceiving: toLegacy(perms.bar_receiving),
     bakeryReceiving: toLegacy(perms.kitchen_receiving),
     dailyStockCountBar: toLegacy(perms.bar_stockcount),
     dailyStockCountBakery: toLegacy(perms.kitchen_stockcount),
     checklistsBar: toLegacy(perms.bar_checkin),
     checklistsBakery: toLegacy(perms.kitchen_checkin),
-    rndReport: toLegacy(perms.rndReport),
     purchasingReport: toLegacy(perms.purchasing),
     historyLogs: toLegacy(perms.history_edit),
     historyChecklist: toLegacy(perms.history_checkin),
     historyWaste: toLegacy(perms.bar_coffeeWaste || perms.bar_waste),
     historyReceiving: toLegacy(perms.history_receiving),
+    historyBakery: toLegacy(perms.history_bakery),
     manageIngredients: (perms.bar_stock === 'edit' || perms.kitchen_stock === 'edit') ? 'Edit' : 'Hidden',
-    adminTools: toLegacy(perms.userSettings),
-    canEditDateRange: !!perms.canEditDateRange
+    adminTools: toLegacy(perms.userSettings)
   };
 };
 
@@ -1246,7 +1267,8 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                     </div>
                     <div className="divide-y divide-[#F0F5F4]">
                       {group.items.map((item) => {
-                        const currentVal = formData.permissions[item.key] || 'hidden';
+                        const rawVal = formData.permissions?.[item.key];
+                        const currentVal: PagePermission = (rawVal === 'edit' || rawVal === 'Edit') ? 'edit' : (rawVal === 'read' || rawVal === 'Read' || rawVal === 'Review') ? 'read' : 'hidden';
                         return (
                           <div 
                             key={item.key} 
