@@ -2287,7 +2287,16 @@ export default function App() {
         ) : activeTab === 'rndReport' ? (
           <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'barPurchasing' ? (
-          <PurchasingReport ingredients={ingredients} stockRecord={stockRecord} onBack={() => setActiveTab('home')} />
+          <PurchasingReport 
+            ingredients={ingredients} 
+            stockRecord={stockRecord} 
+            onBack={() => setActiveTab('home')} 
+            branch={user?.branch || 'Rayong'}
+            allowedDepartments={[
+              ...(hasPermission('dashboardBar') ? ['Bar' as const] : []),
+              ...(hasPermission('dashboardBakery') ? ['Bakery' as const] : [])
+            ]}
+          />
         ) : activeTab === 'dailySales' ? (
           <DailySalesRecord
             user={user}
