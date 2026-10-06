@@ -20,6 +20,328 @@ import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
 import { AppUser, AppPermissions } from '../types';
 
+export type PagePermission = 'read' | 'edit' | 'hidden';
+
+export interface UserPermissions {
+  // General
+  dashboard: PagePermission;
+  dailyRecord: PagePermission;
+
+  // บาร์ (Bar)
+  bar_stock: PagePermission;
+  bar_receiving: PagePermission;
+  bar_stockcount: PagePermission;
+  bar_waste: PagePermission;
+  bar_checkin: PagePermission;
+  bar_coffeeWaste: PagePermission;
+
+  // ครัว (Kitchen/Bakery)
+  kitchen_stock: PagePermission;
+  kitchen_receiving: PagePermission;
+  kitchen_stockcount: PagePermission;
+  kitchen_waste: PagePermission;
+  kitchen_checkin: PagePermission;
+  bakeryPlan: PagePermission;
+
+  // รายงานรวม
+  purchasing: PagePermission;
+  rndReport: PagePermission;
+
+  // ประวัติ
+  history_edit: PagePermission;
+  history_checkin: PagePermission;
+  history_stock: PagePermission;
+  history_receiving: PagePermission;
+  history_bakery: PagePermission;
+
+  // Admin
+  userSettings: PagePermission;
+  canEditDateRange: boolean;
+
+  [key: string]: any;
+}
+
+export const applyRoleDefaults = (role: string): UserPermissions => {
+  const r = (role || '').toUpperCase();
+  if (r === 'CO-FOUNDER' || r === 'ADMIN' || r === 'OWNER') {
+    return {
+      dashboard: 'edit',
+      dailyRecord: 'edit',
+      bar_stock: 'edit',
+      bar_receiving: 'edit',
+      bar_stockcount: 'edit',
+      bar_waste: 'edit',
+      bar_checkin: 'edit',
+      bar_coffeeWaste: 'edit',
+      kitchen_stock: 'edit',
+      kitchen_receiving: 'edit',
+      kitchen_stockcount: 'edit',
+      kitchen_waste: 'edit',
+      kitchen_checkin: 'edit',
+      bakeryPlan: 'edit',
+      purchasing: 'edit',
+      rndReport: 'edit',
+      history_edit: 'edit',
+      history_checkin: 'edit',
+      history_stock: 'edit',
+      history_receiving: 'edit',
+      history_bakery: 'edit',
+      userSettings: 'edit',
+      canEditDateRange: true
+    };
+  }
+  if (r === 'BRANCH MANAGER') {
+    return {
+      dashboard: 'edit',
+      dailyRecord: 'edit',
+      bar_stock: 'edit',
+      bar_receiving: 'edit',
+      bar_stockcount: 'edit',
+      bar_waste: 'edit',
+      bar_checkin: 'edit',
+      bar_coffeeWaste: 'edit',
+      kitchen_stock: 'edit',
+      kitchen_receiving: 'edit',
+      kitchen_stockcount: 'edit',
+      kitchen_waste: 'edit',
+      kitchen_checkin: 'edit',
+      bakeryPlan: 'edit',
+      purchasing: 'edit',
+      rndReport: 'edit',
+      history_edit: 'edit',
+      history_checkin: 'edit',
+      history_stock: 'edit',
+      history_receiving: 'edit',
+      history_bakery: 'edit',
+      userSettings: 'hidden',
+      canEditDateRange: false
+    };
+  }
+  if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
+    return {
+      dashboard: 'read',
+      dailyRecord: 'read',
+      bar_stock: 'hidden',
+      bar_receiving: 'hidden',
+      bar_stockcount: 'hidden',
+      bar_waste: 'hidden',
+      bar_checkin: 'hidden',
+      bar_coffeeWaste: 'hidden',
+      kitchen_stock: 'edit',
+      kitchen_receiving: 'edit',
+      kitchen_stockcount: 'edit',
+      kitchen_waste: 'edit',
+      kitchen_checkin: 'edit',
+      bakeryPlan: 'edit',
+      purchasing: 'read',
+      rndReport: 'edit',
+      history_edit: 'read',
+      history_checkin: 'read',
+      history_stock: 'read',
+      history_receiving: 'read',
+      history_bakery: 'read',
+      userSettings: 'hidden',
+      canEditDateRange: false
+    };
+  }
+  if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE') {
+    return {
+      dashboard: 'read',
+      dailyRecord: 'read',
+      bar_stock: 'edit',
+      bar_receiving: 'edit',
+      bar_stockcount: 'edit',
+      bar_waste: 'edit',
+      bar_checkin: 'edit',
+      bar_coffeeWaste: 'edit',
+      kitchen_stock: 'hidden',
+      kitchen_receiving: 'hidden',
+      kitchen_stockcount: 'hidden',
+      kitchen_waste: 'hidden',
+      kitchen_checkin: 'hidden',
+      bakeryPlan: 'hidden',
+      purchasing: 'read',
+      rndReport: 'read',
+      history_edit: 'read',
+      history_checkin: 'read',
+      history_stock: 'read',
+      history_receiving: 'read',
+      history_bakery: 'hidden',
+      userSettings: 'hidden',
+      canEditDateRange: false
+    };
+  }
+  // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER:
+  return {
+    dashboard: 'read',
+    dailyRecord: 'read',
+    bar_stock: 'hidden',
+    bar_receiving: 'hidden',
+    bar_stockcount: 'hidden',
+    bar_waste: 'hidden',
+    bar_checkin: 'hidden',
+    bar_coffeeWaste: 'hidden',
+    kitchen_stock: 'read',
+    kitchen_receiving: 'read',
+    kitchen_stockcount: 'read',
+    kitchen_waste: 'read',
+    kitchen_checkin: 'read',
+    bakeryPlan: 'read',
+    purchasing: 'hidden',
+    rndReport: 'hidden',
+    history_edit: 'read',
+    history_checkin: 'read',
+    history_stock: 'read',
+    history_receiving: 'read',
+    history_bakery: 'read',
+    userSettings: 'hidden',
+    canEditDateRange: false
+  };
+};
+
+export const normalizePermissions = (raw: any, role: string): UserPermissions => {
+  const defaults = applyRoleDefaults(role);
+  if (!raw || typeof raw !== 'object') return defaults;
+  
+  const toLevel = (val: any, fallback: PagePermission): PagePermission => {
+    if (val === 'edit' || val === 'Edit') return 'edit';
+    if (val === 'read' || val === 'Read' || val === 'Review') return 'read';
+    if (val === 'hidden' || val === 'Hidden') return 'hidden';
+    return fallback;
+  };
+
+  return {
+    dashboard: toLevel(raw.dashboard ?? raw.dashboardBar, defaults.dashboard),
+    dailyRecord: toLevel(raw.dailyRecord ?? raw.dailySales, defaults.dailyRecord),
+
+    bar_stock: toLevel(raw.bar_stock ?? raw.stockTableBar, defaults.bar_stock),
+    bar_receiving: toLevel(raw.bar_receiving ?? raw.barReceiving, defaults.bar_receiving),
+    bar_stockcount: toLevel(raw.bar_stockcount ?? raw.dailyStockCountBar, defaults.bar_stockcount),
+    bar_waste: toLevel(raw.bar_waste ?? raw.historyWaste, defaults.bar_waste),
+    bar_checkin: toLevel(raw.bar_checkin ?? raw.checklistsBar, defaults.bar_checkin),
+    bar_coffeeWaste: toLevel(raw.bar_coffeeWaste ?? raw.historyWaste, defaults.bar_coffeeWaste),
+
+    kitchen_stock: toLevel(raw.kitchen_stock ?? raw.stockTableBakery, defaults.kitchen_stock),
+    kitchen_receiving: toLevel(raw.kitchen_receiving ?? raw.bakeryReceiving, defaults.kitchen_receiving),
+    kitchen_stockcount: toLevel(raw.kitchen_stockcount ?? raw.dailyStockCountBakery, defaults.kitchen_stockcount),
+    kitchen_waste: toLevel(raw.kitchen_waste ?? raw.wasteReport, defaults.kitchen_waste),
+    kitchen_checkin: toLevel(raw.kitchen_checkin ?? raw.checklistsBakery, defaults.kitchen_checkin),
+    bakeryPlan: toLevel(raw.bakeryPlan, defaults.bakeryPlan),
+
+    purchasing: toLevel(raw.purchasing ?? raw.purchasingReport, defaults.purchasing),
+    rndReport: toLevel(raw.rndReport, defaults.rndReport),
+
+    history_edit: toLevel(raw.history_edit ?? raw.historyLogs, defaults.history_edit),
+    history_checkin: toLevel(raw.history_checkin ?? raw.historyChecklist, defaults.history_checkin),
+    history_stock: toLevel(raw.history_stock ?? raw.historyLogs, defaults.history_stock),
+    history_receiving: toLevel(raw.history_receiving ?? raw.historyReceiving, defaults.history_receiving),
+    history_bakery: toLevel(raw.history_bakery ?? raw.bakeryPlan, defaults.history_bakery),
+
+    userSettings: toLevel(raw.userSettings ?? raw.adminTools, defaults.userSettings),
+    canEditDateRange: typeof raw.canEditDateRange === 'boolean' ? raw.canEditDateRange : defaults.canEditDateRange,
+
+    ...raw
+  };
+};
+
+export const buildSavePermissions = (perms: UserPermissions) => {
+  const toLegacy = (lvl: PagePermission) => lvl === 'edit' ? 'Edit' : lvl === 'read' ? 'Review' : 'Hidden';
+  return {
+    ...perms,
+    dashboardBar: toLegacy(perms.dashboard),
+    dashboardBakery: toLegacy(perms.dashboard),
+    stockTableBar: toLegacy(perms.bar_stock),
+    stockTableBakery: toLegacy(perms.kitchen_stock),
+    bakeryPlan: toLegacy(perms.bakeryPlan),
+    barReceiving: toLegacy(perms.bar_receiving),
+    bakeryReceiving: toLegacy(perms.kitchen_receiving),
+    dailyStockCountBar: toLegacy(perms.bar_stockcount),
+    dailyStockCountBakery: toLegacy(perms.kitchen_stockcount),
+    checklistsBar: toLegacy(perms.bar_checkin),
+    checklistsBakery: toLegacy(perms.kitchen_checkin),
+    rndReport: toLegacy(perms.rndReport),
+    purchasingReport: toLegacy(perms.purchasing),
+    historyLogs: toLegacy(perms.history_edit),
+    historyChecklist: toLegacy(perms.history_checkin),
+    historyWaste: toLegacy(perms.bar_coffeeWaste || perms.bar_waste),
+    historyReceiving: toLegacy(perms.history_receiving),
+    manageIngredients: (perms.bar_stock === 'edit' || perms.kitchen_stock === 'edit') ? 'Edit' : 'Hidden',
+    adminTools: toLegacy(perms.userSettings),
+    canEditDateRange: !!perms.canEditDateRange
+  };
+};
+
+interface PermissionGroup {
+  id: string;
+  name: string;
+  items: {
+    key: keyof UserPermissions;
+    name: string;
+    icon: string;
+  }[];
+}
+
+const PERMISSION_GROUPS: PermissionGroup[] = [
+  {
+    id: 'general',
+    name: 'GROUP 1: ทั่วไป (General)',
+    items: [
+      { key: 'dashboard', name: 'หน้าหลัก / Dashboard', icon: '🏠' },
+      { key: 'dailyRecord', name: 'Daily Record (บันทึกยอดขาย)', icon: '📖' },
+    ]
+  },
+  {
+    id: 'bar',
+    name: 'GROUP 2: 🍹 วัตถุดิบบาร์ (Bar)',
+    items: [
+      { key: 'bar_stock', name: 'Stock บาร์', icon: '📦' },
+      { key: 'bar_receiving', name: 'รับวัตถุดิบ (บาร์)', icon: '📦' },
+      { key: 'bar_stockcount', name: 'นับสต็อก (บาร์)', icon: '📋' },
+      { key: 'bar_waste', name: 'Waste/ของเสีย (บาร์)', icon: '🗑️' },
+      { key: 'bar_checkin', name: 'Check-in บาร์', icon: '✅' },
+      { key: 'bar_coffeeWaste', name: 'Waste เมล็ดกาแฟ', icon: '☕' },
+    ]
+  },
+  {
+    id: 'kitchen',
+    name: 'GROUP 3: 🍳 วัตถุดิบครัว (Kitchen)',
+    items: [
+      { key: 'kitchen_stock', name: 'Stock ครัว', icon: '📦' },
+      { key: 'kitchen_receiving', name: 'รับวัตถุดิบ (ครัว)', icon: '📦' },
+      { key: 'kitchen_stockcount', name: 'นับสต็อก (ครัว)', icon: '📋' },
+      { key: 'kitchen_waste', name: 'Waste/ของเสีย (ครัว)', icon: '🗑️' },
+      { key: 'kitchen_checkin', name: 'Check-in ครัว', icon: '✅' },
+      { key: 'bakeryPlan', name: 'แผนงาน Bakery', icon: '🧁' },
+    ]
+  },
+  {
+    id: 'reports',
+    name: 'GROUP 4: 📊 รายงานรวม',
+    items: [
+      { key: 'purchasing', name: 'Purchasing (สั่งซื้อ)', icon: '🛒' },
+      { key: 'rndReport', name: 'R&D Report', icon: '🔬' },
+    ]
+  },
+  {
+    id: 'history',
+    name: 'GROUP 5: 🕐 ประวัติย้อนหลัง',
+    items: [
+      { key: 'history_edit', name: 'ประวัติการแก้ไขข้อมูล', icon: '🕐' },
+      { key: 'history_checkin', name: 'ประวัติ Check-in', icon: '🕐' },
+      { key: 'history_stock', name: 'ประวัตินับสต็อก', icon: '🕐' },
+      { key: 'history_receiving', name: 'ประวัติรับวัตถุดิบ', icon: '🕐' },
+      { key: 'history_bakery', name: 'ประวัติ Bakery', icon: '🕐' },
+    ]
+  },
+  {
+    id: 'admin',
+    name: 'GROUP 6: ⚙️ Admin',
+    items: [
+      { key: 'userSettings', name: 'User Settings', icon: '👤' },
+    ]
+  }
+];
+
 const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'dashboardBar', name: 'สรุปภาพรวมสต็อก บาร์ (Dashboard Bar)' },
   { id: 'dashboardBakery', name: 'สรุปภาพรวมสต็อก ครัว (Dashboard Bakery)' },
@@ -74,15 +396,21 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState<'general' | 'permissions'>('general');
   const [isChangingPassword, setIsChangingPassword] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<{id: string, name: string} | null>(null);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    role: UserRole;
+    password: string;
+    permissions: UserPermissions;
+  }>({
     name: '',
     role: 'Barista' as UserRole,
     password: '',
-    permissions: DEFAULT_PERMISSIONS
+    permissions: applyRoleDefaults('Barista')
   });
   
   const [passwordForm, setPasswordForm] = useState({
@@ -94,6 +422,60 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   const [selectedTemplateRole, setSelectedTemplateRole] = useState<UserRole>('Barista');
   const [templateForm, setTemplateForm] = useState<AppPermissions>(DEFAULT_PERMISSIONS);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  // ━━━━ QUICK PRESET HANDLERS ━━━━
+  const handlePresetAll = (level: PagePermission) => {
+    const allKeys: (keyof UserPermissions)[] = [
+      'dashboard', 'dailyRecord',
+      'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
+      'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
+      'purchasing', 'rndReport',
+      'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
+      'userSettings'
+    ];
+    const updated: any = { ...formData.permissions };
+    allKeys.forEach(k => {
+      updated[k] = level;
+    });
+    setFormData({ ...formData, permissions: updated });
+  };
+
+  const handlePresetBarFull = () => {
+    const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
+    const updated: any = { ...formData.permissions };
+    barKeys.forEach(k => { updated[k] = 'edit'; });
+    setFormData({ ...formData, permissions: updated });
+  };
+
+  const handlePresetKitchenFull = () => {
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan'];
+    const updated: any = { ...formData.permissions };
+    kitchenKeys.forEach(k => { updated[k] = 'edit'; });
+    setFormData({ ...formData, permissions: updated });
+  };
+
+  const handlePresetBarOnly = () => {
+    const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan'];
+    const updated: any = { ...formData.permissions };
+    barKeys.forEach(k => { updated[k] = 'edit'; });
+    kitchenKeys.forEach(k => { updated[k] = 'hidden'; });
+    setFormData({ ...formData, permissions: updated });
+  };
+
+  const handlePresetKitchenOnly = () => {
+    const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan'];
+    const updated: any = { ...formData.permissions };
+    kitchenKeys.forEach(k => { updated[k] = 'edit'; });
+    barKeys.forEach(k => { updated[k] = 'hidden'; });
+    setFormData({ ...formData, permissions: updated });
+  };
+
+  const handlePresetReset = () => {
+    const roleDefaults = applyRoleDefaults(formData.role);
+    setFormData({ ...formData, permissions: roleDefaults });
+  };
 
   const fetchRoleTemplates = async () => {
     if (supabase) {
@@ -255,11 +637,13 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       return;
     }
 
+    const savePerms = buildSavePermissions(formData.permissions as UserPermissions);
+
     const payload: any = {
       branch,
       name: formData.name.trim(),
       role: formData.role,
-      permissions: formData.permissions
+      permissions: savePerms
     };
 
     if (!editingUser) {
@@ -305,8 +689,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
     setEditingUser(null);
     setIsFormOpen(false);
-    const baristaPerms = roleTemplates['Barista'] || DEFAULT_PERMISSIONS;
-    setFormData({ name: '', role: 'Barista', password: '', permissions: { ...DEFAULT_PERMISSIONS, ...baristaPerms } });
+    setActiveModalTab('general');
+    const defaultPerms = applyRoleDefaults('Barista');
+    setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
   };
 
   const handleSavePassword = async (e: React.FormEvent, userId: string) => {
@@ -357,16 +742,14 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   const openEditForm = (user: AppUser) => {
     setEditingUser(user);
     const existingPermissions = user.permissions || {};
+    const normalized = normalizePermissions(existingPermissions, user.role);
     setFormData({
       name: user.name,
       role: user.role as UserRole,
       password: '',
-      permissions: {
-        ...DEFAULT_PERMISSIONS,
-        ...existingPermissions,
-        adminTools: (existingPermissions as AppPermissions).adminTools || (user.role === 'Admin' ? 'Edit' : 'Hidden')
-      }
+      permissions: normalized
     });
+    setActiveModalTab('general');
     setIsFormOpen(true);
   };
 
@@ -427,8 +810,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
             <button 
               onClick={() => {
                 setEditingUser(null);
-                const baristaPerms = roleTemplates['Barista'] || DEFAULT_PERMISSIONS;
-                setFormData({ name: '', role: 'Barista', password: '', permissions: { ...DEFAULT_PERMISSIONS, ...baristaPerms } });
+                const defaultPerms = applyRoleDefaults('Barista');
+                setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+                setActiveModalTab('general');
                 setIsFormOpen(true);
               }}
               className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
@@ -459,9 +843,12 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       {isFormOpen && (
         <form onSubmit={handleSaveUser} className="bg-white border border-[#D4E4E3] rounded-2xl p-5 sm:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.08)] animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#E2EAE9]">
-            <h3 className="font-bold text-[16px] text-[#2D4A49]">
-              {editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-[16px] text-[#2D4A49]">
+                {editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
+              </h3>
+              {editingUser && renderRoleBadge(editingUser.role)}
+            </div>
             <button 
               type="button" 
               onClick={() => setIsFormOpen(false)} 
@@ -470,172 +857,276 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               <X size={18} />
             </button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Username</label>
-              <input
-                type="text"
-                required
-                className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Role</label>
-              <select
-                className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none bg-white text-xs text-[#2D4A49] transition-all cursor-pointer"
-                value={formData.role}
-                onChange={(e) => {
-                  const newRole = e.target.value as UserRole;
-                  const rolePerms = roleTemplates[newRole];
-                  setFormData({ 
-                    ...formData, 
-                    role: newRole,
-                    permissions: rolePerms ? { ...DEFAULT_PERMISSIONS, ...rolePerms } : DEFAULT_PERMISSIONS
-                  });
-                }}
-              >
-                <option value="Admin">Admin</option>
-                <option value="Owner">Owner</option>
-                <option value="Co-founder">Co-founder</option>
-                <option value="Branch Manager">Branch Manager</option>
-                <option value="Head Baker">Head Baker</option>
-                <option value="Senior Baker">Senior Baker</option>
-                <option value="Junior Baker">Junior Baker</option>
-                <option value="Barista">Barista</option>
-                <option value="Barista Assistance">Barista Assistance</option>
-                <option value="Cashier">Cashier</option>
-                <option value="Server/Runner">Server/Runner</option>
-                <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
-              </select>
-            </div>
-            {!editingUser && (
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Password</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all font-mono"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-              </div>
-            )}
+
+          {/* Tab Navigation inside Edit/Add Modal */}
+          <div className="flex items-center gap-2 mb-5 p-1 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3] w-fit">
+            <button
+              type="button"
+              onClick={() => setActiveModalTab('general')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeModalTab === 'general'
+                  ? 'bg-[#5A8A88] text-white shadow-xs'
+                  : 'text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2]'
+              }`}
+            >
+              <User size={13} />
+              <span>ข้อมูลทั่วไป</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModalTab('permissions')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeModalTab === 'permissions'
+                  ? 'bg-[#5A8A88] text-white shadow-xs'
+                  : 'text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2]'
+              }`}
+            >
+              <Shield size={13} />
+              <span>สิทธิ์การเข้าถึง</span>
+            </button>
           </div>
 
-          <div className="mt-6 border-t border-[#E2EAE9] pt-5">
-            <div className="flex items-center justify-between mb-3.5">
-              <h4 className="font-bold text-[#2D4A49] text-sm flex items-center gap-2">
-                <Shield size={16} className="text-[#5A8A88]" />
-                สิทธิ์การใช้งาน (Function Permissions)
-              </h4>
-              <button 
-                type="button" 
-                onClick={() => {
-                  const perms = roleTemplates[formData.role] || DEFAULT_PERMISSIONS;
-                  setSelectedTemplateRole(formData.role);
-                  setTemplateForm(perms);
-                  setIsTemplateModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 text-xs font-semibold text-[#5A8A88] hover:text-[#2D4A49] bg-[#E8F3F2] hover:bg-[#D4E4E3] border border-[#B8D4D2] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-              >
-                <Settings size={13} /> ตั้งค่าเทมเพลต Role
-              </button>
-            </div>
-            <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-xs">
-              <table className="w-full text-left bg-white text-xs">
-                <thead>
-                  <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
-                    <th className="p-2.5 font-bold w-full">ฟังก์ชัน</th>
-                    <th className="p-2.5 font-bold text-center w-20">Hidden</th>
-                    <th className="p-2.5 font-bold text-center w-20">Review</th>
-                    <th className="p-2.5 font-bold text-center w-20">Edit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#F0F5F4]">
-                  {APP_FUNCTIONS.map(func => (
-                    <tr key={func.id} className="hover:bg-[#F8FAFA] transition-colors">
-                      <td className="p-2.5 font-medium text-[#2D4A49]">{func.name}</td>
-                      <td className="p-2.5 text-center">
-                        <input 
-                          type="radio" 
-                          name={`perm_${func.id}`} 
-                          checked={formData.permissions[func.id] === 'Hidden'}
-                          onChange={() => setFormData({ ...formData, permissions: { ...formData.permissions, [func.id]: 'Hidden' } })}
-                          className="w-4 h-4 accent-[#5A8A88] cursor-pointer"
-                        />
-                      </td>
-                      <td className="p-2.5 text-center">
-                        <input 
-                          type="radio" 
-                          name={`perm_${func.id}`} 
-                          checked={formData.permissions[func.id] === 'Review'}
-                          onChange={() => setFormData({ ...formData, permissions: { ...formData.permissions, [func.id]: 'Review' } })}
-                          className="w-4 h-4 accent-[#10B981] cursor-pointer"
-                        />
-                      </td>
-                      <td className="p-2.5 text-center">
-                        <input 
-                          type="radio" 
-                          name={`perm_${func.id}`} 
-                          checked={formData.permissions[func.id] === 'Edit'}
-                          onChange={() => setFormData({ ...formData, permissions: { ...formData.permissions, [func.id]: 'Edit' } })}
-                          className="w-4 h-4 accent-[#5A8A88] cursor-pointer"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Section: สิทธิ์การเข้าถึง Daily Record (Admin/CO-FOUNDER only) */}
-          {(currentUser?.role?.toUpperCase() === 'ADMIN' || currentUser?.role?.toUpperCase() === 'CO-FOUNDER' || currentUser?.role?.toUpperCase() === 'OWNER') && (
-            <div className="mt-5 p-3.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl">
-              <h4 className="font-bold text-[#2D4A49] text-xs flex items-center gap-1.5 mb-2">
-                <BookOpen size={14} className="text-[#5A8A88]" />
-                สิทธิ์การเข้าถึง Daily Record
-              </h4>
-              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-[#D4E4E3]">
+          {/* TAB 1 — ข้อมูลทั่วไป */}
+          {activeModalTab === 'general' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-[#2D4A49]">สามารถกำหนดช่วงวันที่เองได้</p>
-                  <p className="text-[11px] text-[#6B8F8E]">อนุญาตให้ผู้ใช้กำหนดวันเริ่ม-สิ้นสุด ในหน้าบันทึกยอดขายประจำวัน</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={!!formData.permissions.canEditDateRange}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      permissions: { 
-                        ...formData.permissions, 
-                        canEditDateRange: e.target.checked 
-                      } 
-                    })}
-                    className="sr-only peer"
+                  <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Username</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
-                  <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5A8A88]"></div>
-                </label>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Role</label>
+                  <select
+                    className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none bg-white text-xs text-[#2D4A49] transition-all cursor-pointer"
+                    value={formData.role}
+                    onChange={(e) => {
+                      const newRole = e.target.value as UserRole;
+                      const roleDefaults = applyRoleDefaults(newRole);
+                      setFormData({ 
+                        ...formData, 
+                        role: newRole,
+                        permissions: roleDefaults
+                      });
+                    }}
+                  >
+                    <option value="Admin">Admin</option>
+                    <option value="Owner">Owner</option>
+                    <option value="Co-founder">Co-founder</option>
+                    <option value="Branch Manager">Branch Manager</option>
+                    <option value="Head Baker">Head Baker</option>
+                    <option value="Senior Baker">Senior Baker</option>
+                    <option value="Junior Baker">Junior Baker</option>
+                    <option value="Barista">Barista</option>
+                    <option value="Barista Assistance">Barista Assistance</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="Server/Runner">Server/Runner</option>
+                    <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
+                  </select>
+                </div>
+                {!editingUser && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Password</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all font-mono"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
-          
-          <div className="mt-5 flex justify-end gap-2.5">
+
+          {/* TAB 2 — สิทธิ์การเข้าถึง (Permissions) */}
+          {activeModalTab === 'permissions' && (
+            <div className="space-y-4">
+              {/* Quick Preset Buttons */}
+              <div className="p-3 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3] space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-[11px] font-bold text-[#2D4A49]">เลือกทั้งหมด:</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handlePresetAll('read')}
+                      className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                    >
+                      Read ทั้งหมด
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePresetAll('edit')}
+                      className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                    >
+                      Edit ทั้งหมด
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePresetReset}
+                      className="bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-[#D4E4E3]/60">
+                  <button
+                    type="button"
+                    onClick={handlePresetBarFull}
+                    className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    🍹 บาร์ Full
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePresetKitchenFull}
+                    className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    🍳 ครัว Full
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePresetBarOnly}
+                    className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    บาร์ Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePresetKitchenOnly}
+                    className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    ครัว Only
+                  </button>
+                </div>
+              </div>
+
+              {/* Permission List Container */}
+              <div className="max-h-[70vh] overflow-y-auto p-1 space-y-4 rounded-xl custom-scrollbar">
+                {PERMISSION_GROUPS.map((group) => (
+                  <div key={group.id} className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-2xs">
+                    <div className="bg-[#F0F5F4] px-3.5 py-2 text-[11px] font-bold text-[#5A8A88] uppercase tracking-[0.08em] border-b border-[#D4E4E3]">
+                      {group.name}
+                    </div>
+                    <div className="divide-y divide-[#F0F5F4]">
+                      {group.items.map((item) => {
+                        const currentVal = formData.permissions[item.key] || 'hidden';
+                        return (
+                          <div 
+                            key={item.key} 
+                            className="flex items-center justify-between px-3.5 py-2.5 min-h-[44px] hover:bg-[#FAFDFD] transition-colors gap-2"
+                          >
+                            <div className="flex items-center gap-2 text-[12px] font-medium text-[#2D4A49]">
+                              <span className="text-[14px] shrink-0">{item.icon}</span>
+                              <span>{item.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {/* READ button */}
+                              <button
+                                type="button"
+                                onClick={() => setFormData({
+                                  ...formData,
+                                  permissions: { ...formData.permissions, [item.key]: 'read' }
+                                })}
+                                className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
+                                  currentVal === 'read'
+                                    ? 'bg-[#E8F3F2] border border-[#5A8A88] text-[#5A8A88] font-bold shadow-2xs'
+                                    : 'bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#F0F5F4]'
+                                }`}
+                              >
+                                Read
+                              </button>
+                              {/* EDIT button */}
+                              <button
+                                type="button"
+                                onClick={() => setFormData({
+                                  ...formData,
+                                  permissions: { ...formData.permissions, [item.key]: 'edit' }
+                                })}
+                                className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
+                                  currentVal === 'edit'
+                                    ? 'bg-[#5A8A88] border border-[#5A8A88] text-white font-bold shadow-2xs'
+                                    : 'bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#F0F5F4]'
+                                }`}
+                              >
+                                Edit
+                              </button>
+                              {/* HIDDEN button */}
+                              <button
+                                type="button"
+                                onClick={() => setFormData({
+                                  ...formData,
+                                  permissions: { ...formData.permissions, [item.key]: 'hidden' }
+                                })}
+                                className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
+                                  currentVal === 'hidden'
+                                    ? 'bg-[#2D4A49] border border-[#2D4A49] text-white font-bold shadow-2xs'
+                                    : 'bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#F0F5F4]'
+                                }`}
+                              >
+                                Hidden
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Extra item for Group 6 (Admin): กำหนดช่วงวันที่ยอดขายเอง */}
+                      {group.id === 'admin' && (
+                        <div className="flex items-center justify-between px-3.5 py-2.5 min-h-[44px] hover:bg-[#FAFDFD] transition-colors gap-2 bg-[#FBFDFD]">
+                          <div className="flex items-center gap-2 text-[12px] font-medium text-[#2D4A49]">
+                            <span className="text-[14px] shrink-0">📅</span>
+                            <div>
+                              <span>กำหนดช่วงวันที่ยอดขายเอง</span>
+                              <p className="text-[10px] text-[#6B8F8E]">อนุญาตให้ผู้ใช้กำหนดวันเริ่ม-สิ้นสุด ในหน้าบันทึกยอดขายประจำวัน</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input 
+                              type="checkbox" 
+                              checked={!!formData.permissions.canEditDateRange}
+                              onChange={(e) => setFormData({ 
+                                ...formData, 
+                                permissions: { 
+                                  ...formData.permissions, 
+                                  canEditDateRange: e.target.checked 
+                                } 
+                              })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5A8A88]"></div>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sticky Bottom Actions */}
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 mt-5 border-t border-[#D4E4E3] flex items-center justify-end gap-2.5 z-10">
             <button 
               type="button" 
               onClick={() => setIsFormOpen(false)} 
-              className="px-4 py-2 text-xs font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+              className="px-4 py-2.5 text-xs font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
             >
               ยกเลิก
             </button>
             <button 
               type="submit" 
-              className="px-4 py-2 bg-[#5A8A88] hover:bg-[#4d7775] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="flex-1 sm:flex-none sm:min-w-[200px] px-6 py-2.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[13px] font-semibold rounded-[10px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
             >
-              <Save size={14} /> บันทึก
+              <Save size={14} /> บันทึกสิทธิ์การเข้าถึง
             </button>
           </div>
         </form>
