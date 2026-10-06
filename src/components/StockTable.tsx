@@ -38,6 +38,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
     const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
     return Array.from({ length: daysCount }).map((_, i) => addDays(dateRange.start, i));
   }, [dateRange]);
+  const isSingleDay = weekDays.length === 1;
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<Ingredient | null>(null);
@@ -155,38 +156,87 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
       </div>
 
       {/* Table Container */}
-      <div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[550px] md:max-h-[68vh] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
-      <table className="w-full min-w-[700px] border-collapse relative table-fixed">
+      <div 
+        ref={tableContainerRef} 
+        className={cn(
+          "overflow-y-auto max-h-[550px] md:max-h-[68vh] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin",
+          isSingleDay ? "overflow-x-hidden" : "overflow-x-auto"
+        )}
+      >
+      <table className={cn("w-full border-collapse relative", isSingleDay ? "table-fixed min-w-0" : "table-fixed min-w-[700px]")}>
         <thead className="sticky top-0 z-40 shadow-sm">
           <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
             {showManageCol && (
-              <th className="sticky left-0 z-50 px-1 py-2.5 w-[56px] min-w-[56px] max-w-[56px] text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[11px] font-semibold">
+              <th className={cn(
+                "px-1 py-2 text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[10px] font-semibold",
+                isSingleDay ? "w-[44px] min-w-[44px] max-w-[44px]" : "sticky left-0 z-50 w-[56px] min-w-[56px] max-w-[56px]"
+              )}>
                 จัดการ
               </th>
             )}
             <th className={cn(
-              "sticky z-50 px-1 py-2.5 text-center font-semibold tracking-wide w-[48px] min-w-[48px] max-w-[48px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]",
-              showManageCol ? "left-[56px]" : "left-0"
+              "px-1 py-2 text-center font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
+              isSingleDay 
+                ? "w-[38px] min-w-[38px] max-w-[38px]" 
+                : cn("sticky z-50 w-[48px] min-w-[48px] max-w-[48px]", showManageCol ? "left-[56px]" : "left-0")
             )}>
               รูป
             </th>
             <th className={cn(
-              "sticky z-50 px-3 py-2.5 text-left font-semibold tracking-wide w-[200px] min-w-[180px] max-w-[280px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]",
-              showManageCol ? "left-[104px]" : "left-[48px]"
+              "px-2.5 py-2 text-left font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
+              isSingleDay 
+                ? "w-auto min-w-[120px]" 
+                : cn("sticky z-50 w-[200px] min-w-[180px] max-w-[280px]", showManageCol ? "left-[104px]" : "left-[48px]")
             )}>
               รายการสินค้า
             </th>
-            {visibleCols.brand && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ยี่ห้อ</th>}
-            {visibleCols.sizePerUnit && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ขนาด/หน่วย</th>}
-            {visibleCols.minStock && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>}
-            {visibleCols.minOrder && <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[80px] min-w-[80px] max-w-[80px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] leading-tight">สั่งซื้อ<br/>ขั้นต่ำ</th>}
-            {visibleCols.supplier && <th className="px-2 py-2.5 text-left font-semibold tracking-wide w-[90px] min-w-[90px] max-w-[90px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ผู้จัดจำหน่าย</th>}
+            {visibleCols.brand && (
+              <th className={cn(
+                "px-2 py-2 text-left font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
+                isSingleDay ? "w-[75px] min-w-[70px] max-w-[80px]" : "w-[90px] min-w-[90px] max-w-[90px]"
+              )}>
+                ยี่ห้อ
+              </th>
+            )}
+            {visibleCols.sizePerUnit && (
+              <th className={cn(
+                "px-2 py-2 text-center font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
+                isSingleDay ? "w-[75px] min-w-[70px] max-w-[80px]" : "w-[100px] min-w-[100px] max-w-[100px]"
+              )}>
+                ขนาด/หน่วย
+              </th>
+            )}
+            {visibleCols.minStock && (
+              <th className={cn(
+                "px-1.5 py-2 text-center font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px] leading-tight",
+                isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
+              )}>
+                คงเหลือ<br/>ขั้นต่ำ
+              </th>
+            )}
+            {visibleCols.minOrder && (
+              <th className={cn(
+                "px-1.5 py-2 text-center font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px] leading-tight",
+                isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
+              )}>
+                สั่งซื้อ<br/>ขั้นต่ำ
+              </th>
+            )}
+            {visibleCols.supplier && (
+              <th className={cn(
+                "px-2 py-2 text-left font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
+                isSingleDay ? "w-[85px] min-w-[80px] max-w-[90px]" : "w-[90px] min-w-[90px] max-w-[90px]"
+              )}>
+                ผู้จัดจำหน่าย
+              </th>
+            )}
             {weekDays.map((day) => {
               const isToday = isSameDay(day, new Date());
 
               return (
                 <th key={day.toString()} data-is-today={isToday ? "true" : "false"} className={cn(
-                  "px-1 py-1.5 text-center font-semibold w-[160px] min-w-[160px] max-w-[160px] transition-colors border-r border-[#3D6B69] last:border-0 relative bg-[#5A8A88] text-white",
+                  "px-1 py-1.5 text-center font-semibold transition-colors border-r border-[#3D6B69] last:border-0 relative bg-[#5A8A88] text-white",
+                  isSingleDay ? "w-[135px] min-w-[125px] max-w-[145px]" : "w-[160px] min-w-[160px] max-w-[160px]",
                   isToday ? "ring-2 ring-inset ring-white/40 shadow-inner font-bold" : ""
                 )}>
                   <button
@@ -194,7 +244,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       dateKey: format(day, 'yyyy-MM-dd'), 
                       label: `${format(day, 'EEE')} ${format(day, 'd/M')}` 
                     })}
-                    className="absolute top-1 right-1 w-5 h-5 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
+                    className="absolute top-1 right-1 w-4 h-4 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
                     title="ล้างข้อมูลของวันนี้"
                   >
                     <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform text-white" />
@@ -202,7 +252,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
                   <div className="text-[10px] uppercase font-semibold text-white">{format(day, 'EEE')}</div>
                   <div className="text-[10px] font-normal text-white/90 mb-1">{format(day, 'd/M')}</div>
-                  <div className="grid grid-cols-3 gap-1 text-[10px] bg-[#4A7A78] rounded px-1 py-0.5 text-white font-medium">
+                  <div className="grid grid-cols-3 gap-1 text-[9px] sm:text-[10px] bg-[#4A7A78] rounded px-1 py-0.5 text-white font-medium text-center">
                     <div>เข้า</div>
                     <div>เบิก</div>
                     <div>เหลือ</div>
@@ -226,8 +276,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             <React.Fragment key={category}>
               <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                 <td colSpan={baseColsCount} className="p-0">
-                  <div className="sticky left-0 w-fit p-2 pl-3 font-semibold text-[11px] text-[#5A8A88] flex items-center gap-2 bg-[#F0F5F4] z-20 border-l-[3px] border-[#5A8A88]">
-                    <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
+                  <div className="w-fit p-1.5 pl-3 font-semibold text-[10px] text-[#5A8A88] flex items-center gap-1.5 bg-[#F0F5F4] border-l-[3px] border-[#5A8A88]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88]"></span>
                     {category}
                   </div>
                 </td>
@@ -238,30 +288,38 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
                 )}>
                   {showManageCol && (
-                    <td className="sticky left-0 z-20 p-1 w-[56px] min-w-[56px] max-w-[56px] border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print">
-                      <div className="flex items-center justify-center gap-1">
+                    <td className={cn(
+                      "p-1 border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print",
+                      isSingleDay ? "w-[44px] min-w-[44px] max-w-[44px]" : "sticky left-0 z-20 w-[56px] min-w-[56px] max-w-[56px]"
+                    )}>
+                      <div className="flex items-center justify-center gap-0.5">
                         <button 
                           onClick={() => onEditIngredient(item)}
-                          className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-[6px] transition-all"
+                          className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-[5px] transition-all"
                           title="แก้ไข"
                         >
-                          <Pencil size={14} />
+                          <Pencil size={12} />
                         </button>
                         <button 
                           onClick={() => setItemToDelete(item)}
-                          className="p-1 text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-[6px] transition-all"
+                          className="p-1 text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-[5px] transition-all"
                           title="ลบ"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </td>
                   )}
                   <td className={cn(
-                    "sticky z-20 p-1 w-[48px] min-w-[48px] max-w-[48px] border-r border-[#D4E4E3] text-center bg-inherit",
-                    showManageCol ? "left-[56px]" : "left-0"
+                    "p-1 border-r border-[#D4E4E3] text-center bg-inherit",
+                    isSingleDay 
+                      ? "w-[38px] min-w-[38px] max-w-[38px]" 
+                      : cn("sticky z-20 w-[48px] min-w-[48px] max-w-[48px]", showManageCol ? "left-[56px]" : "left-0")
                   )}>
-                    <div className="w-[28px] h-[28px] rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]">
+                    <div className={cn(
+                      "rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]",
+                      isSingleDay ? "w-[24px] h-[24px]" : "w-[28px] h-[28px]"
+                    )}>
                       {item.image ? (
                         <img 
                           src={item.image} 
@@ -271,45 +329,62 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           onClick={() => setSelectedImage(item.image!)}
                         />
                       ) : (
-                        <ShoppingCart size={13} className="text-[#A8BCBB]" />
+                        <ShoppingCart size={isSingleDay ? 11 : 13} className="text-[#A8BCBB]" />
                       )}
                     </div>
                   </td>
                   <td className={cn(
-                    "sticky z-20 px-3 py-2 w-[200px] min-w-[180px] max-w-[280px] border-r border-[#D4E4E3] bg-inherit shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]",
-                    showManageCol ? "left-[104px]" : "left-[48px]"
+                    "px-2.5 py-1.5 border-r border-[#D4E4E3] bg-inherit",
+                    isSingleDay 
+                      ? "w-auto min-w-[120px]" 
+                      : cn("sticky z-20 w-[200px] min-w-[180px] max-w-[280px] shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]", showManageCol ? "left-[104px]" : "left-[48px]")
                   )}>
-                    <div className="truncate text-[11px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
+                    <div className="truncate text-[10px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
                   </td>
                   {visibleCols.brand && (
-                    <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[10px] text-[#6B8F8E] font-normal bg-inherit hidden md:table-cell">
+                    <td className={cn(
+                      "px-2 py-1.5 border-r border-[#D4E4E3] text-[10px] text-[#6B8F8E] font-normal bg-inherit hidden md:table-cell",
+                      isSingleDay ? "w-[75px] min-w-[70px] max-w-[80px]" : "w-[90px] min-w-[90px] max-w-[90px]"
+                    )}>
                       <div className="bg-[#F0F5F4] px-1.5 py-0.5 rounded text-[10px] inline-block text-[#6B8F8E] font-normal truncate max-w-full border border-[#D4E4E3]" title={item.brand || '-'}>
                         {item.brand || '-'}
                       </div>
                     </td>
                   )}
                   {visibleCols.sizePerUnit && (
-                    <td className="px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal text-center bg-inherit truncate" title={item.sizePerUnit || '-'}>
+                    <td className={cn(
+                      "px-1.5 py-1.5 border-r border-[#D4E4E3] text-[10px] text-[#6B8F8E] font-normal text-center bg-inherit truncate",
+                      isSingleDay ? "w-[75px] min-w-[70px] max-w-[80px]" : "w-[100px] min-w-[100px] max-w-[100px]"
+                    )} title={item.sizePerUnit || '-'}>
                       {item.sizePerUnit || '-'}
                     </td>
                   )}
                   {visibleCols.minStock && (
-                    <td className="px-1 py-2 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center bg-inherit">
-                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-md text-[11px] font-semibold border border-[#B8D4D2]">
+                    <td className={cn(
+                      "px-1 py-1.5 border-r border-[#D4E4E3] text-center bg-inherit",
+                      isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
+                    )}>
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#B8D4D2] inline-block">
                         {item.minStock} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.minOrder && (
-                    <td className="px-1 py-2 w-[80px] min-w-[80px] max-w-[80px] border-r border-[#D4E4E3] text-center bg-inherit">
-                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-2 py-0.5 rounded-md text-[11px] font-semibold border border-[#FDE68A]">
+                    <td className={cn(
+                      "px-1 py-1.5 border-r border-[#D4E4E3] text-center bg-inherit",
+                      isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
+                    )}>
+                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#FDE68A] inline-block">
                         {item.minOrder} {item.unit}
                       </span>
                     </td>
                   )}
                   {visibleCols.supplier && (
-                    <td className="px-2 py-2 w-[90px] min-w-[90px] max-w-[90px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-normal bg-inherit group/supplier relative" title={item.supplier}>
-                      <div className="truncate text-[11px] font-normal">
+                    <td className={cn(
+                      "px-2 py-1.5 border-r border-[#D4E4E3] text-[10px] text-[#6B8F8E] font-normal bg-inherit group/supplier relative",
+                      isSingleDay ? "w-[85px] min-w-[80px] max-w-[90px]" : "w-[90px] min-w-[90px] max-w-[90px]"
+                    )} title={item.supplier}>
+                      <div className="truncate text-[10px] font-normal">
                         {item.supplier.split(',').map((sup, idx, arr) => {
                           const isPrimary = sup.includes('(หลัก)');
                           const text = sup.replace(' (หลัก)', '').trim();
@@ -335,7 +410,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       <td 
                         key={dateKey} 
                         className={cn(
-                          "p-1.5 w-[160px] min-w-[160px] max-w-[160px] border-r border-[#D4E4E3] text-center relative transition-colors",
+                          "p-1 border-r border-[#D4E4E3] text-center relative transition-colors",
+                          isSingleDay ? "w-[135px] min-w-[125px] max-w-[145px]" : "w-[160px] min-w-[160px] max-w-[160px]",
                           isToday ? "bg-[#E8F3F2]/40" : ""
                         )}
                       >
@@ -343,7 +419,10 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           <input
                             type="number"
                             min="0"
-                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[11px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                            className={cn(
+                              "w-full text-center focus:outline-none font-mono tabular-nums text-[10px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-0.5 focus:bg-white focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed",
+                              isSingleDay ? "h-6" : "h-7"
+                            )}
                             placeholder="0"
                             value={currentStockObj.in ?? ''}
                             onChange={(e) => {
@@ -355,7 +434,10 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                           <input
                             type="number"
                             min="0"
-                            className="w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[11px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-1 focus:bg-white focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                            className={cn(
+                              "w-full text-center focus:outline-none font-mono tabular-nums text-[10px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-0.5 focus:bg-white focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed",
+                              isSingleDay ? "h-6" : "h-7"
+                            )}
                             placeholder="0"
                             value={currentStockObj.out ?? ''}
                             onChange={(e) => {
@@ -369,13 +451,14 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                               type="number"
                               min="0"
                               className={cn(
-                                "w-[46px] h-7 text-center focus:outline-none font-mono tabular-nums text-[11px] font-medium rounded-md border p-1 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
+                                "w-full text-center focus:outline-none font-mono tabular-nums text-[10px] font-medium rounded-md border p-0.5 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
+                                isSingleDay ? "h-6" : "h-7",
                                 isLowStock 
-                                  ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-semibold focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20" 
+                                  ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-semibold focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]/20" 
                                   : currentStockObj.isAutoCalculated 
-                                    ? "border-[#B8D4D2] bg-[#E8F3F2] text-[#2D4A49] font-medium focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                    ? "border-[#B8D4D2] bg-[#E8F3F2] text-[#2D4A49] font-medium focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20"
                                     : currentStockObj.remaining !== undefined
-                                      ? "border-[#5A8A88] bg-white text-[#2D4A49] font-semibold focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                      ? "border-[#5A8A88] bg-white text-[#2D4A49] font-semibold focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20"
                                       : "border-[#D4E4E3] bg-[#F0F5F4] text-[#6B8F8E] focus:bg-white focus:border-[#5A8A88] focus:text-[#2D4A49]"
                               )}
                               placeholder="0"
@@ -388,7 +471,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                               disabled={isReadOnly}
                             />
                             {isLowStock && (
-                              <div className="absolute -top-1 -right-1">
+                              <div className="absolute -top-1 -right-1 pointer-events-none">
                                 <span className="flex h-1.5 w-1.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF4444] opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#EF4444]"></span>
@@ -411,8 +494,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   <div className="w-16 h-16 bg-[#F0F5F4] rounded-full flex items-center justify-center border border-[#D4E4E3]">
                     <ShoppingCart size={32} className="text-[#A8BCBB]" />
                   </div>
-                  <p className="text-[11px] font-semibold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
-                  <p className="text-[11px] text-[#6B8F8E]">กดปุ่ม "เพิ่มรายการวัตถุดิบ" เพื่อเริ่มต้นใช้งาน</p>
+                  <p className="text-[10px] font-semibold text-[#2D4A49]">ยังไม่มีรายการสินค้า</p>
+                  <p className="text-[10px] text-[#6B8F8E]">กดปุ่ม "เพิ่มรายการวัตถุดิบ" เพื่อเริ่มต้นใช้งาน</p>
                 </div>
               </td>
             </tr>
