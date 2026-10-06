@@ -14,7 +14,9 @@ import {
   Users, 
   Settings,
   Pencil,
-  BookOpen
+  BookOpen,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
@@ -207,7 +209,16 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
 
 export const normalizePermissions = (raw: any, role: string): UserPermissions => {
   const defaults = applyRoleDefaults(role);
-  if (!raw || typeof raw !== 'object') return defaults;
+  if (!raw) return defaults;
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return defaults;
+    }
+  }
+  if (typeof parsed !== 'object' || parsed === null) return defaults;
   
   const toLevel = (val: any, fallback: PagePermission): PagePermission => {
     if (val === 'edit' || val === 'Edit') return 'edit';
@@ -217,37 +228,37 @@ export const normalizePermissions = (raw: any, role: string): UserPermissions =>
   };
 
   return {
-    dashboard: toLevel(raw.dashboard ?? raw.dashboardBar, defaults.dashboard),
-    dailySales: toLevel(raw.dailySales ?? (raw.dailyRecord && ['CO-FOUNDER', 'ADMIN', 'OWNER', 'BRANCH MANAGER'].includes((role || '').toUpperCase()) ? raw.dailyRecord : undefined), defaults.dailySales),
-    dailyBakery: toLevel(raw.dailyBakery ?? raw.dailyRecord, defaults.dailyBakery),
+    dashboard: toLevel(parsed.dashboard !== undefined ? parsed.dashboard : parsed.dashboardBar, defaults.dashboard),
+    dailySales: toLevel(parsed.dailySales !== undefined ? parsed.dailySales : parsed.dailyRecord, defaults.dailySales),
+    dailyBakery: toLevel(parsed.dailyBakery !== undefined ? parsed.dailyBakery : parsed.dailyRecord, defaults.dailyBakery),
 
-    bar_stock: toLevel(raw.bar_stock ?? raw.stockTableBar, defaults.bar_stock),
-    bar_receiving: toLevel(raw.bar_receiving ?? raw.barReceiving, defaults.bar_receiving),
-    bar_stockcount: toLevel(raw.bar_stockcount ?? raw.dailyStockCountBar, defaults.bar_stockcount),
-    bar_waste: toLevel(raw.bar_waste ?? raw.historyWaste, defaults.bar_waste),
-    bar_checkin: toLevel(raw.bar_checkin ?? raw.checklistsBar, defaults.bar_checkin),
-    bar_coffeeWaste: toLevel(raw.bar_coffeeWaste ?? raw.historyWaste, defaults.bar_coffeeWaste),
+    bar_stock: toLevel(parsed.bar_stock !== undefined ? parsed.bar_stock : parsed.stockTableBar, defaults.bar_stock),
+    bar_receiving: toLevel(parsed.bar_receiving !== undefined ? parsed.bar_receiving : parsed.barReceiving, defaults.bar_receiving),
+    bar_stockcount: toLevel(parsed.bar_stockcount !== undefined ? parsed.bar_stockcount : parsed.dailyStockCountBar, defaults.bar_stockcount),
+    bar_waste: toLevel(parsed.bar_waste !== undefined ? parsed.bar_waste : (parsed.historyWaste || parsed.wasteReport), defaults.bar_waste),
+    bar_checkin: toLevel(parsed.bar_checkin !== undefined ? parsed.bar_checkin : parsed.checklistsBar, defaults.bar_checkin),
+    bar_coffeeWaste: toLevel(parsed.bar_coffeeWaste !== undefined ? parsed.bar_coffeeWaste : parsed.historyWaste, defaults.bar_coffeeWaste),
 
-    kitchen_stock: toLevel(raw.kitchen_stock ?? raw.stockTableBakery, defaults.kitchen_stock),
-    kitchen_receiving: toLevel(raw.kitchen_receiving ?? raw.bakeryReceiving, defaults.kitchen_receiving),
-    kitchen_stockcount: toLevel(raw.kitchen_stockcount ?? raw.dailyStockCountBakery, defaults.kitchen_stockcount),
-    kitchen_waste: toLevel(raw.kitchen_waste ?? raw.wasteReport, defaults.kitchen_waste),
-    kitchen_checkin: toLevel(raw.kitchen_checkin ?? raw.checklistsBakery, defaults.kitchen_checkin),
-    bakeryPlan: toLevel(raw.bakeryPlan, defaults.bakeryPlan),
+    kitchen_stock: toLevel(parsed.kitchen_stock !== undefined ? parsed.kitchen_stock : parsed.stockTableBakery, defaults.kitchen_stock),
+    kitchen_receiving: toLevel(parsed.kitchen_receiving !== undefined ? parsed.kitchen_receiving : parsed.bakeryReceiving, defaults.kitchen_receiving),
+    kitchen_stockcount: toLevel(parsed.kitchen_stockcount !== undefined ? parsed.kitchen_stockcount : parsed.dailyStockCountBakery, defaults.kitchen_stockcount),
+    kitchen_waste: toLevel(parsed.kitchen_waste !== undefined ? parsed.kitchen_waste : parsed.wasteReport, defaults.kitchen_waste),
+    kitchen_checkin: toLevel(parsed.kitchen_checkin !== undefined ? parsed.kitchen_checkin : parsed.checklistsBakery, defaults.kitchen_checkin),
+    bakeryPlan: toLevel(parsed.bakeryPlan, defaults.bakeryPlan),
 
-    purchasing: toLevel(raw.purchasing ?? raw.purchasingReport, defaults.purchasing),
-    rndReport: toLevel(raw.rndReport, defaults.rndReport),
+    purchasing: toLevel(parsed.purchasing !== undefined ? parsed.purchasing : parsed.purchasingReport, defaults.purchasing),
+    rndReport: toLevel(parsed.rndReport, defaults.rndReport),
 
-    history_edit: toLevel(raw.history_edit ?? raw.historyLogs, defaults.history_edit),
-    history_checkin: toLevel(raw.history_checkin ?? raw.historyChecklist, defaults.history_checkin),
-    history_stock: toLevel(raw.history_stock ?? raw.historyLogs, defaults.history_stock),
-    history_receiving: toLevel(raw.history_receiving ?? raw.historyReceiving, defaults.history_receiving),
-    history_bakery: toLevel(raw.history_bakery ?? raw.bakeryPlan, defaults.history_bakery),
+    history_edit: toLevel(parsed.history_edit !== undefined ? parsed.history_edit : parsed.historyLogs, defaults.history_edit),
+    history_checkin: toLevel(parsed.history_checkin !== undefined ? parsed.history_checkin : parsed.historyChecklist, defaults.history_checkin),
+    history_stock: toLevel(parsed.history_stock !== undefined ? parsed.history_stock : parsed.historyLogs, defaults.history_stock),
+    history_receiving: toLevel(parsed.history_receiving !== undefined ? parsed.history_receiving : parsed.historyReceiving, defaults.history_receiving),
+    history_bakery: toLevel(parsed.history_bakery !== undefined ? parsed.history_bakery : parsed.bakeryPlan, defaults.history_bakery),
 
-    userSettings: toLevel(raw.userSettings ?? raw.adminTools, defaults.userSettings),
-    canEditDateRange: typeof raw.canEditDateRange === 'boolean' ? raw.canEditDateRange : defaults.canEditDateRange,
+    userSettings: toLevel(parsed.userSettings !== undefined ? parsed.userSettings : parsed.adminTools, defaults.userSettings),
+    canEditDateRange: typeof parsed.canEditDateRange === 'boolean' ? parsed.canEditDateRange : defaults.canEditDateRange,
 
-    ...raw
+    ...parsed
   };
 };
 
@@ -411,6 +422,12 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   const [isChangingPassword, setIsChangingPassword] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<{id: string, name: string} | null>(null);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
+
+  // User save status & dirty tracking (matches DailyBakeryRecord)
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [justSavedUser, setJustSavedUser] = useState(false);
+  const [isUserFormDirty, setIsUserFormDirty] = useState(false);
+  const [userSaveStatus, setUserSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   
   const [formData, setFormData] = useState<{
     name: string;
@@ -436,6 +453,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
   // ━━━━ QUICK PRESET HANDLERS ━━━━
   const handlePresetAll = (level: PagePermission) => {
+    setIsUserFormDirty(true);
     const allKeys: (keyof UserPermissions)[] = [
       'dashboard', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
@@ -448,44 +466,49 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     allKeys.forEach(k => {
       updated[k] = level;
     });
-    setFormData({ ...formData, permissions: updated });
+    setFormData(prev => ({ ...prev, permissions: updated }));
   };
 
   const handlePresetBarFull = () => {
+    setIsUserFormDirty(true);
     const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
     const updated: any = { ...formData.permissions };
     barKeys.forEach(k => { updated[k] = 'edit'; });
-    setFormData({ ...formData, permissions: updated });
+    setFormData(prev => ({ ...prev, permissions: updated }));
   };
 
   const handlePresetKitchenFull = () => {
+    setIsUserFormDirty(true);
     const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
     const updated: any = { ...formData.permissions };
     kitchenKeys.forEach(k => { updated[k] = 'edit'; });
-    setFormData({ ...formData, permissions: updated });
+    setFormData(prev => ({ ...prev, permissions: updated }));
   };
 
   const handlePresetBarOnly = () => {
+    setIsUserFormDirty(true);
     const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
     const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
     const updated: any = { ...formData.permissions };
     barKeys.forEach(k => { updated[k] = 'edit'; });
     kitchenKeys.forEach(k => { updated[k] = 'hidden'; });
-    setFormData({ ...formData, permissions: updated });
+    setFormData(prev => ({ ...prev, permissions: updated }));
   };
 
   const handlePresetKitchenOnly = () => {
+    setIsUserFormDirty(true);
     const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
     const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
     const updated: any = { ...formData.permissions };
     kitchenKeys.forEach(k => { updated[k] = 'edit'; });
     barKeys.forEach(k => { updated[k] = 'hidden'; });
-    setFormData({ ...formData, permissions: updated });
+    setFormData(prev => ({ ...prev, permissions: updated }));
   };
 
   const handlePresetReset = () => {
+    setIsUserFormDirty(true);
     const roleDefaults = applyRoleDefaults(formData.role);
-    setFormData({ ...formData, permissions: roleDefaults });
+    setFormData(prev => ({ ...prev, permissions: roleDefaults }));
   };
 
   const fetchRoleTemplates = async () => {
@@ -533,9 +556,28 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   const fetchUsers = async () => {
     setIsLoading(true);
     if (supabase) {
-      const { data, error } = await supabase.from('app_users').select('*').eq('branch', branch);
-      if (!error && data) {
-        setUsers(data as AppUser[]);
+      try {
+        let query = supabase.from('app_users').select('*');
+        if (branch) {
+          query = query.eq('branch', branch);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          setUsers(data as AppUser[]);
+        } else {
+          // Fallback check if users exist without branch filter
+          const { data: allData, error: allError } = await supabase.from('app_users').select('*');
+          if (!allError && allData && allData.length > 0) {
+            setUsers(allData as AppUser[]);
+          } else {
+            const saved = localStorage.getItem('cafe-app-users');
+            if (saved) setUsers(JSON.parse(saved));
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching users from Supabase:', err);
+        const saved = localStorage.getItem('cafe-app-users');
+        if (saved) setUsers(JSON.parse(saved));
       }
     } else {
       // Offline mock data
@@ -644,65 +686,137 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || (!editingUser && !formData.password.trim())) {
-      alert('Please fill out all required fields');
+      setUserSaveStatus({
+        type: 'error',
+        message: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน'
+      });
       return;
     }
+
+    setIsSavingUser(true);
+    setUserSaveStatus(null);
 
     const savePerms = buildSavePermissions(formData.permissions as UserPermissions);
 
     const payload: any = {
-      branch,
       name: formData.name.trim(),
       role: formData.role,
       permissions: savePerms
     };
 
+    if (branch) {
+      payload.branch = branch;
+    }
+
     if (!editingUser) {
       payload.password = formData.password;
     }
 
+    let isSuccess = false;
+    let errorMessage = '';
+
     if (supabase) {
-      if (editingUser) {
-        const { error } = await supabase.from('app_users').update(payload).eq('id', editingUser.id).eq('branch', branch);
-        if (error) {
-          alert('Error updating user: ' + error.message);
-          return;
+      try {
+        if (editingUser) {
+          const { error: updateError } = await supabase
+            .from('app_users')
+            .update(payload)
+            .eq('id', editingUser.id);
+          
+          if (updateError) {
+            console.warn('Supabase update user error:', updateError);
+            errorMessage = updateError.message;
+          } else {
+            isSuccess = true;
+          }
+        } else {
+          const { data: insertData, error: insertError } = await supabase
+            .from('app_users')
+            .insert(payload)
+            .select();
+          
+          if (insertError) {
+            console.warn('Supabase insert user error:', insertError);
+            errorMessage = insertError.message;
+          } else {
+            isSuccess = true;
+            if (insertData && insertData[0]) {
+              payload.id = insertData[0].id;
+            }
+          }
         }
-      } else {
-        const { error } = await supabase.from('app_users').insert(payload);
-        if (error) {
-          alert('Error adding user: ' + error.message);
-          return;
+
+        // Record to Supabase audit_logs
+        try {
+          const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+          await supabase.from('audit_logs').insert({
+            id: logId,
+            branch: branch || 'Bangkok',
+            timestamp: new Date().toISOString(),
+            user_email: currentUser?.name || 'Admin',
+            user_role: currentUser?.role || 'Admin',
+            action: editingUser ? 'UPDATE_USER_PERMISSIONS' : 'CREATE_USER',
+            details: `${editingUser ? 'แก้ไขผู้ใช้และสิทธิ์การเข้าถึง' : 'เพิ่มผู้ใช้งานใหม่'}: ${formData.name} (${formData.role})`
+          });
+        } catch (logErr) {
+          console.warn('Audit log recording error:', logErr);
         }
+      } catch (err: any) {
+        console.error('Error saving user to Supabase:', err);
+        errorMessage = err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase';
       }
-      fetchUsers();
-    } else {
-      // LocalStorage logic
-      let updatedUsers = [...users];
-      if (editingUser) {
-        updatedUsers = updatedUsers.map(u => u.id === editingUser.id ? { ...u, ...payload } : u);
-      } else {
-        const id = (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
-        updatedUsers.push({ id, ...payload });
-      }
-      setUsers(updatedUsers);
-      localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
-    }
-    
-    // Check if we just updated the currently logged in user
-    if (editingUser && currentUser && currentUser.name === editingUser.name && onCurrentUserUpdated) {
-        onCurrentUserUpdated({
-            name: payload.name,
-            role: payload.role,
-            permissions: payload.permissions
-        });
     }
 
-    setEditingUser(null);
-    setIsFormOpen(false);
-    setActiveModalTab('general');
-    const defaultPerms = applyRoleDefaults('Barista');
-    setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+    // Always update local state and localStorage to guarantee offline & instant persistence
+    let updatedUsers = [...users];
+    if (editingUser) {
+      updatedUsers = updatedUsers.map(u => u.id === editingUser.id ? { ...u, ...payload } : u);
+    } else {
+      const id = payload.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
+      updatedUsers.push({ id, ...payload });
+    }
+    setUsers(updatedUsers);
+    localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
+    localStorage.setItem('app_users', JSON.stringify(updatedUsers));
+
+    // Check if we just updated the currently logged in user
+    if (editingUser && currentUser && (currentUser.name === editingUser.name || currentUser.name === payload.name) && onCurrentUserUpdated) {
+      onCurrentUserUpdated({
+        name: payload.name,
+        role: payload.role,
+        permissions: payload.permissions
+      });
+    }
+
+    setIsSavingUser(false);
+    setJustSavedUser(true);
+    setIsUserFormDirty(false);
+
+    if (errorMessage && !isSuccess && supabase) {
+      setUserSaveStatus({
+        type: 'error',
+        message: `บันทึกลงในเครื่องเรียบร้อยแล้ว (เกิดปัญหาบนเซิร์ฟเวอร์: ${errorMessage})`
+      });
+    } else {
+      setUserSaveStatus({
+        type: 'success',
+        message: `บันทึกข้อมูลและสิทธิ์การเข้าถึงของ "${formData.name}" สำเร็จเรียบร้อย`
+      });
+    }
+
+    setTimeout(() => {
+      setJustSavedUser(false);
+    }, 2500);
+
+    setTimeout(() => {
+      setIsFormOpen(false);
+      setEditingUser(null);
+      setActiveModalTab('general');
+      setUserSaveStatus(null);
+      const defaultPerms = applyRoleDefaults('Barista');
+      setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+      fetchUsers();
+    }, 1200);
   };
 
   const handleSavePassword = async (e: React.FormEvent, userId: string) => {
@@ -713,12 +827,12 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     }
 
     if (supabase) {
-      await supabase.from('app_users').update({ password: passwordForm.password }).eq('id', userId).eq('branch', branch);
-    } else {
-      const updatedUsers = users.map(u => u.id === userId ? { ...u, password: passwordForm.password } : u);
-      setUsers(updatedUsers);
-      localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
+      await supabase.from('app_users').update({ password: passwordForm.password }).eq('id', userId);
     }
+    const updatedUsers = users.map(u => u.id === userId ? { ...u, password: passwordForm.password } : u);
+    setUsers(updatedUsers);
+    localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
+    localStorage.setItem('app_users', JSON.stringify(updatedUsers));
 
     setIsChangingPassword(null);
     setPasswordForm({ password: '' });
@@ -736,17 +850,17 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     const { id } = userToDelete;
     
     if (supabase) {
-      const { error } = await supabase.from('app_users').delete().eq('id', id).eq('branch', branch);
+      const { error } = await supabase.from('app_users').delete().eq('id', id);
       if (error) {
         console.warn('Error deleting user:', error);
       } else {
         fetchUsers();
       }
-    } else {
-      const updatedUsers = users.filter(u => u.id !== id);
-      setUsers(updatedUsers);
-      localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
     }
+    const updatedUsers = users.filter(u => u.id !== id);
+    setUsers(updatedUsers);
+    localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
+    localStorage.setItem('app_users', JSON.stringify(updatedUsers));
     setUserToDelete(null);
   };
 
@@ -760,6 +874,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       password: '',
       permissions: normalized
     });
+    setIsUserFormDirty(false);
+    setJustSavedUser(false);
+    setUserSaveStatus(null);
     setActiveModalTab('general');
     setIsFormOpen(true);
   };
@@ -908,7 +1025,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                     required
                     className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => {
+                      setIsUserFormDirty(true);
+                      setFormData(prev => ({ ...prev, name: e.target.value }));
+                    }}
                   />
                 </div>
                 <div>
@@ -917,13 +1037,14 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                     className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none bg-white text-xs text-[#2D4A49] transition-all cursor-pointer"
                     value={formData.role}
                     onChange={(e) => {
+                      setIsUserFormDirty(true);
                       const newRole = e.target.value as UserRole;
                       const roleDefaults = applyRoleDefaults(newRole);
-                      setFormData({ 
-                        ...formData, 
+                      setFormData(prev => ({ 
+                        ...prev, 
                         role: newRole,
                         permissions: roleDefaults
-                      });
+                      }));
                     }}
                   >
                     <option value="Admin">Admin</option>
@@ -948,7 +1069,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                       required
                       className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all font-mono"
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) => {
+                        setIsUserFormDirty(true);
+                        setFormData(prev => ({ ...prev, password: e.target.value }));
+                      }}
                     />
                   </div>
                 )}
@@ -1043,10 +1167,13 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                               {/* READ button */}
                               <button
                                 type="button"
-                                onClick={() => setFormData({
-                                  ...formData,
-                                  permissions: { ...formData.permissions, [item.key]: 'read' }
-                                })}
+                                onClick={() => {
+                                  setIsUserFormDirty(true);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    permissions: { ...prev.permissions, [item.key]: 'read' }
+                                  }));
+                                }}
                                 className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
                                   currentVal === 'read'
                                     ? 'bg-[#E8F3F2] border border-[#5A8A88] text-[#5A8A88] font-bold shadow-2xs'
@@ -1058,10 +1185,13 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                               {/* EDIT button */}
                               <button
                                 type="button"
-                                onClick={() => setFormData({
-                                  ...formData,
-                                  permissions: { ...formData.permissions, [item.key]: 'edit' }
-                                })}
+                                onClick={() => {
+                                  setIsUserFormDirty(true);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    permissions: { ...prev.permissions, [item.key]: 'edit' }
+                                  }));
+                                }}
                                 className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
                                   currentVal === 'edit'
                                     ? 'bg-[#5A8A88] border border-[#5A8A88] text-white font-bold shadow-2xs'
@@ -1073,10 +1203,13 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                               {/* HIDDEN button */}
                               <button
                                 type="button"
-                                onClick={() => setFormData({
-                                  ...formData,
-                                  permissions: { ...formData.permissions, [item.key]: 'hidden' }
-                                })}
+                                onClick={() => {
+                                  setIsUserFormDirty(true);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    permissions: { ...prev.permissions, [item.key]: 'hidden' }
+                                  }));
+                                }}
                                 className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
                                   currentVal === 'hidden'
                                     ? 'bg-[#2D4A49] border border-[#2D4A49] text-white font-bold shadow-2xs'
@@ -1104,13 +1237,16 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                             <input 
                               type="checkbox" 
                               checked={!!formData.permissions.canEditDateRange}
-                              onChange={(e) => setFormData({ 
-                                ...formData, 
-                                permissions: { 
-                                  ...formData.permissions, 
-                                  canEditDateRange: e.target.checked 
-                                } 
-                              })}
+                              onChange={(e) => {
+                                setIsUserFormDirty(true);
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  permissions: { 
+                                    ...prev.permissions, 
+                                    canEditDateRange: e.target.checked 
+                                  } 
+                                }));
+                              }}
                               className="sr-only peer"
                             />
                             <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5A8A88]"></div>
@@ -1125,20 +1261,72 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
           )}
 
           {/* Sticky Bottom Actions */}
-          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 mt-5 border-t border-[#D4E4E3] flex items-center justify-end gap-2.5 z-10">
-            <button 
-              type="button" 
-              onClick={() => setIsFormOpen(false)} 
-              className="px-4 py-2.5 text-xs font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
-            >
-              ยกเลิก
-            </button>
-            <button 
-              type="submit" 
-              className="flex-1 sm:flex-none sm:min-w-[200px] px-6 py-2.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[13px] font-semibold rounded-[10px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-            >
-              <Save size={14} /> บันทึกสิทธิ์การเข้าถึง
-            </button>
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 mt-5 border-t border-[#D4E4E3] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 z-10">
+            <div className="flex-1 min-h-[20px]">
+              {userSaveStatus && (
+                <div className={`text-[11px] font-medium flex items-center gap-1.5 animate-in fade-in duration-200 ${
+                  userSaveStatus.type === 'success' ? 'text-emerald-700' : 'text-amber-700'
+                }`}>
+                  {userSaveStatus.type === 'success' ? (
+                    <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle size={13} className="text-amber-600 shrink-0" />
+                  )}
+                  <span className="truncate">{userSaveStatus.message}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 shrink-0">
+              <button 
+                type="button" 
+                disabled={isSavingUser}
+                onClick={() => {
+                  setIsFormOpen(false);
+                  setIsUserFormDirty(false);
+                  setUserSaveStatus(null);
+                }} 
+                className="px-4 py-2 text-xs font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                type="submit" 
+                disabled={isSavingUser}
+                className={`flex items-center justify-center gap-1.5 text-white text-[11px] font-medium rounded-[8px] px-4 py-2 min-h-[34px] min-w-[170px] transition-all shadow-2xs cursor-pointer ${
+                  isSavingUser
+                    ? 'bg-[#5A8A88] cursor-wait opacity-90'
+                    : justSavedUser
+                      ? 'bg-[#10B981] hover:bg-[#059669]'
+                      : isUserFormDirty
+                        ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70'
+                        : 'bg-[#2D4A49] hover:bg-[#203635]'
+                }`}
+              >
+                {isSavingUser ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : justSavedUser ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-white" />
+                    <span>บันทึกสำเร็จ</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={13} />
+                    <span>บันทึกสิทธิ์การเข้าถึง</span>
+                    {isUserFormDirty && (
+                      <span 
+                        className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                        title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                      />
+                    )}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       )}
