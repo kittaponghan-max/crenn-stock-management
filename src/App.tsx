@@ -24,7 +24,7 @@ import { PurchasingReport } from './components/PurchasingReport';
 import { UserSettings } from './components/UserSettings';
 import { DailySalesRecord } from './components/DailySalesRecord';
 import { DailyBakeryRecord } from './components/DailyBakeryRecord';
-import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload } from 'lucide-react';
+import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload, Save, CheckCircle2, Loader2 } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
 import { cn, generateUUID, isValidUUID } from './lib/utils';
 import { supabase } from './lib/supabase';
@@ -319,6 +319,11 @@ export default function App() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
+  // Stock Summary (Bar & Bakery) Save State
+  const [isStockDirty, setIsStockDirty] = useState(false);
+  const [isSavingStock, setIsSavingStock] = useState(false);
+  const [justSavedStock, setJustSavedStock] = useState(false);
+
   // Daily Sales Unsaved Changes Prompt State
   const [isDailySalesDirty, setIsDailySalesDirty] = useState(false);
   const [showDailySalesUnsavedPrompt, setShowDailySalesUnsavedPrompt] = useState(false);
@@ -1627,6 +1632,7 @@ export default function App() {
     const { updatedStockRecords, parsedRecordsCount, upsertsToDb, skippedNewIngredients } = stockImportPreviewData;
 
     setStockRecord(updatedStockRecords);
+    setIsStockDirty(true);
     addLog('นำเข้ายอดสต็อกรายสัปดาห์', `นำเข้าข้อมูลยอดสต็อก ${parsedRecordsCount} รายการจากไฟล์ Excel`);
     if (supabase && upsertsToDb.length > 0) {
       const { error } = await supabase.from('stock_records').upsert(upsertsToDb, {
@@ -1724,6 +1730,7 @@ export default function App() {
   };
 
   const handleUpdateStock = async (ingredientId: string, date: Date, field: 'in' | 'out' | 'remaining', value: number | undefined) => {
+    setIsStockDirty(true);
     const dateKey = format(date, 'yyyy-MM-dd');
     const ingredient = ingredients.find(i => i.id === ingredientId);
     const fieldLabel = field === 'in' ? 'เข้า' : field === 'out' ? 'เบิก' : 'คงเหลือ';
@@ -1786,6 +1793,7 @@ export default function App() {
   };
 
   const handleClearDay = async (dateKey: string) => {
+    setIsStockDirty(true);
     const dept = activeTab === 'barStock' ? 'Bar' : 'Bakery';
     const deptIngredients = ingredients.filter(item => item.department === dept);
     const targetIds = deptIngredients.map(ing => ing.id);
@@ -1817,6 +1825,7 @@ export default function App() {
   };
 
   const handleClearIngredientWeek = async (ingredientId: string) => {
+    setIsStockDirty(true);
     const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
     const weekDays = Array.from({ length: daysCount }).map((_, i) => format(addDays(dateRange.start, i), 'yyyy-MM-dd'));
     const ingredient = ingredients.find(i => i.id === ingredientId);
@@ -2052,6 +2061,7 @@ export default function App() {
     setFuture(prev => [stockRecord, ...prev].slice(0, 20));
     setHistory(newHistory);
     setStockRecord(previous);
+    setIsStockDirty(true);
     
     await syncStockRecordToSupabase(previous);
   };
@@ -2064,8 +2074,55 @@ export default function App() {
     setHistory(prev => [...prev, stockRecord].slice(-20));
     setFuture(newFuture);
     setStockRecord(next);
+    setIsStockDirty(true);
     
     await syncStockRecordToSupabase(next);
+  };
+
+  const handleSaveStock = async () => {
+    setIsSavingStock(true);
+    const branch = user?.branch || 'Rayong';
+    const dept = activeTab === 'barStock' ? 'Bar' : 'Bakery';
+    const recorderName = user?.name || user?.email || 'User';
+
+    try {
+      // 1. Save to local storage
+      localStorage.setItem(`cafe-stock-record-${branch}`, JSON.stringify(stockRecord));
+      if (branch === 'Rayong') {
+        localStorage.setItem('cafe-stock-record', JSON.stringify(stockRecord));
+      }
+
+      // 2. Save to Supabase
+      if (supabase && dbStatus !== 'offline') {
+        await syncStockRecordToSupabase(stockRecord);
+
+        // Audit log in Supabase
+        try {
+          await supabase.from('audit_logs').insert({
+            id: generateUUID(),
+            branch,
+            timestamp: new Date().toISOString(),
+            user_email: recorderName,
+            user_role: user?.role || 'Staff',
+            action: 'บันทึกข้อมูลสต็อก',
+            details: `บันทึกข้อมูลสรุปสต็อก (${dept === 'Bar' ? 'บาร์' : 'ครัว'}) สำเร็จ`,
+          });
+        } catch (logErr) {
+          console.warn('Supabase audit log error:', logErr);
+        }
+      }
+
+      addLog('บันทึกข้อมูลสต็อก', `บันทึกข้อมูลสต็อก (${dept === 'Bar' ? 'บาร์' : 'ครัว'}) สำเร็จ`);
+      setIsStockDirty(false);
+      setJustSavedStock(true);
+      setTimeout(() => {
+        setJustSavedStock(false);
+      }, 2500);
+    } catch (err: any) {
+      console.error('Save stock error:', err);
+    } finally {
+      setIsSavingStock(false);
+    }
   };
 
 
@@ -2517,6 +2574,44 @@ export default function App() {
                       </div>
                     )}
                   </div>
+
+                  {/* 4. บันทึกข้อมูล - Matches DailyBakeryRecord design and function */}
+                  <button
+                    type="button"
+                    onClick={handleSaveStock}
+                    disabled={isSavingStock}
+                    className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                      justSavedStock
+                        ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                        : isStockDirty 
+                          ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                          : 'bg-[#2D4A49] hover:bg-[#203635]'
+                    }`}
+                    title="บันทึกข้อมูลสต็อก"
+                  >
+                    {isSavingStock ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>กำลังบันทึก...</span>
+                      </>
+                    ) : justSavedStock ? (
+                      <>
+                        <CheckCircle2 size={13} className="text-white" />
+                        <span>บันทึกสำเร็จ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={13} />
+                        <span>บันทึกข้อมูล</span>
+                        {isStockDirty && (
+                          <span 
+                            className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                            title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                          />
+                        )}
+                      </>
+                    )}
+                  </button>
                 </>
               )}
               </div>
