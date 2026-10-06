@@ -22,6 +22,7 @@ import { format, eachDayOfInterval, parseISO, isAfter, addMonths, subMonths } fr
 import { th } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { AppPermissions } from '../types';
+import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '../utils/safeStorage';
 
 export interface DailySalesRecordProps {
   user?: {
@@ -238,7 +239,7 @@ export function DailySalesRecord({
 
     // 1. Try LocalStorage
     try {
-      const cached = localStorage.getItem(localKey);
+      const cached = safeLocalStorageGetItem(localKey);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
@@ -482,11 +483,7 @@ export function DailySalesRecord({
     const localKey = `daily_sales_${currentBranch}_${dates[0]}`;
 
     // 1. Save to LocalStorage
-    try {
-      localStorage.setItem(localKey, JSON.stringify(rows));
-    } catch (e) {
-      console.error('LocalStorage save error:', e);
-    }
+    safeLocalStorageSetItem(localKey, JSON.stringify(rows));
 
     // 2. Compute granular changes for audit log
     const changes: Array<{
@@ -599,16 +596,16 @@ export function DailySalesRecord({
       branch: currentBranch as any
     };
 
-    // Save to LocalStorage audit logs
+    // Save to LocalStorage audit logs (keep up to 30 logs to avoid bloating quota)
     const branchKey = `cafe-audit-logs-${currentBranch}`;
     try {
-      const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
-      localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
+      const cachedLogs = JSON.parse(safeLocalStorageGetItem(branchKey) || '[]');
+      safeLocalStorageSetItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 30)));
     } catch (e) {}
 
     try {
-      const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
-      localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
+      const globalLogs = JSON.parse(safeLocalStorageGetItem('cafe-audit-logs') || '[]');
+      safeLocalStorageSetItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 30)));
     } catch (e) {}
 
     // 3. Save to Supabase
