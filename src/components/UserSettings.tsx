@@ -25,7 +25,8 @@ export type PagePermission = 'read' | 'edit' | 'hidden';
 export interface UserPermissions {
   // General
   dashboard: PagePermission;
-  dailyRecord: PagePermission;
+  dailySales: PagePermission;
+  dailyBakery: PagePermission;
 
   // บาร์ (Bar)
   bar_stock: PagePermission;
@@ -66,7 +67,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   if (r === 'CO-FOUNDER' || r === 'ADMIN' || r === 'OWNER') {
     return {
       dashboard: 'edit',
-      dailyRecord: 'edit',
+      dailySales: 'edit',
+      dailyBakery: 'edit',
       bar_stock: 'edit',
       bar_receiving: 'edit',
       bar_stockcount: 'edit',
@@ -93,7 +95,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   if (r === 'BRANCH MANAGER') {
     return {
       dashboard: 'edit',
-      dailyRecord: 'edit',
+      dailySales: 'edit',
+      dailyBakery: 'edit',
       bar_stock: 'edit',
       bar_receiving: 'edit',
       bar_stockcount: 'edit',
@@ -120,7 +123,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
     return {
       dashboard: 'read',
-      dailyRecord: 'read',
+      dailySales: 'hidden',
+      dailyBakery: 'edit',
       bar_stock: 'hidden',
       bar_receiving: 'hidden',
       bar_stockcount: 'hidden',
@@ -147,7 +151,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE') {
     return {
       dashboard: 'read',
-      dailyRecord: 'read',
+      dailySales: 'hidden',
+      dailyBakery: 'read',
       bar_stock: 'edit',
       bar_receiving: 'edit',
       bar_stockcount: 'edit',
@@ -174,7 +179,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER:
   return {
     dashboard: 'read',
-    dailyRecord: 'read',
+    dailySales: 'hidden',
+    dailyBakery: 'read',
     bar_stock: 'hidden',
     bar_receiving: 'hidden',
     bar_stockcount: 'hidden',
@@ -212,7 +218,8 @@ export const normalizePermissions = (raw: any, role: string): UserPermissions =>
 
   return {
     dashboard: toLevel(raw.dashboard ?? raw.dashboardBar, defaults.dashboard),
-    dailyRecord: toLevel(raw.dailyRecord ?? raw.dailySales, defaults.dailyRecord),
+    dailySales: toLevel(raw.dailySales ?? (raw.dailyRecord && ['CO-FOUNDER', 'ADMIN', 'OWNER', 'BRANCH MANAGER'].includes((role || '').toUpperCase()) ? raw.dailyRecord : undefined), defaults.dailySales),
+    dailyBakery: toLevel(raw.dailyBakery ?? raw.dailyRecord, defaults.dailyBakery),
 
     bar_stock: toLevel(raw.bar_stock ?? raw.stockTableBar, defaults.bar_stock),
     bar_receiving: toLevel(raw.bar_receiving ?? raw.barReceiving, defaults.bar_receiving),
@@ -248,6 +255,9 @@ export const buildSavePermissions = (perms: UserPermissions) => {
   const toLegacy = (lvl: PagePermission) => lvl === 'edit' ? 'Edit' : lvl === 'read' ? 'Review' : 'Hidden';
   return {
     ...perms,
+    dailySales: perms.dailySales,
+    dailyBakery: perms.dailyBakery,
+    dailyRecord: perms.dailySales,
     dashboardBar: toLegacy(perms.dashboard),
     dashboardBakery: toLegacy(perms.dashboard),
     stockTableBar: toLegacy(perms.bar_stock),
@@ -287,7 +297,8 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     name: 'GROUP 1: ทั่วไป (General)',
     items: [
       { key: 'dashboard', name: 'หน้าหลัก / Dashboard', icon: '🏠' },
-      { key: 'dailyRecord', name: 'Daily Record (บันทึกยอดขาย)', icon: '📖' },
+      { key: 'dailySales', name: 'บันทึกยอดขายประจำวัน (Daily Sales)', icon: '📖' },
+      { key: 'dailyBakery', name: 'บันทึกจำนวนขนมประจำวัน (Daily Bakery)', icon: '🧁' },
     ]
   },
   {
@@ -426,7 +437,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   // ━━━━ QUICK PRESET HANDLERS ━━━━
   const handlePresetAll = (level: PagePermission) => {
     const allKeys: (keyof UserPermissions)[] = [
-      'dashboard', 'dailyRecord',
+      'dashboard', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'rndReport',
@@ -448,7 +459,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   };
 
   const handlePresetKitchenFull = () => {
-    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
     const updated: any = { ...formData.permissions };
     kitchenKeys.forEach(k => { updated[k] = 'edit'; });
     setFormData({ ...formData, permissions: updated });
@@ -456,7 +467,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
   const handlePresetBarOnly = () => {
     const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
-    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
     const updated: any = { ...formData.permissions };
     barKeys.forEach(k => { updated[k] = 'edit'; });
     kitchenKeys.forEach(k => { updated[k] = 'hidden'; });
@@ -465,7 +476,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
   const handlePresetKitchenOnly = () => {
     const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
-    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
     const updated: any = { ...formData.permissions };
     kitchenKeys.forEach(k => { updated[k] = 'edit'; });
     barKeys.forEach(k => { updated[k] = 'hidden'; });
