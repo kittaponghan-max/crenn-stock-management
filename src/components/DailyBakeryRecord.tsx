@@ -27,6 +27,10 @@ import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { th } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
+import { 
+  safeLocalStorageGetItem, 
+  safeLocalStorageSetItem 
+} from '../utils/safeStorage';
 
 export interface DailyBakeryRecordProps {
   user?: {
@@ -98,10 +102,10 @@ export function DailyBakeryRecord({
   const [viewMode, setViewMode] = useState<'1day' | '2days' | '3days'>('2days');
   const [activeChunkIdx, setActiveChunkIdx] = useState<number>(0);
 
-  // Dynamic Bakery Items state (persisted in LocalStorage)
+  // Dynamic Bakery Items state (persisted in LocalStorage & Supabase)
   const [bakeryItems, setBakeryItems] = useState<BakeryItemDef[]>(() => {
     try {
-      const saved = localStorage.getItem(`cafe_bakery_items_${currentBranch}`);
+      const saved = safeLocalStorageGetItem(`cafe_bakery_items_${currentBranch}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -112,10 +116,37 @@ export function DailyBakeryRecord({
 
   // Save items to LocalStorage on change
   useEffect(() => {
-    try {
-      localStorage.setItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(bakeryItems));
-    } catch (e) {}
+    safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(bakeryItems));
   }, [bakeryItems, currentBranch]);
+
+  // Load bakery items from Supabase app_settings on mount / branch change
+  useEffect(() => {
+    let isMounted = true;
+    const loadBakeryItemsFromSupabase = async () => {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'daily_bakery_items')
+          .eq('branch', currentBranch)
+          .maybeSingle();
+
+        if (!error && isMounted && data?.setting_value && Array.isArray(data.setting_value) && data.setting_value.length > 0) {
+          setBakeryItems(data.setting_value);
+          originalItemsRef.current = JSON.parse(JSON.stringify(data.setting_value));
+          safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(data.setting_value));
+        }
+      } catch (err) {
+        console.warn('Failed to load daily_bakery_items from Supabase:', err);
+      }
+    };
+
+    loadBakeryItemsFromSupabase();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentBranch]);
 
   // Modals / Dialogs state for Items & Categories management
   const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -244,12 +275,12 @@ export function DailyBakeryRecord({
 
     // 1. Try LocalStorage
     try {
-      const cached = localStorage.getItem(localKey);
+      const cached = safeLocalStorageGetItem(localKey);
       if (cached) {
         loaded = JSON.parse(cached);
       }
     } catch (e) {
-      console.error('LocalStorage read error:', e);
+      console.warn('LocalStorage read error:', e);
     }
 
     // 2. Try Supabase
@@ -553,14 +584,13 @@ export function DailyBakeryRecord({
     const dates = weekDays.map(w => w.dateStr);
     const localKey = `daily_bakery_${currentBranch}_${dates[0]}`;
 
-    // 1. Save to LocalStorage
-    try {
-      localStorage.setItem(localKey, JSON.stringify(records));
-    } catch (e) {
-      console.error('LocalStorage save error:', e);
-    }
+    // 1. Save records to LocalStorage
+    safeLocalStorageSetItem(localKey, JSON.stringify(records));
 
-    // 2. Compute granular changes for audit log
+    // 2. Save bakeryItems to LocalStorage
+    safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(bakeryItems));
+
+    // 3. Compute granular changes for audit log
     const changes: Array<{
       itemName: string;
       date: string;
@@ -570,6 +600,24 @@ export function DailyBakeryRecord({
       newVal: string;
       unit?: string;
     }> = [];
+
+    // Track bakeryItems (menu items and categories) changes
+    const origItems = originalItemsRef.current || [];
+    const itemsChanged = 
+      origItems.length !== bakeryItems.length ||
+      bakeryItems.some((b, i) => b.id !== origItems[i]?.id || b.name !== origItems[i]?.name || b.category !== origItems[i]?.category);
+
+    if (itemsChanged) {
+      changes.push({
+        itemName: 'รายการและหมวดหมู่ขนม',
+        date: weekDays[0]?.dateStr || format(new Date(), 'yyyy-MM-dd'),
+        dayLabel: 'โครงสร้างรายการขนม',
+        field: 'จำนวนรายการเมนู',
+        oldVal: `${origItems.length} รายการ`,
+        newVal: `${bakeryItems.length} รายการ`,
+        unit: 'รายการ',
+      });
+    }
 
     let hasExistingRecord = false;
 
@@ -636,9 +684,14 @@ export function DailyBakeryRecord({
     const weekEndStr = weekDays[6] ? weekDays[6].shortDate : '';
     const weekRangeText = `${weekStartStr} - ${weekEndStr}`;
 
-    const action = hasExistingRecord && changes.length > 0
-      ? 'แก้ไขข้อมูลจำนวนขนมประจำวัน'
-      : 'บันทึกจำนวนขนมประจำวัน';
+    let action = 'บันทึกจำนวนขนมประจำวัน';
+    if (itemsChanged && changes.length === 1) {
+      action = 'อัปเดตรายการและหมวดหมู่ขนม';
+    } else if (itemsChanged && changes.length > 1) {
+      action = 'บันทึกจำนวนขนมและอัปเดตรายการเมนู';
+    } else if (hasExistingRecord && changes.length > 0) {
+      action = 'แก้ไขข้อมูลจำนวนขนมประจำวัน';
+    }
 
     const summaryText = changes.length > 0
       ? `${action} สัปดาห์ ${weekRangeText} (${changes.length} รายการเปลี่ยนแปลง - สาขา ${currentBranch})`
@@ -667,32 +720,72 @@ export function DailyBakeryRecord({
       branch: currentBranch as any
     };
 
-    // Save to LocalStorage audit logs
+    // Save to LocalStorage audit logs (keep up to 30 logs to avoid bloating quota)
     const branchKey = `cafe-audit-logs-${currentBranch}`;
     try {
-      const cachedLogs = JSON.parse(localStorage.getItem(branchKey) || '[]');
-      localStorage.setItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 150)));
+      const cachedLogs = JSON.parse(safeLocalStorageGetItem(branchKey) || '[]');
+      safeLocalStorageSetItem(branchKey, JSON.stringify([newLog, ...cachedLogs].slice(0, 30)));
     } catch (e) {}
 
     try {
-      const globalLogs = JSON.parse(localStorage.getItem('cafe-audit-logs') || '[]');
-      localStorage.setItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 150)));
+      const globalLogs = JSON.parse(safeLocalStorageGetItem('cafe-audit-logs') || '[]');
+      safeLocalStorageSetItem('cafe-audit-logs', JSON.stringify([newLog, ...globalLogs].slice(0, 30)));
     } catch (e) {}
 
-    // 3. Save to Supabase
+    // 4. Save to Supabase
     if (supabase) {
       try {
-        const recordsToUpsert: any[] = [];
+        // A. Always save bakeryItems (menu items and categories) to app_settings
+        const { error: settingsError } = await supabase.from('app_settings').upsert({
+          branch: currentBranch,
+          setting_key: 'daily_bakery_items',
+          setting_value: bakeryItems,
+          updated_at: timestamp,
+        }, { onConflict: 'branch,setting_key' });
 
+        if (settingsError) {
+          console.warn('Failed saving daily_bakery_items to app_settings:', settingsError);
+        }
+
+        // B. Save daily_bakery_records for all items in bakeryItems across the week
+        const recordsToUpsert: any[] = [];
+        const processedSet = new Set<string>();
+
+        // 1. Process all active bakery items across all days of the current week
+        bakeryItems.forEach(item => {
+          weekDays.forEach(day => {
+            const key = `${day.dateStr}__${item.name}`;
+            processedSet.add(key);
+
+            const rec = records[item.name]?.[day.dateStr] || {
+              totalQty: '',
+              lineQty: '',
+              storeQty: '',
+              soldQty: '',
+              note: ''
+            };
+
+            recordsToUpsert.push({
+              date: day.dateStr,
+              branch: currentBranch,
+              item_name: item.name,
+              total_qty: rec.totalQty === '' ? 0 : Number(rec.totalQty),
+              line_qty: rec.lineQty === '' ? 0 : Number(rec.lineQty),
+              store_qty: rec.storeQty === '' ? 0 : Number(rec.storeQty),
+              sold_qty: rec.soldQty === '' ? 0 : Number(rec.soldQty),
+              note: rec.note || '',
+              recorded_by: recorderName,
+              created_at: timestamp,
+            });
+          });
+        });
+
+        // 2. Also process any records that were edited but might not be in bakeryItems
         Object.entries(records).forEach(([itemName, dateMap]) => {
           Object.entries(dateMap).forEach(([dateStr, rec]) => {
-            if (
-              rec.totalQty !== '' ||
-              rec.lineQty !== '' ||
-              rec.storeQty !== '' ||
-              rec.soldQty !== '' ||
-              (rec.note && rec.note.trim() !== '')
-            ) {
+            const key = `${dateStr}__${itemName}`;
+            if (!processedSet.has(key)) {
+              processedSet.add(key);
               recordsToUpsert.push({
                 date: dateStr,
                 branch: currentBranch,
@@ -703,55 +796,47 @@ export function DailyBakeryRecord({
                 sold_qty: rec.soldQty === '' ? 0 : Number(rec.soldQty),
                 note: rec.note || '',
                 recorded_by: recorderName,
-                created_at: new Date().toISOString(),
+                created_at: timestamp,
               });
             }
           });
         });
 
         if (recordsToUpsert.length > 0) {
-          const { error } = await supabase
+          const { error: upsertError } = await supabase
             .from('daily_bakery_records')
             .upsert(recordsToUpsert, { onConflict: 'date,branch,item_name' });
 
-          if (error) {
-            if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          if (upsertError) {
+            if (upsertError.code === '42P01' || upsertError.message?.includes('does not exist')) {
               setTableExistsWarning('กรุณาสร้างตาราง daily_bakery_records ใน Supabase ก่อนใช้งาน');
-              setSaveStatus({
-                type: 'info',
-                message: 'บันทึกลงในเครื่องเรียบร้อยแล้ว (ยังไม่มีตาราง daily_bakery_records ใน Supabase)',
-              });
             } else {
-              throw error;
+              throw upsertError;
             }
           } else {
             setTableExistsWarning(null);
-            setSaveStatus({
-              type: 'success',
-              message: 'บันทึกข้อมูลจำนวนขนมประจำวันสำเร็จเรียบร้อย',
-            });
-
-            // Record to Supabase audit_logs
-            try {
-              await supabase.from('audit_logs').insert({
-                id: logId,
-                branch: currentBranch,
-                timestamp,
-                user_email: recorderName,
-                user_role: user?.role || 'Staff',
-                action,
-                details,
-              });
-            } catch (logErr) {
-              console.warn('Audit log recording error:', logErr);
-            }
           }
-        } else {
-          setSaveStatus({
-            type: 'info',
-            message: 'ไม่มีรายการที่ต้องบันทึก (ข้อมูลว่าง)',
-          });
         }
+
+        // C. Record to Supabase audit_logs
+        try {
+          await supabase.from('audit_logs').insert({
+            id: logId,
+            branch: currentBranch,
+            timestamp,
+            user_email: recorderName,
+            user_role: user?.role || 'Staff',
+            action,
+            details,
+          });
+        } catch (logErr) {
+          console.warn('Audit log recording error:', logErr);
+        }
+
+        setSaveStatus({
+          type: 'success',
+          message: 'บันทึกข้อมูลจำนวนขนมประจำวันสำเร็จเรียบร้อย',
+        });
       } catch (err: any) {
         console.error('Save error:', err);
         setSaveStatus({
@@ -768,7 +853,7 @@ export function DailyBakeryRecord({
       });
     }
 
-    // Update baseline snapshot after save
+    // 5. Update baseline snapshots after successful save
     originalRecordsRef.current = JSON.parse(JSON.stringify(records));
     originalItemsRef.current = JSON.parse(JSON.stringify(bakeryItems));
 
@@ -788,9 +873,7 @@ export function DailyBakeryRecord({
     }
     if (originalItemsRef.current && originalItemsRef.current.length > 0) {
       setBakeryItems(JSON.parse(JSON.stringify(originalItemsRef.current)));
-      try {
-        localStorage.setItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(originalItemsRef.current));
-      } catch (e) {}
+      safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(originalItemsRef.current));
     }
     setActiveNoteCell(null);
     setEditingNoteCell(null);
@@ -804,17 +887,15 @@ export function DailyBakeryRecord({
   // Check if there are unsaved changes
   const checkHasUnsavedChanges = useCallback(() => {
     // 1. Check items list changes
-    const origItems = originalItemsRef.current;
-    if (origItems && origItems.length > 0) {
-      if (origItems.length !== bakeryItems.length) return true;
-      for (let i = 0; i < bakeryItems.length; i++) {
-        if (
-          bakeryItems[i].id !== origItems[i]?.id ||
-          bakeryItems[i].name !== origItems[i]?.name ||
-          bakeryItems[i].category !== origItems[i]?.category
-        ) {
-          return true;
-        }
+    const origItems = originalItemsRef.current || [];
+    if (origItems.length !== bakeryItems.length) return true;
+    for (let i = 0; i < bakeryItems.length; i++) {
+      if (
+        bakeryItems[i].id !== origItems[i]?.id ||
+        bakeryItems[i].name !== origItems[i]?.name ||
+        bakeryItems[i].category !== origItems[i]?.category
+      ) {
+        return true;
       }
     }
 
@@ -828,12 +909,14 @@ export function DailyBakeryRecord({
       for (const d of allDates) {
         const c = curItemMap[d] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
         const o = origItemMap[d] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
+        
+        const norm = (v: any) => (v === '' || v === null || v === undefined ? '' : String(v));
         if (
-          String(c.totalQty ?? '') !== String(o.totalQty ?? '') ||
-          String(c.lineQty ?? '') !== String(o.lineQty ?? '') ||
-          String(c.storeQty ?? '') !== String(o.storeQty ?? '') ||
-          String(c.soldQty ?? '') !== String(o.soldQty ?? '') ||
-          String(c.note ?? '').trim() !== String(o.note ?? '').trim()
+          norm(c.totalQty) !== norm(o.totalQty) ||
+          norm(c.lineQty) !== norm(o.lineQty) ||
+          norm(c.storeQty) !== norm(o.storeQty) ||
+          norm(c.soldQty) !== norm(o.soldQty) ||
+          norm(c.note).trim() !== norm(o.note).trim()
         ) {
           return true;
         }
@@ -998,9 +1081,10 @@ export function DailyBakeryRecord({
         category: it.category,
       }));
       setBakeryItems(newItemsList);
+      safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(newItemsList));
       setSaveStatus({
         type: 'success',
-        message: `นำเข้ารายการขนมใหม่ ${newItemsList.length} รายการ (แทนที่รายการเดิม) สำเร็จ`,
+        message: `นำเข้ารายการขนมใหม่ ${newItemsList.length} รายการสำเร็จ (กรุณากดปุ่ม "บันทึกข้อมูล" เพื่อบันทึกลงฐานข้อมูล)`,
       });
     } else {
       // Append mode: only add items whose name doesn't already exist
@@ -1025,10 +1109,12 @@ export function DailyBakeryRecord({
           message: 'รายการขนมทั้งหมดในไฟล์มีอยู่ในระบบอยู่แล้ว (ไม่มีรายการใหม่)',
         });
       } else {
-        setBakeryItems(prev => [...prev, ...toAdd]);
+        const updatedList = [...bakeryItems, ...toAdd];
+        setBakeryItems(updatedList);
+        safeLocalStorageSetItem(`cafe_bakery_items_${currentBranch}`, JSON.stringify(updatedList));
         setSaveStatus({
           type: 'success',
-          message: `เพิ่มรายการขนมใหม่ ${toAdd.length} รายการ จาก Excel เรียบร้อยแล้ว`,
+          message: `เพิ่มรายการขนมใหม่ ${toAdd.length} รายการ จาก Excel เรียบร้อยแล้ว (กรุณากดปุ่ม "บันทึกข้อมูล" เพื่อบันทึกลงฐานข้อมูล)`,
         });
       }
     }
@@ -1324,9 +1410,27 @@ export function DailyBakeryRecord({
 
           </div>
 
-          {/* RIGHT: Action Buttons (Save + Import + Export Dropdown - On SAME ROW) */}
+          {/* RIGHT: Action Buttons (Import + Save + Export Dropdown - On SAME ROW) */}
           <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
             
+            {/* Import Button & Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+              title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
+            >
+              <Upload size={13} className="text-[#5A8A88]" />
+              <span>นำเข้า</span>
+            </button>
+
             {/* Save Button */}
             <button
               type="button"
@@ -1355,24 +1459,6 @@ export function DailyBakeryRecord({
                   )}
                 </>
               )}
-            </button>
-
-            {/* Import Excel Button & Hidden File Input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-              title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
-            >
-              <Upload size={13} className="text-[#5A8A88]" />
-              <span>นำเข้า</span>
             </button>
 
             {/* Export Dropdown */}
@@ -1462,10 +1548,10 @@ export function DailyBakeryRecord({
                 </th>
                 {displayedDays.map(day => (
                   <React.Fragment key={`sub-${day.dateStr}`}>
-                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] truncate">ทั้งหมด</th>
-                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] truncate">Line</th>
-                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] bg-[#345D5B] truncate">หน้าร้าน</th>
-                    <th className="py-1.5 px-0.5 text-right w-[12%] sm:w-[13%] bg-[#2A4D4B] truncate">ขายได้</th>
+                    <th className="py-1.5 px-0.5 text-center w-[12%] sm:w-[13%] truncate">ทั้งหมด</th>
+                    <th className="py-1.5 px-0.5 text-center w-[12%] sm:w-[13%] truncate">Line</th>
+                    <th className="py-1.5 px-0.5 text-center w-[12%] sm:w-[13%] bg-[#345D5B] truncate">หน้าร้าน</th>
+                    <th className="py-1.5 px-0.5 text-center w-[12%] sm:w-[13%] bg-[#2A4D4B] truncate">ขายได้</th>
                     <th className="py-1.5 px-1 text-left w-[32%] sm:w-[28%] border-r-2 border-[#2D4A49] truncate">หมายเหตุ</th>
                   </React.Fragment>
                 ))}
@@ -1571,47 +1657,47 @@ export function DailyBakeryRecord({
                         return (
                           <React.Fragment key={`${item.id}-${day.dateStr}`}>
                             {/* 1. จำนวนขนมทั้งหมด */}
-                            <td className="py-1 px-1 text-right align-top">
+                            <td className="py-1 px-1 text-center align-top">
                               <input
                                 type="number"
                                 value={rec.totalQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'totalQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-right px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-center px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
                               />
                             </td>
 
                             {/* 2. Official Line */}
-                            <td className="py-1 px-1 text-right align-top">
+                            <td className="py-1 px-1 text-center align-top">
                               <input
                                 type="number"
                                 value={rec.lineQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'lineQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-right px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-center px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
                               />
                             </td>
 
                             {/* 3. ขายหน้าร้าน (Auto / Editable) */}
-                            <td className="py-1 px-1 text-right bg-[#F9FBFA] align-top">
+                            <td className="py-1 px-1 text-center bg-[#F9FBFA] align-top">
                               <input
                                 type="number"
                                 value={rec.storeQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'storeQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-white border border-[#B8D4D2] rounded text-[11px] font-mono font-semibold text-right px-1.5 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                className="w-full bg-white border border-[#B8D4D2] rounded text-[11px] font-mono font-semibold text-center px-1.5 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
                                 title="ขายหน้าร้าน (คำนวณจาก ทั้งหมด - Line)"
                               />
                             </td>
 
                             {/* 4. ขายได้จริง (Highlight warning if sold < store target) */}
-                            <td className={`py-1 px-1 text-right align-top ${isUnderTarget ? 'bg-amber-50' : ''}`}>
+                            <td className={`py-1 px-1 text-center align-top ${isUnderTarget ? 'bg-amber-50' : ''}`}>
                               <input
                                 type="number"
                                 value={rec.soldQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'soldQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full border rounded text-[11px] font-mono font-bold text-right px-1.5 py-1 focus:outline-none ${
+                                className={`w-full border rounded text-[11px] font-mono font-bold text-center px-1.5 py-1 focus:outline-none ${
                                   isUnderTarget
                                     ? 'bg-[#FEF3C7] border-amber-400 text-amber-900 focus:border-amber-600'
                                     : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
@@ -1794,16 +1880,16 @@ export function DailyBakeryRecord({
                   const t = dayTotals[day.dateStr] || { totalQty: 0, lineQty: 0, storeQty: 0, soldQty: 0 };
                   return (
                     <React.Fragment key={`tot-${day.dateStr}`}>
-                      <td className="py-2.5 px-1.5 text-right font-mono text-[#5A8A88]">
+                      <td className="py-2.5 px-1.5 text-center font-mono text-[#5A8A88]">
                         {t.totalQty}
                       </td>
-                      <td className="py-2.5 px-1.5 text-right font-mono text-[#5A8A88]">
+                      <td className="py-2.5 px-1.5 text-center font-mono text-[#5A8A88]">
                         {t.lineQty}
                       </td>
-                      <td className="py-2.5 px-1.5 text-right font-mono text-[#5A8A88] font-bold">
+                      <td className="py-2.5 px-1.5 text-center font-mono text-[#5A8A88] font-bold">
                         {t.storeQty}
                       </td>
-                      <td className="py-2.5 px-1.5 text-right font-mono text-[#2D4A49] font-black">
+                      <td className="py-2.5 px-1.5 text-center font-mono text-[#2D4A49] font-black">
                         {t.soldQty}
                       </td>
                       <td className="py-2.5 px-2 border-r-2 border-[#D4E4E3] text-[10px] text-[#6B8F8E] font-normal">
