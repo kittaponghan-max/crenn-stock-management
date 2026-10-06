@@ -940,6 +940,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                 setEditingUser(null);
                 const defaultPerms = applyRoleDefaults('Barista');
                 setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+                setIsUserFormDirty(false);
+                setJustSavedUser(false);
+                setUserSaveStatus(null);
                 setActiveModalTab('general');
                 setIsFormOpen(true);
               }}
@@ -949,21 +952,6 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               <span>เพิ่มผู้ใช้งานใหม่</span>
             </button>
           )}
-        </div>
-      </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          WARNING / INFO BANNER
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div className="bg-[#FFFBEB] border border-[#FDE68A] border-l-[4px] border-l-[#F59E0B] rounded-xl p-3.5 sm:p-4 flex items-start gap-3 shadow-xs">
-        <AlertCircle size={16} className="text-[#F59E0B] shrink-0 mt-0.5" />
-        <div className="text-[12px] text-[#92400E] leading-relaxed">
-          <p>
-            เพื่อให้ระบบ User Authentication ทำงานได้อย่างถูกต้อง โปรดตรวจสอบว่าตาราง <code className="bg-amber-100/80 text-[#92400E] font-mono px-1.5 py-0.5 rounded text-[11px]">app_users</code> มีอยู่บน Supabase และมีข้อมูลผู้ใช้อย่างน้อย 1 รายการ
-          </p>
-          <p className="font-semibold text-[#92400E] mt-2 pt-2 border-t border-amber-200/60">
-            * สำคัญ: กรุณาเพิ่มคอลัมน์ <code className="bg-amber-100/80 text-[#92400E] font-mono px-1.5 py-0.5 rounded text-[11px]">permissions</code> (ชนิดข้อมูล <code className="bg-amber-100/80 text-[#92400E] font-mono px-1.5 py-0.5 rounded text-[11px]">jsonb</code>) ในตาราง <code className="bg-amber-100/80 text-[#92400E] font-mono px-1.5 py-0.5 rounded text-[11px]">app_users</code> เพื่อให้สามารถบันทึกสิทธิ์การใช้งานได้ หากไม่มีคอลัมน์นี้จะไม่สามารถเพิ่มผู้ใช้หรือแก้สิทธิ์ได้
-          </p>
         </div>
       </div>
 
