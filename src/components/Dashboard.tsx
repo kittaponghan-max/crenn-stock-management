@@ -97,7 +97,7 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
       if (!record) return;
       if (record.stock === 0) {
         outOfStock++;
-      } else if (record.stock < ing.minStock) {
+      } else if (record.stock <= ing.minStock) {
         lowStock++;
       } else {
         goodStock++;
@@ -115,17 +115,17 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
     } else if (activeFilter === 'lowStock') {
       filtered = departmentIngredients.filter(ing => {
         const stock = latestStock[ing.id]?.stock || 0;
-        return stock > 0 && stock < ing.minStock;
+        return stock > 0 && stock <= ing.minStock;
       });
     } else if (activeFilter === 'goodStock') {
       filtered = departmentIngredients.filter(ing => {
         const stock = latestStock[ing.id]?.stock || 0;
-        return stock >= ing.minStock;
+        return stock > ing.minStock;
       });
     } else if (activeFilter === 'needsAttention') {
       filtered = departmentIngredients.filter(ing => {
         const stock = latestStock[ing.id]?.stock || 0;
-        return stock < ing.minStock;
+        return stock <= ing.minStock;
       });
     }
 
