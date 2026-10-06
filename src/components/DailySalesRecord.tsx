@@ -159,6 +159,8 @@ export function DailySalesRecord({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [tableExistsWarning, setTableExistsWarning] = useState<string | null>(null);
+  const [saveCounter, setSaveCounter] = useState(0);
+  const [justSaved, setJustSaved] = useState(false);
 
   // Active adding note index and text
   const [activeNoteInputIdx, setActiveNoteInputIdx] = useState<number | null>(null);
@@ -322,6 +324,7 @@ export function DailySalesRecord({
 
     setRows(merged);
     originalRowsRef.current = JSON.parse(JSON.stringify(merged));
+    setSaveCounter(c => c + 1);
   }, [currentBranch, displayedDays]);
 
   useEffect(() => {
@@ -688,6 +691,11 @@ export function DailySalesRecord({
 
     // Update baseline snapshot after save
     originalRowsRef.current = JSON.parse(JSON.stringify(rows));
+    setSaveCounter(c => c + 1);
+    setJustSaved(true);
+    setTimeout(() => {
+      setJustSaved(false);
+    }, 2500);
 
     setIsSaving(false);
     setTimeout(() => {
@@ -703,6 +711,7 @@ export function DailySalesRecord({
     if (originalRowsRef.current && originalRowsRef.current.length > 0) {
       setRows(JSON.parse(JSON.stringify(originalRowsRef.current)));
     }
+    setSaveCounter(c => c + 1);
     setActiveNoteInputIdx(null);
     setNewNoteText('');
     setEditingNote(null);
@@ -735,11 +744,11 @@ export function DailySalesRecord({
     }
 
     return false;
-  }, [rows]);
+  }, [rows, saveCounter]);
 
   const isDirty = useMemo(() => {
     return checkHasUnsavedChanges();
-  }, [checkHasUnsavedChanges]);
+  }, [checkHasUnsavedChanges, rows, saveCounter]);
 
   // Notify parent of dirty status changes
   useEffect(() => {
@@ -1001,15 +1010,22 @@ export function DailySalesRecord({
               onClick={() => setShowConfirmModal(true)}
               disabled={isSaving}
               className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
-                isDirty 
-                  ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
-                  : 'bg-[#2D4A49] hover:bg-[#203635]'
+                justSaved
+                  ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                  : isDirty 
+                    ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                    : 'bg-[#2D4A49] hover:bg-[#203635]'
               }`}
             >
               {isSaving ? (
                 <>
                   <Loader2 size={13} className="animate-spin" />
                   <span>กำลังบันทึก...</span>
+                </>
+              ) : justSaved ? (
+                <>
+                  <CheckCircle2 size={13} className="text-white" />
+                  <span>บันทึกสำเร็จ</span>
                 </>
               ) : (
                 <>
