@@ -1182,8 +1182,8 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 onChange={(e) => setActiveTab(e.target.value as 'production' | 'sales')}
                 className="appearance-none bg-[#F8FAF9] hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-[600] rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
               >
-                <option value="production">แผนการผลิต (Production)</option>
-                <option value="sales">ยอดจัดจำหน่าย / เหลือจากแผน</option>
+                <option value="production">แผนการผลิต</option>
+                <option value="sales">แผนการขาย</option>
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#5A8A88] pointer-events-none" />
             </div>
