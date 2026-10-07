@@ -15,7 +15,8 @@ import {
   Loader2,
   Info,
   FolderPlus,
-  CalendarDays
+  CalendarDays,
+  ChevronDown
 } from 'lucide-react';
 import { format, startOfWeek, addWeeks, subWeeks, addDays } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -668,21 +669,21 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
         <table className="min-w-full divide-y divide-[#D4E4E3] relative table-fixed">
           <thead className="bg-[#E8F3F2] sticky top-0 z-20 backdrop-blur-xs">
             <tr>
-              <th scope="col" className="py-2.5 pl-3 pr-2 text-left text-[11px] font-bold text-[#2D4A49] sticky left-0 z-30 bg-[#E8F3F2] border-r border-b border-[#D4E4E3] min-w-[140px] md:min-w-[200px] w-[140px] md:w-[200px] max-w-[140px] md:max-w-[200px] backdrop-blur-xs">
+              <th scope="col" className="py-2.5 pl-3 pr-2 text-left text-[10px] font-bold text-[#2D4A49] sticky left-0 z-30 bg-[#E8F3F2] border-r border-b border-[#D4E4E3] min-w-[140px] md:min-w-[200px] w-[140px] md:w-[200px] max-w-[140px] md:max-w-[200px] backdrop-blur-xs">
                 รายการ
               </th>
-              <th scope="col" className="px-2 py-2.5 text-center text-[11px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] sticky left-[140px] md:left-[200px] z-30 bg-[#E8F3F2] min-w-[90px] md:min-w-[120px] w-[90px] md:w-[120px] max-w-[90px] md:max-w-[120px] backdrop-blur-xs">
+              <th scope="col" className="px-2 py-2.5 text-center text-[10px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] sticky left-[140px] md:left-[200px] z-30 bg-[#E8F3F2] min-w-[90px] md:min-w-[120px] w-[90px] md:w-[120px] max-w-[90px] md:max-w-[120px] backdrop-blur-xs">
                 {section === 'cutting' ? 'ตัดจาก' : section === 'items' ? 'เมนู' : 'หน่วย'}
               </th>
               {(section === 'mixing' || section === 'cutting') && (
-                <th scope="col" className="hidden md:table-cell px-2 py-2.5 text-center text-[11px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] md:sticky md:left-[320px] min-w-[120px] w-[120px] max-w-[120px] z-30 bg-[#E8F3F2] backdrop-blur-xs">
+                <th scope="col" className="hidden md:table-cell px-2 py-2.5 text-center text-[10px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] md:sticky md:left-[320px] min-w-[120px] w-[120px] max-w-[120px] z-30 bg-[#E8F3F2] backdrop-blur-xs">
                   {section === 'cutting' ? 'หน่วยต่อสูตร (Unit)' : 'ขนาด'}
                 </th>
               )}
               {DAYS.map((day, index) => {
                 const dayDate = addDays(currentWeek, index);
                 return (
-                  <th key={day.key} colSpan={4} className="px-2.5 py-2 text-center text-[11px] text-[#2D4A49] border-r border-b border-l-2 border-[#D4E4E3] border-l-[#B8D4D2]">
+                  <th key={day.key} colSpan={4} className="px-2.5 py-2 text-center text-[10px] text-[#2D4A49] border-r border-b border-l-2 border-[#D4E4E3] border-l-[#B8D4D2]">
                     <div className="font-bold">{day.label}</div>
                     <div className="text-[10px] font-medium text-[#6B8F8E] mt-0.5">{format(dayDate, 'd MMM', { locale: th })}</div>
                   </th>
@@ -706,7 +707,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
           <tbody className="divide-y divide-[#D4E4E3] bg-white">
             {list.map((item) => (
               <tr key={item.id} className="hover:bg-[#F0F5F4]/60 transition-colors group">
-                <td className="whitespace-nowrap py-1.5 pl-2 pr-3 text-[11px] font-medium text-[#2D4A49] sticky left-0 z-10 bg-white group-hover:bg-[#F8FAF9] border-r border-[#D4E4E3] shadow-[1px_0_0_0_#D4E4E3] min-w-[140px] md:min-w-[200px] w-[140px] md:w-[200px] max-w-[140px] md:max-w-[200px]">
+                <td className="whitespace-nowrap py-1.5 pl-2 pr-3 text-[10px] font-medium text-[#2D4A49] sticky left-0 z-10 bg-white group-hover:bg-[#F8FAF9] border-r border-[#D4E4E3] shadow-[1px_0_0_0_#D4E4E3] min-w-[140px] md:min-w-[200px] w-[140px] md:w-[200px] max-w-[140px] md:max-w-[200px]">
                   <div className="flex items-start gap-1.5">
                     {!isReadOnly && (
                       <button onClick={() => handleDeleteItem(section, item.id)} className="mt-0.5 p-1 text-[#6B8F8E] hover:text-[#EF4444] hover:bg-[#FEE2E2] rounded transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" title="ลบรายการ">
@@ -735,7 +736,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                                mixing: prev.mixing.map((it: any) => it.id === item.id ? { ...it, ...updates } : it)
                              }));
                           }}
-                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] font-medium text-[#2D4A49] outline-none"
+                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] font-medium text-[#2D4A49] outline-none"
                         >
                           <option value="">เลือกชนิดแป้ง...</option>
                           {Array.from(new Set(mixingSettings.map(s => s.name).filter(Boolean))).map(opt => (
@@ -764,7 +765,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                                cutting: prev.cutting.map((it: any) => it.id === item.id ? { ...it, ...updates } : it)
                              }));
                           }}
-                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] font-medium text-[#2D4A49] outline-none"
+                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] font-medium text-[#2D4A49] outline-none"
                         >
                           <option value="">เลือกเป้าหมาย...</option>
                           {Array.from(new Set(cuttingSettings.map(s => s.target).filter(Boolean))).map(opt => (
@@ -789,7 +790,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                                items: prev.items.map((it: any) => it.id === item.id ? { ...it, ...updates } : it)
                              }));
                           }}
-                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] font-medium text-[#2D4A49] outline-none"
+                          className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] font-medium text-[#2D4A49] outline-none"
                         >
                           <option value="">เลือกรายการผลผลิต...</option>
                           {Array.from(new Set(itemSettings.map(s => s.targetItem).filter(Boolean))).map(opt => (
@@ -804,14 +805,14 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             disabled={isReadOnly}
                             placeholder="ชื่อรายการ"
                             onChange={(e) => handleRowFieldChange(section, item.id, 'name', e.target.value)}
-                            className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] font-medium text-[#2D4A49] outline-none"
+                            className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] font-medium text-[#2D4A49] outline-none"
                           />
                         </div>
                       )}
                     </div>
                   </div>
                 </td>
-                <td className="whitespace-nowrap py-1.5 px-2 text-[11px] text-[#6B8F8E] border-r border-[#D4E4E3] text-center sticky left-[140px] md:left-[200px] z-10 bg-white group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3] min-w-[90px] md:min-w-[120px] w-[90px] md:w-[120px] max-w-[90px] md:max-w-[120px]">
+                <td className="whitespace-nowrap py-1.5 px-2 text-[10px] text-[#6B8F8E] border-r border-[#D4E4E3] text-center sticky left-[140px] md:left-[200px] z-10 bg-white group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3] min-w-[90px] md:min-w-[120px] w-[90px] md:w-[120px] max-w-[90px] md:max-w-[120px]">
                   {section === 'mixing' ? (
                     <select
                       value={item.unit}
@@ -828,7 +829,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                            mixing: prev.mixing.map((it: any) => it.id === item.id ? { ...it, ...updates } : it)
                          }));
                       }}
-                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                     >
                       <option value="">เลือกหน่วย...</option>
                       {Array.from(new Set(mixingSettings.filter(s => s.name === item.name).map(s => s.unit).filter(Boolean))).map(opt => (
@@ -853,7 +854,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                            cutting: prev.cutting.map((it: any) => it.id === item.id ? { ...it, ...updates } : it)
                          }));
                       }}
-                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                     >
                       <option value="">เลือก Dough...</option>
                       {Array.from(new Set(cuttingSettings.filter(s => s.target === item.name).map(s => s.sourceDough).filter(Boolean))).map(opt => (
@@ -865,7 +866,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                       value={item.unit || ''}
                       disabled={isReadOnly}
                       onChange={(e) => handleRowFieldChange(section, item.id, 'unit', e.target.value)}
-                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                     >
                       <option value="">เลือกเมนู...</option>
                       {Array.from(new Set(itemSettings.filter(s => s.targetItem === item.name).map(s => s.menu).filter(Boolean))).map(opt => (
@@ -879,12 +880,12 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                       disabled={isReadOnly}
                       placeholder="หน่วย"
                       onChange={(e) => handleRowFieldChange(section, item.id, 'unit', e.target.value)}
-                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                     />
                   )}
                 </td>
                 {(section === 'mixing' || section === 'cutting') && (
-                  <td className="whitespace-nowrap py-1.5 px-2 text-[11px] text-[#6B8F8E] border-r border-[#D4E4E3] text-center hidden md:table-cell md:sticky md:left-[320px] z-10 bg-white group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3]">
+                  <td className="whitespace-nowrap py-1.5 px-2 text-[10px] text-[#6B8F8E] border-r border-[#D4E4E3] text-center hidden md:table-cell md:sticky md:left-[320px] z-10 bg-white group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3]">
                     {section === 'mixing' ? (
                       <select
                         value={item.size || ''}
@@ -896,7 +897,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                              mixing: prev.mixing.map((it: any) => it.id === item.id ? { ...it, size: newSize } : it)
                            }));
                         }}
-                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                       >
                         <option value="">เลือกขนาด...</option>
                         {Array.from(new Set(mixingSettings.filter(s => s.name === item.name && s.unit === item.unit).map(s => s.size).filter(Boolean))).map(opt => (
@@ -908,7 +909,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                         value={item.unit || ''}
                         disabled={isReadOnly}
                         onChange={(e) => handleRowFieldChange(section, item.id, 'unit', e.target.value)}
-                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                       >
                         <option value="">เลือกหน่วย...</option>
                         {Array.from(new Set(mixingSettings.filter(s => s.name === item.sourceDough).map(s => s.unit).filter(Boolean))).map(opt => (
@@ -923,16 +924,16 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                   return (
                     <React.Fragment key={day.key}>
                       <td className="border-l-2 border-b border-r-0 border-l-[#B8D4D2] border-[#D4E4E3] p-0 text-center relative min-w-[48px]">
-                        <input type="text" value={dData?.p || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'p', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#5A8A88] p-0 m-0 text-[11px] bg-transparent text-[#2D4A49] outline-none font-medium" />
+                        <input type="text" value={dData?.p || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'p', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#5A8A88] p-0 m-0 text-[10px] bg-transparent text-[#2D4A49] outline-none font-medium" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#FEF3C7]/20">
-                        <input type="text" value={dData?.a || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'a', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#F59E0B] p-0 m-0 text-[11px] bg-transparent text-[#B45309] font-medium outline-none" />
+                        <input type="text" value={dData?.a || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'a', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#F59E0B] p-0 m-0 text-[10px] bg-transparent text-[#B45309] font-medium outline-none" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#DCFCE7]/20">
-                        <input type="text" value={dData?.ac || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'ac', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#22C55E] p-0 m-0 text-[11px] bg-transparent font-bold text-[#15803D] outline-none" />
+                        <input type="text" value={dData?.ac || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'ac', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#22C55E] p-0 m-0 text-[10px] bg-transparent font-bold text-[#15803D] outline-none" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#FEE2E2]/20">
-                        <input type="text" value={dData?.w || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'w', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#EF4444] p-0 m-0 text-[11px] bg-transparent font-medium text-[#DC2626] outline-none" />
+                        <input type="text" value={dData?.w || ''} disabled={isReadOnly} onChange={(e) => handleDataChange(section, item.id, day.key, 'w', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#EF4444] p-0 m-0 text-[10px] bg-transparent font-medium text-[#DC2626] outline-none" />
                       </td>
                     </React.Fragment>
                   );
@@ -942,13 +943,13 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
             {!isReadOnly && (
               <tr className="bg-[#F8FAF9]">
                 <td colSpan={2} className="md:hidden py-2 pl-3 sticky left-0 z-10 bg-[#F8FAF9] border-r border-[#D4E4E3] shadow-[1px_0_0_0_#D4E4E3]">
-                  <button onClick={() => handleAddItem(section)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
+                  <button onClick={() => handleAddItem(section)} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
                     <Plus size={13} className="text-[#5A8A88]" />
                     เพิ่มรายการ
                   </button>
                 </td>
                 <td colSpan={(section === 'mixing' || section === 'cutting') ? 3 : 2} className="hidden md:table-cell py-2 pl-3 sticky left-0 z-10 bg-[#F8FAF9] border-r border-[#D4E4E3] shadow-[1px_0_0_0_#D4E4E3]">
-                  <button onClick={() => handleAddItem(section)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
+                  <button onClick={() => handleAddItem(section)} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
                     <Plus size={13} className="text-[#5A8A88]" />
                     เพิ่มรายการ
                   </button>
@@ -968,19 +969,19 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
         <table className="min-w-full divide-y divide-[#D4E4E3] relative table-fixed">
           <thead className="bg-[#E8F3F2] sticky top-0 z-20 backdrop-blur-xs">
             <tr>
-              <th scope="col" className="py-2.5 pl-3 pr-2 text-center text-[10px] sm:text-[11px] font-bold text-[#2D4A49] sticky left-0 z-30 bg-[#E8F3F2] border-r border-b border-[#D4E4E3] min-w-[70px] w-[70px] max-w-[70px] backdrop-blur-xs">
+              <th scope="col" className="py-2.5 pl-3 pr-2 text-center text-[10px] font-bold text-[#2D4A49] sticky left-0 z-30 bg-[#E8F3F2] border-r border-b border-[#D4E4E3] min-w-[70px] w-[70px] max-w-[70px] backdrop-blur-xs">
                 เหลือจากแผน
               </th>
-              <th scope="col" className="py-2.5 pl-3 pr-2 text-left text-[11px] font-bold text-[#2D4A49] sticky left-[70px] z-30 bg-[#E8F3F2] min-w-[140px] md:min-w-[180px] w-[140px] md:w-[180px] max-w-[140px] md:max-w-[180px] border-r border-b border-[#D4E4E3] backdrop-blur-xs">
+              <th scope="col" className="py-2.5 pl-3 pr-2 text-left text-[10px] font-bold text-[#2D4A49] sticky left-[70px] z-30 bg-[#E8F3F2] min-w-[140px] md:min-w-[180px] w-[140px] md:w-[180px] max-w-[140px] md:max-w-[180px] border-r border-b border-[#D4E4E3] backdrop-blur-xs">
                 รายการ
               </th>
-              <th scope="col" className="hidden md:table-cell px-2 py-2.5 text-left text-[11px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] md:sticky md:left-[250px] z-30 bg-[#E8F3F2] min-w-[100px] w-[100px] max-w-[100px] backdrop-blur-xs">
+              <th scope="col" className="hidden md:table-cell px-2 py-2.5 text-left text-[10px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] md:sticky md:left-[250px] z-30 bg-[#E8F3F2] min-w-[100px] w-[100px] max-w-[100px] backdrop-blur-xs">
                 หน่วย
               </th>
               {DAYS.map((day, index) => {
                 const dayDate = addDays(currentWeek, index);
                 return (
-                  <th key={day.key} colSpan={5} className="px-2.5 py-2 text-center text-[11px] text-[#2D4A49] border-r border-b border-l-2 border-[#D4E4E3] border-l-[#B8D4D2]">
+                  <th key={day.key} colSpan={5} className="px-2.5 py-2 text-center text-[10px] text-[#2D4A49] border-r border-b border-l-2 border-[#D4E4E3] border-l-[#B8D4D2]">
                     <div className="font-bold">{day.label}</div>
                     <div className="text-[10px] font-medium text-[#6B8F8E] mt-0.5">{format(dayDate, 'd MMM', { locale: th })}</div>
                   </th>
@@ -1005,7 +1006,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
           <tbody className="divide-y divide-[#D4E4E3] bg-white">
             {data.sales.map((item) => (
               <tr key={item.id} className="hover:bg-[#F0F5F4]/60 transition-colors group">
-                <td className="whitespace-nowrap py-1.5 px-2 text-[11px] font-medium text-[#6B8F8E] sticky left-0 z-10 bg-white border-r border-[#D4E4E3] min-w-[70px] w-[70px] max-w-[70px] text-center group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3]">
+                <td className="whitespace-nowrap py-1.5 px-2 text-[10px] font-medium text-[#6B8F8E] sticky left-0 z-10 bg-white border-r border-[#D4E4E3] min-w-[70px] w-[70px] max-w-[70px] text-center group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3]">
                   <div className="flex items-center gap-1 justify-center">
                     {!isReadOnly && (
                       <button onClick={() => handleDeleteItem('sales', item.id)} className="p-1 text-[#6B8F8E] hover:text-[#EF4444] hover:bg-[#FEE2E2] rounded transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" title="ลบรายการ">
@@ -1017,28 +1018,28 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                       value={item.leftoverPlan || ''} 
                       disabled={isReadOnly}
                       onChange={(e) => handleRowFieldChange('sales', item.id, 'leftoverPlan', e.target.value)}
-                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                     />
                   </div>
                 </td>
-                <td className="whitespace-nowrap py-1.5 pl-3 pr-2 text-[11px] font-medium text-[#2D4A49] sticky left-[70px] z-10 bg-white border-r border-[#D4E4E3] group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3] min-w-[140px] md:min-w-[180px] w-[140px] md:w-[180px] max-w-[140px] md:max-w-[180px]">
+                <td className="whitespace-nowrap py-1.5 pl-3 pr-2 text-[10px] font-medium text-[#2D4A49] sticky left-[70px] z-10 bg-white border-r border-[#D4E4E3] group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3] min-w-[140px] md:min-w-[180px] w-[140px] md:w-[180px] max-w-[140px] md:max-w-[180px]">
                   <input 
                     type="text" 
                     value={item.name || ''} 
                     disabled={isReadOnly}
                     placeholder="ชื่อรายการ"
                     onChange={(e) => handleRowFieldChange('sales', item.id, 'name', e.target.value)}
-                    className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] font-medium text-[#2D4A49] outline-none"
+                    className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] font-medium text-[#2D4A49] outline-none"
                   />
                 </td>
-                <td className="hidden md:table-cell whitespace-nowrap px-3 py-1.5 text-[11px] text-[#6B8F8E] border-r border-[#D4E4E3] text-center md:sticky md:left-[250px] z-10 bg-white group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3]">
+                <td className="hidden md:table-cell whitespace-nowrap px-3 py-1.5 text-[10px] text-[#6B8F8E] border-r border-[#D4E4E3] text-center md:sticky md:left-[250px] z-10 bg-white group-hover:bg-[#F8FAF9] shadow-[1px_0_0_0_#D4E4E3]">
                   <input 
                     type="text" 
                     value={item.unit || ''} 
                     disabled={isReadOnly}
                     placeholder="หน่วย"
                     onChange={(e) => handleRowFieldChange('sales', item.id, 'unit', e.target.value)}
-                    className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[11px] text-center text-[#2D4A49] outline-none"
+                    className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#5A8A88] p-0 text-[10px] text-center text-[#2D4A49] outline-none"
                   />
                 </td>
                 {DAYS.map(day => {
@@ -1046,19 +1047,19 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                   return (
                     <React.Fragment key={day.key}>
                       <td className="border-l-2 border-b border-r-0 border-l-[#B8D4D2] border-[#D4E4E3] p-0 text-center relative min-w-[48px]">
-                        <input type="text" value={dData?.p || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 'p', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#5A8A88] p-0 m-0 text-[11px] bg-transparent text-[#2D4A49] outline-none font-medium" />
+                        <input type="text" value={dData?.p || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 'p', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#5A8A88] p-0 m-0 text-[10px] bg-transparent text-[#2D4A49] outline-none font-medium" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#FEF3C7]/20">
-                        <input type="text" value={dData?.a || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 'a', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#F59E0B] p-0 m-0 text-[11px] bg-transparent text-[#B45309] font-medium outline-none" />
+                        <input type="text" value={dData?.a || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 'a', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#F59E0B] p-0 m-0 text-[10px] bg-transparent text-[#B45309] font-medium outline-none" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#E8F3F2]/50">
-                        <input type="text" value={dData?.t || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 't', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#5A8A88] p-0 m-0 text-[11px] bg-transparent font-bold text-[#2D4A49] outline-none" />
+                        <input type="text" value={dData?.t || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 't', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#5A8A88] p-0 m-0 text-[10px] bg-transparent font-bold text-[#2D4A49] outline-none" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#DCFCE7]/20">
-                        <input type="text" value={dData?.s || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 's', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#22C55E] p-0 m-0 text-[11px] bg-transparent font-bold text-[#15803D] outline-none" />
+                        <input type="text" value={dData?.s || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 's', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#22C55E] p-0 m-0 text-[10px] bg-transparent font-bold text-[#15803D] outline-none" />
                       </td>
                       <td className="border-l border-b border-[#D4E4E3] p-0 text-center relative min-w-[48px] bg-[#FEE2E2]/20">
-                        <input type="text" value={dData?.l || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 'l', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#EF4444] p-0 m-0 text-[11px] bg-transparent font-bold text-[#DC2626] outline-none" />
+                        <input type="text" value={dData?.l || ''} disabled={isReadOnly} onChange={(e) => handleDataChange('sales', item.id, day.key, 'l', e.target.value)} className="w-full h-full min-h-[34px] sm:min-h-[36px] text-center border-none focus:ring-1 focus:ring-inset focus:ring-[#EF4444] p-0 m-0 text-[10px] bg-transparent font-bold text-[#DC2626] outline-none" />
                       </td>
                     </React.Fragment>
                   );
@@ -1068,13 +1069,13 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
             {!isReadOnly && (
               <tr className="bg-[#F8FAF9]">
                 <td colSpan={2} className="md:hidden py-2 pl-3 sticky left-0 z-10 bg-[#F8FAF9] border-r border-[#D4E4E3] shadow-[1px_0_0_0_#D4E4E3]">
-                  <button onClick={() => handleAddItem('sales')} className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
+                  <button onClick={() => handleAddItem('sales')} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
                     <Plus size={13} className="text-[#5A8A88]" />
                     เพิ่มรายการ
                   </button>
                 </td>
                 <td colSpan={3} className="hidden md:table-cell py-2 pl-3 sticky left-0 z-10 bg-[#F8FAF9] border-r border-[#D4E4E3] shadow-[1px_0_0_0_#D4E4E3]">
-                  <button onClick={() => handleAddItem('sales')} className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
+                  <button onClick={() => handleAddItem('sales')} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88] hover:text-[#4A7876] hover:bg-[#E8F3F2] px-2.5 py-1 rounded-[6px] border border-[#D4E4E3] transition-colors bg-white shadow-2xs cursor-pointer">
                     <Plus size={13} className="text-[#5A8A88]" />
                     เพิ่มรายการ
                   </button>
@@ -1168,36 +1169,23 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
         {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
         <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
 
-        {/* ROW 2: View Mode Tabs (Left) + Action Buttons (Right) - ALL IN ONE ROW */}
+        {/* ROW 2: View Mode Dropdown (Left) + Action Buttons (Right) - ALL IN ONE ROW */}
         <div className="flex items-center justify-between gap-2 w-full pt-0.5 flex-wrap sm:flex-nowrap">
           
-          {/* LEFT: View Mode Tabs */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+          {/* LEFT: View Mode Dropdown */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">มุมมอง:</span>
             
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
-              <button
-                type="button"
-                onClick={() => setActiveTab('production')}
-                className={`px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
-                  activeTab === 'production'
-                    ? 'bg-[#5A8A88] text-white shadow-xs'
-                    : 'text-[#2D4A49] hover:bg-white'
-                }`}
+            <div className="relative">
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as 'production' | 'sales')}
+                className="appearance-none bg-[#F8FAF9] hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-[600] rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
               >
-                แผนการผลิต (Production)
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('sales')}
-                className={`px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer ${
-                  activeTab === 'sales'
-                    ? 'bg-[#5A8A88] text-white shadow-xs'
-                    : 'text-[#2D4A49] hover:bg-white'
-                }`}
-              >
-                ยอดจัดจำหน่าย / เหลือจากแผน
-              </button>
+                <option value="production">แผนการผลิต (Production)</option>
+                <option value="sales">ยอดจัดจำหน่าย / เหลือจากแผน</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#5A8A88] pointer-events-none" />
             </div>
           </div>
 
