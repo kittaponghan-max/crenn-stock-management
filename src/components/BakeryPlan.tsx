@@ -529,7 +529,6 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
       setTimeout(() => setSaveStatus(null), 4000);
     } finally {
       setIsSaving(false);
-      setShowConfirmSave(false);
     }
   };
 
