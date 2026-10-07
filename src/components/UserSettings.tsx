@@ -544,6 +544,53 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     setFormData(prev => ({ ...prev, permissions: roleDefaults }));
   };
 
+  // ━━━━ QUICK PRESET HANDLERS FOR ROLE TEMPLATE MODAL ━━━━
+  const handleTemplatePresetAll = (level: PagePermission) => {
+    const allKeys: (keyof UserPermissions)[] = [
+      'dashboard', 'dailySales', 'dailyBakery',
+      'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
+      'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
+      'purchasing', 'rndReport',
+      'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
+      'userSettings'
+    ];
+    const updated: any = { ...templateForm };
+    allKeys.forEach(k => { updated[k] = level; });
+    setTemplateForm(updated);
+  };
+
+  const handleTemplatePresetBarFull = () => {
+    const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
+    const updated: any = { ...templateForm };
+    barKeys.forEach(k => { updated[k] = 'edit'; });
+    setTemplateForm(updated);
+  };
+
+  const handleTemplatePresetKitchenFull = () => {
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
+    const updated: any = { ...templateForm };
+    kitchenKeys.forEach(k => { updated[k] = 'edit'; });
+    setTemplateForm(updated);
+  };
+
+  const handleTemplatePresetBarOnly = () => {
+    const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
+    const updated: any = { ...templateForm };
+    barKeys.forEach(k => { updated[k] = 'edit'; });
+    kitchenKeys.forEach(k => { updated[k] = 'hidden'; });
+    setTemplateForm(updated);
+  };
+
+  const handleTemplatePresetKitchenOnly = () => {
+    const barKeys: (keyof UserPermissions)[] = ['bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste'];
+    const kitchenKeys: (keyof UserPermissions)[] = ['kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan', 'dailyBakery'];
+    const updated: any = { ...templateForm };
+    kitchenKeys.forEach(k => { updated[k] = 'edit'; });
+    barKeys.forEach(k => { updated[k] = 'hidden'; });
+    setTemplateForm(updated);
+  };
+
   const fetchRoleTemplates = async () => {
     if (supabase) {
       try {
@@ -1077,17 +1124,17 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
             {/* Title & Subtitle */}
             <div>
-              <h2 className="text-[20px] font-[800] text-white tracking-[0.01em] leading-tight">
+              <h2 className="text-[17px] font-bold text-white tracking-[0.01em] leading-tight">
                 User Security Settings
               </h2>
-              <p className="text-[11px] text-white/70 leading-relaxed mt-1.5 max-w-xl">
+              <p className="text-[11px] text-white/70 leading-relaxed mt-1 max-w-xl">
                 จัดการบัญชีผู้ใช้งาน เพิ่ม แก้ไข หรือลบบัญชี รวมถึงกำหนดสิทธิ์การใช้งานแอปพลิเคชัน (Admin Only)
               </p>
             </div>
           </div>
 
           {!isFormOpen && (
-            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0 w-full sm:w-auto">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 w-full sm:w-auto">
               {/* ปุ่ม Setting สำหรับ ตั้งค่า Default ของ Authority ตามตำแหน่ง */}
               <button 
                 type="button"
@@ -1098,10 +1145,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   setTemplateForm({ ...cur });
                   setIsTemplateModalOpen(true);
                 }}
-                className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[13px] font-semibold px-3.5 py-2.5 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+                className="flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
                 title="ตั้งค่า Default ของ Authority ตามตำแหน่ง"
               >
-                <Settings size={16} className="text-white" />
+                <Settings size={14} className="text-white" />
                 <span>ตั้งค่า Default ตามตำแหน่ง</span>
               </button>
 
@@ -1117,9 +1164,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   setActiveModalTab('general');
                   setIsFormOpen(true);
                 }}
-                className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+                className="flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[11px] font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
               >
-                <Plus size={16} className="text-white" />
+                <Plus size={14} className="text-white" />
                 <span>เพิ่มผู้ใช้งานใหม่</span>
               </button>
             </div>
@@ -1129,10 +1176,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
       {/* User Form Card (Add/Edit) */}
       {isFormOpen && (
-        <form onSubmit={handleSaveUser} className="bg-white border border-[#D4E4E3] rounded-2xl p-5 sm:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.08)] animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#E2EAE9]">
+        <form onSubmit={handleSaveUser} className="bg-white border border-[#D4E4E3] rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_rgba(90,138,136,0.08)] animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#E2EAE9]">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-[16px] text-[#2D4A49]">
+              <h3 className="font-bold text-[14px] text-[#2D4A49]">
                 {editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
               </h3>
               {editingUser && renderRoleBadge(editingUser.role)}
@@ -1142,48 +1189,48 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               onClick={() => setIsFormOpen(false)} 
               className="w-7 h-7 rounded-lg text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center justify-center transition-colors cursor-pointer"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
 
           {/* Tab Navigation inside Edit/Add Modal */}
-          <div className="flex items-center gap-2 mb-5 p-1 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3] w-fit">
+          <div className="flex items-center gap-1.5 mb-4 p-1 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3] w-fit">
             <button
               type="button"
               onClick={() => setActiveModalTab('general')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                 activeModalTab === 'general'
                   ? 'bg-[#5A8A88] text-white shadow-xs'
                   : 'text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2]'
               }`}
             >
-              <User size={13} />
+              <User size={12} />
               <span>ข้อมูลทั่วไป</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveModalTab('permissions')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                 activeModalTab === 'permissions'
                   ? 'bg-[#5A8A88] text-white shadow-xs'
                   : 'text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2]'
               }`}
             >
-              <Shield size={13} />
+              <Shield size={12} />
               <span>สิทธิ์การเข้าถึง</span>
             </button>
           </div>
 
           {/* TAB 1 — ข้อมูลทั่วไป */}
           {activeModalTab === 'general' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Username</label>
+                  <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1">Username</label>
                   <input
                     type="text"
                     required
-                    className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all"
+                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all"
                     value={formData.name}
                     onChange={(e) => {
                       setIsUserFormDirty(true);
@@ -1192,9 +1239,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Role</label>
+                  <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1">Role</label>
                   <select
-                    className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none bg-white text-xs text-[#2D4A49] transition-all cursor-pointer"
+                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none bg-white text-[11px] font-medium text-[#2D4A49] transition-all cursor-pointer"
                     value={formData.role}
                     onChange={(e) => {
                       setIsUserFormDirty(true);
@@ -1223,11 +1270,11 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                 </div>
                 {!editingUser && (
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-[#2D4A49] mb-1">Password</label>
+                    <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1">Password</label>
                     <input
                       type="text"
                       required
-                      className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white transition-all font-mono"
+                      className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-mono"
                       value={formData.password}
                       onChange={(e) => {
                         setIsUserFormDirty(true);
@@ -1305,10 +1352,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               </div>
 
               {/* Permission List Container */}
-              <div className="max-h-[70vh] overflow-y-auto p-1 space-y-4 rounded-xl custom-scrollbar">
+              <div className="max-h-[70vh] overflow-y-auto p-1 space-y-3.5 rounded-xl custom-scrollbar">
                 {PERMISSION_GROUPS.map((group) => (
                   <div key={group.id} className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-2xs">
-                    <div className="bg-[#F0F5F4] px-3.5 py-2 text-[11px] font-bold text-[#5A8A88] uppercase tracking-[0.08em] border-b border-[#D4E4E3]">
+                    <div className="bg-[#F0F5F4] px-3.5 py-1.5 text-[10px] font-bold text-[#5A8A88] uppercase tracking-[0.08em] border-b border-[#D4E4E3]">
                       {group.name}
                     </div>
                     <div className="divide-y divide-[#F0F5F4]">
@@ -1318,10 +1365,10 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                         return (
                           <div 
                             key={item.key} 
-                            className="flex items-center justify-between px-3.5 py-2.5 min-h-[44px] hover:bg-[#FAFDFD] transition-colors gap-2"
+                            className="flex items-center justify-between px-3.5 py-2 min-h-[40px] hover:bg-[#FAFDFD] transition-colors gap-2"
                           >
-                            <div className="flex items-center gap-2 text-[12px] font-medium text-[#2D4A49]">
-                              <span className="text-[14px] shrink-0">{item.icon}</span>
+                            <div className="flex items-center gap-2 text-[11px] font-medium text-[#2D4A49]">
+                              <span className="text-[13px] shrink-0">{item.icon}</span>
                               <span>{item.name}</span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
@@ -1335,7 +1382,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                                     permissions: { ...prev.permissions, [item.key]: 'read' }
                                   }));
                                 }}
-                                className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
+                                className={`text-[10px] sm:text-[11px] rounded-[6px] px-2.5 py-1 transition-all cursor-pointer ${
                                   currentVal === 'read'
                                     ? 'bg-[#E8F3F2] border border-[#5A8A88] text-[#5A8A88] font-bold shadow-2xs'
                                     : 'bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#F0F5F4]'
@@ -1353,7 +1400,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                                     permissions: { ...prev.permissions, [item.key]: 'edit' }
                                   }));
                                 }}
-                                className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
+                                className={`text-[10px] sm:text-[11px] rounded-[6px] px-2.5 py-1 transition-all cursor-pointer ${
                                   currentVal === 'edit'
                                     ? 'bg-[#5A8A88] border border-[#5A8A88] text-white font-bold shadow-2xs'
                                     : 'bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#F0F5F4]'
@@ -1371,7 +1418,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                                     permissions: { ...prev.permissions, [item.key]: 'hidden' }
                                   }));
                                 }}
-                                className={`text-[11px] rounded-[6px] px-3 py-1 transition-all cursor-pointer ${
+                                className={`text-[10px] sm:text-[11px] rounded-[6px] px-2.5 py-1 transition-all cursor-pointer ${
                                   currentVal === 'hidden'
                                     ? 'bg-[#2D4A49] border border-[#2D4A49] text-white font-bold shadow-2xs'
                                     : 'bg-white border border-[#D4E4E3] text-[#6B8F8E] font-medium hover:bg-[#F0F5F4]'
@@ -1386,9 +1433,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
                       {/* Extra item for Group 6 (Admin): กำหนดช่วงวันที่ยอดขายเอง */}
                       {group.id === 'admin' && (
-                        <div className="flex items-center justify-between px-3.5 py-2.5 min-h-[44px] hover:bg-[#FAFDFD] transition-colors gap-2 bg-[#FBFDFD]">
-                          <div className="flex items-center gap-2 text-[12px] font-medium text-[#2D4A49]">
-                            <span className="text-[14px] shrink-0">📅</span>
+                        <div className="flex items-center justify-between px-3.5 py-2 min-h-[40px] hover:bg-[#FAFDFD] transition-colors gap-2 bg-[#FBFDFD]">
+                          <div className="flex items-center gap-2 text-[11px] font-medium text-[#2D4A49]">
+                            <span className="text-[13px] shrink-0">📅</span>
                             <div>
                               <span>กำหนดช่วงวันที่ยอดขายเอง</span>
                               <p className="text-[10px] text-[#6B8F8E]">อนุญาตให้ผู้ใช้กำหนดวันเริ่ม-สิ้นสุด ในหน้าบันทึกยอดขายประจำวัน</p>
@@ -1422,7 +1469,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
           )}
 
           {/* Sticky Bottom Actions */}
-          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 mt-5 border-t border-[#D4E4E3] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 z-10">
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 mt-4 border-t border-[#D4E4E3] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 z-10">
             <div className="flex-1 min-h-[20px]">
               {userSaveStatus && (
                 <div className={`text-[11px] font-medium flex items-center gap-1.5 animate-in fade-in duration-200 ${
@@ -1447,14 +1494,14 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   setIsUserFormDirty(false);
                   setUserSaveStatus(null);
                 }} 
-                className="px-4 py-2 text-xs font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-1.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer disabled:opacity-50"
               >
                 ยกเลิก
               </button>
               <button 
                 type="submit" 
                 disabled={isSavingUser}
-                className={`flex items-center justify-center gap-1.5 text-white text-[11px] font-medium rounded-[8px] px-4 py-2 min-h-[34px] min-w-[170px] transition-all shadow-2xs cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 text-white text-[11px] font-semibold rounded-[8px] px-4 py-1.5 min-h-[34px] min-w-[160px] transition-all shadow-2xs cursor-pointer ${
                   isSavingUser
                     ? 'bg-[#5A8A88] cursor-wait opacity-90'
                     : justSavedUser
@@ -1500,49 +1547,49 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-[#5A8A88]" />
-            <h3 className="text-[14px] font-bold text-[#2D4A49]">
+            <h3 className="text-[13px] font-bold text-[#2D4A49]">
               รายชื่อผู้ใช้งาน
             </h3>
           </div>
-          <span className="bg-[#E8F3F2] text-[#5A8A88] text-[11px] font-semibold px-2.5 py-0.5 rounded-md border border-[#D4E4E3]">
+          <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-md border border-[#D4E4E3]">
             {users.length} ผู้ใช้งาน
           </span>
         </div>
 
         {/* User cards list */}
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {isLoading ? (
-            <div className="text-center py-10 text-xs text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] animate-pulse">
+            <div className="text-center py-8 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] animate-pulse">
               กำลังโหลดข้อมูล...
             </div>
           ) : users.length === 0 ? (
-            <div className="text-center py-10 text-xs text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] border-dashed">
+            <div className="text-center py-8 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] border-dashed">
               ยังไม่มีข้อมูลผู้ใช้งาน
             </div>
           ) : users.map((user) => (
             <div 
               key={user.id} 
-              className="bg-white rounded-xl border border-[#D4E4E3] p-3.5 sm:px-4 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_1px_4px_rgba(90,138,136,0.06)] hover:shadow-[0_4px_12px_rgba(90,138,136,0.12)] hover:border-[#B8D4D2] hover:bg-[#FAFCFC] transition-all duration-150 group"
+              className="bg-white rounded-xl border border-[#D4E4E3] p-3 sm:px-3.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_1px_4px_rgba(90,138,136,0.06)] hover:shadow-[0_4px_12px_rgba(90,138,136,0.12)] hover:border-[#B8D4D2] hover:bg-[#FAFCFC] transition-all duration-150 group"
             >
               {/* User Info Left */}
-              <div className="flex items-center gap-3.5">
+              <div className="flex items-center gap-3">
                 {/* Avatar circle */}
-                <div className="w-10 h-10 rounded-full bg-[#E8F3F2] border-[1.5px] border-[#D4E4E3] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-full bg-[#E8F3F2] border-[1.5px] border-[#D4E4E3] flex items-center justify-center shrink-0">
                   {user.name ? (
-                    <span className="text-[16px] font-bold text-[#5A8A88] uppercase">
+                    <span className="text-[14px] font-bold text-[#5A8A88] uppercase">
                       {user.name.charAt(0)}
                     </span>
                   ) : (
-                    <User size={18} className="text-[#5A8A88]" />
+                    <User size={16} className="text-[#5A8A88]" />
                   )}
                 </div>
 
                 {/* Name and Role */}
                 <div>
-                  <h4 className="font-bold text-[14px] text-[#2D4A49] leading-tight">
+                  <h4 className="font-bold text-[13px] text-[#2D4A49] leading-tight">
                     {user.name}
                   </h4>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-0.5">
                     {renderRoleBadge(user.role)}
                   </div>
                 </div>
@@ -1551,31 +1598,31 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               {/* Action Buttons Right */}
               {isChangingPassword === user.id ? (
                 <form onSubmit={(e) => handleSavePassword(e, user.id)} className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="flex items-center px-2.5 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-xs text-[#6B8F8E] line-through shrink-0" title="รหัสผ่านเดิม">
+                  <div className="flex items-center px-2 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[10px] text-[#6B8F8E] line-through shrink-0" title="รหัสผ่านเดิม">
                     {user.password || 'ไม่มีรหัส'}
                   </div>
                   <input
                     type="text"
                     placeholder="รหัสผ่านใหม่"
                     required
-                    className="flex-1 sm:w-36 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none text-xs text-[#2D4A49] bg-white font-mono"
+                    className="flex-1 sm:w-32 px-2.5 py-1 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white font-mono"
                     value={passwordForm.password}
                     onChange={(e) => setPasswordForm({ password: e.target.value })}
                   />
                   <button 
                     type="submit" 
-                    className="p-2 bg-[#5A8A88] hover:bg-[#4d7775] text-white rounded-lg transition-colors cursor-pointer shadow-xs" 
+                    className="p-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white rounded-lg transition-colors cursor-pointer shadow-xs" 
                     title="บันทึก"
                   >
-                    <Save size={14} />
+                    <Save size={13} />
                   </button>
                   <button 
                     type="button" 
                     onClick={() => setIsChangingPassword(null)} 
-                    className="p-2 text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg transition-colors cursor-pointer" 
+                    className="p-1.5 text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg transition-colors cursor-pointer" 
                     title="ยกเลิก"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 </form>
               ) : (
@@ -1583,29 +1630,29 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   {/* Key button */}
                   <button 
                     onClick={() => setIsChangingPassword(user.id)}
-                    className="p-2 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-[7px] transition-all cursor-pointer" 
+                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-[7px] transition-all cursor-pointer" 
                     title="แก้ไขรหัสผ่าน"
                   >
-                    <Key size={15} />
+                    <Key size={14} />
                   </button>
 
                   {/* Edit button */}
                   <button 
                     onClick={() => openEditForm(user)}
-                    className="p-2 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-[7px] transition-all cursor-pointer" 
+                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-[7px] transition-all cursor-pointer" 
                     title="แก้ไขข้อมูล"
                   >
-                    <Pencil size={15} />
+                    <Pencil size={14} />
                   </button>
 
                   {/* Delete button */}
                   <button 
                     onClick={() => handleDeleteUser(user.id, user.name)}
-                    className="p-2 text-[#EF4444] hover:bg-[#FEE2E2] rounded-[7px] transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed" 
+                    className="p-1.5 text-[#EF4444] hover:bg-[#FEE2E2] rounded-[7px] transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed" 
                     title="ลบผู้ใช้งาน"
                     disabled={user.name === 'Admin'}
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               )}
@@ -1622,32 +1669,32 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
           style={{
             background: 'linear-gradient(135deg, #2D4A49 0%, #3D6B69 100%)'
           }}
-          className="p-5 sm:p-6 text-white"
+          className="p-4 sm:p-5 text-white"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/15 border border-white/20 rounded-xl flex items-center justify-center text-[#E8F3F2]">
-              <Bell size={20} />
+            <div className="w-9 h-9 bg-white/15 border border-white/20 rounded-xl flex items-center justify-center text-[#E8F3F2]">
+              <Bell size={18} />
             </div>
             <div>
-              <h3 className="text-[16px] font-bold text-white">Discord Webhook Integration Settings</h3>
-              <p className="text-white/70 text-xs max-w-xl mt-0.5">
+              <h3 className="text-[14px] font-bold text-white">Discord Webhook Integration Settings</h3>
+              <p className="text-white/70 text-[11px] max-w-xl mt-0.5">
                 ตั้งค่าระบบการแจ้งเตือนยอดการทำงาน สต็อกบาร์ ครัวเบเกอรี่ รายงานของเสีย และเมนู R&D ไปยังเซิร์ฟเวอร์ Discord
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-5">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-[#2D4A49] mb-1.5 flex items-center justify-between">
+                <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1 flex items-center justify-between">
                   <span>Discord Webhook URL</span>
                   <a 
                     href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-[#5A8A88] hover:text-[#2D4A49] font-medium text-xs underline"
+                    className="text-[#5A8A88] hover:text-[#2D4A49] font-medium text-[10px] underline"
                   >
                     วิธีการสร้าง Webhook ↗
                   </a>
@@ -1655,17 +1702,17 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                 <input
                   type="password"
                   placeholder="กรอก Discord Webhook URL (https://discord.com/api/webhooks/...)"
-                  className="w-full px-3.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none font-mono text-xs text-[#2D4A49] bg-white"
+                  className="w-full px-3 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none font-mono text-[11px] text-[#2D4A49] bg-white"
                   value={discordSettings.webhookUrl}
                   onChange={(e) => setDiscordSettings({ ...discordSettings, webhookUrl: e.target.value })}
                 />
               </div>
 
               {/* Toggle Enable Notification Systems */}
-              <div className="flex items-center justify-between p-3.5 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3]">
+              <div className="flex items-center justify-between p-3 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3]">
                 <div>
-                  <h4 className="font-bold text-xs text-[#2D4A49]">เปิดใช้งาน Discord Notify</h4>
-                  <p className="text-[#6B8F8E] text-[11px] mt-0.5">เปิดหรือปิดการแจ้งเตือนทั้งหมดของแอปพลิเคชัน</p>
+                  <h4 className="font-bold text-[11px] text-[#2D4A49]">เปิดใช้งาน Discord Notify</h4>
+                  <p className="text-[#6B8F8E] text-[10px] mt-0.5">เปิดหรือปิดการแจ้งเตือนทั้งหมดของแอปพลิเคชัน</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -1674,17 +1721,17 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                     checked={discordSettings.enabled}
                     onChange={(e) => setDiscordSettings({ ...discordSettings, enabled: e.target.checked })}
                   />
-                  <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5A8A88]"></div>
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5A8A88]"></div>
                 </label>
               </div>
             </div>
 
             {/* Guide Info */}
-            <div className="bg-[#E8F3F2] text-[#2D4A49] p-4 rounded-xl border border-[#D4E4E3] text-xs space-y-2 self-start">
-              <h5 className="font-bold flex items-center gap-1.5 text-[#2D4A49]">
-                <AlertCircle size={14} className="text-[#5A8A88]" /> วิธีการเชื่อมต่อ Discord Webhook
+            <div className="bg-[#E8F3F2] text-[#2D4A49] p-3.5 rounded-xl border border-[#D4E4E3] text-[11px] space-y-1.5 self-start">
+              <h5 className="font-bold flex items-center gap-1 text-[#2D4A49] text-[11px]">
+                <AlertCircle size={13} className="text-[#5A8A88]" /> วิธีการเชื่อมต่อ Discord Webhook
               </h5>
-              <ol className="list-decimal list-inside space-y-1 text-[#476E6C] leading-relaxed text-[11px]">
+              <ol className="list-decimal list-inside space-y-0.5 text-[#476E6C] leading-relaxed text-[10px]">
                 <li>ไปที่เซิร์ฟเวอร์ Discord ของคุณ (ต้องมีสิทธิ์จัดการเซิร์ฟเวอร์)</li>
                 <li>คลิกขวาที่ช่องแชต เลือก <b>แก้ไขช่อง (Edit Channel)</b></li>
                 <li>ไปที่ <b>Integrations</b> แล้วคลิกที่ <b>Webhooks</b></li>
@@ -1694,14 +1741,14 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
             </div>
           </div>
 
-          <div className="border-t border-[#E2EAE9] pt-5">
-            <h4 className="font-semibold text-xs text-[#2D4A49] mb-3 flex items-center gap-2">
-              <Bell size={15} className="text-[#5A8A88]" />
+          <div className="border-t border-[#E2EAE9] pt-4">
+            <h4 className="font-semibold text-[11px] text-[#2D4A49] mb-2.5 flex items-center gap-1.5">
+              <Bell size={14} className="text-[#5A8A88]" />
               หัวข้อรายงานที่ต้องการส่งไป Discord (Notification Subscriptions)
             </h4>
 
             {/* Subscriptions Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {[
                 { id: 'notifyOnStockSubmit', title: 'รายงานนับและส่งยอดคงเหลือสต็อก (Stock Submission)', desc: 'ส่งสรุปสต็อกเมื่อพนักงานบันทึกยอดนับสต็อกบาร์และครัวประจำวัน' },
                 { id: 'notifyOnReceiving', title: 'การตรวจรับวัตถุดิบ (Raw Material Receiving)', desc: 'ส่งความเคลื่อนไหวเมื่อมีการตรวจรับรับวัตถุดิบนำเข้า บาร์ หรือ ครัว' },
@@ -1710,36 +1757,36 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                 { id: 'notifyOnRnD', title: 'การเทสสูตรและรายงานเมนูใหม่ (R&D Reports)', desc: 'แชร์สูตรพัฒนา รสชาติ การประเมิน และแผนจำหน่ายเมนู R&D' },
                 { id: 'notifyOnBakeryPlan', title: 'แผนการผลิตและยอดจัดจำหน่ายเบเกอรี่ (Bakery Plan)', desc: 'ส่งสรุปการวางแผนเป้าหมายสัปดาห์ใหม่และยอดขายจริงท้ายสัปดาห์' },
               ].map(sub => (
-                <label key={sub.id} className="flex items-start gap-2.5 p-3 bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl cursor-pointer transition-colors shadow-2xs">
+                <label key={sub.id} className="flex items-start gap-2.5 p-2.5 bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl cursor-pointer transition-colors shadow-2xs">
                   <input 
                     type="checkbox" 
-                    className="mt-0.5 rounded text-[#5A8A88] focus:ring-[#5A8A88] w-4 h-4 cursor-pointer accent-[#5A8A88]"
+                    className="mt-0.5 rounded text-[#5A8A88] focus:ring-[#5A8A88] w-3.5 h-3.5 cursor-pointer accent-[#5A8A88]"
                     checked={(discordSettings as any)[sub.id]}
                     onChange={(e) => setDiscordSettings({ ...discordSettings, [sub.id]: e.target.checked })}
                   />
                   <div>
-                    <h5 className="font-bold text-[#2D4A49] text-xs">{sub.title}</h5>
-                    <p className="text-[#6B8F8E] text-[11px] mt-0.5">{sub.desc}</p>
+                    <h5 className="font-bold text-[#2D4A49] text-[11px]">{sub.title}</h5>
+                    <p className="text-[#6B8F8E] text-[10px] mt-0.5 leading-tight">{sub.desc}</p>
                   </div>
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 border-t border-[#E2EAE9] pt-4">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 border-t border-[#E2EAE9] pt-3.5">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleTestDiscordNotify}
                 disabled={isTestingDiscord || !discordSettings.webhookUrl}
-                className="flex items-center gap-1.5 border border-[#D4E4E3] hover:bg-[#F0F5F4] bg-white text-[#2D4A49] px-3.5 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 border border-[#D4E4E3] hover:bg-[#F0F5F4] bg-white text-[#2D4A49] px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-xs"
               >
-                <Send size={13} className="text-[#5A8A88]" />
+                <Send size={12} className="text-[#5A8A88]" />
                 <span>{isTestingDiscord ? 'กำลังส่งทดสอบ...' : 'ส่งข้อความทดสอบ'}</span>
               </button>
               
               {discordTestResult && (
-                <span className={`text-xs font-semibold ${discordTestResult.status === 'success' ? 'text-emerald-600' : 'text-[#EF4444]'}`}>
+                <span className={`text-[11px] font-semibold ${discordTestResult.status === 'success' ? 'text-emerald-600' : 'text-[#EF4444]'}`}>
                   {discordTestResult.message}
                 </span>
               )}
@@ -1749,9 +1796,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               type="button"
               onClick={handleSaveDiscordSettings}
               disabled={isSavingDiscord}
-              className="flex items-center justify-center gap-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white px-5 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white px-4 py-1.5 rounded-lg text-[11px] font-semibold transition-all shadow-xs disabled:opacity-70 cursor-pointer"
             >
-              <Save size={14} />
+              <Save size={13} />
               <span>{isSavingDiscord ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า Discord Notify'}</span>
             </button>
           </div>
@@ -1761,21 +1808,21 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       {/* Delete Confirmation Modal */}
       {userToDelete && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-2xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-[#D4E4E3]">
-            <h3 className="text-base font-bold text-[#2D4A49] mb-1.5">ยืนยันการลบผู้ใช้งาน</h3>
-            <p className="text-xs text-[#6B8F8E] mb-5 leading-relaxed">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-[#D4E4E3]">
+            <h3 className="text-[13px] font-bold text-[#2D4A49] mb-1.5">ยืนยันการลบผู้ใช้งาน</h3>
+            <p className="text-[11px] text-[#6B8F8E] mb-4 leading-relaxed">
               คุณแน่ใจหรือไม่ที่จะลบผู้ใช้งาน <span className="font-bold text-[#2D4A49]">"{userToDelete.name}"</span> ออกจากระบบ?
             </p>
-            <div className="flex justify-end gap-2.5">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setUserToDelete(null)}
-                className="px-4 py-2 text-xs font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg transition-colors cursor-pointer"
+                className="px-3 py-1.5 text-[11px] font-medium text-[#6B8F8E] hover:bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg transition-colors cursor-pointer"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={confirmDeleteUser}
-                className="px-4 py-2 bg-[#EF4444] hover:bg-red-600 text-white rounded-lg transition-colors text-xs font-semibold cursor-pointer shadow-xs"
+                className="px-3 py-1.5 bg-[#EF4444] hover:bg-red-600 text-white rounded-lg transition-colors text-[11px] font-semibold cursor-pointer shadow-xs"
               >
                 ลบผู้ใช้งาน
               </button>
@@ -1788,153 +1835,178 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       {isTemplateModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-2xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#D4E4E3] overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-[#E2EAE9]">
-              <h3 className="text-[16px] font-bold text-[#2D4A49] flex items-center gap-2">
-                <Settings className="text-[#5A8A88]" size={18} />
+            <div className="flex items-center justify-between p-4 border-b border-[#E2EAE9]">
+              <h3 className="text-[14px] font-bold text-[#2D4A49] flex items-center gap-2">
+                <Settings className="text-[#5A8A88]" size={16} />
                 ตั้งค่า Default ของ Authority ตามตำแหน่ง (Role Template)
               </h3>
               <button 
                 onClick={() => setIsTemplateModalOpen(false)}
                 className="w-7 h-7 rounded-lg text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center justify-center transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
             
-            <div className="p-4 border-b border-[#E2EAE9] bg-[#F0F5F4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-[#2D4A49] mb-1.5">
-                  เลือกตำแหน่ง (Role) ที่ต้องการตั้งค่า Default:
-                </label>
-                <select
-                  className="w-full sm:w-72 px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-xs font-semibold text-[#2D4A49] shadow-2xs"
-                  value={selectedTemplateRole}
-                  onChange={(e) => {
-                    const role = e.target.value as UserRole;
-                    setSelectedTemplateRole(role);
-                    const cur = roleTemplates[role] || applyRoleDefaults(role);
-                    setTemplateForm({ ...cur });
-                  }}
-                >
-                  <option value="Admin">Admin</option>
-                  <option value="Owner">Owner</option>
-                  <option value="Co-founder">Co-founder</option>
-                  <option value="Branch Manager">Branch Manager</option>
-                  <option value="Head Baker">Head Baker</option>
-                  <option value="Senior Baker">Senior Baker</option>
-                  <option value="Junior Baker">Junior Baker</option>
-                  <option value="Barista">Barista</option>
-                  <option value="Barista Assistance">Barista Assistance</option>
-                  <option value="Cashier">Cashier</option>
-                  <option value="Server/Runner">Server/Runner</option>
-                  <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
-                </select>
+            <div className="p-3.5 border-b border-[#E2EAE9] bg-[#F0F5F4] space-y-2.5">
+              {/* Row 1: Role select and Global Presets */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-[11px] font-bold text-[#2D4A49] shrink-0">
+                    เลือกตำแหน่ง (Role):
+                  </label>
+                  <select
+                    className="px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-[11px] font-semibold text-[#2D4A49] shadow-2xs cursor-pointer min-w-[160px]"
+                    value={selectedTemplateRole}
+                    onChange={(e) => {
+                      const role = e.target.value as UserRole;
+                      setSelectedTemplateRole(role);
+                      const cur = roleTemplates[role] || applyRoleDefaults(role);
+                      setTemplateForm({ ...cur });
+                    }}
+                  >
+                    <option value="Admin">Admin</option>
+                    <option value="Owner">Owner</option>
+                    <option value="Co-founder">Co-founder</option>
+                    <option value="Branch Manager">Branch Manager</option>
+                    <option value="Head Baker">Head Baker</option>
+                    <option value="Senior Baker">Senior Baker</option>
+                    <option value="Junior Baker">Junior Baker</option>
+                    <option value="Barista">Barista</option>
+                    <option value="Barista Assistance">Barista Assistance</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="Server/Runner">Server/Runner</option>
+                    <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-bold text-[#2D4A49]">เลือกทั้งหมด:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleTemplatePresetAll('hidden')}
+                    className="bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    Hidden ทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTemplatePresetAll('read')}
+                    className="bg-white border border-[#D4E4E3] text-[#10B981] hover:text-emerald-700 text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    Read ทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTemplatePresetAll('edit')}
+                    className="bg-white border border-[#D4E4E3] text-[#5A8A88] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    Edit ทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const def = applyRoleDefaults(selectedTemplateRole);
+                      setTemplateForm({ ...def });
+                    }}
+                    className="flex items-center gap-1 bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                    title="รีเซ็ตเป็นค่ามาตรฐานระบบ"
+                  >
+                    <RotateCcw size={11} />
+                    <span>รีเซ็ตมาตรฐาน</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1.5 self-start sm:self-end flex-wrap">
+              {/* Row 2: Quick Presets (บาร์ full, ครัว full, บาร์ only, ครัว only) */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-[#D4E4E3]/70">
+                <span className="text-[11px] font-bold text-[#2D4A49]">ปรับสิทธิ์ด่วน:</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    const newPerms = { ...templateForm };
-                    PERMISSION_GROUPS.forEach(g => g.items.forEach(it => { newPerms[it.key] = 'hidden'; }));
-                    setTemplateForm(newPerms);
-                  }}
-                  className="bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  onClick={handleTemplatePresetBarFull}
+                  className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer shadow-2xs"
                 >
-                  Hidden ทั้งหมด
+                  🍹 บาร์ Full
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const newPerms = { ...templateForm };
-                    PERMISSION_GROUPS.forEach(g => g.items.forEach(it => { newPerms[it.key] = 'read'; }));
-                    setTemplateForm(newPerms);
-                  }}
-                  className="bg-white border border-[#D4E4E3] text-[#10B981] hover:text-emerald-700 text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  onClick={handleTemplatePresetKitchenFull}
+                  className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer shadow-2xs"
                 >
-                  Read ทั้งหมด
+                  🍳 ครัว Full
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const newPerms = { ...templateForm };
-                    PERMISSION_GROUPS.forEach(g => g.items.forEach(it => { newPerms[it.key] = 'edit'; }));
-                    setTemplateForm(newPerms);
-                  }}
-                  className="bg-white border border-[#D4E4E3] text-[#5A8A88] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  onClick={handleTemplatePresetBarOnly}
+                  className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer shadow-2xs"
                 >
-                  Edit ทั้งหมด
+                  บาร์ Only
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const def = applyRoleDefaults(selectedTemplateRole);
-                    setTemplateForm({ ...def });
-                  }}
-                  className="flex items-center gap-1 bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
-                  title="รีเซ็ตเป็นค่ามาตรฐานระบบ"
+                  onClick={handleTemplatePresetKitchenOnly}
+                  className="bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer shadow-2xs"
                 >
-                  <RotateCcw size={12} />
-                  <span>รีเซ็ตมาตรฐาน</span>
+                  ครัว Only
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-3.5 custom-scrollbar">
               <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-xs">
-                <table className="w-full text-left bg-white text-xs">
+                <table className="w-full text-left bg-white text-[11px]">
                   <thead>
                     <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
-                      <th className="p-2.5 font-bold w-full">ฟังก์ชันระบบ</th>
-                      <th className="p-2.5 font-bold text-center w-24">Hidden</th>
-                      <th className="p-2.5 font-bold text-center w-24">Read</th>
-                      <th className="p-2.5 font-bold text-center w-24">Edit</th>
+                      <th className="p-2 font-bold w-full text-[11px]">ฟังก์ชันระบบ</th>
+                      <th className="p-2 font-bold text-center w-20 text-[11px]">Hidden</th>
+                      <th className="p-2 font-bold text-center w-20 text-[11px]">Read</th>
+                      <th className="p-2 font-bold text-center w-20 text-[11px]">Edit</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0F5F4]">
                     {PERMISSION_GROUPS.map(group => (
                       <React.Fragment key={group.id}>
                         <tr className="bg-[#F8FAF9] border-y border-[#E2EAE9]">
-                          <td colSpan={4} className="px-3 py-1.5 font-bold text-[11px] text-[#2D4A49]">
+                          <td colSpan={4} className="px-3 py-1 font-bold text-[10px] text-[#2D4A49] uppercase tracking-[0.05em]">
                             {group.name}
                           </td>
                         </tr>
                         {group.items.map(func => (
                           <tr key={func.key} className="hover:bg-[#F8FAFA] transition-colors">
-                            <td className="p-2.5 pl-5 font-medium text-[#2D4A49] flex items-center gap-2">
-                              <span>{func.icon}</span>
+                            <td className="p-2 pl-4 font-medium text-[#2D4A49] flex items-center gap-2 text-[11px]">
+                              <span className="text-[12px]">{func.icon}</span>
                               <span>{func.name}</span>
                             </td>
-                            <td className="p-2.5 text-center">
-                              <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                            <td className="p-2 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-0.5">
                                 <input 
                                   type="radio" 
                                   name={`tpl_perm_${func.key}`} 
                                   checked={templateForm[func.key] === 'hidden'}
                                   onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'hidden' }))}
-                                  className="w-4 h-4 accent-[#6B8F8E] cursor-pointer"
+                                  className="w-3.5 h-3.5 accent-[#6B8F8E] cursor-pointer"
                                 />
                               </label>
                             </td>
-                            <td className="p-2.5 text-center">
-                              <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                            <td className="p-2 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-0.5">
                                 <input 
                                   type="radio" 
                                   name={`tpl_perm_${func.key}`} 
                                   checked={templateForm[func.key] === 'read'}
                                   onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'read' }))}
-                                  className="w-4 h-4 accent-[#10B981] cursor-pointer"
+                                  className="w-3.5 h-3.5 accent-[#10B981] cursor-pointer"
                                 />
                               </label>
                             </td>
-                            <td className="p-2.5 text-center">
-                              <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                            <td className="p-2 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-0.5">
                                 <input 
                                   type="radio" 
                                   name={`tpl_perm_${func.key}`} 
                                   checked={templateForm[func.key] === 'edit'}
                                   onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'edit' }))}
-                                  className="w-4 h-4 accent-[#5A8A88] cursor-pointer"
+                                  className="w-3.5 h-3.5 accent-[#5A8A88] cursor-pointer"
                                 />
                               </label>
                             </td>
@@ -1945,13 +2017,13 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
                     {/* Special Option: canEditDateRange */}
                     <tr className="bg-[#F8FAF9] border-t border-[#E2EAE9]">
-                      <td colSpan={4} className="p-3">
-                        <label className="flex items-center gap-2 text-xs font-semibold text-[#2D4A49] cursor-pointer">
+                      <td colSpan={4} className="p-2.5">
+                        <label className="flex items-center gap-2 text-[11px] font-semibold text-[#2D4A49] cursor-pointer">
                           <input 
-                            type="checkbox"
+                            type="checkbox" 
                             checked={!!templateForm.canEditDateRange}
                             onChange={(e) => setTemplateForm(prev => ({ ...prev, canEditDateRange: e.target.checked }))}
-                            className="w-4 h-4 rounded text-[#5A8A88] accent-[#5A8A88] cursor-pointer"
+                            className="w-3.5 h-3.5 rounded text-[#5A8A88] accent-[#5A8A88] cursor-pointer"
                           />
                           <span>📅 อนุญาตให้เลือกช่วงวันที่ข้ามสัปดาห์ (Date Range)</span>
                         </label>
@@ -1962,15 +2034,15 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               </div>
             </div>
 
-            <div className="p-4 border-t border-[#E2EAE9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-              <span className="text-[11px] text-[#6B8F8E]">
+            <div className="p-3.5 border-t border-[#E2EAE9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+              <span className="text-[10px] sm:text-[11px] text-[#6B8F8E]">
                 * เมื่อเลือกตำแหน่ง "{selectedTemplateRole}" ในการสร้างหรือแก้ไขผู้ใช้ สิทธิ์จะถูกนำไปใช้ตามเทมเพลตนี้อัตโนมัติ
               </span>
               <div className="flex gap-2 self-end sm:self-auto">
                 <button 
                   type="button" 
                   onClick={() => setIsTemplateModalOpen(false)} 
-                  className="px-4 py-2 text-xs font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
                 >
                   ปิด
                 </button>
@@ -1978,9 +2050,9 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   type="button" 
                   onClick={handleSaveRoleTemplate}
                   disabled={isSavingTemplate}
-                  className="px-4 py-2 bg-[#5A8A88] hover:bg-[#4d7775] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-70 cursor-pointer"
+                  className="px-3.5 py-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-70 cursor-pointer"
                 >
-                  {isSavingTemplate ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {isSavingTemplate ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                   <span>{isSavingTemplate ? 'กำลังบันทึก...' : `บันทึก Default ของ ${selectedTemplateRole}`}</span>
                 </button>
               </div>
