@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -16,7 +16,8 @@ import {
   Pencil,
   BookOpen,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
@@ -466,11 +467,22 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     password: ''
   });
 
-  const [roleTemplates, setRoleTemplates] = useState<Record<string, AppPermissions>>({});
+  const [roleTemplates, setRoleTemplates] = useState<Record<string, UserPermissions>>({});
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [selectedTemplateRole, setSelectedTemplateRole] = useState<UserRole>('Barista');
-  const [templateForm, setTemplateForm] = useState<AppPermissions>(DEFAULT_PERMISSIONS);
+  const [templateForm, setTemplateForm] = useState<UserPermissions>(() => applyRoleDefaults('Barista'));
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  const getRoleDefaults = useCallback((role: string): UserPermissions => {
+    if (roleTemplates[role]) {
+      return roleTemplates[role];
+    }
+    const foundKey = Object.keys(roleTemplates).find(k => k.toLowerCase() === (role || '').toLowerCase());
+    if (foundKey && roleTemplates[foundKey]) {
+      return roleTemplates[foundKey];
+    }
+    return applyRoleDefaults(role);
+  }, [roleTemplates]);
 
   // ━━━━ QUICK PRESET HANDLERS ━━━━
   const handlePresetAll = (level: PagePermission) => {
@@ -528,27 +540,34 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
   const handlePresetReset = () => {
     setIsUserFormDirty(true);
-    const roleDefaults = applyRoleDefaults(formData.role);
+    const roleDefaults = getRoleDefaults(formData.role);
     setFormData(prev => ({ ...prev, permissions: roleDefaults }));
   };
 
   const fetchRoleTemplates = async () => {
     if (supabase) {
-      const { data, error } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'role_permissions_templates').eq('branch', branch).single();
-      if (!error && data) {
-        setRoleTemplates(data.setting_value);
-      } else {
-        const { data: fallbackData, error: fallbackError } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'role_permissions_templates').limit(1).single();
-        if (!fallbackError && fallbackData) {
-          setRoleTemplates(fallbackData.setting_value);
-        } else {
-          const saved = localStorage.getItem('role_permissions_templates');
-          if (saved) setRoleTemplates(JSON.parse(saved));
+      try {
+        const { data, error } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'role_permissions_templates').eq('branch', branch).single();
+        if (!error && data && typeof data.setting_value === 'object') {
+          setRoleTemplates(data.setting_value);
+          return;
         }
+        const { data: fallbackData, error: fallbackError } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'role_permissions_templates').limit(1).single();
+        if (!fallbackError && fallbackData && typeof fallbackData.setting_value === 'object') {
+          setRoleTemplates(fallbackData.setting_value);
+          return;
+        }
+      } catch (e) {
+        console.warn('fetchRoleTemplates error:', e);
       }
-    } else {
-      const saved = localStorage.getItem('role_permissions_templates');
-      if (saved) setRoleTemplates(JSON.parse(saved));
+    }
+    const saved = localStorage.getItem('role_permissions_templates');
+    if (saved) {
+      try {
+        setRoleTemplates(JSON.parse(saved));
+      } catch (e) {
+        console.warn('LocalStorage read role_permissions_templates error:', e);
+      }
     }
   };
 
@@ -557,21 +576,28 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     const updatedTemplates = { ...roleTemplates, [selectedTemplateRole]: templateForm };
     
     if (supabase) {
-      const { error } = await supabase.from('app_settings').upsert({ branch,
-        setting_key: 'role_permissions_templates',
-        setting_value: updatedTemplates
-      });
-      if (error) {
-        alert('Error saving role template: ' + error.message);
-        setIsSavingTemplate(false);
-        return;
+      try {
+        const { error } = await supabase.from('app_settings').upsert({ 
+          branch: branch || 'Rayong',
+          setting_key: 'role_permissions_templates',
+          setting_value: updatedTemplates
+        });
+        if (error) {
+          console.warn('Error saving role template to supabase:', error.message);
+        }
+      } catch (err: any) {
+        console.warn('Supabase role template error:', err);
       }
     }
     
     localStorage.setItem('role_permissions_templates', JSON.stringify(updatedTemplates));
     setRoleTemplates(updatedTemplates);
     setIsSavingTemplate(false);
-    alert(`บันทึก Role Template สำหรับ ${selectedTemplateRole} เรียบร้อยแล้ว`);
+    setUserSaveStatus({
+      type: 'success',
+      message: `บันทึก Default Authority สำหรับตำแหน่ง "${selectedTemplateRole}" สำเร็จเรียบร้อย`
+    });
+    setIsTemplateModalOpen(false);
   };
 
   const fetchUsers = async () => {
@@ -1061,22 +1087,42 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
           </div>
 
           {!isFormOpen && (
-            <button 
-              onClick={() => {
-                setEditingUser(null);
-                const defaultPerms = applyRoleDefaults('Barista');
-                setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
-                setIsUserFormDirty(false);
-                setJustSavedUser(false);
-                setUserSaveStatus(null);
-                setActiveModalTab('general');
-                setIsFormOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
-            >
-              <Plus size={16} className="text-white" />
-              <span>เพิ่มผู้ใช้งานใหม่</span>
-            </button>
+            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0 w-full sm:w-auto">
+              {/* ปุ่ม Setting สำหรับ ตั้งค่า Default ของ Authority ตามตำแหน่ง */}
+              <button 
+                type="button"
+                onClick={() => {
+                  const role = 'Barista';
+                  setSelectedTemplateRole(role);
+                  const cur = roleTemplates[role] || applyRoleDefaults(role);
+                  setTemplateForm({ ...cur });
+                  setIsTemplateModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[13px] font-semibold px-3.5 py-2.5 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+                title="ตั้งค่า Default ของ Authority ตามตำแหน่ง"
+              >
+                <Settings size={16} className="text-white" />
+                <span>ตั้งค่า Default ตามตำแหน่ง</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  setEditingUser(null);
+                  const defaultPerms = getRoleDefaults('Barista');
+                  setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+                  setIsUserFormDirty(false);
+                  setJustSavedUser(false);
+                  setUserSaveStatus(null);
+                  setActiveModalTab('general');
+                  setIsFormOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+              >
+                <Plus size={16} className="text-white" />
+                <span>เพิ่มผู้ใช้งานใหม่</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1153,7 +1199,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                     onChange={(e) => {
                       setIsUserFormDirty(true);
                       const newRole = e.target.value as UserRole;
-                      const roleDefaults = applyRoleDefaults(newRole);
+                      const roleDefaults = getRoleDefaults(newRole);
                       setFormData(prev => ({ 
                         ...prev, 
                         role: newRole,
@@ -1745,7 +1791,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
             <div className="flex items-center justify-between p-5 border-b border-[#E2EAE9]">
               <h3 className="text-[16px] font-bold text-[#2D4A49] flex items-center gap-2">
                 <Settings className="text-[#5A8A88]" size={18} />
-                ตั้งค่า Role Permissions Template
+                ตั้งค่า Default ของ Authority ตามตำแหน่ง (Role Template)
               </h3>
               <button 
                 onClick={() => setIsTemplateModalOpen(false)}
@@ -1755,30 +1801,83 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
               </button>
             </div>
             
-            <div className="p-4 border-b border-[#E2EAE9] bg-[#F0F5F4]">
-              <label className="block text-xs font-semibold text-[#2D4A49] mb-1.5">เลือก Role ที่ต้องการบันทึกเทมเพลต</label>
-              <select
-                className="w-full sm:w-1/2 px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-xs font-medium text-[#2D4A49] shadow-2xs"
-                value={selectedTemplateRole}
-                onChange={(e) => {
-                  const role = e.target.value as UserRole;
-                  setSelectedTemplateRole(role);
-                  setTemplateForm(roleTemplates[role] || DEFAULT_PERMISSIONS);
-                }}
-              >
-                <option value="Admin">Admin</option>
-                <option value="Owner">Owner</option>
-                <option value="Co-founder">Co-founder</option>
-                <option value="Branch Manager">Branch Manager</option>
-                <option value="Head Baker">Head Baker</option>
-                <option value="Senior Baker">Senior Baker</option>
-                <option value="Junior Baker">Junior Baker</option>
-                <option value="Barista">Barista</option>
-                <option value="Barista Assistance">Barista Assistance</option>
-                <option value="Cashier">Cashier</option>
-                <option value="Server/Runner">Server/Runner</option>
-                <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
-              </select>
+            <div className="p-4 border-b border-[#E2EAE9] bg-[#F0F5F4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-[#2D4A49] mb-1.5">
+                  เลือกตำแหน่ง (Role) ที่ต้องการตั้งค่า Default:
+                </label>
+                <select
+                  className="w-full sm:w-72 px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-xs font-semibold text-[#2D4A49] shadow-2xs"
+                  value={selectedTemplateRole}
+                  onChange={(e) => {
+                    const role = e.target.value as UserRole;
+                    setSelectedTemplateRole(role);
+                    const cur = roleTemplates[role] || applyRoleDefaults(role);
+                    setTemplateForm({ ...cur });
+                  }}
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Owner">Owner</option>
+                  <option value="Co-founder">Co-founder</option>
+                  <option value="Branch Manager">Branch Manager</option>
+                  <option value="Head Baker">Head Baker</option>
+                  <option value="Senior Baker">Senior Baker</option>
+                  <option value="Junior Baker">Junior Baker</option>
+                  <option value="Barista">Barista</option>
+                  <option value="Barista Assistance">Barista Assistance</option>
+                  <option value="Cashier">Cashier</option>
+                  <option value="Server/Runner">Server/Runner</option>
+                  <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 self-start sm:self-end flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newPerms = { ...templateForm };
+                    PERMISSION_GROUPS.forEach(g => g.items.forEach(it => { newPerms[it.key] = 'hidden'; }));
+                    setTemplateForm(newPerms);
+                  }}
+                  className="bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                >
+                  Hidden ทั้งหมด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newPerms = { ...templateForm };
+                    PERMISSION_GROUPS.forEach(g => g.items.forEach(it => { newPerms[it.key] = 'read'; }));
+                    setTemplateForm(newPerms);
+                  }}
+                  className="bg-white border border-[#D4E4E3] text-[#10B981] hover:text-emerald-700 text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                >
+                  Read ทั้งหมด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newPerms = { ...templateForm };
+                    PERMISSION_GROUPS.forEach(g => g.items.forEach(it => { newPerms[it.key] = 'edit'; }));
+                    setTemplateForm(newPerms);
+                  }}
+                  className="bg-white border border-[#D4E4E3] text-[#5A8A88] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                >
+                  Edit ทั้งหมด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const def = applyRoleDefaults(selectedTemplateRole);
+                    setTemplateForm({ ...def });
+                  }}
+                  className="flex items-center gap-1 bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1.5 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  title="รีเซ็ตเป็นค่ามาตรฐานระบบ"
+                >
+                  <RotateCcw size={12} />
+                  <span>รีเซ็ตมาตรฐาน</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -1786,57 +1885,78 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                 <table className="w-full text-left bg-white text-xs">
                   <thead>
                     <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
-                      <th className="p-2.5 font-bold w-full">ฟังก์ชัน</th>
-                      <th className="p-2.5 font-bold text-center w-20 cursor-pointer hover:text-[#5A8A88]" onClick={() => {
-                        const newPerms = { ...templateForm };
-                        APP_FUNCTIONS.forEach(f => newPerms[f.id] = 'Hidden');
-                        setTemplateForm(newPerms);
-                      }}>Hidden (All)</th>
-                      <th className="p-2.5 font-bold text-center w-20 cursor-pointer hover:text-[#5A8A88]" onClick={() => {
-                        const newPerms = { ...templateForm };
-                        APP_FUNCTIONS.forEach(f => newPerms[f.id] = 'Review');
-                        setTemplateForm(newPerms);
-                      }}>Review (All)</th>
-                      <th className="p-2.5 font-bold text-center w-20 cursor-pointer hover:text-[#5A8A88]" onClick={() => {
-                        const newPerms = { ...templateForm };
-                        APP_FUNCTIONS.forEach(f => newPerms[f.id] = 'Edit');
-                        setTemplateForm(newPerms);
-                      }}>Edit (All)</th>
+                      <th className="p-2.5 font-bold w-full">ฟังก์ชันระบบ</th>
+                      <th className="p-2.5 font-bold text-center w-24">Hidden</th>
+                      <th className="p-2.5 font-bold text-center w-24">Read</th>
+                      <th className="p-2.5 font-bold text-center w-24">Edit</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0F5F4]">
-                    {APP_FUNCTIONS.map(func => (
-                      <tr key={func.id} className="hover:bg-[#F8FAFA] transition-colors">
-                        <td className="p-2.5 font-medium text-[#2D4A49]">{func.name}</td>
-                        <td className="p-2.5 text-center">
-                          <input 
-                            type="radio" 
-                            name={`tpl_perm_${func.id}`} 
-                            checked={templateForm[func.id] === 'Hidden'}
-                            onChange={() => setTemplateForm({ ...templateForm, [func.id]: 'Hidden' })}
-                            className="w-4 h-4 accent-[#5A8A88] cursor-pointer"
-                          />
-                        </td>
-                        <td className="p-2.5 text-center">
-                          <input 
-                            type="radio" 
-                            name={`tpl_perm_${func.id}`} 
-                            checked={templateForm[func.id] === 'Review'}
-                            onChange={() => setTemplateForm({ ...templateForm, [func.id]: 'Review' })}
-                            className="w-4 h-4 accent-[#10B981] cursor-pointer"
-                          />
-                        </td>
-                        <td className="p-2.5 text-center">
-                          <input 
-                            type="radio" 
-                            name={`tpl_perm_${func.id}`} 
-                            checked={templateForm[func.id] === 'Edit'}
-                            onChange={() => setTemplateForm({ ...templateForm, [func.id]: 'Edit' })}
-                            className="w-4 h-4 accent-[#5A8A88] cursor-pointer"
-                          />
-                        </td>
-                      </tr>
+                    {PERMISSION_GROUPS.map(group => (
+                      <React.Fragment key={group.id}>
+                        <tr className="bg-[#F8FAF9] border-y border-[#E2EAE9]">
+                          <td colSpan={4} className="px-3 py-1.5 font-bold text-[11px] text-[#2D4A49]">
+                            {group.name}
+                          </td>
+                        </tr>
+                        {group.items.map(func => (
+                          <tr key={func.key} className="hover:bg-[#F8FAFA] transition-colors">
+                            <td className="p-2.5 pl-5 font-medium text-[#2D4A49] flex items-center gap-2">
+                              <span>{func.icon}</span>
+                              <span>{func.name}</span>
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                                <input 
+                                  type="radio" 
+                                  name={`tpl_perm_${func.key}`} 
+                                  checked={templateForm[func.key] === 'hidden'}
+                                  onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'hidden' }))}
+                                  className="w-4 h-4 accent-[#6B8F8E] cursor-pointer"
+                                />
+                              </label>
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                                <input 
+                                  type="radio" 
+                                  name={`tpl_perm_${func.key}`} 
+                                  checked={templateForm[func.key] === 'read'}
+                                  onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'read' }))}
+                                  className="w-4 h-4 accent-[#10B981] cursor-pointer"
+                                />
+                              </label>
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                                <input 
+                                  type="radio" 
+                                  name={`tpl_perm_${func.key}`} 
+                                  checked={templateForm[func.key] === 'edit'}
+                                  onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'edit' }))}
+                                  className="w-4 h-4 accent-[#5A8A88] cursor-pointer"
+                                />
+                              </label>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
+
+                    {/* Special Option: canEditDateRange */}
+                    <tr className="bg-[#F8FAF9] border-t border-[#E2EAE9]">
+                      <td colSpan={4} className="p-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-[#2D4A49] cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={!!templateForm.canEditDateRange}
+                            onChange={(e) => setTemplateForm(prev => ({ ...prev, canEditDateRange: e.target.checked }))}
+                            className="w-4 h-4 rounded text-[#5A8A88] accent-[#5A8A88] cursor-pointer"
+                          />
+                          <span>📅 อนุญาตให้เลือกช่วงวันที่ข้ามสัปดาห์ (Date Range)</span>
+                        </label>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1844,7 +1964,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
 
             <div className="p-4 border-t border-[#E2EAE9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
               <span className="text-[11px] text-[#6B8F8E]">
-                เมื่อผู้ใช้เลือก Role นี้ในอนาคต สิทธิ์จะถูกปรับตามเทมเพลตนี้อัตโนมัติ
+                * เมื่อเลือกตำแหน่ง "{selectedTemplateRole}" ในการสร้างหรือแก้ไขผู้ใช้ สิทธิ์จะถูกนำไปใช้ตามเทมเพลตนี้อัตโนมัติ
               </span>
               <div className="flex gap-2 self-end sm:self-auto">
                 <button 
@@ -1860,7 +1980,8 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   disabled={isSavingTemplate}
                   className="px-4 py-2 bg-[#5A8A88] hover:bg-[#4d7775] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-70 cursor-pointer"
                 >
-                  <Save size={14} /> {isSavingTemplate ? 'กำลังบันทึก...' : `บันทึกเทมเพลต ${selectedTemplateRole}`}
+                  {isSavingTemplate ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>{isSavingTemplate ? 'กำลังบันทึก...' : `บันทึก Default ของ ${selectedTemplateRole}`}</span>
                 </button>
               </div>
             </div>
