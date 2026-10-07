@@ -24,8 +24,9 @@ import { PurchasingReport } from './components/PurchasingReport';
 import { UserSettings } from './components/UserSettings';
 import { DailySalesRecord } from './components/DailySalesRecord';
 import { DailyBakeryRecord } from './components/DailyBakeryRecord';
-import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload, Save, CheckCircle2, Loader2 } from 'lucide-react';
+import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload, Save, CheckCircle2, Loader2, UtensilsCrossed } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
+import { th } from 'date-fns/locale';
 import { cn, generateUUID, isValidUUID } from './lib/utils';
 import { supabase } from './lib/supabase';
 import { DEFAULT_LINE_NOTIFY_SETTINGS, sendLineNotification } from './lib/lineNotify';
@@ -312,7 +313,58 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
 
-  const [dateRange, setDateRange] = useState({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) });
+  // Stock View state (1day, 2days, 3days, week) - Default is 1day
+  const [stockViewMode, setStockViewMode] = useState<'1day' | '2days' | '3days' | 'week'>('1day');
+  const [stockWeek, setStockWeek] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [stockActiveChunkIdx, setStockActiveChunkIdx] = useState<number>(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const w = startOfWeek(today, { weekStartsOn: 1 });
+    const diff = differenceInDays(today, w);
+    return diff >= 0 && diff <= 6 ? diff : 0;
+  });
+
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { start: today, end: today };
+  });
+
+  // 7 days of the current stock week
+  const stockWeekDays = useMemo(() => {
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = addDays(stockWeek, i);
+      return {
+        date: d,
+        dateStr: format(d, 'yyyy-MM-dd'),
+        dayName: format(d, 'EEEE', { locale: th }),
+        shortDate: format(d, 'd MMM yyyy', { locale: th }),
+        shortDay: format(d, 'EEE d', { locale: th }),
+      };
+    });
+  }, [stockWeek]);
+
+  // Sync dateRange whenever stockViewMode, stockWeek, or stockActiveChunkIdx changes
+  useEffect(() => {
+    if (stockViewMode === '1day') {
+      const idx = Math.min(Math.max(0, stockActiveChunkIdx), 6);
+      const d = addDays(stockWeek, idx);
+      setDateRange({ start: d, end: d });
+    } else if (stockViewMode === '2days') {
+      const startIdx = Math.min(Math.max(0, stockActiveChunkIdx * 2), 6);
+      const startD = addDays(stockWeek, startIdx);
+      const endD = addDays(stockWeek, Math.min(startIdx + 1, 6));
+      setDateRange({ start: startD, end: endD });
+    } else if (stockViewMode === '3days') {
+      const startIdx = Math.min(Math.max(0, stockActiveChunkIdx * 3), 6);
+      const startD = addDays(stockWeek, startIdx);
+      const endD = addDays(stockWeek, Math.min(startIdx + 2, 6));
+      setDateRange({ start: startD, end: endD });
+    } else {
+      // 'week'
+      setDateRange({ start: stockWeek, end: addDays(stockWeek, 6) });
+    }
+  }, [stockViewMode, stockWeek, stockActiveChunkIdx]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'userSettings'>('home');
@@ -2378,253 +2430,340 @@ export default function App() {
           <UserSettings currentUser={user} onCurrentUserUpdated={setUser} branch={user?.branch} />
         ) : (
           <>
-            {/* ROW 1 — Date + Navigation */}
-            <div className="flex items-center justify-between mb-3 bg-white p-3 sm:px-4 rounded-xl shadow-[0_1px_4px_rgba(90,138,136,0.08)] border border-[#D4E4E3] gap-3 flex-wrap sm:flex-nowrap">
-              <div className="flex items-center flex-wrap sm:flex-nowrap">
-                {/* Button Group: Today & This Week */}
-                <div className="flex items-center gap-2">
-                  {/* Today button */}
+            {/* ── HEADER CARD (Matches DailyBakeryRecord Layout & Style) ── */}
+            <div className="bg-white rounded-xl shadow-xs border border-[#D4E4E3] border-t-2 border-t-[#5A8A88] p-3 sm:p-4 mb-3">
+              {/* ROW 1: Title (left) + Period Navigation (right) */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
+                {/* LEFT: Icon + Title + Badge + Subtitle */}
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+                    {activeTab === 'barStock' ? <Package size={18} /> : <UtensilsCrossed size={18} />}
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center">
+                      <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                        {activeTab === 'barStock' ? 'สรุป Stock บาร์' : 'สรุป Stock ครัว'}
+                      </h1>
+                      <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
+                        สาขา {user?.branch || 'Rayong'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                      {activeTab === 'barStock' ? 'ภาพรวมการใช้วัตถุดิบสต็อกบาร์และยอดคงเหลือ' : 'ภาพรวมการใช้วัตถุดิบสต็อกครัวและยอดคงเหลือ'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* RIGHT: Period Navigation [<] สัปดาห์: ... [>] */}
+                <div className="flex items-center gap-1.5 self-start md:self-auto flex-wrap">
                   <button
+                    type="button"
                     onClick={() => {
                       const now = new Date();
                       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                      setDateRange({ start: today, end: today });
+                      const w = startOfWeek(today, { weekStartsOn: 1 });
+                      setStockWeek(w);
+                      const diff = differenceInDays(today, w);
+                      setStockActiveChunkIdx(Math.max(0, Math.min(6, diff)));
                     }}
-                    className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[11px] font-medium transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
+                    className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[30px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                    title="ไปยังสัปดาห์ปัจจุบัน / วันนี้"
                   >
                     <Calendar size={13} className="text-[#5A8A88]" />
-                    Today
+                    <span>วันนี้</span>
                   </button>
 
-                  {/* This Week button */}
-                  <button 
-                    onClick={() => setDateRange({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6) })}
-                    className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg text-[11px] font-medium transition-all shadow-xs transform hover:scale-105 active:scale-95 border border-[#5A8A88] bg-white text-[#5A8A88] hover:bg-[#E8F3F2]"
-                  >
-                    <Calendar size={13} className="text-[#5A8A88]" />
-                    This Week
-                  </button>
-                </div>
-
-                {/* Date range inputs */}
-                <div className="flex items-center gap-2 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3] ml-4">
-                  <input 
-                    type="date" 
-                    value={format(dateRange.start, 'yyyy-MM-dd')}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const [y, m, d] = e.target.value.split('-');
-                      const newStart = new Date(Number(y), Number(m) - 1, Number(d));
-                      let newEnd = dateRange.end;
-                      if (newEnd < newStart) newEnd = newStart;
-                      if (differenceInDays(newEnd, newStart) > 6) {
-                        newEnd = addDays(newStart, 6);
-                      }
-                      setDateRange({ start: newStart, end: newEnd });
-                    }}
-                    className="bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-normal px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
-                  />
-                  <span className="text-[#6B8F8E] text-[11px] font-normal">ถึง</span>
-                  <input 
-                    type="date" 
-                    value={format(dateRange.end, 'yyyy-MM-dd')}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const [y, m, d] = e.target.value.split('-');
-                      const newEnd = new Date(Number(y), Number(m) - 1, Number(d));
-                      let newStart = dateRange.start;
-                      if (newStart > newEnd) newStart = newEnd;
-                      if (differenceInDays(newEnd, newStart) > 6) {
-                        newStart = subDays(newEnd, 6);
-                      }
-                      setDateRange({ start: newStart, end: newEnd });
-                    }}
-                    min={format(dateRange.start, 'yyyy-MM-dd')}
-                    max={format(addDays(dateRange.start, 6), 'yyyy-MM-dd')}
-                    className="bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-normal px-2.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#E8F3F2] font-mono h-7"
-                  />
-                </div>
-              </div>
-              
-              {/* Undo / Redo */}
-              <div className="flex items-center gap-1 bg-[#F0F5F4] rounded-lg p-1 border border-[#D4E4E3]">
-                <button 
-                  onClick={handleUndo}
-                  disabled={history.length === 0}
-                  className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <Undo size={11} />
-                </button>
-                <button 
-                  onClick={handleRedo}
-                  disabled={future.length === 0}
-                  className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                  title="Redo (Ctrl+Y)"
-                >
-                  <Redo size={11} />
-                </button>
-              </div>
-            </div>
-
-            {/* ROW 2 — Action Buttons */}
-            <div className="flex justify-between items-center gap-2 mb-3 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap">
-              {hasPermission('manageIngredients') && (
-                <>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept=".xlsx, .xls, .csv" 
-                    onChange={handleFileUpload} 
-                  />
-                  {/* 1. โหลดเทมเพลต */}
                   <button
                     type="button"
-                    onClick={async () => {
-                      const ws = XLSX.utils.json_to_sheet([
-                        { 
-                          'ชื่อสินค้า': 'เมล็ดกาแฟคั่วกลาง', 
-                          'ยี่ห้อ': 'Crenn', 
-                          'หมวดหมู่': 'เมล็ดกาแฟ',
-                          'ขนาด/หน่วย': '1000',
-                          'หน่วย': 'g',
-                          'คงเหลือขั้นต่ำ': 2000,
-                          'สั่งซื้อขั้นต่ำ': 5000,
-                          'ผู้จัดจำหน่าย': 'Supplier A',
-                          'แผนก': 'Bar',
-                          'รูปภาพ': ''
-                        },
-                        { 
-                          'ชื่อสินค้า': 'แป้งเค้ก', 
-                          'ยี่ห้อ': 'ตราพัด', 
-                          'หมวดหมู่': 'แป้ง',
-                          'ขนาด/หน่วย': '1',
-                          'หน่วย': 'ถุง',
-                          'คงเหลือขั้นต่ำ': 5,
-                          'สั่งซื้อขั้นต่ำ': 10,
-                          'ผู้จัดจำหน่าย': 'Supplier B',
-                          'แผนก': 'Bakery',
-                          'รูปภาพ': ''
-                        }
-                      ]);
-                      const wb = XLSX.utils.book_new();
-                      XLSX.utils.book_append_sheet(wb, ws, "Template");
-                      XLSX.writeFile(wb, "Ingredient_Template.xlsx");
-                    }}
-                    className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                    title="ดาวน์โหลดไฟล์ตัวอย่างเทมเพลต Excel"
+                    onClick={() => setStockWeek(prev => subWeeks(prev, 1))}
+                    className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                    title="สัปดาห์ก่อนหน้า"
                   >
-                    <Download size={13} className="text-[#5A8A88]" />
-                    <span>โหลดเทมเพลต</span>
+                    <ChevronLeft size={14} />
                   </button>
 
-                  {/* 2. นำเข้า - Matches DailyBakeryRecord design and function */}
+                  <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
+                    สัปดาห์: {format(stockWeek, 'd MMM', { locale: th })} - {format(addDays(stockWeek, 6), 'd MMM yyyy', { locale: th })}
+                  </span>
+
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                    title="นำเข้ารายการวัตถุดิบจากไฟล์ Excel (.xlsx, .xls, .csv)"
+                    onClick={() => setStockWeek(prev => addWeeks(prev, 1))}
+                    className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                    title="สัปดาห์ถัดไป"
                   >
-                    <Upload size={13} className="text-[#5A8A88]" />
-                    <span>นำเข้า</span>
+                    <ChevronRight size={14} />
                   </button>
+                </div>
+              </div>
 
-                  {/* 3. ส่งออก Dropdown - Matches DailyBakeryRecord design and function */}
+              {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
+              <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
+
+              {/* ROW 2: View Mode Dropdown + Chunks (Left) + Action Buttons (Right) - ALL IN ONE ROW */}
+              <div className="flex items-center justify-between gap-2 w-full pt-0.5 flex-wrap">
+                {/* LEFT: View Mode Dropdown + Day/Chunk Selector on SAME ROW */}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+                  <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">มุมมอง:</span>
+
+                  {/* Dropdown list for View Mode */}
                   <div className="relative">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsExportDropdownOpen(!isExportDropdownOpen);
+                    <select
+                      value={stockViewMode}
+                      onChange={(e) => {
+                        const mode = e.target.value as '1day' | '2days' | '3days' | 'week';
+                        setStockViewMode(mode);
+                        if (mode === '1day') {
+                          const now = new Date();
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const diff = differenceInDays(today, stockWeek);
+                          setStockActiveChunkIdx(diff >= 0 && diff <= 6 ? diff : 0);
+                        } else {
+                          setStockActiveChunkIdx(0);
+                        }
                       }}
-                      className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                      title="ส่งออกข้อมูล (Excel, PDF)"
+                      className="appearance-none bg-[#F8FAF9] hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-[600] rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
                     >
-                      <Download size={13} className="text-[#5A8A88]" />
-                      <span>ส่งออก</span>
-                      <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportDropdownOpen && "rotate-180")} />
-                    </button>
-                    
-                    {isExportDropdownOpen && (
-                      <div className="absolute left-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            exportExcel();
-                            setIsExportDropdownOpen(false);
-                          }}
-                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
-                        >
-                          <Download size={13} className="text-[#5A8A88]" />
-                          <span>Excel (.xlsx)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handlePrint();
-                            setIsExportDropdownOpen(false);
-                          }}
-                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
-                        >
-                          <Printer size={13} className="text-[#5A8A88]" />
-                          <span>PDF / พิมพ์</span>
-                        </button>
-                      </div>
-                    )}
+                      <option value="1day">1 วัน</option>
+                      <option value="2days">2 วัน</option>
+                      <option value="3days">3 วัน</option>
+                      <option value="week">กำหนดแบบสัปดาห์</option>
+                    </select>
+                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#5A8A88] pointer-events-none" />
                   </div>
 
-                  {/* 4. บันทึกข้อมูล - Matches DailyBakeryRecord design and function */}
-                  <button
-                    type="button"
-                    onClick={handleSaveStock}
-                    disabled={isSavingStock}
-                    className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
-                      justSavedStock
-                        ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
-                        : isStockDirty 
-                          ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
-                          : 'bg-[#2D4A49] hover:bg-[#203635]'
-                    }`}
-                    title="บันทึกข้อมูลสต็อก"
-                  >
-                    {isSavingStock ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" />
-                        <span>กำลังบันทึก...</span>
-                      </>
-                    ) : justSavedStock ? (
-                      <>
-                        <CheckCircle2 size={13} className="text-white" />
-                        <span>บันทึกสำเร็จ</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save size={13} />
-                        <span>บันทึกข้อมูล</span>
-                        {isStockDirty && (
-                          <span 
-                            className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
-                            title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
-                          />
-                        )}
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-              </div>
+                  {/* Chunk / Day selector buttons on SAME ROW */}
+                  {stockViewMode === '1day' && (
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap sm:flex-nowrap">
+                      {stockWeekDays.map((d, i) => (
+                        <button
+                          key={d.dateStr}
+                          type="button"
+                          onClick={() => setStockActiveChunkIdx(i)}
+                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                            stockActiveChunkIdx === i
+                              ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
+                              : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
+                          }`}
+                        >
+                          {d.shortDay}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-              {hasPermission('manageIngredients') && (
-                <button
-                  onClick={() => setIsFormOpen(true)}
-                  className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 h-[32px] rounded-[8px] text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs ml-auto sm:ml-0 cursor-pointer"
-                >
-                  <Plus size={14} strokeWidth={2.5} />
-                  เพิ่มรายการวัตถุดิบ
-                </button>
-              )}
+                  {stockViewMode === '2days' && (
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap sm:flex-nowrap">
+                      {[
+                        { idx: 0, label: 'จ.-อ.' },
+                        { idx: 1, label: 'พ.-พฤ.' },
+                        { idx: 2, label: 'ศ.-ส.' },
+                        { idx: 3, label: 'อา.' },
+                      ].map(chunk => (
+                        <button
+                          key={chunk.idx}
+                          type="button"
+                          onClick={() => setStockActiveChunkIdx(chunk.idx)}
+                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                            stockActiveChunkIdx === chunk.idx
+                              ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
+                              : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
+                          }`}
+                        >
+                          {chunk.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {stockViewMode === '3days' && (
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap sm:flex-nowrap">
+                      {[
+                        { idx: 0, label: 'จ.-พ.' },
+                        { idx: 1, label: 'พฤ.-ส.' },
+                        { idx: 2, label: 'อา.' },
+                      ].map(chunk => (
+                        <button
+                          key={chunk.idx}
+                          type="button"
+                          onClick={() => setStockActiveChunkIdx(chunk.idx)}
+                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[6px] text-[10px] font-semibold transition-all cursor-pointer ${
+                            stockActiveChunkIdx === chunk.idx
+                              ? 'bg-[#E8F3F2] text-[#5A8A88] border border-[#5A8A88]'
+                              : 'bg-white text-[#6B8F8E] border border-[#D4E4E3] hover:bg-[#F0F5F4]'
+                          }`}
+                        >
+                          {chunk.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {stockViewMode === 'week' && (
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-1 rounded-[6px] border border-[#D4E4E3]">
+                      <span>จ.-อา. (7 วัน)</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* RIGHT: Action Buttons */}
+                <div className="flex items-center gap-1.5 ml-auto relative shrink-0 flex-wrap sm:flex-nowrap">
+                  {hasPermission('manageIngredients') && (
+                    <>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept=".xlsx, .xls, .csv" 
+                        onChange={handleFileUpload} 
+                      />
+                      {/* 1. โหลดเทมเพลต */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ws = XLSX.utils.json_to_sheet([
+                            { 
+                              'ชื่อสินค้า': 'เมล็ดกาแฟคั่วกลาง', 
+                              'ยี่ห้อ': 'Crenn', 
+                              'หมวดหมู่': 'เมล็ดกาแฟ',
+                              'ขนาด/หน่วย': '1000',
+                              'หน่วย': 'g',
+                              'คงเหลือขั้นต่ำ': 2000,
+                              'สั่งซื้อขั้นต่ำ': 5000,
+                              'ผู้จัดจำหน่าย': 'Supplier A',
+                              'แผนก': 'Bar',
+                              'รูปภาพ': ''
+                            },
+                            { 
+                              'ชื่อสินค้า': 'แป้งเค้ก', 
+                              'ยี่ห้อ': 'ตราพัด', 
+                              'หมวดหมู่': 'แป้ง',
+                              'ขนาด/หน่วย': '1',
+                              'หน่วย': 'ถุง',
+                              'คงเหลือขั้นต่ำ': 5,
+                              'สั่งซื้อขั้นต่ำ': 10,
+                              'ผู้จัดจำหน่าย': 'Supplier B',
+                              'แผนก': 'Bakery',
+                              'รูปภาพ': ''
+                            }
+                          ]);
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Template");
+                          XLSX.writeFile(wb, "Ingredient_Template.xlsx");
+                        }}
+                        className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                        title="ดาวน์โหลดไฟล์ตัวอย่างเทมเพลต Excel"
+                      >
+                        <Download size={13} className="text-[#5A8A88]" />
+                        <span>โหลดเทมเพลต</span>
+                      </button>
+
+                      {/* 2. นำเข้า */}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                        title="นำเข้ารายการวัตถุดิบจากไฟล์ Excel (.xlsx, .xls, .csv)"
+                      >
+                        <Upload size={13} className="text-[#5A8A88]" />
+                        <span>นำเข้า</span>
+                      </button>
+
+                      {/* 3. ส่งออก Dropdown */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsExportDropdownOpen(!isExportDropdownOpen);
+                          }}
+                          className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                          title="ส่งออกข้อมูล (Excel, PDF)"
+                        >
+                          <Download size={13} className="text-[#5A8A88]" />
+                          <span>ส่งออก</span>
+                          <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportDropdownOpen && "rotate-180")} />
+                        </button>
+                        
+                        {isExportDropdownOpen && (
+                          <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                exportExcel();
+                                setIsExportDropdownOpen(false);
+                              }}
+                              className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                            >
+                              <Download size={13} className="text-[#5A8A88]" />
+                              <span>Excel (.xlsx)</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePrint();
+                                setIsExportDropdownOpen(false);
+                              }}
+                              className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                            >
+                              <Printer size={13} className="text-[#5A8A88]" />
+                              <span>PDF / พิมพ์</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. บันทึกข้อมูล */}
+                      <button
+                        type="button"
+                        onClick={handleSaveStock}
+                        disabled={isSavingStock}
+                        className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                          justSavedStock
+                            ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                            : isStockDirty 
+                              ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                              : 'bg-[#2D4A49] hover:bg-[#203635]'
+                        }`}
+                        title="บันทึกข้อมูลสต็อก"
+                      >
+                        {isSavingStock ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>กำลังบันทึก...</span>
+                          </>
+                        ) : justSavedStock ? (
+                          <>
+                            <CheckCircle2 size={13} className="text-white" />
+                            <span>บันทึกสำเร็จ</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save size={13} />
+                            <span>บันทึกข้อมูล</span>
+                            {isStockDirty && (
+                              <span 
+                                className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                                title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                              />
+                            )}
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+
+                  {hasPermission('manageIngredients') && (
+                    <button
+                      onClick={() => setIsFormOpen(true)}
+                      className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 h-[32px] rounded-[8px] text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs ml-auto sm:ml-0 cursor-pointer"
+                    >
+                      <Plus size={14} strokeWidth={2.5} />
+                      เพิ่มรายการวัตถุดิบ
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Main Table */}
