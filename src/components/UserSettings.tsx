@@ -17,7 +17,8 @@ import {
   BookOpen,
   Loader2,
   CheckCircle2,
-  RotateCcw
+  RotateCcw,
+  Globe
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
@@ -468,6 +469,8 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   });
 
   const [roleTemplates, setRoleTemplates] = useState<Record<string, UserPermissions>>({});
+  const [availableBranchTemplates, setAvailableBranchTemplates] = useState<{ branch: string; data: Record<string, UserPermissions> }[]>([]);
+  const [syncAcrossAllBranches, setSyncAcrossAllBranches] = useState(true);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [selectedTemplateRole, setSelectedTemplateRole] = useState<UserRole>('Barista');
   const [templateForm, setTemplateForm] = useState<UserPermissions>(() => applyRoleDefaults('Barista'));
@@ -591,44 +594,111 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
     setTemplateForm(updated);
   };
 
+  // Fetch role templates with comprehensive cross-branch support
   const fetchRoleTemplates = async () => {
+    let resolvedTemplates: Record<string, UserPermissions> | null = null;
+    const branchesFound: { branch: string; data: Record<string, UserPermissions> }[] = [];
+
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'role_permissions_templates').eq('branch', branch).single();
-        if (!error && data && typeof data.setting_value === 'object') {
-          setRoleTemplates(data.setting_value);
-          return;
-        }
-        const { data: fallbackData, error: fallbackError } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'role_permissions_templates').limit(1).single();
-        if (!fallbackError && fallbackData && typeof fallbackData.setting_value === 'object') {
-          setRoleTemplates(fallbackData.setting_value);
-          return;
+        // Fetch all role_permissions_templates rows across all branches
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('*')
+          .eq('setting_key', 'role_permissions_templates');
+
+        if (!error && data && data.length > 0) {
+          data.forEach((row: any) => {
+            if (row.setting_value && typeof row.setting_value === 'object') {
+              branchesFound.push({
+                branch: row.branch || 'Rayong',
+                data: row.setting_value
+              });
+            }
+          });
+
+          // Priority 1: Current branch
+          if (branch) {
+            const currentMatch = data.find((r: any) => r.branch === branch && r.setting_value);
+            if (currentMatch && typeof currentMatch.setting_value === 'object') {
+              resolvedTemplates = currentMatch.setting_value;
+            }
+          }
+
+          // Priority 2: GLOBAL branch
+          if (!resolvedTemplates) {
+            const globalMatch = data.find((r: any) => (r.branch === 'GLOBAL' || r.branch === 'Global') && r.setting_value);
+            if (globalMatch && typeof globalMatch.setting_value === 'object') {
+              resolvedTemplates = globalMatch.setting_value;
+            }
+          }
+
+          // Priority 3: Any branch with valid template data
+          if (!resolvedTemplates) {
+            const anyMatch = data.find((r: any) => r.setting_value && Object.keys(r.setting_value).length > 0);
+            if (anyMatch && typeof anyMatch.setting_value === 'object') {
+              resolvedTemplates = anyMatch.setting_value;
+            }
+          }
         }
       } catch (e) {
         console.warn('fetchRoleTemplates error:', e);
       }
     }
-    const saved = localStorage.getItem('role_permissions_templates');
-    if (saved) {
-      try {
-        setRoleTemplates(JSON.parse(saved));
-      } catch (e) {
-        console.warn('LocalStorage read role_permissions_templates error:', e);
+
+    setAvailableBranchTemplates(branchesFound);
+
+    // Fallback to local storage
+    if (!resolvedTemplates) {
+      const saved = (branch ? localStorage.getItem(`role_permissions_templates_${branch}`) : null) ||
+                    localStorage.getItem('role_permissions_templates') || 
+                    localStorage.getItem('role_permissions_templates_global');
+      if (saved) {
+        try {
+          resolvedTemplates = JSON.parse(saved);
+        } catch (e) {
+          console.warn('LocalStorage read role_permissions_templates error:', e);
+        }
       }
+    }
+
+    if (resolvedTemplates) {
+      setRoleTemplates(resolvedTemplates);
     }
   };
 
+  // Save role template with cross-branch synchronization
   const handleSaveRoleTemplate = async () => {
     setIsSavingTemplate(true);
     const updatedTemplates = { ...roleTemplates, [selectedTemplateRole]: templateForm };
     
     if (supabase) {
       try {
-        const { error } = await supabase.from('app_settings').upsert({ 
-          branch: branch || 'Rayong',
+        const branchesToUpdate = new Set<string>(['GLOBAL', 'Rayong', branch || 'Rayong']);
+
+        // If sync across all branches is enabled, query all active branches
+        if (syncAcrossAllBranches) {
+          try {
+            const { data: userBranches } = await supabase.from('app_users').select('branch');
+            if (userBranches) {
+              userBranches.forEach(u => { if (u.branch) branchesToUpdate.add(u.branch); });
+            }
+            const { data: settingsBranches } = await supabase.from('app_settings').select('branch');
+            if (settingsBranches) {
+              settingsBranches.forEach(s => { if (s.branch) branchesToUpdate.add(s.branch); });
+            }
+          } catch (be) {
+            console.warn('Could not query all branches list:', be);
+          }
+        }
+
+        const upsertPayload = Array.from(branchesToUpdate).map(b => ({ 
+          branch: b,
           setting_key: 'role_permissions_templates',
           setting_value: updatedTemplates
-        });
+        }));
+
+        const { error } = await supabase.from('app_settings').upsert(upsertPayload);
         if (error) {
           console.warn('Error saving role template to supabase:', error.message);
         }
@@ -637,12 +707,18 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
       }
     }
     
+    // Save to local storage backups
     localStorage.setItem('role_permissions_templates', JSON.stringify(updatedTemplates));
+    localStorage.setItem('role_permissions_templates_global', JSON.stringify(updatedTemplates));
+    if (branch) {
+      localStorage.setItem(`role_permissions_templates_${branch}`, JSON.stringify(updatedTemplates));
+    }
+
     setRoleTemplates(updatedTemplates);
     setIsSavingTemplate(false);
     setUserSaveStatus({
       type: 'success',
-      message: `บันทึก Default Authority สำหรับตำแหน่ง "${selectedTemplateRole}" สำเร็จเรียบร้อย`
+      message: `บันทึก Default Authority สำหรับตำแหน่ง "${selectedTemplateRole}" สำเร็จและซิงค์ข้ามสาขาเรียบร้อย`
     });
     setIsTemplateModalOpen(false);
   };
@@ -751,7 +827,7 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
   useEffect(() => {
     fetchUsers();
     fetchRoleTemplates();
-  }, []);
+  }, [branch]);
 
   // Discord Notify Integration States & Handlers
   const [discordSettings, setDiscordSettings] = useState<any>({
@@ -1914,6 +1990,64 @@ export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: User
                   >
                     <RotateCcw size={11} />
                     <span>รีเซ็ตมาตรฐาน</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 1.5: Cross-Branch Authority Control Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-[#E8F3F2] rounded-lg border border-[#B8D4D2]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Globe size={13} className="text-[#5A8A88]" />
+                  <span className="text-[11px] font-bold text-[#2D4A49]">ดึง Authority ข้ามสาขา:</span>
+                  <select
+                    className="px-2 py-1 bg-white border border-[#B8D4D2] rounded text-[11px] text-[#2D4A49] font-medium outline-none cursor-pointer"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const sourceBranch = e.target.value;
+                      if (!sourceBranch) return;
+                      const found = availableBranchTemplates.find(b => b.branch === sourceBranch);
+                      if (found && found.data) {
+                        const cur = found.data[selectedTemplateRole] || applyRoleDefaults(selectedTemplateRole);
+                        setTemplateForm({ ...cur });
+                        setRoleTemplates(prev => ({ ...prev, ...found.data }));
+                      }
+                      e.target.value = '';
+                    }}
+                  >
+                    <option value="" disabled>-- เลือกสาขาต้นทางเพื่อดึงข้อมูล --</option>
+                    {availableBranchTemplates.length > 0 ? (
+                      availableBranchTemplates.map(b => (
+                        <option key={b.branch} value={b.branch}>
+                          สาขา: {b.branch} {b.branch === branch ? '(สาขาปัจจุบัน)' : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Rayong">สาขา: Rayong</option>
+                        <option value="GLOBAL">สาขา: GLOBAL (ส่วนกลาง)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-[#2D4A49] cursor-pointer" title="บันทึกการตั้งค่านี้ไปยังทุกสาขาพร้อมกัน">
+                    <input
+                      type="checkbox"
+                      checked={syncAcrossAllBranches}
+                      onChange={(e) => setSyncAcrossAllBranches(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded text-[#5A8A88] accent-[#5A8A88] cursor-pointer"
+                    />
+                    <span>ซิงค์ข้ามทุกสาขา (Sync All Branches)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={fetchRoleTemplates}
+                    className="flex items-center gap-1 px-2 py-1 bg-white border border-[#B8D4D2] text-[#5A8A88] hover:text-[#2D4A49] rounded text-[10px] sm:text-[11px] font-medium hover:bg-[#FAFDFD] transition-colors cursor-pointer"
+                    title="รีเฟรชข้อมูล Authority จากทุกสาขา"
+                  >
+                    <RotateCcw size={10} />
+                    <span>รีเฟรช</span>
                   </button>
                 </div>
               </div>
