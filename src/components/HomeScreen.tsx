@@ -16,12 +16,14 @@ import {
   Loader2,
   Building,
   ShoppingCart,
-  Check
+  Check,
+  Truck
 } from 'lucide-react';
 import { Ingredient, StockRecord, Branch, AppPermissions } from '../types';
 import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
 import { SupabaseStatusBar } from './SupabaseStatusBar';
+import { supabase } from '../lib/supabase';
 
 export interface HomeScreenProps {
   user: {
@@ -70,10 +72,67 @@ export function HomeScreen({
   });
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
-  // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | null
+  // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | "pending_delivery" | null
   const [activeKPI, setActiveKPI] = useState<
-    'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | null
+    'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | 'pending_delivery' | null
   >(null);
+
+  // ─── PENDING ORDERS (รอส่งมอบ) DATA FETCH ───
+  const [pendingOrders, setPendingOrders] = useState<{
+    ingredient_id: string;
+    order_date: string;
+    order_qty: number;
+    order_unit?: string;
+    ordered_by?: string;
+    ordered_at?: string;
+    branch: string;
+    stock_date?: string;
+  }[]>([]);
+
+  useEffect(() => {
+    const currentBranch = user?.branch || 'Rayong';
+    let isMounted = true;
+
+    const fetchPendingOrders = async () => {
+      // 1. Read from localStorage for immediate offline/instant count
+      let localOrders: any[] = [];
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) localOrders = JSON.parse(raw);
+      } catch (e) {
+        console.warn('Error reading local purchasing orders:', e);
+      }
+
+      if (isMounted) {
+        setPendingOrders(localOrders.filter(o => !o.branch || o.branch === currentBranch));
+      }
+
+      // 2. Fetch from Supabase purchasing_orders table
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('purchasing_orders')
+            .select('*')
+            .eq('branch', currentBranch);
+
+          if (!error && data && isMounted) {
+            setPendingOrders(data);
+            try {
+              localStorage.setItem('cafe_purchasing_orders', JSON.stringify(data));
+            } catch {}
+          }
+        } catch (err) {
+          console.warn('Error fetching pending orders from Supabase:', err);
+        }
+      }
+    };
+
+    fetchPendingOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.branch]);
 
   // Sync locationFilter with localStorage
   useEffect(() => {
@@ -200,6 +259,27 @@ export function HomeScreen({
         return "สถานะสต็อกสินค้า (วัตถุดิบทั้งหมด)";
     }
   }, [locationFilter]);
+
+  // Filter pending delivery orders by locationFilter
+  const pendingDeliveryList = useMemo(() => {
+    const ingMap = new Map<string, Ingredient>();
+    ingredients.forEach(i => ingMap.set(i.id, i));
+
+    return pendingOrders.filter(order => {
+      if (!order.order_date || !order.order_qty || order.order_qty <= 0) return false;
+      
+      if (locationFilter !== 'all') {
+        const ing = ingMap.get(order.ingredient_id);
+        if (!ing) return false;
+        const dept = (ing.department || '').toLowerCase().trim();
+        if (locationFilter === 'bar' && dept !== 'bar') return false;
+        if (locationFilter === 'kitchen' && dept !== 'bakery' && dept !== 'kitchen') return false;
+      }
+      return true;
+    });
+  }, [pendingOrders, ingredients, locationFilter]);
+
+  const pendingDelivery = pendingDeliveryList.length;
 
   // Calculate current stock levels for filtered ingredients
   const stockData = useMemo(() => {
@@ -351,6 +431,30 @@ export function HomeScreen({
             badgeClass: isOut ? 'bg-[#FEE2E2] text-[#EF4444]' : 'bg-[#F1F5F9] text-[#2D4A49]'
           };
         })
+      };
+    }
+    if (activeKPI === 'pending_delivery') {
+      const ingMap = new Map<string, Ingredient>();
+      ingredients.forEach(i => ingMap.set(i.id, i));
+
+      const items = pendingDeliveryList
+        .map(order => {
+          const ing = ingMap.get(order.ingredient_id);
+          if (!ing) return null;
+          const currentRemaining = stockData.stockMap[ing.id] !== undefined ? stockData.stockMap[ing.id] : 0;
+          return {
+            ing,
+            remaining: currentRemaining,
+            status: 'pending_delivery' as any,
+            badgeLabel: `สั่งแล้ว ${order.order_qty} ${order.order_unit || ing.unit}`,
+            badgeClass: 'bg-blue-50 text-blue-600 font-semibold border border-blue-200'
+          };
+        })
+        .filter(Boolean) as { ing: Ingredient; remaining: number; status: any; badgeLabel: string; badgeClass: string }[];
+
+      return {
+        panelTitle: 'รายการรอส่งมอบ (สั่งซื้อแล้ว)',
+        displayItems: items
       };
     }
     // Default (null)
@@ -636,138 +740,172 @@ export function HomeScreen({
           </div>
         </section>
 
-        {/* 4. KPI ROW: 4 CARDS (หมดสต็อก / ใกล้หมด / สต็อกปกติ / สั่งซื้อ) */}
-        {/* Mobile: 2x2 grid | Tablet & PC: 4 cards in one row */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4 lg:gap-5">
-          {/* Card 1: หมดสต็อก */}
-          <div 
-            onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
-            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
-              activeKPI === 'out_of_stock'
-                ? 'border-2 border-[#EF4444] bg-rose-50/70 shadow-md scale-[1.02]'
-                : 'bg-white border border-rose-200/80 hover:bg-[#F0F5F4] hover:shadow-sm'
-            }`}
-          >
-            <div className="absolute top-0 right-0 w-12 h-12 bg-rose-50 rounded-bl-full -z-0 pointer-events-none"></div>
-            <div className="z-10 flex items-start justify-between">
-              <div>
-                <span className="text-[11px] sm:text-xs font-bold text-rose-700">หมดสต็อก</span>
-                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">ต้องสั่งซื้อด่วน</span>
+        {/* 4. KPI ROW: 5 CARDS IN A SINGLE ROW */}
+        <section className="w-full overflow-x-auto custom-scrollbar pb-0.5">
+          <div className="grid grid-cols-5 gap-2 sm:gap-2.5 md:gap-3 min-w-[560px] sm:min-w-0">
+            {/* Card 1: หมดสต็อก */}
+            <div 
+              onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+                activeKPI === 'out_of_stock'
+                  ? 'border-2 border-[#EF4444] bg-rose-50/70 shadow-md scale-[1.01]'
+                  : 'bg-white border border-rose-200/80 hover:bg-[#F0F5F4] hover:shadow-xs'
+              }`}
+            >
+              <div className="absolute top-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-rose-50 rounded-bl-full -z-0 pointer-events-none"></div>
+              <div className="z-10 flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-rose-700 block truncate">หมดสต็อก</span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">ต้องสั่งซื้อด่วน</span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                  activeKPI === 'out_of_stock' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-500'
+                }`}>
+                  <AlertCircle size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
               </div>
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                activeKPI === 'out_of_stock' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-500'
-              }`}>
-                <AlertCircle size={15} />
-              </span>
+              <div className="mt-1.5 sm:mt-2 z-10 flex items-baseline">
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-rose-600 leading-none">
+                  {stockData.outCount}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              </div>
+              <div className="mt-1 sm:mt-1.5 text-[8.5px] sm:text-[9.5px] text-rose-500 font-medium truncate z-10 flex items-center justify-between">
+                <span className="truncate">{locationLabel}</span>
+                {activeKPI === 'out_of_stock' && <span className="font-bold text-rose-600 underline shrink-0 ml-1">เลือก</span>}
+              </div>
             </div>
-            <div className="mt-2.5 z-10">
-              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-rose-600 leading-none">
-                {stockData.outCount}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
-            </div>
-            <div className="mt-1 text-[9px] sm:text-[10px] text-rose-500 font-medium truncate z-10 flex items-center justify-between">
-              <span>{locationLabel}</span>
-              {activeKPI === 'out_of_stock' && <span className="text-[9px] font-bold text-rose-600 underline">กำลังเลือก</span>}
-            </div>
-          </div>
 
-          {/* Card 2: ใกล้หมด */}
-          <div 
-            onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
-            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
-              activeKPI === 'low_stock'
-                ? 'border-2 border-[#F59E0B] bg-amber-50/70 shadow-md scale-[1.02]'
-                : 'bg-white border border-amber-200/80 hover:bg-[#F0F5F4] hover:shadow-sm'
-            }`}
-          >
-            <div className="absolute top-0 right-0 w-12 h-12 bg-amber-50 rounded-bl-full -z-0 pointer-events-none"></div>
-            <div className="z-10 flex items-start justify-between">
-              <div>
-                <span className="text-[11px] sm:text-xs font-bold text-amber-700">ใกล้หมด</span>
-                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">ต่ำกว่าขั้นต่ำ</span>
+            {/* Card 2: ใกล้หมด */}
+            <div 
+              onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+                activeKPI === 'low_stock'
+                  ? 'border-2 border-[#F59E0B] bg-amber-50/70 shadow-md scale-[1.01]'
+                  : 'bg-white border border-amber-200/80 hover:bg-[#F0F5F4] hover:shadow-xs'
+              }`}
+            >
+              <div className="absolute top-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-amber-50 rounded-bl-full -z-0 pointer-events-none"></div>
+              <div className="z-10 flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-amber-700 block truncate">ใกล้หมด</span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">ต่ำกว่าขั้นต่ำ</span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                  activeKPI === 'low_stock' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-500'
+                }`}>
+                  <AlertTriangle size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
               </div>
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                activeKPI === 'low_stock' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-500'
-              }`}>
-                <AlertTriangle size={15} />
-              </span>
+              <div className="mt-1.5 sm:mt-2 z-10 flex items-baseline">
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-amber-600 leading-none">
+                  {stockData.lowCount}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              </div>
+              <div className="mt-1 sm:mt-1.5 text-[8.5px] sm:text-[9.5px] text-amber-600 font-medium truncate z-10 flex items-center justify-between">
+                <span className="truncate">{locationLabel}</span>
+                {activeKPI === 'low_stock' && <span className="font-bold text-amber-600 underline shrink-0 ml-1">เลือก</span>}
+              </div>
             </div>
-            <div className="mt-2.5 z-10">
-              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-amber-600 leading-none">
-                {stockData.lowCount}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
-            </div>
-            <div className="mt-1 text-[9px] sm:text-[10px] text-amber-600 font-medium truncate z-10 flex items-center justify-between">
-              <span>{locationLabel}</span>
-              {activeKPI === 'low_stock' && <span className="text-[9px] font-bold text-amber-600 underline">กำลังเลือก</span>}
-            </div>
-          </div>
 
-          {/* Card 3: สต็อกปกติ (CHANGE 1: Renamed from รวม -> สต็อกปกติ, displays goodCount) */}
-          <div 
-            onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
-            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
-              activeKPI === 'normal'
-                ? 'border-2 border-[#5A8A88] bg-[#E8F3F2]/80 shadow-md scale-[1.02]'
-                : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-sm'
-            }`}
-          >
-            <div className="absolute top-0 right-0 w-12 h-12 bg-[#E8F3F2] rounded-bl-full -z-0 pointer-events-none"></div>
-            <div className="z-10 flex items-start justify-between">
-              <div>
-                <span className="text-[11px] sm:text-xs font-bold text-[#2D4A49]">สต็อกปกติ</span>
-                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">วัตถุดิบพร้อมใช้งาน</span>
+            {/* Card 3: สต็อกปกติ */}
+            <div 
+              onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+                activeKPI === 'normal'
+                  ? 'border-2 border-[#5A8A88] bg-[#E8F3F2]/80 shadow-md scale-[1.01]'
+                  : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-xs'
+              }`}
+            >
+              <div className="absolute top-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-[#E8F3F2] rounded-bl-full -z-0 pointer-events-none"></div>
+              <div className="z-10 flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">สต็อกปกติ</span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">วัตถุดิบพร้อมใช้งาน</span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                  activeKPI === 'normal' ? 'bg-[#5A8A88] text-white' : 'bg-[#E8F3F2] text-[#5A8A88]'
+                }`}>
+                  <CheckCircle2 size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
               </div>
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                activeKPI === 'normal' ? 'bg-[#5A8A88] text-white' : 'bg-[#E8F3F2] text-[#5A8A88]'
-              }`}>
-                <CheckCircle2 size={15} />
-              </span>
+              <div className="mt-1.5 sm:mt-2 z-10 flex items-baseline">
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#5A8A88] leading-none">
+                  {stockData.goodCount}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              </div>
+              <div className="mt-1 sm:mt-1.5 text-[8.5px] sm:text-[9.5px] text-[#5A8A88] font-medium truncate z-10 flex items-center justify-between">
+                <span className="truncate">{locationLabel}</span>
+                {activeKPI === 'normal' && <span className="font-bold text-[#5A8A88] underline shrink-0 ml-1">เลือก</span>}
+              </div>
             </div>
-            <div className="mt-2.5 z-10">
-              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#5A8A88] leading-none">
-                {stockData.goodCount}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
-            </div>
-            <div className="mt-1 text-[9px] sm:text-[10px] text-[#5A8A88] font-medium truncate z-10 flex items-center justify-between">
-              <span>{locationLabel}</span>
-              {activeKPI === 'normal' && <span className="text-[9px] font-bold text-[#5A8A88] underline">กำลังเลือก</span>}
-            </div>
-          </div>
 
-          {/* Card 4: สั่งซื้อ (CHANGE 2: NEW 4th Card, displays outCount + lowCount) */}
-          <div 
-            onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
-            className={`rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
-              activeKPI === 'purchasing'
-                ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.02]'
-                : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-sm'
-            }`}
-          >
-            <div className="absolute top-0 right-0 w-12 h-12 bg-[#EAF2F1] rounded-bl-full -z-0 pointer-events-none"></div>
-            <div className="z-10 flex items-start justify-between">
-              <div>
-                <span className="text-[11px] sm:text-xs font-bold text-[#2D4A49]">สั่งซื้อ</span>
-                <span className="text-[10px] sm:text-[11px] text-[#6B8F8E] font-medium block mt-0.5">รายการที่ต้องสั่ง</span>
+            {/* Card 4: สั่งซื้อ */}
+            <div 
+              onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
+                activeKPI === 'purchasing'
+                  ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.01]'
+                  : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-xs'
+              }`}
+            >
+              <div className="absolute top-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-[#EAF2F1] rounded-bl-full -z-0 pointer-events-none"></div>
+              <div className="z-10 flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">สั่งซื้อ</span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">รายการที่ต้องสั่ง</span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                  activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#E8F3F2] text-[#7A9E9C]'
+                }`}>
+                  <ShoppingCart size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
               </div>
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#E8F3F2] text-[#7A9E9C]'
-              }`}>
-                <ShoppingCart size={15} />
-              </span>
+              <div className="mt-1.5 sm:mt-2 z-10 flex items-baseline">
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#7A9E9C] leading-none">
+                  {stockData.purchasingCount}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+              </div>
+              <div className="mt-1 sm:mt-1.5 text-[8.5px] sm:text-[9.5px] text-[#7A9E9C] font-medium truncate z-10 flex items-center justify-between">
+                <span className="truncate">{locationLabel}</span>
+                {activeKPI === 'purchasing' && <span className="font-bold text-[#7A9E9C] underline shrink-0 ml-1">เลือก</span>}
+              </div>
             </div>
-            <div className="mt-2.5 z-10">
-              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#7A9E9C] leading-none">
-                {stockData.purchasingCount}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 font-medium ml-1">รายการ</span>
-            </div>
-            <div className="mt-1 text-[9px] sm:text-[10px] text-[#7A9E9C] font-medium truncate z-10 flex items-center justify-between">
-              <span>{locationLabel}</span>
-              {activeKPI === 'purchasing' && <span className="text-[9px] font-bold text-[#7A9E9C] underline">กำลังเลือก</span>}
+
+            {/* Card 5: รอส่งมอบ */}
+            <div 
+              onClick={() => setActiveKPI(prev => prev === 'pending_delivery' ? null : 'pending_delivery')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none border-t-[3px] border-t-[#3B82F6] ${
+                activeKPI === 'pending_delivery'
+                  ? 'border-2 border-[#3B82F6] bg-blue-50/70 shadow-md scale-[1.01]'
+                  : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-xs'
+              }`}
+            >
+              <div className="absolute top-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 rounded-bl-full -z-0 pointer-events-none"></div>
+              <div className="z-10 flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-blue-700 block truncate">รอส่งมอบ</span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">สั่งซื้อแล้ว รอรับสินค้า</span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
+                  activeKPI === 'pending_delivery' ? 'bg-[#3B82F6] text-white' : 'bg-blue-50 text-[#3B82F6]'
+                }`}>
+                  <Truck size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
+              </div>
+              <div className="mt-1.5 sm:mt-2 z-10 flex items-baseline">
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#3B82F6] leading-none">
+                  {pendingDelivery}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-[#6B8F8E] font-medium ml-1">รายการ</span>
+              </div>
+              <div className="mt-1 sm:mt-1.5 text-[8.5px] sm:text-[9.5px] text-[#3B82F6] font-medium truncate z-10 flex items-center justify-between">
+                <span className="truncate">{locationLabel}</span>
+                {activeKPI === 'pending_delivery' && <span className="font-bold text-[#3B82F6] underline shrink-0 ml-1">เลือก</span>}
+              </div>
             </div>
           </div>
         </section>
@@ -887,6 +1025,15 @@ export function HomeScreen({
                       </span>
                       <span className="text-[9px] sm:text-[10px] font-bold text-[#7A9E9C] mt-0.5">
                         ต้องสั่งซื้อ
+                      </span>
+                    </>
+                  ) : activeKPI === 'pending_delivery' ? (
+                    <>
+                      <span className="text-base sm:text-lg font-black text-[#3B82F6] leading-none">
+                        {pendingDelivery}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-[#3B82F6] mt-0.5">
+                        รอส่งมอบ
                       </span>
                     </>
                   ) : (
