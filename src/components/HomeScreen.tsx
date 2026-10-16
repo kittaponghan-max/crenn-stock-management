@@ -120,6 +120,10 @@ export function HomeScreen({
             try {
               localStorage.setItem('cafe_purchasing_orders', JSON.stringify(data));
             } catch {}
+          } else if (error && (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist'))) {
+            // Table not yet created in Supabase schema cache; localOrders from localStorage is used
+          } else if (error) {
+            console.warn('Error fetching pending orders from Supabase:', error.message);
           }
         } catch (err) {
           console.warn('Error fetching pending orders from Supabase:', err);
