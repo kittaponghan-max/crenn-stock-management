@@ -17,6 +17,20 @@ import {
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
+
+export interface OrderRecord {
+  id?: string;
+  ingredient_id: string;
+  order_date: string;
+  order_qty: number;
+  order_unit?: string;
+  ordered_by?: string;
+  ordered_at?: string;
+  branch: string;
+  stock_date: string;
+  created_at?: string;
+}
 
 interface PurchasingReportProps {
   ingredients: Ingredient[];
@@ -24,6 +38,7 @@ interface PurchasingReportProps {
   onBack: () => void;
   allowedDepartments?: ('Bar' | 'Bakery')[];
   branch?: string;
+  user?: { name: string; role?: string };
 }
 
 type DepartmentFilter = 'All' | 'Bar' | 'Bakery';
@@ -34,6 +49,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   onBack,
   allowedDepartments = ['Bar', 'Bakery'],
   branch,
+  user,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
@@ -43,6 +59,212 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // ─── ORDER TRACKING STATE & CURRENT USER ───
+  const currentUser = useMemo(() => {
+    if (user?.name) return user.name;
+    try {
+      const raw = localStorage.getItem('cafe-user');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.name) return parsed.name;
+      }
+    } catch {}
+    return 'Admin';
+  }, [user]);
+
+  const [orders, setOrders] = useState<Record<string, OrderRecord>>({});
+
+  // Format datetime for display: DD/MM HH:MM น.
+  const formatOrderDateTime = (isoStr?: string) => {
+    if (!isoStr) return '';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      const day = d.getDate().toString().padStart(2, '0');
+      const month = (d.getMonth() + 1).toString().padStart(2, '0');
+      const hours = d.getHours().toString().padStart(2, '0');
+      const mins = d.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${mins} น.`;
+    } catch {
+      return isoStr;
+    }
+  };
+
+  // Load existing orders when page opens or date/branch changes
+  useEffect(() => {
+    const currentBranch = branch || 'Rayong';
+    let isMounted = true;
+
+    const loadOrders = async () => {
+      // 1. Load from localStorage first for instant display
+      const localMap: Record<string, OrderRecord> = {};
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) {
+          const list: OrderRecord[] = JSON.parse(raw);
+          list
+            .filter(item => (!item.branch || item.branch === currentBranch) && item.stock_date === selectedDate)
+            .forEach(item => {
+              localMap[item.ingredient_id] = item;
+            });
+        }
+      } catch (e) {
+        console.warn('Error reading local orders:', e);
+      }
+
+      if (isMounted) {
+        setOrders(localMap);
+      }
+
+      // 2. Fetch from Supabase purchasing_orders table
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('purchasing_orders')
+            .select('*')
+            .eq('branch', currentBranch)
+            .eq('stock_date', selectedDate);
+
+          if (!error && data && isMounted) {
+            const remoteMap: Record<string, OrderRecord> = { ...localMap };
+            data.forEach((item: OrderRecord) => {
+              remoteMap[item.ingredient_id] = item;
+            });
+            setOrders(remoteMap);
+
+            // Sync into localStorage
+            try {
+              const rawAll = localStorage.getItem('cafe_purchasing_orders');
+              let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
+              allList = allList.filter(o => !(o.branch === currentBranch && o.stock_date === selectedDate));
+              allList.push(...data);
+              localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
+            } catch {}
+          }
+        } catch (err) {
+          console.warn('Error fetching purchasing_orders from Supabase:', err);
+        }
+      }
+    };
+
+    loadOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [branch, selectedDate]);
+
+  // Handle immediate field change in inputs
+  const handleOrderFieldChange = (
+    ingredientId: string,
+    field: 'order_date' | 'order_qty',
+    val: string | number,
+    unit: string
+  ) => {
+    setOrders(prev => {
+      const existing = prev[ingredientId] || {
+        ingredient_id: ingredientId,
+        order_date: '',
+        order_qty: 0,
+        order_unit: unit,
+        ordered_by: '',
+        ordered_at: '',
+        branch: branch || 'Rayong',
+        stock_date: selectedDate
+      };
+
+      const nextDate = field === 'order_date' ? (val as string) : existing.order_date;
+      const nextQty = field === 'order_qty' ? (val === '' ? 0 : Number(val)) : existing.order_qty;
+
+      // Auto-populate when order_date OR order_qty is filled in
+      const isFilled = Boolean(nextDate) || nextQty > 0;
+      const ordered_by = isFilled ? (existing.ordered_by || currentUser) : existing.ordered_by;
+      const ordered_at = isFilled ? (existing.ordered_at || new Date().toISOString()) : existing.ordered_at;
+
+      return {
+        ...prev,
+        [ingredientId]: {
+          ...existing,
+          [field]: field === 'order_qty' ? nextQty : val,
+          order_unit: unit,
+          ordered_by,
+          ordered_at
+        }
+      };
+    });
+  };
+
+  // Auto-save on blur (when leaving input field)
+  const handleOrderSave = async (ingredientId: string, unit: string) => {
+    const currentBranch = branch || 'Rayong';
+    const itemOrder = orders[ingredientId];
+    if (!itemOrder) return;
+
+    const nowIso = new Date().toISOString();
+    const isFilled = Boolean(itemOrder.order_date) || itemOrder.order_qty > 0;
+
+    const recordToSave: OrderRecord = {
+      ...itemOrder,
+      ingredient_id: ingredientId,
+      order_unit: unit || itemOrder.order_unit || '',
+      branch: currentBranch,
+      stock_date: selectedDate,
+      ordered_by: isFilled ? (itemOrder.ordered_by || currentUser) : '',
+      ordered_at: isFilled ? (itemOrder.ordered_at || nowIso) : '',
+    };
+
+    // Update state to guarantee ordered_by and ordered_at
+    setOrders(prev => ({
+      ...prev,
+      [ingredientId]: recordToSave
+    }));
+
+    // 1. Save to localStorage
+    try {
+      const rawAll = localStorage.getItem('cafe_purchasing_orders');
+      let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
+      const idx = allList.findIndex(o => 
+        o.ingredient_id === ingredientId && 
+        o.branch === currentBranch && 
+        o.stock_date === selectedDate
+      );
+      if (idx >= 0) {
+        allList[idx] = { ...allList[idx], ...recordToSave };
+      } else {
+        allList.push(recordToSave);
+      }
+      localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
+    } catch (e) {
+      console.warn('Error saving local orders:', e);
+    }
+
+    // 2. Upsert to Supabase
+    if (supabase) {
+      try {
+        const payload: any = {
+          ingredient_id: ingredientId,
+          order_date: recordToSave.order_date || null,
+          order_qty: recordToSave.order_qty || 0,
+          order_unit: recordToSave.order_unit || '',
+          ordered_by: recordToSave.ordered_by || null,
+          ordered_at: recordToSave.ordered_at || null,
+          branch: currentBranch,
+          stock_date: selectedDate,
+        };
+
+        const { error } = await supabase
+          .from('purchasing_orders')
+          .upsert(payload, { onConflict: 'ingredient_id,stock_date,branch' });
+
+        if (error) {
+          console.warn('Supabase purchasing_orders upsert error:', error.message);
+        }
+      } catch (err) {
+        console.warn('Error upserting purchasing_orders:', err);
+      }
+    }
+  };
 
   // Close dropdowns on outside click or Escape
   useEffect(() => {
@@ -150,16 +372,24 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   }, [allPurchasesToMake, selectedSupplier]);
 
   const exportExcel = () => {
-    const data = purchasesToMake.map(item => ({
-      'หมวดหมู่': item.category,
-      'รายการสินค้า': item.name,
-      'ยี่ห้อ': item.brand || '-',
-      'ผู้จัดจำหน่าย': item.supplier || '-',
-      'ขนาด/หน่วย': item.sizePerUnit,
-      'คงเหลือขั้นต่ำ': `${item.minStock} ${item.unit}`,
-      'ยอดคงเหลือตรวจนับ': `${item.currentStock} ${item.unit}`,
-      'ยอดสั่งซื้อแนะนำ': `${item.suggestedOrder} ${item.unit}`,
-    }));
+    const data = purchasesToMake.map(item => {
+      const order = orders[item.id];
+      const isOrdered = Boolean(order?.order_date) && Number(order?.order_qty) > 0;
+      return {
+        'หมวดหมู่': item.category,
+        'รายการสินค้า': item.name,
+        'ยี่ห้อ': item.brand || '-',
+        'ผู้จัดจำหน่าย': item.supplier || '-',
+        'ขนาด/หน่วย': item.sizePerUnit,
+        'คงเหลือขั้นต่ำ': `${item.minStock} ${item.unit}`,
+        'ยอดคงเหลือตรวจนับ': `${item.currentStock} ${item.unit}`,
+        'ยอดสั่งซื้อแนะนำ': `${item.suggestedOrder} ${item.unit}`,
+        'วันที่สั่งซื้อ': order?.order_date || '-',
+        'จำนวนที่สั่ง': order?.order_qty ? `${order.order_qty} ${item.unit}` : '-',
+        'ผู้สั่งซื้อ': order?.ordered_by ? `${order.ordered_by} (${formatOrderDateTime(order.ordered_at)})` : '-',
+        'สถานะการสั่งซื้อ': isOrdered ? 'สั่งซื้อแล้ว' : 'ยังไม่สั่ง',
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -514,16 +744,19 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
                   {/* Table with Horizontal Scroll */}
                   <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[650px]">
+                    <table className="w-full text-left border-collapse min-w-[980px]">
                       <thead>
                         <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold border-b border-[#2D4A49]">
-                          <th className="py-2 px-3 text-center w-[8%] border-r border-[#3d605f]">รูป</th>
-                          <th className="py-2 px-3 text-left w-[30%] border-r border-[#3d605f]">รายการสินค้า</th>
-                          <th className="py-2 px-3 text-left w-[14%] border-r border-[#3d605f]">หมวดหมู่</th>
-                          <th className="py-2 px-3 text-left w-[14%] border-r border-[#3d605f]">ขนาด/หน่วย</th>
-                          <th className="py-2 px-3 text-center w-[11%] border-r border-[#3d605f]">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2 px-3 text-center w-[11%] border-r border-[#3d605f]">ยอดตรวจนับ</th>
-                          <th className="py-2 px-3 text-center w-[12%]">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-2.5 text-center w-[50px] border-r border-[#3d605f]">รูป</th>
+                          <th className="py-2 px-3 text-left min-w-[170px] border-r border-[#3d605f]">รายการสินค้า</th>
+                          <th className="py-2 px-2.5 text-left w-[100px] border-r border-[#3d605f]">หมวดหมู่</th>
+                          <th className="py-2 px-2.5 text-left w-[95px] border-r border-[#3d605f]">ขนาด/หน่วย</th>
+                          <th className="py-2 px-2 text-center w-[85px] border-r border-[#3d605f]">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-2 text-center w-[85px] border-r border-[#3d605f]">ยอดตรวจนับ</th>
+                          <th className="py-2 px-2.5 text-center w-[95px] border-r border-[#3d605f]">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-2 text-center w-[110px] border-r border-[#3d605f]">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-2 text-center w-[90px] border-r border-[#3d605f]">จำนวนที่สั่ง</th>
+                          <th className="py-2 px-2.5 text-center w-[130px]">ผู้สั่งซื้อ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -531,7 +764,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                           <React.Fragment key={category}>
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
-                              <td colSpan={7} className="px-3 py-1.5">
+                              <td colSpan={10} className="px-3 py-1.5">
                                 <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
@@ -542,17 +775,25 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                             {items.map((item, index) => {
                               const isLow = item.currentStock < item.minStock;
                               const isEven = index % 2 === 1;
+                              const order = orders[item.id];
+                              const orderDate = order?.order_date || '';
+                              const orderQty = order?.order_qty !== undefined ? order.order_qty : '';
+                              const isOrdered = Boolean(orderDate) && Number(orderQty) > 0;
 
                               return (
                                 <tr 
                                   key={item.id} 
                                   className={cn(
-                                    "transition-colors hover:bg-[#E8F3F2]/60 border-b border-[#F0F5F4]",
-                                    isEven ? "bg-[#F8FAFA]" : "bg-[#FFFFFF]"
+                                    "transition-colors border-b border-[#F0F5F4]",
+                                    isOrdered 
+                                      ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
+                                      : isEven 
+                                        ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
+                                        : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
                                   )}
                                 >
                                   {/* Item Image */}
-                                  <td className="p-1.5 border-r border-[#F0F5F4] text-center w-[8%]">
+                                  <td className="p-1.5 border-r border-[#F0F5F4] text-center w-[50px]">
                                     {item.image ? (
                                       <img 
                                         src={item.image} 
@@ -568,7 +809,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   </td>
 
                                   {/* Item Name & Subtitle */}
-                                  <td className="px-3 py-2 border-r border-[#F0F5F4] w-[30%]">
+                                  <td className="px-3 py-2 border-r border-[#F0F5F4] min-w-[170px]">
                                     <div className="font-medium text-[#2D4A49] text-[11px] leading-tight" title={item.name}>
                                       {item.name}
                                     </div>
@@ -580,19 +821,19 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   </td>
 
                                   {/* Category Badge */}
-                                  <td className="px-3 py-2 border-r border-[#F0F5F4] w-[14%]">
+                                  <td className="px-2.5 py-2 border-r border-[#F0F5F4] w-[100px]">
                                     <span className="inline-flex items-center px-2 py-0.5 rounded-[5px] text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
                                       {item.category}
                                     </span>
                                   </td>
 
                                   {/* Size / Unit */}
-                                  <td className="px-3 py-2 border-r border-[#F0F5F4] text-[10px] text-[#6B8F8E] w-[14%]">
+                                  <td className="px-2.5 py-2 border-r border-[#F0F5F4] text-[10px] text-[#6B8F8E] w-[95px]">
                                     {item.sizePerUnit || '-'}
                                   </td>
 
                                   {/* Min Stock (คงเหลือขั้นต่ำ) */}
-                                  <td className="px-3 py-2 border-r border-[#F0F5F4] text-center w-[11%]">
+                                  <td className="px-2 py-2 border-r border-[#F0F5F4] text-center w-[85px]">
                                     {isLow ? (
                                       <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono">
                                         {item.minStock} {item.unit}
@@ -605,15 +846,73 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   </td>
 
                                   {/* Current Stock (ยอดตรวจนับ) */}
-                                  <td className="px-3 py-2 border-r border-[#F0F5F4] font-mono text-[10px] text-center text-[#6B8F8E] w-[11%]">
+                                  <td className="px-2 py-2 border-r border-[#F0F5F4] font-mono text-[10px] text-center text-[#6B8F8E] w-[85px]">
                                     {item.currentStock} {item.unit}
                                   </td>
 
                                   {/* Suggested Order (ยอดสั่งแนะนำ) */}
-                                  <td className="px-3 py-2 font-mono text-[10px] text-center w-[12%]">
-                                    <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#E8F3F2] text-[#5A8A88] font-bold text-[10px]">
+                                  <td className="px-2.5 py-2 font-mono text-[10px] text-center w-[95px] border-r border-[#F0F5F4]">
+                                    <span className={cn(
+                                      "inline-block px-1.5 py-0.5 rounded-md text-[10px]",
+                                      isOrdered 
+                                        ? "bg-white text-[#5A8A88] font-[700] border border-[#5A8A88]/30 shadow-2xs" 
+                                        : "bg-[#E8F3F2] text-[#5A8A88] font-bold"
+                                    )}>
                                       {item.suggestedOrder} {item.unit}
                                     </span>
+                                  </td>
+
+                                  {/* COLUMN 1 — วันที่สั่งซื้อ */}
+                                  <td className="px-2 py-1.5 text-center w-[110px] border-r border-[#F0F5F4]">
+                                    <input 
+                                      type="date"
+                                      value={orderDate}
+                                      placeholder="เลือกวันที่"
+                                      onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit)}
+                                      onBlur={() => handleOrderSave(item.id, item.unit)}
+                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-2 py-1 text-[11px] text-[#2D4A49] w-full focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                    />
+                                  </td>
+
+                                  {/* COLUMN 2 — จำนวนที่สั่ง */}
+                                  <td className="px-2 py-1.5 text-center w-[90px] border-r border-[#F0F5F4]">
+                                    <div className="flex items-center gap-1">
+                                      <input 
+                                        type="number"
+                                        min={0}
+                                        value={orderQty === 0 && !orderDate ? '' : orderQty}
+                                        placeholder="0"
+                                        onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit)}
+                                        onBlur={() => handleOrderSave(item.id, item.unit)}
+                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-1.5 py-1 text-[11px] text-[#2D4A49] w-full text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                      />
+                                      <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap shrink-0">
+                                        {item.unit}
+                                      </span>
+                                    </div>
+                                  </td>
+
+                                  {/* COLUMN 3 — ผู้สั่งซื้อ */}
+                                  <td className="px-2 py-1.5 text-center w-[130px]">
+                                    {order?.ordered_by ? (
+                                      <div className="flex flex-col items-center justify-center gap-0.5">
+                                        <span className="text-[11px] font-bold text-[#2D4A49] leading-tight">
+                                          {order.ordered_by}
+                                        </span>
+                                        {order.ordered_at && (
+                                          <span className="text-[10px] text-[#6B8F8E] leading-tight">
+                                            {formatOrderDateTime(order.ordered_at)}
+                                          </span>
+                                        )}
+                                        {isOrdered && (
+                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-[600] rounded-[4px] px-1.5 py-[1px] leading-tight shadow-2xs">
+                                            ✓ สั่งซื้อแล้ว
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-[#94A3B8] text-[12px] font-medium">—</span>
+                                    )}
                                   </td>
                                 </tr>
                               );
