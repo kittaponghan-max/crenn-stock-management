@@ -12,7 +12,9 @@ import {
   Building2, 
   PackageCheck,
   ChevronDown,
-  Check
+  Check,
+  X,
+  Eye
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
@@ -79,6 +81,26 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [changedItems, setChangedItems] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    brand?: string;
+    category?: string;
+    unit?: string;
+  } | null>(null);
+
+  // Close image preview on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewImage(null);
+      }
+    };
+    if (previewImage) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage]);
 
   // Prompt if user tries to close/reload tab with unsaved changes
   useEffect(() => {
@@ -875,32 +897,30 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                   </div>
 
                   {/* Table with Horizontal Scroll */}
-                  <div className="overflow-x-hidden overflow-y-visible w-full">
-                    <table className="w-full text-left border-collapse table-fixed" style={{ tableLayout: 'fixed', width: '100%' }}>
+                  <div className="overflow-x-auto custom-scrollbar w-full">
+                    <table className="w-full text-left border-collapse min-w-[860px]">
                       <colgroup>
-                        <col style={{ width: '36px' }} />
-                        <col style={{ width: '140px' }} />
-                        <col style={{ width: '70px' }} />
-                        <col style={{ width: '75px' }} />
-                        <col style={{ width: '62px' }} />
-                        <col style={{ width: '62px' }} />
-                        <col style={{ width: '68px' }} />
-                        <col style={{ width: '100px' }} />
-                        <col style={{ width: '72px' }} />
-                        <col style={{ width: '90px' }} />
+                        <col style={{ width: '48px' }} />
+                        <col style={{ width: 'auto', minWidth: '180px' }} />
+                        <col style={{ width: '88px' }} />
+                        <col style={{ width: '85px' }} />
+                        <col style={{ width: '80px' }} />
+                        <col style={{ width: '85px' }} />
+                        <col style={{ width: '130px' }} />
+                        <col style={{ width: '85px' }} />
+                        <col style={{ width: '120px' }} />
                       </colgroup>
                       <thead>
                         <tr className="bg-[#2D4A49] text-white text-[10px] font-semibold border-b border-[#2D4A49]">
-                          <th className="p-1 text-center w-[36px] border-r border-[#3d605f]">รูป</th>
-                          <th className="py-2 px-2 text-left w-[140px] border-r border-[#3d605f] truncate">รายการสินค้า</th>
-                          <th className="py-2 px-1 text-left w-[70px] border-r border-[#3d605f] truncate">หมวดหมู่</th>
-                          <th className="py-2 px-1 text-left w-[75px] border-r border-[#3d605f] truncate">ขนาด/หน่วย</th>
-                          <th className="py-2 px-1 text-center w-[62px] border-r border-[#3d605f] truncate">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2 px-1 text-center w-[62px] border-r border-[#3d605f] truncate">ยอดตรวจนับ</th>
-                          <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] truncate">ยอดสั่งแนะนำ</th>
-                          <th className="py-2 px-1 text-center w-[100px] border-r border-[#3d605f] truncate">วันที่สั่งซื้อ</th>
-                          <th className="py-2 px-1 text-center w-[72px] border-r border-[#3d605f] truncate">จำนวนที่สั่ง</th>
-                          <th className="py-2 px-2 text-left w-[90px] truncate">ผู้สั่งซื้อ</th>
+                          <th className="p-1.5 text-center w-[48px] border-r border-[#3d605f] whitespace-nowrap">รูป</th>
+                          <th className="py-2 px-2.5 text-left border-r border-[#3d605f] min-w-[180px] whitespace-nowrap">รายการสินค้า</th>
+                          <th className="py-2 px-2 text-left w-[88px] border-r border-[#3d605f] whitespace-nowrap">ขนาด/หน่วย</th>
+                          <th className="py-2 px-1 text-center w-[85px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-1 text-center w-[80px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
+                          <th className="py-2 px-1 text-center w-[85px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-1 text-center w-[130px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-1 text-center w-[85px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
+                          <th className="py-2 px-2.5 text-left w-[120px] whitespace-nowrap">ผู้สั่งซื้อ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -908,7 +928,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                           <React.Fragment key={category}>
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
-                              <td colSpan={10} className="px-2.5 py-1">
+                              <td colSpan={9} className="px-2.5 py-1">
                                 <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
@@ -939,39 +959,55 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
                                   )}
                                 >
-                                  {/* Item Image (36px) */}
-                                  <td className="relative p-1 border-r border-[#F0F5F4] text-center w-[36px]" style={{ width: '36px' }}>
+                                  {/* Item Image */}
+                                  <td className="relative p-1.5 border-r border-[#F0F5F4] text-center w-[48px]">
                                     {isChanged && (
                                       <span 
-                                        className="absolute top-[5px] right-[4px] w-[7px] h-[7px] bg-[#F59E0B] rounded-full border-[1.5px] border-white z-10 pointer-events-none" 
+                                        className="absolute top-[3px] right-[2px] w-[7px] h-[7px] bg-[#F59E0B] rounded-full border-[1.5px] border-white z-10 pointer-events-none" 
                                         title="มีการแก้ไขที่ยังไม่ได้บันทึก"
                                       />
                                     )}
                                     {item.image ? (
-                                      <img 
-                                        src={item.image} 
-                                        alt={item.name} 
-                                        className="w-6 h-6 object-cover rounded border border-[#D4E4E3] mx-auto shadow-2xs" 
-                                        referrerPolicy="no-referrer"
-                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewImage({ 
+                                          url: item.image!, 
+                                          title: item.name, 
+                                          brand: item.brand,
+                                          category: item.category,
+                                          unit: item.unit
+                                        })}
+                                        className="group relative inline-flex items-center justify-center rounded-md border border-[#D4E4E3] overflow-hidden hover:border-[#5A8A88] transition-all cursor-pointer shadow-2xs hover:shadow-xs hover:scale-110 bg-white p-0.5"
+                                        title="คลิกเพื่อดูรูปภาพขนาดใหญ่"
+                                      >
+                                        <img 
+                                          src={item.image} 
+                                          alt={item.name} 
+                                          className="w-7 h-7 object-cover rounded-[3px] mx-auto" 
+                                          referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-[3px]">
+                                          <Eye size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-xs" />
+                                        </div>
+                                      </button>
                                     ) : (
-                                      <div className="w-6 h-6 rounded border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
-                                        <ShoppingCart size={11} />
+                                      <div className="w-7 h-7 rounded-md border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                        <ShoppingCart size={12} />
                                       </div>
                                     )}
                                   </td>
 
-                                  {/* Item Name & Subtitle (140px, truncate) */}
-                                  <td className="px-2 py-1 border-r border-[#F0F5F4] w-[140px] max-w-[140px]" style={{ width: '140px', maxWidth: '140px' }}>
+                                  {/* Item Name & Subtitle */}
+                                  <td className="px-2.5 py-1.5 border-r border-[#F0F5F4] min-w-[180px]">
                                     <div 
-                                      className="font-[500] text-[#2D4A49] text-[11px] leading-tight truncate overflow-hidden whitespace-nowrap" 
+                                      className="font-[500] text-[#2D4A49] text-[11px] leading-tight truncate" 
                                       title={item.name}
                                     >
                                       {item.name}
                                     </div>
                                     {item.brand && (
                                       <div 
-                                        className="text-[9px] font-normal text-[#6B8F8E] mt-0.5 truncate overflow-hidden whitespace-nowrap"
+                                        className="text-[9px] font-normal text-[#6B8F8E] mt-0.5 truncate"
                                         title={`ยี่ห้อ: ${item.brand}`}
                                       >
                                         ยี่ห้อ: {item.brand}
@@ -979,47 +1015,36 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                     )}
                                   </td>
 
-                                  {/* Category Badge (70px) */}
-                                  <td className="px-1.5 py-1 border-r border-[#F0F5F4] w-[70px] max-w-[70px]" style={{ width: '70px', maxWidth: '70px' }}>
-                                    <span 
-                                      className="inline-block max-w-full truncate px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88]"
-                                      title={item.category}
-                                    >
-                                      {item.category}
-                                    </span>
-                                  </td>
-
-                                  {/* Size / Unit (75px) */}
+                                  {/* Size / Unit */}
                                   <td 
-                                    className="px-1.5 py-1 border-r border-[#F0F5F4] text-[10px] font-normal text-[#6B8F8E] w-[75px] max-w-[75px] truncate overflow-hidden whitespace-nowrap"
+                                    className="px-2 py-1.5 border-r border-[#F0F5F4] text-[10px] font-normal text-[#6B8F8E] w-[88px] truncate whitespace-nowrap"
                                     title={item.sizePerUnit || '-'}
-                                    style={{ width: '75px', maxWidth: '75px' }}
                                   >
                                     {item.sizePerUnit || '-'}
                                   </td>
 
-                                  {/* Min Stock (คงเหลือขั้นต่ำ - 62px, center) */}
-                                  <td className="px-1 py-1 border-r border-[#F0F5F4] text-center w-[62px] max-w-[62px]" style={{ width: '62px', maxWidth: '62px' }}>
+                                  {/* Min Stock (คงเหลือขั้นต่ำ) */}
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] text-center w-[85px]">
                                     {isLow ? (
-                                      <span className="inline-block px-1 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono leading-tight truncate max-w-full">
+                                      <span className="inline-block px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono leading-tight whitespace-nowrap">
                                         {item.minStock} {item.unit}
                                       </span>
                                     ) : (
-                                      <span className="text-[#2D4A49] font-mono text-[10px] font-normal leading-tight truncate inline-block max-w-full">
+                                      <span className="text-[#2D4A49] font-mono text-[10px] font-normal leading-tight whitespace-nowrap">
                                         {item.minStock} {item.unit}
                                       </span>
                                     )}
                                   </td>
 
-                                  {/* Current Stock (ยอดตรวจนับ - 62px, center) */}
-                                  <td className="px-1 py-1 border-r border-[#F0F5F4] font-mono text-[10px] font-normal text-center text-[#6B8F8E] w-[62px] max-w-[62px] truncate" style={{ width: '62px', maxWidth: '62px' }}>
+                                  {/* Current Stock (ยอดตรวจนับ) */}
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] font-mono text-[10px] font-normal text-center text-[#6B8F8E] w-[80px] whitespace-nowrap">
                                     {item.currentStock} {item.unit}
                                   </td>
 
-                                  {/* Suggested Order (ยอดสั่งแนะนำ - 68px, center) */}
-                                  <td className="px-1 py-1 font-mono text-[10px] text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
+                                  {/* Suggested Order (ยอดสั่งแนะนำ) */}
+                                  <td className="px-1 py-1.5 font-mono text-[10px] text-center w-[85px] border-r border-[#F0F5F4]">
                                     <span className={cn(
-                                      "inline-block px-1.5 py-0.5 rounded-[4px] text-[10px] leading-tight max-w-full truncate",
+                                      "inline-block px-1.5 py-0.5 rounded-[4px] text-[10px] leading-tight whitespace-nowrap",
                                       isOrdered 
                                         ? "bg-white text-[#5A8A88] font-[700] border border-[#5A8A88]/30 shadow-2xs" 
                                         : "bg-[#E8F3F2] text-[#5A8A88] font-bold"
@@ -1028,36 +1053,36 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                     </span>
                                   </td>
 
-                                  {/* COLUMN 1 — วันที่สั่งซื้อ (100px, center) */}
-                                  <td className="px-1 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
+                                  {/* COLUMN 1 — วันที่สั่งซื้อ */}
+                                  <td className="px-1 py-1 text-center w-[130px] border-r border-[#F0F5F4]">
                                     <input 
                                       type="date"
                                       value={orderDate}
                                       placeholder="เลือกวันที่"
                                       onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit)}
-                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[5px] px-[5px] py-[3px] h-[28px] w-[95px] max-w-[95px] text-[10px] placeholder:text-[10px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-2 py-1 h-[28px] w-full max-w-[120px] text-[10px] placeholder:text-[10px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer"
                                     />
                                   </td>
 
-                                  {/* COLUMN 2 — จำนวนที่สั่ง (72px, center) */}
-                                  <td className="px-1 py-1 text-center w-[72px] max-w-[72px] border-r border-[#F0F5F4]" style={{ width: '72px', maxWidth: '72px' }}>
-                                    <div className="flex items-center justify-center gap-0.5 w-full">
+                                  {/* COLUMN 2 — จำนวนที่สั่ง */}
+                                  <td className="px-1 py-1 text-center w-[85px] border-r border-[#F0F5F4]">
+                                    <div className="flex items-center justify-center gap-1 w-full">
                                       <input 
                                         type="number"
                                         min={0}
                                         value={orderQty === 0 && !orderDate ? '' : orderQty}
                                         placeholder="0"
                                         onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit)}
-                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[5px] px-1 py-[3px] h-[28px] w-[46px] text-[10px] placeholder:text-[10px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-1 py-1 h-[28px] w-[50px] text-[10px] placeholder:text-[10px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
                                       />
-                                      <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[18px]" title={item.unit}>
+                                      <span className="text-[10px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[28px]" title={item.unit}>
                                         {item.unit}
                                       </span>
                                     </div>
                                   </td>
 
-                                  {/* COLUMN 3 — ผู้สั่งซื้อ (90px, left) */}
-                                  <td className="px-1.5 py-1 text-left w-[90px] max-w-[90px]" style={{ width: '90px', maxWidth: '90px' }}>
+                                  {/* COLUMN 3 — ผู้สั่งซื้อ */}
+                                  <td className="px-2 py-1 text-left w-[120px]">
                                     {order?.ordered_by ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
                                         <span className="text-[11px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
@@ -1069,7 +1094,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           </span>
                                         )}
                                         {isOrdered && (
-                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[4px] px-1 py-0.5 leading-none shadow-2xs whitespace-nowrap">
+                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[4px] px-1.5 py-0.5 leading-none shadow-2xs whitespace-nowrap">
                                             ✓ สั่งซื้อแล้ว
                                           </span>
                                         )}
@@ -1185,6 +1210,62 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             </div>
           )}
         </div>
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#D4E4E3] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFA] border-b border-[#D4E4E3]">
+              <div className="min-w-0 pr-3">
+                <h3 className="text-[13px] font-bold text-[#2D4A49] truncate" title={previewImage.title}>
+                  {previewImage.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#6B8F8E] flex-wrap">
+                  {previewImage.brand && <span>ยี่ห้อ: {previewImage.brand}</span>}
+                  {previewImage.brand && previewImage.category && <span>•</span>}
+                  {previewImage.category && <span>หมวด: {previewImage.category}</span>}
+                  {previewImage.unit && <span>• หน่วย: {previewImage.unit}</span>}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="w-7 h-7 rounded-full bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] transition-colors shrink-0 shadow-2xs cursor-pointer"
+                title="ปิด"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Image Body */}
+            <div className="p-4 bg-white flex items-center justify-center max-h-[70vh] min-h-[220px] overflow-hidden">
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                className="max-w-full max-h-[65vh] object-contain rounded-lg border border-[#F0F5F4]"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-2.5 bg-[#F8FAFA] border-t border-[#F0F5F4] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="px-3.5 py-1.5 text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg border border-[#D4E4E3] transition-colors cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
