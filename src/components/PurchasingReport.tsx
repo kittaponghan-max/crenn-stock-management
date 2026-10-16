@@ -14,7 +14,9 @@ import {
   ChevronDown,
   Check,
   X,
-  Eye
+  Eye,
+  Save,
+  Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
@@ -81,6 +83,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [changedItems, setChangedItems] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [supplierSaveState, setSupplierSaveState] = useState<Record<string, 'idle' | 'dirty' | 'saving' | 'saved'>>({});
   const [previewImage, setPreviewImage] = useState<{
     url: string;
     title: string;
@@ -102,17 +105,6 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewImage]);
 
-  // Prompt if user tries to close/reload tab with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
 
   // Format datetime for display: DD/MM HH:MM น.
   const formatOrderDateTime = (isoStr?: string) => {
@@ -186,6 +178,26 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
               allList.push(...data);
               localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
             } catch {}
+          } else if (error && (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist'))) {
+            // Table doesn't exist yet in Supabase schema cache; check app_settings backup
+            try {
+              const { data: sData } = await supabase
+                .from('app_settings')
+                .select('setting_value')
+                .eq('setting_key', `purchasing_orders_${currentBranch}_${selectedDate}`)
+                .maybeSingle();
+
+              if (sData?.setting_value && Array.isArray(sData.setting_value) && isMounted) {
+                const remoteMap: Record<string, OrderRecord> = { ...localMap };
+                sData.setting_value.forEach((item: OrderRecord) => {
+                  remoteMap[item.ingredient_id] = item;
+                });
+                setOrders(remoteMap);
+                setSavedOrders(remoteMap);
+                setHasUnsavedChanges(false);
+                setChangedItems(new Set());
+              }
+            } catch {}
           }
         } catch (err) {
           console.warn('Error fetching purchasing_orders from Supabase:', err);
@@ -194,6 +206,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     };
 
     loadOrders();
+    setSupplierSaveState({});
 
     return () => {
       isMounted = false;
@@ -205,10 +218,18 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     ingredientId: string,
     field: 'order_date' | 'order_qty',
     val: string | number,
-    unit: string
+    unit: string,
+    supplierName?: string
   ) => {
     setHasUnsavedChanges(true);
     setChangedItems(prev => new Set(prev).add(ingredientId));
+
+    if (supplierName) {
+      setSupplierSaveState(prev => ({
+        ...prev,
+        [supplierName]: 'dirty'
+      }));
+    }
 
     setOrders(prev => {
       const existing = prev[ingredientId] || {
@@ -248,6 +269,162 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     setOrders(savedOrders);
     setHasUnsavedChanges(false);
     setChangedItems(new Set());
+    setSupplierSaveState({});
+  };
+
+  // Save order items for a specific supplier
+  const handleSaveSupplier = async (
+    supplierId: string,
+    supplierItems: (typeof purchasesToMake)
+  ) => {
+    try {
+      // Set saving state
+      setSupplierSaveState(prev => ({
+        ...prev,
+        [supplierId]: 'saving'
+      }));
+
+      const currentBranch = branch || 'Rayong';
+      const nowIso = new Date().toISOString();
+
+      const itemsToSave: OrderRecord[] = [];
+      const updatedOrdersMap: Record<string, OrderRecord> = { ...orders };
+
+      supplierItems.forEach(item => {
+        const itemOrder = updatedOrdersMap[item.id];
+        const isChanged = changedItems.has(item.id);
+        if (itemOrder && (Boolean(itemOrder.order_date) || Number(itemOrder.order_qty) > 0 || isChanged)) {
+          const isFilled = Boolean(itemOrder.order_date) || Number(itemOrder.order_qty) > 0;
+          const record: OrderRecord = {
+            ...itemOrder,
+            ingredient_id: item.id,
+            order_date: itemOrder.order_date || '',
+            order_qty: Number(itemOrder.order_qty) || 0,
+            order_unit: item.unit,
+            ordered_by: isFilled ? (itemOrder.ordered_by || currentUser) : '',
+            ordered_at: isFilled ? (itemOrder.ordered_at || nowIso) : '',
+            branch: currentBranch,
+            stock_date: selectedDate,
+          };
+          updatedOrdersMap[item.id] = record;
+          itemsToSave.push(record);
+        }
+      });
+
+      if (itemsToSave.length === 0) {
+        setSupplierSaveState(prev => ({
+          ...prev,
+          [supplierId]: 'idle'
+        }));
+        return;
+      }
+
+      setOrders(updatedOrdersMap);
+      setSavedOrders(prev => {
+        const next = { ...prev };
+        itemsToSave.forEach(it => {
+          next[it.ingredient_id] = it;
+        });
+        return next;
+      });
+
+      // Remove saved items for this supplier from changedItems set
+      setChangedItems(prev => {
+        const next = new Set(prev);
+        itemsToSave.forEach(it => next.delete(it.ingredient_id));
+        if (next.size === 0) {
+          setHasUnsavedChanges(false);
+        }
+        return next;
+      });
+
+      // 1. Save to localStorage
+      try {
+        const rawAll = localStorage.getItem('cafe_purchasing_orders');
+        let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
+        itemsToSave.forEach(item => {
+          const idx = allList.findIndex(o => 
+            o.ingredient_id === item.ingredient_id && 
+            o.branch === currentBranch && 
+            o.stock_date === selectedDate
+          );
+          if (idx >= 0) {
+            allList[idx] = { ...allList[idx], ...item };
+          } else {
+            allList.push(item);
+          }
+        });
+        localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
+      } catch (e) {
+        console.warn('Error saving local orders:', e);
+      }
+
+      // 2. Upsert to Supabase
+      if (supabase && itemsToSave.length > 0) {
+        try {
+          const dbPayload = itemsToSave.map(item => ({
+            ingredient_id: item.ingredient_id,
+            order_date: item.order_date || null,
+            order_qty: item.order_qty || 0,
+            order_unit: item.order_unit || '',
+            ordered_by: item.ordered_by || null,
+            ordered_at: item.ordered_at || null,
+            branch: item.branch,
+            stock_date: item.stock_date
+          }));
+
+          const { error } = await supabase
+            .from('purchasing_orders')
+            .upsert(dbPayload, {
+              onConflict: 'ingredient_id,stock_date,branch'
+            });
+
+          if (error) {
+            if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
+              // purchasing_orders table does not exist in schema cache; save backup to app_settings
+              console.warn('purchasing_orders table not found in Supabase (PGRST205). Saving backup to app_settings and localStorage.');
+              try {
+                const rawAll = localStorage.getItem('cafe_purchasing_orders');
+                const allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
+                const currentDayOrders = allList.filter(o => o.branch === currentBranch && o.stock_date === selectedDate);
+                await supabase.from('app_settings').upsert({
+                  setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
+                  setting_value: currentDayOrders
+                });
+              } catch (backupErr) {
+                console.warn('app_settings backup error:', backupErr);
+              }
+            } else {
+              console.warn('Supabase purchasing_orders upsert warning:', error.message);
+            }
+          }
+        } catch (supErr: any) {
+          console.warn('Supabase save warning (saved to localStorage):', supErr?.message || supErr);
+        }
+      }
+
+      // Success state → reset after 2 sec
+      setSupplierSaveState(prev => ({
+        ...prev,
+        [supplierId]: 'saved'
+      }));
+
+      setTimeout(() => {
+        setSupplierSaveState(prev => ({
+          ...prev,
+          [supplierId]: 'idle'
+        }));
+      }, 2000);
+
+    } catch (err: any) {
+      console.warn('Save error:', err);
+      // Reset to dirty so user can retry
+      setSupplierSaveState(prev => ({
+        ...prev,
+        [supplierId]: 'dirty'
+      }));
+      alert(`บันทึกไม่สำเร็จ: ${err.message || 'โปรดลองอีกครั้ง'}`);
+    }
   };
 
   // Save all changed order items to localStorage & Supabase
@@ -318,7 +495,16 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           .upsert(payloads, { onConflict: 'ingredient_id,stock_date,branch' });
 
         if (error) {
-          console.warn('Supabase purchasing_orders upsert error:', error.message);
+          if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
+            try {
+              await supabase.from('app_settings').upsert({
+                setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
+                setting_value: itemsToPersist
+              });
+            } catch {}
+          } else {
+            console.warn('Supabase purchasing_orders upsert error:', error.message);
+          }
         }
       } catch (err) {
         console.warn('Error saving to Supabase:', err);
@@ -328,6 +514,18 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     setSavedOrders(updatedOrdersMap);
     setHasUnsavedChanges(false);
     setChangedItems(new Set());
+    setSupplierSaveState(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        if (next[k] === 'dirty' || next[k] === 'saving') {
+          next[k] = 'saved';
+        }
+      });
+      return next;
+    });
+    setTimeout(() => {
+      setSupplierSaveState({});
+    }, 2000);
     setIsSaving(false);
     setSaveSuccessMsg(`บันทึกข้อมูลเรียบร้อยแล้ว (${itemsToPersist.length} รายการ)`);
     setTimeout(() => setSaveSuccessMsg(null), 3500);
@@ -393,7 +591,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           .upsert(payload, { onConflict: 'ingredient_id,stock_date,branch' });
 
         if (error) {
-          console.warn('Supabase purchasing_orders upsert error:', error.message);
+          if (error.code !== 'PGRST205' && error.code !== '42P01' && !error.message?.includes('does not exist')) {
+            console.warn('Supabase purchasing_orders upsert warning:', error.message);
+          }
         }
       } catch (err) {
         console.warn('Error upserting purchasing_orders:', err);
@@ -402,21 +602,10 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   };
 
   const handleBackClick = () => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('มีการแก้ไขที่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้หรือไม่?')) {
-        onBack();
-      }
-    } else {
-      onBack();
-    }
+    onBack();
   };
 
   const handleDateChange = (newDate: string) => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('มีการแก้ไขที่ยังไม่ได้บันทึก หากเปลี่ยนวันที่ข้อมูลที่แก้ไขจะหายไป ต้องการเปลี่ยนหรือไม่?')) {
-        return;
-      }
-    }
     setSelectedDate(newDate);
   };
 
@@ -878,7 +1067,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           ) : (
             // Grouped Purchase Tables by Supplier
             Object.entries(groupedPurchases).map(([supplier, categories]) => {
-              const totalItems = Object.values(categories).reduce((acc, items) => acc + items.length, 0);
+              const allSupplierItems = Object.values(categories).flat();
+              const totalItems = allSupplierItems.length;
+              const supState = supplierSaveState[supplier] || 'idle';
               
               return (
                 <div 
@@ -891,9 +1082,53 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                       <Building2 size={14} className="text-[#5A8A88]" />
                       <span>ผู้จัดจำหน่าย: {supplier}</span>
                     </h4>
-                    <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
-                      {totalItems} รายการ
-                    </span>
+                    
+                    <div className="flex items-center gap-2">
+                      {/* Save button per supplier (matches DailyBakeryRecord behavior) */}
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSupplier(supplier, allSupplierItems)}
+                        disabled={supState === 'idle' || supState === 'saving' || supState === 'saved'}
+                        title={supState === 'dirty' ? "คลิกเพื่อบันทึกรายการของผู้จัดจำหน่ายนี้" : undefined}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[11px] transition-all duration-200 select-none",
+                          supState === 'idle' && "bg-[#F0F5F4] border border-[#D4E4E3] text-[#A8BCBB] cursor-not-allowed opacity-80",
+                          supState === 'dirty' && "bg-[#5A8A88] hover:bg-[#4A7A78] text-white font-[600] border-none shadow-xs cursor-pointer animate-pulse hover:animate-none hover:scale-[1.03] active:scale-[0.98]",
+                          supState === 'saving' && "bg-[#5A8A88] text-white font-[600] opacity-80 cursor-wait border-none",
+                          supState === 'saved' && "bg-[#22C55E] text-white font-[600] border-none shadow-xs"
+                        )}
+                        style={
+                          supState === 'idle'
+                            ? { backgroundColor: '#F0F5F4', border: '1px solid #D4E4E3', color: '#A8BCBB', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', cursor: 'not-allowed' }
+                            : supState === 'dirty'
+                            ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none' }
+                            : supState === 'saving'
+                            ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, opacity: 0.8, cursor: 'wait', border: 'none' }
+                            : { backgroundColor: '#22C55E', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, border: 'none' }
+                        }
+                      >
+                        {supState === 'saving' ? (
+                          <>
+                            <Loader2 size={12} className="animate-spin text-white" />
+                            <span>กำลังบันทึก...</span>
+                          </>
+                        ) : supState === 'saved' ? (
+                          <>
+                            <Check size={12} className="text-white" />
+                            <span>บันทึกแล้ว!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save size={12} className={supState === 'dirty' ? "text-white" : "text-[#A8BCBB]"} />
+                            <span>บันทึก</span>
+                          </>
+                        )}
+                      </button>
+
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
+                        {totalItems} รายการ
+                      </span>
+                    </div>
                   </div>
 
                   {/* Table without Horizontal Scroll */}
@@ -964,7 +1199,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                     {isChanged && (
                                       <span 
                                         className="absolute top-[3px] right-[2px] w-[6px] h-[6px] bg-[#F59E0B] rounded-full border-[1px] border-white z-10 pointer-events-none" 
-                                        title="มีการแก้ไขที่ยังไม่ได้บันทึก"
+                                        title="มีการแก้ไข"
                                       />
                                     )}
                                     {item.image ? (
@@ -1060,7 +1295,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                       type="date"
                                       value={orderDate}
                                       placeholder="เลือกวันที่"
-                                      onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit)}
+                                      onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit, supplier)}
                                       className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer text-center mx-auto block"
                                     />
                                   </td>
@@ -1073,7 +1308,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                         min={0}
                                         value={orderQty === 0 && !orderDate ? '' : orderQty}
                                         placeholder="0"
-                                        onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit)}
+                                        onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit, supplier)}
                                         className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
                                       />
                                       <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[22px]" title={item.unit}>
@@ -1140,71 +1375,24 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             </div>
           )}
 
-          {/* PART C — Sticky Save Bar */}
-          {hasUnsavedChanges && (
-            <div 
-              className="sticky bottom-[64px] z-40 bg-[#FFFBEB] border border-[#FCD34D] rounded-[12px] px-4 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] mx-4 mb-3 flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 print:hidden"
-              style={{
-                position: 'sticky',
-                bottom: '64px',
-                zIndex: 40,
-                backgroundColor: '#FFFBEB',
-                border: '1px solid #FCD34D',
-                borderRadius: '12px',
-                padding: '10px 16px',
-                boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
-                margin: '0 16px 12px'
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] animate-pulse shrink-0" />
-                <span className="text-[11px] sm:text-[12px] font-semibold text-[#92400E]">
-                  มีการแก้ไขที่ยังไม่ได้บันทึก ({changedItems.size} รายการ)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleRevertChanges}
-                  disabled={isSaving}
-                  className="px-3 py-1.5 text-[11px] font-semibold text-[#78350F] hover:bg-[#FEF3C7] active:bg-[#FDE68A] rounded-[8px] border border-[#FCD34D] transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  ยกเลิก / รีเซ็ต
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveAllChanges}
-                  disabled={isSaving}
-                  className="px-4 py-1.5 text-[11px] font-semibold text-white bg-[#5A8A88] hover:bg-[#48716F] active:bg-[#3D605E] rounded-[8px] shadow-sm transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {isSaving ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      กำลังบันทึก...
-                    </>
-                  ) : (
-                    <>
-                      <Check size={14} />
-                      บันทึกข้อมูล
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* Success Toast */}
+          {/* Success Toast (Always Centered) */}
           {saveSuccessMsg && (
             <div 
-              className="sticky bottom-[64px] z-40 bg-[#ECFDF5] border border-[#A7F3D0] rounded-[12px] px-4 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] mx-4 mb-3 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 print:hidden"
+              className="fixed bottom-[72px] sm:bottom-[76px] left-1/2 -translate-x-1/2 z-50 bg-[#ECFDF5] border border-[#A7F3D0] rounded-[12px] px-5 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.15)] flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 print:hidden w-[calc(100%-32px)] sm:w-auto max-w-md"
               style={{
-                position: 'sticky',
-                bottom: '64px',
-                zIndex: 40,
-                margin: '0 16px 12px'
+                position: 'fixed',
+                bottom: '76px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 90,
+                backgroundColor: '#ECFDF5',
+                border: '1px solid #A7F3D0',
+                borderRadius: '12px',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.15)'
               }}
             >
-              <div className="flex items-center gap-2 text-[#065F46] text-[11px] sm:text-[12px] font-semibold">
+              <div className="flex items-center gap-2 text-[#065F46] text-[11px] sm:text-[12px] font-semibold whitespace-nowrap">
                 <Check size={15} className="text-[#059669] shrink-0" />
                 <span>{saveSuccessMsg}</span>
               </div>
