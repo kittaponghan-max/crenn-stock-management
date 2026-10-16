@@ -29,10 +29,12 @@ import {
   Building,
   Coffee,
   ChefHat,
-  LayoutGrid
+  LayoutGrid,
+  Truck
 } from 'lucide-react';
 import { UserRole } from './LoginForm';
-import { AppPermissions, ReceivingRecord, WasteLogEntry } from '../types';
+import { AppPermissions, ReceivingRecord, WasteLogEntry, Ingredient } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface HomePageProps {
   user: { 
@@ -108,10 +110,65 @@ export const HomePage: React.FC<HomePageProps> = ({
   });
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState<boolean>(false);
 
-  // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | null
+  // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | "pending_delivery" | null
   const [activeKPI, setActiveKPI] = useState<
-    'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | null
+    'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | 'pending_delivery' | null
   >(null);
+
+  // ─── PENDING ORDERS (รอส่งมอบ) DATA FETCH ───
+  const [pendingOrders, setPendingOrders] = useState<{
+    ingredient_id: string;
+    order_date: string;
+    order_qty: number;
+    order_unit?: string;
+    ordered_by?: string;
+    ordered_at?: string;
+    branch: string;
+    stock_date?: string;
+  }[]>([]);
+
+  useEffect(() => {
+    const currentBranch = user?.branch || 'Rayong';
+    let isMounted = true;
+
+    const fetchPendingOrders = async () => {
+      let localOrders: any[] = [];
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) localOrders = JSON.parse(raw);
+      } catch (e) {
+        console.warn('Error reading local purchasing orders:', e);
+      }
+
+      if (isMounted) {
+        setPendingOrders(localOrders.filter(o => !o.branch || o.branch === currentBranch));
+      }
+
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('purchasing_orders')
+            .select('*')
+            .eq('branch', currentBranch);
+
+          if (!error && data && isMounted) {
+            setPendingOrders(data);
+            try {
+              localStorage.setItem('cafe_purchasing_orders', JSON.stringify(data));
+            } catch {}
+          }
+        } catch (err) {
+          console.warn('Error fetching pending orders from Supabase:', err);
+        }
+      }
+    };
+
+    fetchPendingOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.branch]);
 
   // Sync locationFilter with localStorage
   useEffect(() => {
@@ -1319,141 +1376,177 @@ export const HomePage: React.FC<HomePageProps> = ({
         </header>
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* KPI ROW (4 Cards, Grid 2x2 mobile / 4 on md+) */}
+        {/* KPI ROW: 5 CARDS IN A SINGLE ROW */}
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 mb-7">
-          {/* Card 1: หมดสต็อก (Top accent 4px Red #EF4444) */}
-          <div
-            onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
-            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
-              activeKPI === 'out_of_stock'
-                ? 'border-2 border-[#EF4444] bg-rose-50/70 shadow-md scale-[1.02]'
-                : 'bg-white border-t-4 border-[#EF4444] hover:shadow-md hover:bg-[#F0F5F4]'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[13px] font-bold text-rose-700">
-                  หมดสต็อก
+        <section className="w-full overflow-x-auto custom-scrollbar pb-0.5 mb-6">
+          <div className="grid grid-cols-5 gap-2 sm:gap-2.5 md:gap-3 min-w-[560px] sm:min-w-0">
+            {/* Card 1: หมดสต็อก */}
+            <div
+              onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+                activeKPI === 'out_of_stock'
+                  ? 'border-2 border-[#EF4444] bg-rose-50/70 shadow-md scale-[1.01]'
+                  : 'bg-white border-t-4 border-[#EF4444] border-x border-b border-[#D4E4E3] hover:shadow-xs hover:bg-[#F0F5F4]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-rose-700 block truncate">
+                    หมดสต็อก
+                  </span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                    ต้องสั่งซื้อด่วน
+                  </span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                  activeKPI === 'out_of_stock' ? 'bg-rose-500 text-white' : 'bg-red-50 text-[#EF4444]'
+                }`}>
+                  <AlertTriangle size={13} className="sm:w-3.5 sm:h-3.5" />
                 </span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
+              </div>
+              <div className="mt-1.5 sm:mt-2">
+                <div className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#2D4A49] leading-none">
+                  {stats.out}
+                </div>
+                <div className="text-[8.5px] sm:text-[9.5px] text-rose-500 font-medium mt-1 truncate">
+                  {stats.subtextOut}
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: ใกล้หมด */}
+            <div
+              onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+                activeKPI === 'low_stock'
+                  ? 'border-2 border-[#F59E0B] bg-amber-50/70 shadow-md scale-[1.01]'
+                  : 'bg-white border-t-4 border-[#F59E0B] border-x border-b border-[#D4E4E3] hover:shadow-xs hover:bg-[#F0F5F4]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-amber-700 block truncate">
+                    ใกล้หมด
+                  </span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                    ต่ำกว่าขั้นต่ำ
+                  </span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                  activeKPI === 'low_stock' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-[#F59E0B]'
+                }`}>
+                  <Clock size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
+              </div>
+              <div className="mt-1.5 sm:mt-2">
+                <div className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#2D4A49] leading-none">
+                  {stats.low}
+                </div>
+                <div className="text-[8.5px] sm:text-[9.5px] text-amber-600 font-medium mt-1 truncate">
+                  {stats.subtextLow}
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: สต็อกปกติ */}
+            <div
+              onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+                activeKPI === 'normal'
+                  ? 'border-2 border-[#5A8A88] bg-[#E8F3F2]/80 shadow-md scale-[1.01]'
+                  : 'bg-white border-t-4 border-[#5A8A88] border-x border-b border-[#D4E4E3] hover:shadow-xs hover:bg-[#F0F5F4]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">
+                    สต็อกปกติ
+                  </span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                    วัตถุดิบพร้อมใช้งาน
+                  </span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                  activeKPI === 'normal' ? 'bg-[#5A8A88] text-white' : 'bg-[#E8F3F2] text-[#5A8A88]'
+                }`}>
+                  <CheckCircle2 size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
+              </div>
+              <div className="mt-1.5 sm:mt-2">
+                <div className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#2D4A49] leading-none">
+                  {stats.normal}
+                </div>
+                <div className="text-[8.5px] sm:text-[9.5px] text-[#5A8A88] font-medium mt-1 truncate">
+                  {locationLabel}
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: สั่งซื้อ */}
+            <div
+              onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
+                activeKPI === 'purchasing'
+                  ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.01]'
+                  : 'bg-white border-t-4 border-[#7A9E9C] border-x border-b border-[#D4E4E3] hover:shadow-xs hover:bg-[#F0F5F4]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">
+                    สั่งซื้อ
+                  </span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                    รายการที่ต้องสั่ง
+                  </span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                  activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#EAF2F1] text-[#7A9E9C]'
+                }`}>
+                  <ShoppingCart size={13} className="sm:w-3.5 sm:h-3.5" />
+                </span>
+              </div>
+              <div className="mt-1.5 sm:mt-2">
+                <div className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#7A9E9C] leading-none">
+                  {stats.out + stats.low}
+                </div>
+                <div className="text-[8.5px] sm:text-[9.5px] text-[#7A9E9C] font-medium mt-1 truncate">
                   ต้องสั่งซื้อด่วน
-                </span>
-              </div>
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                activeKPI === 'out_of_stock' ? 'bg-rose-500 text-white' : 'bg-red-50 text-[#EF4444]'
-              }`}>
-                <AlertTriangle size={16} />
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#2D4A49] leading-none">
-                {stats.out}
-              </div>
-              <div className="text-[11px] text-rose-500 font-medium mt-1 truncate">
-                {stats.subtextOut}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Card 2: ใกล้หมด (Top accent 4px Amber #F59E0B) */}
-          <div
-            onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
-            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
-              activeKPI === 'low_stock'
-                ? 'border-2 border-[#F59E0B] bg-amber-50/70 shadow-md scale-[1.02]'
-                : 'bg-white border-t-4 border-[#F59E0B] hover:shadow-md hover:bg-[#F0F5F4]'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[13px] font-bold text-amber-700">
-                  ใกล้หมด
-                </span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
-                  ต่ำกว่าขั้นต่ำ
-                </span>
-              </div>
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                activeKPI === 'low_stock' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-[#F59E0B]'
-              }`}>
-                <Clock size={16} />
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#2D4A49] leading-none">
-                {stats.low}
-              </div>
-              <div className="text-[11px] text-amber-600 font-medium mt-1 truncate">
-                {stats.subtextLow}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: สต็อกปกติ (CHANGE 1: Renamed from รายการรวม -> สต็อกปกติ, displays normal count) */}
-          <div
-            onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
-            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
-              activeKPI === 'normal'
-                ? 'border-2 border-[#5A8A88] bg-[#E8F3F2]/80 shadow-md scale-[1.02]'
-                : 'bg-white border-t-4 border-[#5A8A88] hover:shadow-md hover:bg-[#F0F5F4]'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[13px] font-bold text-[#2D4A49]">
-                  สต็อกปกติ
-                </span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
-                  วัตถุดิบพร้อมใช้งาน
+            {/* Card 5: รอส่งมอบ */}
+            <div
+              onClick={() => setActiveKPI(prev => prev === 'pending_delivery' ? null : 'pending_delivery')}
+              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none border-t-[3px] border-t-[#3B82F6] ${
+                activeKPI === 'pending_delivery'
+                  ? 'border-2 border-[#3B82F6] bg-blue-50/70 shadow-md scale-[1.01]'
+                  : 'bg-white border-x border-b border-[#D4E4E3] hover:shadow-xs hover:bg-[#F0F5F4]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#3B82F6] block truncate">
+                    รอส่งมอบ
+                  </span>
+                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                    สั่งซื้อแล้ว รอรับสินค้า
+                  </span>
+                </div>
+                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                  activeKPI === 'pending_delivery' ? 'bg-[#3B82F6] text-white' : 'bg-blue-50 text-[#3B82F6]'
+                }`}>
+                  <Truck size={13} className="sm:w-3.5 sm:h-3.5" />
                 </span>
               </div>
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                activeKPI === 'normal' ? 'bg-[#5A8A88] text-white' : 'bg-[#E8F3F2] text-[#5A8A88]'
-              }`}>
-                <CheckCircle2 size={16} />
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#2D4A49] leading-none">
-                {stats.normal}
-              </div>
-              <div className="text-[11px] text-[#5A8A88] font-medium mt-1 truncate">
-                {locationLabel}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: สั่งซื้อ (CHANGE 2: NEW 4th Card, displays purchasing count) */}
-          <div
-            onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
-            className={`rounded-[16px] p-5 lg:p-6 shadow-[0_2px_12px_rgba(90,138,136,0.1)] flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
-              activeKPI === 'purchasing'
-                ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.02]'
-                : 'bg-white border-t-4 border-[#7A9E9C] hover:shadow-md hover:bg-[#F0F5F4]'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[13px] font-bold text-[#2D4A49]">
-                  สั่งซื้อ
-                </span>
-                <span className="text-[11px] text-[#6B8F8E] font-medium block mt-0.5">
-                  รายการที่ต้องสั่ง
-                </span>
-              </div>
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#EAF2F1] text-[#7A9E9C]'
-              }`}>
-                <ShoppingCart size={16} />
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-[32px] lg:text-[38px] font-extrabold text-[#7A9E9C] leading-none">
-                {stats.out + stats.low}
-              </div>
-              <div className="text-[11px] text-[#7A9E9C] font-medium mt-1 truncate">
-                ต้องสั่งซื้อด่วน
+              <div className="mt-1.5 sm:mt-2">
+                <div className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#3B82F6] leading-none">
+                  {pendingOrders.filter(o => o.order_date && o.order_qty > 0).length}
+                </div>
+                <div className="text-[8.5px] sm:text-[9.5px] text-[#3B82F6] font-medium mt-1 truncate">
+                  {locationLabel}
+                </div>
               </div>
             </div>
           </div>
