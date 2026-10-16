@@ -74,6 +74,23 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   }, [user]);
 
   const [orders, setOrders] = useState<Record<string, OrderRecord>>({});
+  const [savedOrders, setSavedOrders] = useState<Record<string, OrderRecord>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [changedItems, setChangedItems] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Prompt if user tries to close/reload tab with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Format datetime for display: DD/MM HH:MM น.
   const formatOrderDateTime = (isoStr?: string) => {
@@ -115,6 +132,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
       if (isMounted) {
         setOrders(localMap);
+        setSavedOrders(localMap);
+        setHasUnsavedChanges(false);
+        setChangedItems(new Set());
       }
 
       // 2. Fetch from Supabase purchasing_orders table
@@ -132,6 +152,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
               remoteMap[item.ingredient_id] = item;
             });
             setOrders(remoteMap);
+            setSavedOrders(remoteMap);
+            setHasUnsavedChanges(false);
+            setChangedItems(new Set());
 
             // Sync into localStorage
             try {
@@ -162,6 +185,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     val: string | number,
     unit: string
   ) => {
+    setHasUnsavedChanges(true);
+    setChangedItems(prev => new Set(prev).add(ingredientId));
+
     setOrders(prev => {
       const existing = prev[ingredientId] || {
         ingredient_id: ingredientId,
@@ -195,7 +221,97 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     });
   };
 
-  // Auto-save on blur (when leaving input field)
+  // Revert all unsaved changes back to saved state
+  const handleRevertChanges = () => {
+    setOrders(savedOrders);
+    setHasUnsavedChanges(false);
+    setChangedItems(new Set());
+  };
+
+  // Save all changed order items to localStorage & Supabase
+  const handleSaveAllChanges = async () => {
+    setIsSaving(true);
+    const currentBranch = branch || 'Rayong';
+    const nowIso = new Date().toISOString();
+
+    const updatedOrdersMap: Record<string, OrderRecord> = { ...orders };
+    const itemsToPersist: OrderRecord[] = [];
+
+    changedItems.forEach(ingredientId => {
+      const itemOrder = updatedOrdersMap[ingredientId];
+      if (itemOrder) {
+        const isFilled = Boolean(itemOrder.order_date) || Number(itemOrder.order_qty) > 0;
+        const record: OrderRecord = {
+          ...itemOrder,
+          ingredient_id: ingredientId,
+          branch: currentBranch,
+          stock_date: selectedDate,
+          ordered_by: isFilled ? (itemOrder.ordered_by || currentUser) : '',
+          ordered_at: isFilled ? (itemOrder.ordered_at || nowIso) : '',
+        };
+        updatedOrdersMap[ingredientId] = record;
+        itemsToPersist.push(record);
+      }
+    });
+
+    setOrders(updatedOrdersMap);
+
+    // 1. Save to localStorage
+    try {
+      const rawAll = localStorage.getItem('cafe_purchasing_orders');
+      let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
+      itemsToPersist.forEach(item => {
+        const idx = allList.findIndex(o => 
+          o.ingredient_id === item.ingredient_id && 
+          o.branch === currentBranch && 
+          o.stock_date === selectedDate
+        );
+        if (idx >= 0) {
+          allList[idx] = { ...allList[idx], ...item };
+        } else {
+          allList.push(item);
+        }
+      });
+      localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
+    } catch (e) {
+      console.warn('Error saving local orders:', e);
+    }
+
+    // 2. Upsert to Supabase
+    if (supabase && itemsToPersist.length > 0) {
+      try {
+        const payloads = itemsToPersist.map(r => ({
+          ingredient_id: r.ingredient_id,
+          order_date: r.order_date || null,
+          order_qty: r.order_qty || 0,
+          order_unit: r.order_unit || '',
+          ordered_by: r.ordered_by || null,
+          ordered_at: r.ordered_at || null,
+          branch: currentBranch,
+          stock_date: selectedDate,
+        }));
+
+        const { error } = await supabase
+          .from('purchasing_orders')
+          .upsert(payloads, { onConflict: 'ingredient_id,stock_date,branch' });
+
+        if (error) {
+          console.warn('Supabase purchasing_orders upsert error:', error.message);
+        }
+      } catch (err) {
+        console.warn('Error saving to Supabase:', err);
+      }
+    }
+
+    setSavedOrders(updatedOrdersMap);
+    setHasUnsavedChanges(false);
+    setChangedItems(new Set());
+    setIsSaving(false);
+    setSaveSuccessMsg(`บันทึกข้อมูลเรียบร้อยแล้ว (${itemsToPersist.length} รายการ)`);
+    setTimeout(() => setSaveSuccessMsg(null), 3500);
+  };
+
+  // Retain existing function to satisfy "❌ FORBIDDEN: Remove any existing function"
   const handleOrderSave = async (ingredientId: string, unit: string) => {
     const currentBranch = branch || 'Rayong';
     const itemOrder = orders[ingredientId];
@@ -214,13 +330,11 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       ordered_at: isFilled ? (itemOrder.ordered_at || nowIso) : '',
     };
 
-    // Update state to guarantee ordered_by and ordered_at
     setOrders(prev => ({
       ...prev,
       [ingredientId]: recordToSave
     }));
 
-    // 1. Save to localStorage
     try {
       const rawAll = localStorage.getItem('cafe_purchasing_orders');
       let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
@@ -239,7 +353,6 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       console.warn('Error saving local orders:', e);
     }
 
-    // 2. Upsert to Supabase
     if (supabase) {
       try {
         const payload: any = {
@@ -264,6 +377,25 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         console.warn('Error upserting purchasing_orders:', err);
       }
     }
+  };
+
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      if (window.confirm('มีการแก้ไขที่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้หรือไม่?')) {
+        onBack();
+      }
+    } else {
+      onBack();
+    }
+  };
+
+  const handleDateChange = (newDate: string) => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('มีการแก้ไขที่ยังไม่ได้บันทึก หากเปลี่ยนวันที่ข้อมูลที่แก้ไขจะหายไป ต้องการเปลี่ยนหรือไม่?')) {
+        return;
+      }
+    }
+    setSelectedDate(newDate);
   };
 
   // Close dropdowns on outside click or Escape
@@ -476,7 +608,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           {/* LEFT: Back Button + Title + Subtitle */}
           <div className="flex items-center gap-2.5">
             <button 
-              onClick={onBack}
+              onClick={handleBackClick}
               title="ย้อนกลับ"
               className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
@@ -510,7 +642,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                 type="date" 
                 className="bg-transparent border-none focus:outline-none text-[11px] font-medium text-[#2D4A49] cursor-pointer"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
               />
             </div>
           </div>
@@ -743,20 +875,32 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                   </div>
 
                   {/* Table with Horizontal Scroll */}
-                  <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[980px]">
+                  <div className="overflow-x-hidden overflow-y-visible w-full">
+                    <table className="w-full text-left border-collapse table-fixed" style={{ tableLayout: 'fixed', width: '100%' }}>
+                      <colgroup>
+                        <col style={{ width: '36px' }} />
+                        <col style={{ width: '140px' }} />
+                        <col style={{ width: '70px' }} />
+                        <col style={{ width: '75px' }} />
+                        <col style={{ width: '62px' }} />
+                        <col style={{ width: '62px' }} />
+                        <col style={{ width: '68px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '72px' }} />
+                        <col style={{ width: '90px' }} />
+                      </colgroup>
                       <thead>
-                        <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold border-b border-[#2D4A49]">
-                          <th className="py-2 px-2.5 text-center w-[50px] border-r border-[#3d605f]">รูป</th>
-                          <th className="py-2 px-3 text-left min-w-[170px] border-r border-[#3d605f]">รายการสินค้า</th>
-                          <th className="py-2 px-2.5 text-left w-[100px] border-r border-[#3d605f]">หมวดหมู่</th>
-                          <th className="py-2 px-2.5 text-left w-[95px] border-r border-[#3d605f]">ขนาด/หน่วย</th>
-                          <th className="py-2 px-2 text-center w-[85px] border-r border-[#3d605f]">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2 px-2 text-center w-[85px] border-r border-[#3d605f]">ยอดตรวจนับ</th>
-                          <th className="py-2 px-2.5 text-center w-[95px] border-r border-[#3d605f]">ยอดสั่งแนะนำ</th>
-                          <th className="py-2 px-2 text-center w-[110px] border-r border-[#3d605f]">วันที่สั่งซื้อ</th>
-                          <th className="py-2 px-2 text-center w-[90px] border-r border-[#3d605f]">จำนวนที่สั่ง</th>
-                          <th className="py-2 px-2.5 text-center w-[130px]">ผู้สั่งซื้อ</th>
+                        <tr className="bg-[#2D4A49] text-white text-[10px] font-semibold border-b border-[#2D4A49]">
+                          <th className="p-1 text-center w-[36px] border-r border-[#3d605f]">รูป</th>
+                          <th className="py-2 px-2 text-left w-[140px] border-r border-[#3d605f] truncate">รายการสินค้า</th>
+                          <th className="py-2 px-1 text-left w-[70px] border-r border-[#3d605f] truncate">หมวดหมู่</th>
+                          <th className="py-2 px-1 text-left w-[75px] border-r border-[#3d605f] truncate">ขนาด/หน่วย</th>
+                          <th className="py-2 px-1 text-center w-[62px] border-r border-[#3d605f] truncate">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-1 text-center w-[62px] border-r border-[#3d605f] truncate">ยอดตรวจนับ</th>
+                          <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] truncate">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-1 text-center w-[100px] border-r border-[#3d605f] truncate">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-1 text-center w-[72px] border-r border-[#3d605f] truncate">จำนวนที่สั่ง</th>
+                          <th className="py-2 px-2 text-left w-[90px] truncate">ผู้สั่งซื้อ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -764,7 +908,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                           <React.Fragment key={category}>
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
-                              <td colSpan={10} className="px-3 py-1.5">
+                              <td colSpan={10} className="px-2.5 py-1">
                                 <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
@@ -779,81 +923,103 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                               const orderDate = order?.order_date || '';
                               const orderQty = order?.order_qty !== undefined ? order.order_qty : '';
                               const isOrdered = Boolean(orderDate) && Number(orderQty) > 0;
+                              const isChanged = changedItems.has(item.id);
 
                               return (
                                 <tr 
                                   key={item.id} 
                                   className={cn(
-                                    "transition-colors border-b border-[#F0F5F4]",
-                                    isOrdered 
-                                      ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
-                                      : isEven 
-                                        ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
-                                        : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
+                                    "relative transition-colors border-b border-[#F0F5F4] text-[10px] font-normal",
+                                    isChanged
+                                      ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
+                                      : isOrdered 
+                                        ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
+                                        : isEven 
+                                          ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
+                                          : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
                                   )}
                                 >
-                                  {/* Item Image */}
-                                  <td className="p-1.5 border-r border-[#F0F5F4] text-center w-[50px]">
+                                  {/* Item Image (36px) */}
+                                  <td className="relative p-1 border-r border-[#F0F5F4] text-center w-[36px]" style={{ width: '36px' }}>
+                                    {isChanged && (
+                                      <span 
+                                        className="absolute top-[5px] right-[4px] w-[7px] h-[7px] bg-[#F59E0B] rounded-full border-[1.5px] border-white z-10 pointer-events-none" 
+                                        title="มีการแก้ไขที่ยังไม่ได้บันทึก"
+                                      />
+                                    )}
                                     {item.image ? (
                                       <img 
                                         src={item.image} 
                                         alt={item.name} 
-                                        className="w-8 h-8 object-cover rounded-md border border-[#D4E4E3] mx-auto shadow-2xs" 
+                                        className="w-6 h-6 object-cover rounded border border-[#D4E4E3] mx-auto shadow-2xs" 
                                         referrerPolicy="no-referrer"
                                       />
                                     ) : (
-                                      <div className="w-8 h-8 rounded-md border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
-                                        <ShoppingCart size={13} />
+                                      <div className="w-6 h-6 rounded border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                        <ShoppingCart size={11} />
                                       </div>
                                     )}
                                   </td>
 
-                                  {/* Item Name & Subtitle */}
-                                  <td className="px-3 py-2 border-r border-[#F0F5F4] min-w-[170px]">
-                                    <div className="font-medium text-[#2D4A49] text-[11px] leading-tight" title={item.name}>
+                                  {/* Item Name & Subtitle (140px, truncate) */}
+                                  <td className="px-2 py-1 border-r border-[#F0F5F4] w-[140px] max-w-[140px]" style={{ width: '140px', maxWidth: '140px' }}>
+                                    <div 
+                                      className="font-[500] text-[#2D4A49] text-[11px] leading-tight truncate overflow-hidden whitespace-nowrap" 
+                                      title={item.name}
+                                    >
                                       {item.name}
                                     </div>
                                     {item.brand && (
-                                      <div className="text-[10px] text-[#6B8F8E] mt-0.5">
+                                      <div 
+                                        className="text-[9px] font-normal text-[#6B8F8E] mt-0.5 truncate overflow-hidden whitespace-nowrap"
+                                        title={`ยี่ห้อ: ${item.brand}`}
+                                      >
                                         ยี่ห้อ: {item.brand}
                                       </div>
                                     )}
                                   </td>
 
-                                  {/* Category Badge */}
-                                  <td className="px-2.5 py-2 border-r border-[#F0F5F4] w-[100px]">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-[5px] text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88]">
+                                  {/* Category Badge (70px) */}
+                                  <td className="px-1.5 py-1 border-r border-[#F0F5F4] w-[70px] max-w-[70px]" style={{ width: '70px', maxWidth: '70px' }}>
+                                    <span 
+                                      className="inline-block max-w-full truncate px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold bg-[#E8F3F2] text-[#5A8A88]"
+                                      title={item.category}
+                                    >
                                       {item.category}
                                     </span>
                                   </td>
 
-                                  {/* Size / Unit */}
-                                  <td className="px-2.5 py-2 border-r border-[#F0F5F4] text-[10px] text-[#6B8F8E] w-[95px]">
+                                  {/* Size / Unit (75px) */}
+                                  <td 
+                                    className="px-1.5 py-1 border-r border-[#F0F5F4] text-[10px] font-normal text-[#6B8F8E] w-[75px] max-w-[75px] truncate overflow-hidden whitespace-nowrap"
+                                    title={item.sizePerUnit || '-'}
+                                    style={{ width: '75px', maxWidth: '75px' }}
+                                  >
                                     {item.sizePerUnit || '-'}
                                   </td>
 
-                                  {/* Min Stock (คงเหลือขั้นต่ำ) */}
-                                  <td className="px-2 py-2 border-r border-[#F0F5F4] text-center w-[85px]">
+                                  {/* Min Stock (คงเหลือขั้นต่ำ - 62px, center) */}
+                                  <td className="px-1 py-1 border-r border-[#F0F5F4] text-center w-[62px] max-w-[62px]" style={{ width: '62px', maxWidth: '62px' }}>
                                     {isLow ? (
-                                      <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono">
+                                      <span className="inline-block px-1 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono leading-tight truncate max-w-full">
                                         {item.minStock} {item.unit}
                                       </span>
                                     ) : (
-                                      <span className="text-[#2D4A49] font-mono text-[10px]">
+                                      <span className="text-[#2D4A49] font-mono text-[10px] font-normal leading-tight truncate inline-block max-w-full">
                                         {item.minStock} {item.unit}
                                       </span>
                                     )}
                                   </td>
 
-                                  {/* Current Stock (ยอดตรวจนับ) */}
-                                  <td className="px-2 py-2 border-r border-[#F0F5F4] font-mono text-[10px] text-center text-[#6B8F8E] w-[85px]">
+                                  {/* Current Stock (ยอดตรวจนับ - 62px, center) */}
+                                  <td className="px-1 py-1 border-r border-[#F0F5F4] font-mono text-[10px] font-normal text-center text-[#6B8F8E] w-[62px] max-w-[62px] truncate" style={{ width: '62px', maxWidth: '62px' }}>
                                     {item.currentStock} {item.unit}
                                   </td>
 
-                                  {/* Suggested Order (ยอดสั่งแนะนำ) */}
-                                  <td className="px-2.5 py-2 font-mono text-[10px] text-center w-[95px] border-r border-[#F0F5F4]">
+                                  {/* Suggested Order (ยอดสั่งแนะนำ - 68px, center) */}
+                                  <td className="px-1 py-1 font-mono text-[10px] text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
                                     <span className={cn(
-                                      "inline-block px-1.5 py-0.5 rounded-md text-[10px]",
+                                      "inline-block px-1.5 py-0.5 rounded-[4px] text-[10px] leading-tight max-w-full truncate",
                                       isOrdered 
                                         ? "bg-white text-[#5A8A88] font-[700] border border-[#5A8A88]/30 shadow-2xs" 
                                         : "bg-[#E8F3F2] text-[#5A8A88] font-bold"
@@ -862,56 +1028,54 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                     </span>
                                   </td>
 
-                                  {/* COLUMN 1 — วันที่สั่งซื้อ */}
-                                  <td className="px-2 py-1.5 text-center w-[110px] border-r border-[#F0F5F4]">
+                                  {/* COLUMN 1 — วันที่สั่งซื้อ (100px, center) */}
+                                  <td className="px-1 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
                                     <input 
                                       type="date"
                                       value={orderDate}
                                       placeholder="เลือกวันที่"
                                       onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit)}
-                                      onBlur={() => handleOrderSave(item.id, item.unit)}
-                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-2 py-1 text-[11px] text-[#2D4A49] w-full focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[5px] px-[5px] py-[3px] h-[28px] w-[95px] max-w-[95px] text-[10px] placeholder:text-[10px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors"
                                     />
                                   </td>
 
-                                  {/* COLUMN 2 — จำนวนที่สั่ง */}
-                                  <td className="px-2 py-1.5 text-center w-[90px] border-r border-[#F0F5F4]">
-                                    <div className="flex items-center gap-1">
+                                  {/* COLUMN 2 — จำนวนที่สั่ง (72px, center) */}
+                                  <td className="px-1 py-1 text-center w-[72px] max-w-[72px] border-r border-[#F0F5F4]" style={{ width: '72px', maxWidth: '72px' }}>
+                                    <div className="flex items-center justify-center gap-0.5 w-full">
                                       <input 
                                         type="number"
                                         min={0}
                                         value={orderQty === 0 && !orderDate ? '' : orderQty}
                                         placeholder="0"
                                         onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit)}
-                                        onBlur={() => handleOrderSave(item.id, item.unit)}
-                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-1.5 py-1 text-[11px] text-[#2D4A49] w-full text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[5px] px-1 py-[3px] h-[28px] w-[46px] text-[10px] placeholder:text-[10px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
                                       />
-                                      <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap shrink-0">
+                                      <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[18px]" title={item.unit}>
                                         {item.unit}
                                       </span>
                                     </div>
                                   </td>
 
-                                  {/* COLUMN 3 — ผู้สั่งซื้อ */}
-                                  <td className="px-2 py-1.5 text-center w-[130px]">
+                                  {/* COLUMN 3 — ผู้สั่งซื้อ (90px, left) */}
+                                  <td className="px-1.5 py-1 text-left w-[90px] max-w-[90px]" style={{ width: '90px', maxWidth: '90px' }}>
                                     {order?.ordered_by ? (
-                                      <div className="flex flex-col items-center justify-center gap-0.5">
-                                        <span className="text-[11px] font-bold text-[#2D4A49] leading-tight">
+                                      <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
+                                        <span className="text-[11px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
                                           {order.ordered_by}
                                         </span>
                                         {order.ordered_at && (
-                                          <span className="text-[10px] text-[#6B8F8E] leading-tight">
+                                          <span className="text-[9px] text-[#6B8F8E] leading-tight truncate w-full" title={formatOrderDateTime(order.ordered_at)}>
                                             {formatOrderDateTime(order.ordered_at)}
                                           </span>
                                         )}
                                         {isOrdered && (
-                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-[600] rounded-[4px] px-1.5 py-[1px] leading-tight shadow-2xs">
+                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[4px] px-1 py-0.5 leading-none shadow-2xs whitespace-nowrap">
                                             ✓ สั่งซื้อแล้ว
                                           </span>
                                         )}
                                       </div>
                                     ) : (
-                                      <span className="text-[#94A3B8] text-[12px] font-medium">—</span>
+                                      <span className="text-[#94A3B8] text-[11px] font-medium">—</span>
                                     )}
                                   </td>
                                 </tr>
@@ -946,6 +1110,77 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                     <div className="text-[18px] font-black text-[#2D4A49]">{Object.keys(groupedPurchases).length} ราย</div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* PART C — Sticky Save Bar */}
+          {hasUnsavedChanges && (
+            <div 
+              className="sticky bottom-[64px] z-40 bg-[#FFFBEB] border border-[#FCD34D] rounded-[12px] px-4 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] mx-4 mb-3 flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 print:hidden"
+              style={{
+                position: 'sticky',
+                bottom: '64px',
+                zIndex: 40,
+                backgroundColor: '#FFFBEB',
+                border: '1px solid #FCD34D',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
+                margin: '0 16px 12px'
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] animate-pulse shrink-0" />
+                <span className="text-[11px] sm:text-[12px] font-semibold text-[#92400E]">
+                  มีการแก้ไขที่ยังไม่ได้บันทึก ({changedItems.size} รายการ)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRevertChanges}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-[11px] font-semibold text-[#78350F] hover:bg-[#FEF3C7] active:bg-[#FDE68A] rounded-[8px] border border-[#FCD34D] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  ยกเลิก / รีเซ็ต
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAllChanges}
+                  disabled={isSaving}
+                  className="px-4 py-1.5 text-[11px] font-semibold text-white bg-[#5A8A88] hover:bg-[#48716F] active:bg-[#3D605E] rounded-[8px] shadow-sm transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      กำลังบันทึก...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      บันทึกข้อมูล
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Success Toast */}
+          {saveSuccessMsg && (
+            <div 
+              className="sticky bottom-[64px] z-40 bg-[#ECFDF5] border border-[#A7F3D0] rounded-[12px] px-4 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] mx-4 mb-3 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 print:hidden"
+              style={{
+                position: 'sticky',
+                bottom: '64px',
+                zIndex: 40,
+                margin: '0 16px 12px'
+              }}
+            >
+              <div className="flex items-center gap-2 text-[#065F46] text-[11px] sm:text-[12px] font-semibold">
+                <Check size={15} className="text-[#059669] shrink-0" />
+                <span>{saveSuccessMsg}</span>
               </div>
             </div>
           )}
