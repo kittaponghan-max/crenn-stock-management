@@ -896,31 +896,31 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                     </span>
                   </div>
 
-                  {/* Table with Horizontal Scroll */}
-                  <div className="overflow-x-auto custom-scrollbar w-full">
-                    <table className="w-full text-left border-collapse min-w-[860px]">
+                  {/* Table without Horizontal Scroll */}
+                  <div className="overflow-x-hidden overflow-y-visible w-full">
+                    <table className="w-full text-left border-collapse table-fixed" style={{ tableLayout: 'fixed', width: '100%' }}>
                       <colgroup>
-                        <col style={{ width: '48px' }} />
-                        <col style={{ width: 'auto', minWidth: '180px' }} />
-                        <col style={{ width: '88px' }} />
-                        <col style={{ width: '85px' }} />
-                        <col style={{ width: '80px' }} />
-                        <col style={{ width: '85px' }} />
-                        <col style={{ width: '130px' }} />
-                        <col style={{ width: '85px' }} />
-                        <col style={{ width: '120px' }} />
+                        <col style={{ width: '36px' }} />
+                        <col style={{ width: '154px' }} />
+                        <col style={{ width: '68px' }} />
+                        <col style={{ width: '74px' }} />
+                        <col style={{ width: '66px' }} />
+                        <col style={{ width: '70px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '68px' }} />
+                        <col style={{ width: '96px' }} />
                       </colgroup>
                       <thead>
-                        <tr className="bg-[#2D4A49] text-white text-[10px] font-semibold border-b border-[#2D4A49]">
-                          <th className="p-1.5 text-center w-[48px] border-r border-[#3d605f] whitespace-nowrap">รูป</th>
-                          <th className="py-2 px-2.5 text-left border-r border-[#3d605f] min-w-[180px] whitespace-nowrap">รายการสินค้า</th>
-                          <th className="py-2 px-2 text-left w-[88px] border-r border-[#3d605f] whitespace-nowrap">ขนาด/หน่วย</th>
-                          <th className="py-2 px-1 text-center w-[85px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2 px-1 text-center w-[80px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
-                          <th className="py-2 px-1 text-center w-[85px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
-                          <th className="py-2 px-1 text-center w-[130px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
-                          <th className="py-2 px-1 text-center w-[85px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
-                          <th className="py-2 px-2.5 text-left w-[120px] whitespace-nowrap">ผู้สั่งซื้อ</th>
+                        <tr className="bg-[#2D4A49] text-white text-[9.5px] font-semibold border-b border-[#2D4A49] leading-tight">
+                          <th className="p-1 text-center w-[36px] border-r border-[#3d605f] whitespace-nowrap">รูป</th>
+                          <th className="py-2 px-2 text-left w-[154px] border-r border-[#3d605f] whitespace-nowrap">รายการสินค้า</th>
+                          <th className="py-2 px-1 text-left w-[68px] border-r border-[#3d605f] whitespace-nowrap">ขนาด/หน่วย</th>
+                          <th className="py-2 px-1 text-center w-[74px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
+                          <th className="py-2 px-1 text-center w-[70px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-1 text-center w-[100px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
+                          <th className="py-2 px-1.5 text-left w-[96px] whitespace-nowrap">ผู้สั่งซื้อ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -929,7 +929,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
                               <td colSpan={9} className="px-2.5 py-1">
-                                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#5A8A88]">
+                                <div className="flex items-center gap-1.5 text-[9.5px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
                                 </div>
@@ -949,7 +949,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                 <tr 
                                   key={item.id} 
                                   className={cn(
-                                    "relative transition-colors border-b border-[#F0F5F4] text-[10px] font-normal",
+                                    "relative transition-colors border-b border-[#F0F5F4] text-[9.5px] font-normal",
                                     isChanged
                                       ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
                                       : isOrdered 
@@ -960,10 +960,10 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   )}
                                 >
                                   {/* Item Image */}
-                                  <td className="relative p-1.5 border-r border-[#F0F5F4] text-center w-[48px]">
+                                  <td className="relative p-1 border-r border-[#F0F5F4] text-center w-[36px]" style={{ width: '36px' }}>
                                     {isChanged && (
                                       <span 
-                                        className="absolute top-[3px] right-[2px] w-[7px] h-[7px] bg-[#F59E0B] rounded-full border-[1.5px] border-white z-10 pointer-events-none" 
+                                        className="absolute top-[3px] right-[2px] w-[6px] h-[6px] bg-[#F59E0B] rounded-full border-[1px] border-white z-10 pointer-events-none" 
                                         title="มีการแก้ไขที่ยังไม่ได้บันทึก"
                                       />
                                     )}
@@ -977,37 +977,37 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           category: item.category,
                                           unit: item.unit
                                         })}
-                                        className="group relative inline-flex items-center justify-center rounded-md border border-[#D4E4E3] overflow-hidden hover:border-[#5A8A88] transition-all cursor-pointer shadow-2xs hover:shadow-xs hover:scale-110 bg-white p-0.5"
+                                        className="group relative inline-flex items-center justify-center rounded border border-[#D4E4E3] overflow-hidden hover:border-[#5A8A88] transition-all cursor-pointer shadow-2xs hover:shadow-xs hover:scale-105 bg-white p-0.5"
                                         title="คลิกเพื่อดูรูปภาพขนาดใหญ่"
                                       >
                                         <img 
                                           src={item.image} 
                                           alt={item.name} 
-                                          className="w-7 h-7 object-cover rounded-[3px] mx-auto" 
+                                          className="w-6 h-6 object-cover rounded-[2px] mx-auto" 
                                           referrerPolicy="no-referrer"
                                         />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-[3px]">
-                                          <Eye size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-xs" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-[2px]">
+                                          <Eye size={10} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-xs" />
                                         </div>
                                       </button>
                                     ) : (
-                                      <div className="w-7 h-7 rounded-md border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
-                                        <ShoppingCart size={12} />
+                                      <div className="w-6 h-6 rounded border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                        <ShoppingCart size={11} />
                                       </div>
                                     )}
                                   </td>
 
                                   {/* Item Name & Subtitle */}
-                                  <td className="px-2.5 py-1.5 border-r border-[#F0F5F4] min-w-[180px]">
+                                  <td className="px-2 py-1.5 border-r border-[#F0F5F4] w-[154px] max-w-[154px]" style={{ width: '154px', maxWidth: '154px' }}>
                                     <div 
-                                      className="font-[500] text-[#2D4A49] text-[11px] leading-tight truncate" 
+                                      className="font-[600] text-[#2D4A49] text-[10px] leading-tight truncate overflow-hidden whitespace-nowrap" 
                                       title={item.name}
                                     >
                                       {item.name}
                                     </div>
                                     {item.brand && (
                                       <div 
-                                        className="text-[9px] font-normal text-[#6B8F8E] mt-0.5 truncate"
+                                        className="text-[9px] font-normal text-[#6B8F8E] mt-0.5 truncate overflow-hidden whitespace-nowrap"
                                         title={`ยี่ห้อ: ${item.brand}`}
                                       >
                                         ยี่ห้อ: {item.brand}
@@ -1017,34 +1017,35 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
                                   {/* Size / Unit */}
                                   <td 
-                                    className="px-2 py-1.5 border-r border-[#F0F5F4] text-[10px] font-normal text-[#6B8F8E] w-[88px] truncate whitespace-nowrap"
+                                    className="px-1.5 py-1.5 border-r border-[#F0F5F4] text-[9.5px] font-normal text-[#6B8F8E] w-[68px] max-w-[68px] truncate overflow-hidden whitespace-nowrap"
                                     title={item.sizePerUnit || '-'}
+                                    style={{ width: '68px', maxWidth: '68px' }}
                                   >
                                     {item.sizePerUnit || '-'}
                                   </td>
 
                                   {/* Min Stock (คงเหลือขั้นต่ำ) */}
-                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] text-center w-[85px]">
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] text-center w-[74px] max-w-[74px]" style={{ width: '74px', maxWidth: '74px' }}>
                                     {isLow ? (
-                                      <span className="inline-block px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[10px] font-mono leading-tight whitespace-nowrap">
+                                      <span className="inline-block px-1 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[9.5px] font-mono leading-tight whitespace-nowrap">
                                         {item.minStock} {item.unit}
                                       </span>
                                     ) : (
-                                      <span className="text-[#2D4A49] font-mono text-[10px] font-normal leading-tight whitespace-nowrap">
+                                      <span className="text-[#2D4A49] font-mono text-[9.5px] font-normal leading-tight whitespace-nowrap">
                                         {item.minStock} {item.unit}
                                       </span>
                                     )}
                                   </td>
 
                                   {/* Current Stock (ยอดตรวจนับ) */}
-                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] font-mono text-[10px] font-normal text-center text-[#6B8F8E] w-[80px] whitespace-nowrap">
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] font-mono text-[9.5px] font-normal text-center text-[#6B8F8E] w-[66px] max-w-[66px] whitespace-nowrap" style={{ width: '66px', maxWidth: '66px' }}>
                                     {item.currentStock} {item.unit}
                                   </td>
 
                                   {/* Suggested Order (ยอดสั่งแนะนำ) */}
-                                  <td className="px-1 py-1.5 font-mono text-[10px] text-center w-[85px] border-r border-[#F0F5F4]">
+                                  <td className="px-1 py-1.5 font-mono text-[9.5px] text-center w-[70px] max-w-[70px] border-r border-[#F0F5F4]" style={{ width: '70px', maxWidth: '70px' }}>
                                     <span className={cn(
-                                      "inline-block px-1.5 py-0.5 rounded-[4px] text-[10px] leading-tight whitespace-nowrap",
+                                      "inline-block px-1.5 py-0.5 rounded-[3px] text-[9.5px] leading-tight whitespace-nowrap",
                                       isOrdered 
                                         ? "bg-white text-[#5A8A88] font-[700] border border-[#5A8A88]/30 shadow-2xs" 
                                         : "bg-[#E8F3F2] text-[#5A8A88] font-bold"
@@ -1054,38 +1055,38 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   </td>
 
                                   {/* COLUMN 1 — วันที่สั่งซื้อ */}
-                                  <td className="px-1 py-1 text-center w-[130px] border-r border-[#F0F5F4]">
+                                  <td className="px-0.5 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
                                     <input 
                                       type="date"
                                       value={orderDate}
                                       placeholder="เลือกวันที่"
                                       onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit)}
-                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-2 py-1 h-[28px] w-full max-w-[120px] text-[10px] placeholder:text-[10px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer"
+                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer text-center mx-auto block"
                                     />
                                   </td>
 
                                   {/* COLUMN 2 — จำนวนที่สั่ง */}
-                                  <td className="px-1 py-1 text-center w-[85px] border-r border-[#F0F5F4]">
-                                    <div className="flex items-center justify-center gap-1 w-full">
+                                  <td className="px-0.5 py-1 text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
+                                    <div className="flex items-center justify-center gap-0.5 w-full">
                                       <input 
                                         type="number"
                                         min={0}
                                         value={orderQty === 0 && !orderDate ? '' : orderQty}
                                         placeholder="0"
                                         onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit)}
-                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[6px] px-1 py-1 h-[28px] w-[50px] text-[10px] placeholder:text-[10px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
                                       />
-                                      <span className="text-[10px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[28px]" title={item.unit}>
+                                      <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[22px]" title={item.unit}>
                                         {item.unit}
                                       </span>
                                     </div>
                                   </td>
 
                                   {/* COLUMN 3 — ผู้สั่งซื้อ */}
-                                  <td className="px-2 py-1 text-left w-[120px]">
+                                  <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px]" style={{ width: '96px', maxWidth: '96px' }}>
                                     {order?.ordered_by ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
-                                        <span className="text-[11px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
+                                        <span className="text-[10px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
                                           {order.ordered_by}
                                         </span>
                                         {order.ordered_at && (
@@ -1094,13 +1095,13 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           </span>
                                         )}
                                         {isOrdered && (
-                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[4px] px-1.5 py-0.5 leading-none shadow-2xs whitespace-nowrap">
+                                          <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[3px] px-1 py-0.5 leading-none shadow-2xs whitespace-nowrap">
                                             ✓ สั่งซื้อแล้ว
                                           </span>
                                         )}
                                       </div>
                                     ) : (
-                                      <span className="text-[#94A3B8] text-[11px] font-medium">—</span>
+                                      <span className="text-[#94A3B8] text-[9.5px] font-medium">—</span>
                                     )}
                                   </td>
                                 </tr>
