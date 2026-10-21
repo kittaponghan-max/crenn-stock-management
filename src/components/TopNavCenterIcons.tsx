@@ -107,7 +107,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       return ['barChecklist', 'bakeryChecklist', 'checklistHistory', 'checkin'].includes(currentTab);
     }
     if (id === 'purchasing') {
-      return ['barPurchasing', 'purchasing'].includes(currentTab);
+      return ['barPurchasing', 'orderedItems', 'purchasing'].includes(currentTab);
     }
     if (id === 'bakery') {
       return ['bakeryPlan', 'bakeryPlanHistory', 'bakery'].includes(currentTab);
@@ -228,7 +228,24 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       icon: ShoppingCart,
       route: 'barPurchasing',
       showBadge: needPurchasingCount > 0,
-      hasDropdown: false,
+      hasDropdown: true,
+      dropdownWidth: 'w-[280px]',
+      groups: [
+        {
+          items: [
+            {
+              route: 'barPurchasing',
+              label: 'รายการวัตถุดิบที่ต้องสั่งซื้อ',
+              emoji: '🛒'
+            },
+            {
+              route: 'orderedItems',
+              label: 'รายการวัตถุดิบที่สั่งซื้อแล้ว',
+              emoji: '✅'
+            },
+          ],
+        },
+      ],
     },
     {
       id: 'bakery',
