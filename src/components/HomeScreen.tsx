@@ -24,6 +24,7 @@ import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
 import { SupabaseStatusBar } from './SupabaseStatusBar';
 import { supabase } from '../lib/supabase';
+import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
 
 export interface HomeScreenProps {
   user: {
@@ -470,13 +471,21 @@ export function HomeScreen({
     []
   );
 
-  // Compute filtered list reactively
+  // Obsolete map synchronization
+  const obsoleteMap = useObsoleteIngredients();
+
+  // Active (non-obsolete) ingredients
+  const activeIngredients = useMemo(() => {
+    return ingredients.filter(item => isIngredientActive(item, obsoleteMap));
+  }, [ingredients, obsoleteMap]);
+
+  // Compute filtered list reactively (excluding obsolete items)
   const filteredIngredients = useMemo(
     () => getFilteredIngredients(
-      ingredients,
+      activeIngredients,
       locationFilter  // "all" | "bar" | "kitchen"
     ),
-    [ingredients, locationFilter, getFilteredIngredients]
+    [activeIngredients, locationFilter, getFilteredIngredients]
   );
 
   // Labels for current location selection
@@ -506,24 +515,26 @@ export function HomeScreen({
     }
   }, [locationFilter]);
 
-  // Filter pending delivery orders by locationFilter
+  // Filter pending delivery orders by locationFilter (excluding obsolete items)
   const pendingDeliveryList = useMemo(() => {
     const ingMap = new Map<string, Ingredient>();
     ingredients.forEach(i => ingMap.set(i.id, i));
 
     return pendingOrders.filter(order => {
       if (!order.order_date || !order.order_qty || order.order_qty <= 0) return false;
+      const ing = ingMap.get(order.ingredient_id);
+      if (!ing) return false;
+      // Exclude obsolete ingredients from pending delivery
+      if (!isIngredientActive(ing, obsoleteMap)) return false;
       
       if (locationFilter !== 'all') {
-        const ing = ingMap.get(order.ingredient_id);
-        if (!ing) return false;
         const dept = (ing.department || '').toLowerCase().trim();
         if (locationFilter === 'bar' && dept !== 'bar') return false;
         if (locationFilter === 'kitchen' && dept !== 'bakery' && dept !== 'kitchen') return false;
       }
       return true;
     });
-  }, [pendingOrders, ingredients, locationFilter]);
+  }, [pendingOrders, ingredients, locationFilter, obsoleteMap]);
 
   const pendingDelivery = pendingDeliveryList.length;
 
