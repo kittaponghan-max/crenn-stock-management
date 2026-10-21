@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { Ingredient } from '../types';
 import * as XLSX from 'xlsx';
+import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
 
 interface ChecklistItem {
   id: string;
@@ -86,7 +87,10 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
     freezerStatus: ''
   });
 
-  const coffeeIngredients = ingredients.filter(ing => ing.category === 'Coffee');
+  const obsoleteMap = useObsoleteIngredients();
+  const coffeeIngredients = useMemo(() => {
+    return ingredients.filter(ing => ing.category === 'Coffee' && isIngredientActive(ing, obsoleteMap));
+  }, [ingredients, obsoleteMap]);
 
   const initialCheckIn: ChecklistCategory[] = [
     {
