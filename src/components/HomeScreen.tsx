@@ -1158,9 +1158,9 @@ export function HomeScreen({
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
-                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass }) => {
+                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass }, index) => {
                     return (
-                      <div key={ing.id} className="py-2.5 flex items-center justify-between gap-3 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
+                      <div key={`${ing.id}-${index}`} className="py-2.5 flex items-center justify-between gap-3 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                             remaining <= 0 
