@@ -1,7 +1,26 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Ingredient, ReceivingRecord } from '../types';
 import { format } from 'date-fns';
-import { Calendar, Package, Save, Trash2, RotateCcw, Plus, Search, ChevronDown, AlertCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
+import { 
+  Calendar, 
+  Package, 
+  Save, 
+  Trash2, 
+  RotateCcw, 
+  Plus, 
+  Search, 
+  ChevronDown, 
+  AlertCircle, 
+  ClipboardList, 
+  CheckCircle2,
+  ScanLine,
+  Camera,
+  Upload,
+  AlertTriangle,
+  Loader2,
+  X,
+  Check
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
 
@@ -235,6 +254,285 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
     return ing ? ing.unit : '';
   };
 
+  // ── AI DELIVERY SLIP SCAN STATE & HANDLERS ────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [scanResults, setScanResults] = useState<{
+    id: string;
+    scanned_name: string;
+    quantity: number;
+    unit: string;
+    supplier: string;
+    expiry_date: string;
+    matched_ingredient: Ingredient | null;
+    status: 'matched' | 'not_found';
+    checked: boolean;
+  }[]>([]);
+  const [showScanResults, setShowScanResults] = useState(false);
+
+  const openCamera = () => {
+    setAnalysisError(null);
+    fileInputRef.current?.click();
+  };
+
+  const openFilePicker = () => {
+    setAnalysisError(null);
+    uploadInputRef.current?.click();
+  };
+
+  const handleImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedImageFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setSelectedImageUrl(objectUrl);
+    setShowImagePreview(true);
+    setAnalysisError(null);
+
+    // Reset value so user can re-select the same file
+    e.target.value = '';
+  };
+
+  const imageToBase64 = (fileOrUrl: File | string): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      if (typeof fileOrUrl === 'string') {
+        const matches = fileOrUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          resolve({ mimeType: matches[1], base64: matches[2] });
+          return;
+        }
+        fetch(fileOrUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const res = reader.result as string;
+              const m = res.match(/^data:([^;]+);base64,(.+)$/);
+              if (m) resolve({ mimeType: m[1], base64: m[2] });
+              else resolve({ mimeType: blob.type || 'image/jpeg', base64: res });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          })
+          .catch(reject);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const matches = result.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          resolve({ mimeType: matches[1], base64: matches[2] });
+        } else {
+          resolve({ mimeType: fileOrUrl.type || 'image/jpeg', base64: result });
+        }
+      };
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(fileOrUrl);
+    });
+  };
+
+  const matchWithDatabase = (scannedItems: any[]) => {
+    const matchResults = scannedItems.map(item => {
+      const rawName = String(item.name || '').trim();
+      const cleanItemName = rawName.toLowerCase();
+
+      // Case-insensitive partial match
+      let matched = filteredIngredients.find(ing => {
+        const ingName = ing.name.toLowerCase().trim();
+        const ingBrand = (ing.brand || '').toLowerCase().trim();
+        return (
+          ingName === cleanItemName ||
+          cleanItemName.includes(ingName) ||
+          ingName.includes(cleanItemName) ||
+          (ingBrand && cleanItemName.includes(ingBrand))
+        );
+      });
+
+      if (!matched) {
+        matched = ingredients.find(ing => {
+          const ingName = ing.name.toLowerCase().trim();
+          const ingBrand = (ing.brand || '').toLowerCase().trim();
+          return (
+            ingName === cleanItemName ||
+            cleanItemName.includes(ingName) ||
+            ingName.includes(cleanItemName) ||
+            (ingBrand && cleanItemName.includes(ingBrand))
+          );
+        });
+      }
+
+      return {
+        id: Math.random().toString(36).substring(2, 9),
+        scanned_name: rawName || 'ไม่ระบุชื่อ',
+        quantity: Number(item.quantity) || 1,
+        unit: item.unit || '',
+        supplier: item.supplier || '',
+        expiry_date: item.expiry_date || '',
+        matched_ingredient: matched || null,
+        status: matched ? ('matched' as const) : ('not_found' as const),
+        checked: Boolean(matched)
+      };
+    });
+
+    setScanResults(matchResults);
+    setShowScanResults(true);
+    setShowImagePreview(false);
+  };
+
+  const analyzeImage = async () => {
+    if (!selectedImageFile && !selectedImageUrl) return;
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const { base64, mimeType } = await imageToBase64(selectedImageFile || selectedImageUrl!);
+
+      const apiKey =
+        (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+        (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '') ||
+        (typeof window !== 'undefined' && (window as any).__GEMINI_API_KEY__) ||
+        '';
+
+      if (!apiKey) {
+        throw new Error('ไม่พบ API Key สำหรับ Gemini ในระบบ (VITE_GEMINI_API_KEY)');
+      }
+
+      const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+      let responseData: any = null;
+      let lastErrorMessage = '';
+
+      for (const model of modelsToTry) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    {
+                      text: `วิเคราะห์รูปใบส่งสินค้านี้
+และดึงรายการวัตถุดิบออกมาในรูปแบบ JSON
+โดยมีข้อมูลดังนี้ต่อรายการ:
+- name: ชื่อวัตถุดิบ
+- quantity: จำนวน (ตัวเลขเท่านั้น)
+- unit: หน่วย (ถุง/กล่อง/ขวด/etc.)
+- supplier: ชื่อผู้จัดจำหน่าย (ถ้ามี)
+- expiry_date: วันหมดอายุ (DD/MM/YYYY ถ้ามี)
+
+ตอบเป็น JSON array เท่านั้น ไม่ต้องมีคำอธิบายหรือ markdown code blocks:
+[{"name":"...","quantity":0,"unit":"...","supplier":"...","expiry_date":"..."}]`
+                    },
+                    {
+                      inline_data: {
+                        mime_type: mimeType || 'image/jpeg',
+                        data: base64
+                      }
+                    }
+                  ]
+                }]
+              })
+            }
+          );
+
+          const result = await res.json();
+          if (res.ok && result.candidates?.[0]?.content?.parts?.[0]?.text) {
+            responseData = result;
+            break;
+          } else {
+            if (result.error?.code === 402 || result.error?.message?.includes('credits are depleted')) {
+              throw new Error('โควต้า AI ชั่วคราวเต็ม (Prepayment credits depleted) กรุณาตรวจสอบสถานะ API Key');
+            }
+            lastErrorMessage = result.error?.message || `Model ${model} failed`;
+          }
+        } catch (err: any) {
+          if (err.message && err.message.includes('Prepayment credits')) {
+            throw err;
+          }
+          lastErrorMessage = err.message || 'Call failed';
+        }
+      }
+
+      if (!responseData) {
+        throw new Error(lastErrorMessage || 'วิเคราะห์รูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      }
+
+      const text = responseData.candidates[0].content.parts[0].text;
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const items = JSON.parse(jsonMatch[0]);
+        matchWithDatabase(items);
+      } else {
+        throw new Error('ไม่สามารถแยกข้อมูลรายการวัตถุดิบจากรูปภาพนี้ได้');
+      }
+    } catch (err: any) {
+      console.error('AI analysis error:', err);
+      setAnalysisError(err.message || 'วิเคราะห์รูปไม่สำเร็จ กรุณาลองใหม่');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const autoFillForm = (selectedItems: typeof scanResults) => {
+    const newRows: RowData[] = selectedItems
+      .filter(item => item.status === 'matched' && item.matched_ingredient && item.checked)
+      .map(item => {
+        let formattedExpiry = '';
+        if (item.expiry_date) {
+          const trimmed = String(item.expiry_date).trim();
+          const slashParts = trimmed.split('/');
+          const dashParts = trimmed.split('-');
+          if (slashParts.length === 3) {
+            const day = slashParts[0].padStart(2, '0');
+            const month = slashParts[1].padStart(2, '0');
+            let year = slashParts[2];
+            if (year.length === 2) year = '20' + year;
+            formattedExpiry = `${year}-${month}-${day}`;
+          } else if (dashParts.length === 3 && dashParts[0].length === 4) {
+            formattedExpiry = trimmed;
+          } else if (dashParts.length === 3) {
+            const day = dashParts[0].padStart(2, '0');
+            const month = dashParts[1].padStart(2, '0');
+            let year = dashParts[2];
+            if (year.length === 2) year = '20' + year;
+            formattedExpiry = `${year}-${month}-${day}`;
+          }
+        }
+
+        return {
+          id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
+          ingredientId: item.matched_ingredient!.id,
+          supplier: item.supplier || item.matched_ingredient!.supplier || '',
+          quantity: String(item.quantity || 1),
+          expiryDate: formattedExpiry
+        };
+      });
+
+    setRows(prev => {
+      // Remove empty rows first
+      const nonEmpty = prev.filter(r => r.ingredientId && r.ingredientId.trim() !== '');
+      const combined = [...nonEmpty, ...newRows];
+      if (combined.length < 10) {
+        const toAdd = 10 - combined.length;
+        return [...combined, ...Array.from({ length: toAdd }, createEmptyRow)];
+      }
+      return combined;
+    });
+
+    setShowScanResults(false);
+    setSelectedImageFile(null);
+    setSelectedImageUrl(null);
+  };
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* ── PAGE HEADER & ENTRY FORM ───────────────────────── */}
@@ -273,6 +571,62 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                 className="w-full pl-7 pr-2 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[11px] text-[#2D4A49] font-mono focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 shadow-xs transition-all"
               />
             </div>
+          </div>
+        </div>
+
+        {/* ── AI DELIVERY SLIP SCAN SECTION ── */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={handleImageSelected}
+        />
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleImageSelected}
+        />
+
+        <div className="bg-[#E8F3F2] border border-dashed border-[#5A8A88] rounded-[12px] p-4 sm:px-5 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-white/80 border border-[#D4E4E3] flex items-center justify-center shrink-0 text-[#5A8A88]">
+              <ScanLine size={18} className="text-[#5A8A88]" />
+            </div>
+            <div>
+              <div className="text-[13px] font-semibold text-[#2D4A49] flex items-center gap-1.5">
+                <span>สแกนใบส่งสินค้า (AI)</span>
+                <span className="bg-[#5A8A88] text-white text-[9px] px-1.5 py-0.2 rounded font-medium">AI Powered</span>
+              </div>
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                อัปโหลดรูปใบส่งสินค้าเพื่อกรอกข้อมูลอัตโนมัติ
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={openCamera}
+              disabled={isReadOnly}
+              className="bg-[#5A8A88] hover:bg-[#4A7A78] text-white text-[12px] font-semibold px-3.5 py-2 rounded-[8px] flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Camera size={14} className="text-white" />
+              <span>ถ่ายรูป</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openFilePicker}
+              disabled={isReadOnly}
+              className="bg-white hover:bg-[#F8FAF9] border border-[#D4E4E3] text-[#2D4A49] text-[12px] font-medium px-3.5 py-2 rounded-[8px] flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Upload size={14} className="text-[#5A8A88]" />
+              <span>อัปโหลดรูป</span>
+            </button>
           </div>
         </div>
         
@@ -564,6 +918,243 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                 className="flex-1 px-4 py-2.5 rounded-xl text-[12px] font-semibold text-white bg-[#EF4444] hover:bg-[#DC2626] transition-colors shadow-xs cursor-pointer"
               >
                 ยืนยันการลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── IMAGE PREVIEW MODAL ── */}
+      {showImagePreview && selectedImageUrl && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-[4px] p-4 animate-in fade-in duration-150"
+          onClick={() => !isAnalyzing && setShowImagePreview(false)}
+        >
+          <div 
+            className="bg-white rounded-[20px] p-6 max-w-[500px] w-[90%] max-h-[85vh] overflow-y-auto border border-[#D4E4E3] shadow-2xl animate-in zoom-in-95 duration-150 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F5F4]">
+              <div className="flex items-center gap-2">
+                <ScanLine size={18} className="text-[#5A8A88]" />
+                <h3 className="text-[15px] font-bold text-[#2D4A49]">
+                  ตรวจสอบรูปใบส่งสินค้า
+                </h3>
+              </div>
+              {!isAnalyzing && (
+                <button 
+                  type="button"
+                  onClick={() => setShowImagePreview(false)}
+                  className="text-[#7A9E9C] hover:text-[#2D4A49] p-1 rounded-lg hover:bg-[#F0F5F4] cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* Image Preview */}
+            <div className="relative w-full max-h-[300px] overflow-hidden rounded-[12px] border border-[#D4E4E3] bg-[#F8FAF9] flex items-center justify-center min-h-[180px]">
+              <img 
+                src={selectedImageUrl} 
+                alt="Delivery slip preview" 
+                className="w-full max-h-[300px] object-contain rounded-[12px]"
+              />
+
+              {/* Loading State Overlay */}
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-xs flex flex-col items-center justify-center gap-3 p-4 text-center z-10 animate-in fade-in">
+                  <Loader2 size={40} className="text-[#5A8A88] animate-spin" />
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#6B8F8E]">กำลังวิเคราะห์รูปภาพด้วย AI...</p>
+                    <p className="text-[11px] text-[#A8BCBB] mt-0.5">อาจใช้เวลา 5-15 วินาที</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Error Message if any */}
+            {analysisError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[12px] flex items-start gap-2">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-semibold">ข้อผิดพลาด: </span>
+                  {analysisError}
+                </div>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex gap-2.5 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowImagePreview(false)}
+                disabled={isAnalyzing}
+                className="px-4 py-2 rounded-xl text-[12px] font-semibold text-[#6B8F8E] hover:text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E2EAE9] transition-colors border border-[#D4E4E3] cursor-pointer disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={analyzeImage}
+                disabled={isAnalyzing}
+                className="px-5 py-2 rounded-xl text-[12px] font-bold text-white bg-[#5A8A88] hover:bg-[#4A7A78] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                🔍 วิเคราะห์รูปภาพ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SCAN RESULTS MODAL ── */}
+      {showScanResults && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-[4px] p-4 animate-in fade-in duration-150"
+          onClick={() => setShowScanResults(false)}
+        >
+          <div 
+            className="bg-white rounded-[20px] p-6 max-w-[520px] w-[95%] max-h-[85vh] overflow-y-auto border border-[#D4E4E3] shadow-2xl animate-in zoom-in-95 duration-150 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#F0F5F4]">
+              <div>
+                <h3 className="text-[15px] font-bold text-[#2D4A49]">
+                  ผลการวิเคราะห์ใบส่งสินค้า
+                </h3>
+                <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                  ระบบตรวจจับรายการและเทียบกับฐานข้อมูลวัตถุดิบอัตโนมัติ
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowScanResults(false)}
+                className="text-[#7A9E9C] hover:text-[#2D4A49] p-1 rounded-lg hover:bg-[#F0F5F4] cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Summary Row */}
+            <div className="flex items-center justify-between bg-[#F8FAF9] p-2.5 px-3.5 rounded-xl border border-[#D4E4E3] text-[11px] font-medium text-[#2D4A49]">
+              <span>พบ {scanResults.length} รายการ</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[#059669] font-semibold flex items-center gap-1">
+                  <CheckCircle2 size={13} className="text-[#059669]" />
+                  ตรงกัน: {scanResults.filter(r => r.status === 'matched').length}
+                </span>
+                <span className="text-[#D97706] font-semibold flex items-center gap-1">
+                  <AlertTriangle size={13} className="text-[#D97706]" />
+                  ไม่พบ: {scanResults.filter(r => r.status === 'not_found').length}
+                </span>
+              </div>
+            </div>
+
+            {/* Results List */}
+            <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
+              {scanResults.map((item) => {
+                const isMatched = item.status === 'matched';
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "rounded-[8px] p-2.5 px-3.5 flex items-start justify-between gap-3 transition-colors mb-1.5",
+                      isMatched
+                        ? "bg-[#E8F3F2] border border-[#B8D4D2]"
+                        : "bg-[#FEF3C7] border border-[#FDE68A] border-l-[3px] border-l-[#F59E0B]"
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <div className="mt-0.5 shrink-0">
+                        {isMatched ? (
+                          <CheckCircle2 size={16} className="text-[#059669]" />
+                        ) : (
+                          <AlertTriangle size={16} className="text-[#D97706]" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn("text-[12px] font-bold leading-tight", isMatched ? "text-[#2D4A49]" : "text-[#92400E]")}>
+                            {item.scanned_name}
+                          </span>
+                          {item.quantity ? (
+                            <span className="text-[11px] text-[#5A8A88] font-semibold bg-white/80 px-1.5 py-0.2 rounded border border-[#D4E4E3]">
+                              {item.quantity} {item.unit || ''}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {isMatched && item.matched_ingredient && (
+                          <div className="text-[11px] text-[#5A8A88] mt-1 flex items-center gap-1 font-medium">
+                            <span>→ ตรงกับ:</span>
+                            <span className="font-bold underline decoration-[#5A8A88]/40">
+                              [{item.matched_ingredient.name}]
+                            </span>
+                            {item.matched_ingredient.brand && (
+                              <span className="text-[10px] text-[#6B8F8E]">({item.matched_ingredient.brand})</span>
+                            )}
+                          </div>
+                        )}
+
+                        {!isMatched && (
+                          <div className="text-[10px] text-[#F59E0B] font-semibold mt-1">
+                            ❗ ไม่พบในฐานข้อมูล
+                          </div>
+                        )}
+
+                        <div className="text-[10px] text-[#6B8F8E] mt-1 flex items-center gap-2 flex-wrap">
+                          {item.supplier && <span>ผู้จัดจำหน่าย: {item.supplier}</span>}
+                          {item.expiry_date && <span>หมดอายุ: {item.expiry_date}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pre-checked for matched, disabled for not_found */}
+                    <div className="shrink-0 pt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        disabled={!isMatched}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setScanResults(prev => prev.map(r => r.id === item.id ? { ...r, checked } : r));
+                        }}
+                        className={cn(
+                          "w-4 h-4 rounded border-[#D4E4E3] accent-[#5A8A88] focus:ring-[#5A8A88]",
+                          !isMatched ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                        )}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2.5 justify-end pt-2 border-t border-[#F0F5F4]">
+              <button
+                type="button"
+                onClick={() => setShowScanResults(false)}
+                className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-[#6B8F8E] hover:text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E2EAE9] transition-colors border border-[#D4E4E3] cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const selected = scanResults.filter(r => r.status === 'matched' && r.checked);
+                  if (selected.length === 0) {
+                    alert('กรุณาเลือกรายการที่ต้องการเพิ่มอย่างน้อย 1 รายการ');
+                    return;
+                  }
+                  autoFillForm(selected);
+                }}
+                disabled={scanResults.filter(r => r.status === 'matched' && r.checked).length === 0}
+                className="px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-[#5A8A88] hover:bg-[#4A7A78] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>✓ เพิ่มรายการที่เลือกลงฟอร์ม ({scanResults.filter(r => r.status === 'matched' && r.checked).length})</span>
               </button>
             </div>
           </div>
