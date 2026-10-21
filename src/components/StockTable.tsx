@@ -1,8 +1,32 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Ingredient, StockRecord, CATEGORIES } from '../types';
 import { format, isSameDay, startOfWeek, addDays, subDays, differenceInDays } from 'date-fns';
-import { AlertTriangle, Check, ShoppingCart, ChevronLeft, ChevronRight, X, RotateCcw, Pencil, Trash2 } from 'lucide-react';
+import { 
+  AlertTriangle, 
+  Check, 
+  ShoppingCart, 
+  ChevronLeft, 
+  ChevronRight, 
+  X, 
+  RotateCcw, 
+  Pencil, 
+  Trash2,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Loader2,
+  Calendar
+} from 'lucide-react';
 import { cn } from '../lib/utils';
+import { 
+  useObsoleteIngredients, 
+  isIngredientActive, 
+  setLocalObsoleteStatus, 
+  syncObsoleteToSupabase, 
+  SCHEMA_MISSING_MESSAGE 
+} from '../utils/obsoleteIngredients';
 
 import { UserRole } from './LoginForm';
 
@@ -44,6 +68,45 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
   const [itemToDelete, setItemToDelete] = useState<Ingredient | null>(null);
   const [itemToClear, setItemToClear] = useState<Ingredient | null>(null);
   const [dayToClear, setDayToClear] = useState<{ dateKey: string; label: string } | null>(null);
+
+  // Obsolete / Hidden ingredients state
+  const obsoleteMap = useObsoleteIngredients();
+  const [showObsolete, setShowObsolete] = useState(false);
+  const [itemToObsolete, setItemToObsolete] = useState<Ingredient | null>(null);
+  const [obsoleteReason, setObsoleteReason] = useState('');
+  const [itemToRestore, setItemToRestore] = useState<Ingredient | null>(null);
+  const [isSubmittingObsolete, setIsSubmittingObsolete] = useState(false);
+  const [schemaWarning, setSchemaWarning] = useState<string | null>(null);
+  const [isObsoleteListExpanded, setIsObsoleteListExpanded] = useState(false);
+
+  const hiddenIngredients = useMemo(() => {
+    return ingredients.filter(ing => !isIngredientActive(ing, obsoleteMap));
+  }, [ingredients, obsoleteMap]);
+
+  const handleConfirmObsolete = async () => {
+    if (!itemToObsolete) return;
+    setIsSubmittingObsolete(true);
+    setLocalObsoleteStatus(itemToObsolete.id, false, obsoleteReason);
+    const { schemaMissing } = await syncObsoleteToSupabase(itemToObsolete.id, false, obsoleteReason);
+    if (schemaMissing) {
+      setSchemaWarning(SCHEMA_MISSING_MESSAGE);
+    }
+    setIsSubmittingObsolete(false);
+    setItemToObsolete(null);
+    setObsoleteReason('');
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!itemToRestore) return;
+    setIsSubmittingObsolete(true);
+    setLocalObsoleteStatus(itemToRestore.id, true);
+    const { schemaMissing } = await syncObsoleteToSupabase(itemToRestore.id, true);
+    if (schemaMissing) {
+      setSchemaWarning(SCHEMA_MISSING_MESSAGE);
+    }
+    setIsSubmittingObsolete(false);
+    setItemToRestore(null);
+  };
 
   // Auto-calculate remaining logic
   const computedStock = React.useMemo(() => {
@@ -95,12 +158,16 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
     return computed;
   }, [stockRecord, ingredients, dateRange]);
 
-  // Group ingredients by category
-  const groupedIngredients = ingredients.reduce((acc, ing) => {
-    if (!acc[ing.category]) acc[ing.category] = [];
-    acc[ing.category].push(ing);
-    return acc;
-  }, {} as Record<string, Ingredient[]>);
+  // Group ingredients by category (excluding obsolete unless showObsolete is checked)
+  const groupedIngredients = useMemo<Record<string, Ingredient[]>>(() => {
+    return ingredients
+      .filter(ing => showObsolete || isIngredientActive(ing, obsoleteMap))
+      .reduce((acc, ing) => {
+        if (!acc[ing.category]) acc[ing.category] = [];
+        acc[ing.category].push(ing);
+        return acc;
+      }, {} as Record<string, Ingredient[]>);
+  }, [ingredients, showObsolete, obsoleteMap]);
 
   const baseColsCount = 
     (showManageCol ? 1 : 0) + 
@@ -138,6 +205,23 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             <input type="checkbox" checked={visibleCols.supplier} onChange={(e) => setVisibleCols(prev => ({...prev, supplier: e.target.checked}))} className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" />
             ผู้จัดจำหน่าย
           </label>
+          <div className="h-3.5 w-px bg-[#D4E4E3] mx-1 hidden sm:block" />
+          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88] select-none">
+            <input 
+              type="checkbox" 
+              checked={showObsolete} 
+              onChange={(e) => setShowObsolete(e.target.checked)} 
+              className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" 
+            />
+            <span className="flex items-center gap-1">
+              แสดงรายการที่ซ่อน (Obsolete)
+              {hiddenIngredients.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold border border-amber-200">
+                  {hiddenIngredients.length}
+                </span>
+              )}
+            </span>
+          </label>
         </div>
 
         {isAdmin && (
@@ -155,6 +239,31 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
         )}
       </div>
 
+      {/* Database Schema Warning Banner */}
+      {schemaWarning && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs flex items-start justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-bold text-amber-900 mb-1">แจ้งเตือนโครงสร้างฐานข้อมูล (Supabase)</div>
+              <pre className="text-[11px] font-mono whitespace-pre-line text-amber-800 bg-amber-100/60 p-2 rounded border border-amber-200 my-1">
+                {schemaWarning}
+              </pre>
+              <p className="text-[11px] text-amber-700">
+                *(ระบบทำการบันทึกสถานะซ่อนใน Local Storage ชั่วคราวให้แล้ว สามารถใช้งานต่อได้ตามปกติ)*
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setSchemaWarning(null)} 
+            className="text-amber-500 hover:text-amber-800 p-1"
+            title="ปิดการแจ้งเตือน"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Table Container */}
       <div 
         ref={tableContainerRef} 
@@ -169,7 +278,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             {showManageCol && (
               <th className={cn(
                 "px-1 py-2 text-center border-r border-[#3D6B69] bg-[#2D4A49] no-print text-[10px] font-semibold",
-                isSingleDay ? "w-[44px] min-w-[44px] max-w-[44px]" : "sticky left-0 z-50 w-[56px] min-w-[56px] max-w-[56px]"
+                isSingleDay ? "w-[58px] min-w-[58px] max-w-[58px]" : "sticky left-0 z-50 w-[64px] min-w-[64px] max-w-[64px]"
               )}>
                 จัดการ
               </th>
@@ -178,7 +287,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
               "px-1 py-2 text-center font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
               isSingleDay 
                 ? "w-[38px] min-w-[38px] max-w-[38px]" 
-                : cn("sticky z-50 w-[48px] min-w-[48px] max-w-[48px]", showManageCol ? "left-[56px]" : "left-0")
+                : cn("sticky z-50 w-[48px] min-w-[48px] max-w-[48px]", showManageCol ? "left-[64px]" : "left-0")
             )}>
               รูป
             </th>
@@ -186,7 +295,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
               "px-2.5 py-2 text-left font-semibold tracking-wide bg-[#2D4A49] border-r border-[#3D6B69] text-[10px]",
               isSingleDay 
                 ? "w-auto min-w-[120px]" 
-                : cn("sticky z-50 w-[200px] min-w-[180px] max-w-[280px]", showManageCol ? "left-[104px]" : "left-[48px]")
+                : cn("sticky z-50 w-[200px] min-w-[180px] max-w-[280px]", showManageCol ? "left-[112px]" : "left-[48px]")
             )}>
               รายการสินค้า
             </th>
@@ -272,7 +381,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
               if (indexB !== -1) return 1;
               return catA.localeCompare(catB);
             })
-            .map(([category, items]) => (
+            .map(([category, items]: [string, Ingredient[]]) => (
             <React.Fragment key={category}>
               <tr className="bg-[#F0F5F4] border-y border-[#D4E4E3]">
                 <td colSpan={baseColsCount} className="p-0">
@@ -282,17 +391,41 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   </div>
                 </td>
               </tr>
-              {items.map((item, index) => (
+              {items.map((item, index) => {
+                const isObsolete = !isIngredientActive(item, obsoleteMap);
+                return (
                 <tr key={item.id} className={cn(
-                  "group transition-colors border-b border-[#D4E4E3] hover:bg-[#E8F3F2]",
-                  index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
+                  "group transition-colors border-b border-[#D4E4E3]",
+                  isObsolete 
+                    ? "bg-[#FAFAFA] opacity-60 text-[#A8BCBB] hover:bg-[#F3F4F6]" 
+                    : index % 2 === 0 ? "bg-white hover:bg-[#E8F3F2]" : "bg-[#F8FAFA] hover:bg-[#E8F3F2]"
                 )}>
                   {showManageCol && (
                     <td className={cn(
                       "p-1 border-r border-[#D4E4E3] text-center whitespace-nowrap bg-inherit no-print",
-                      isSingleDay ? "w-[44px] min-w-[44px] max-w-[44px]" : "sticky left-0 z-20 w-[56px] min-w-[56px] max-w-[56px]"
+                      isSingleDay ? "w-[58px] min-w-[58px] max-w-[58px]" : "sticky left-0 z-20 w-[64px] min-w-[64px] max-w-[64px]"
                     )}>
                       <div className="flex items-center justify-center gap-0.5">
+                        {isObsolete ? (
+                          <button 
+                            onClick={() => setItemToRestore(item)}
+                            className="p-1 text-[#F59E0B] bg-[#FEF3C7] hover:bg-[#FDE68A] rounded-[5px] transition-all"
+                            title="คืนสถานะวัตถุดิบนี้ (Restore)"
+                          >
+                            <Eye size={12} />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              setItemToObsolete(item);
+                              setObsoleteReason('');
+                            }}
+                            className="p-1 text-[#A8BCBB] hover:text-[#F59E0B] hover:bg-[#FEF3C7] rounded-[5px] transition-all"
+                            title="ซ่อนวัตถุดิบ (Obsolete)"
+                          >
+                            <EyeOff size={12} />
+                          </button>
+                        )}
                         <button 
                           onClick={() => onEditIngredient(item)}
                           className="p-1 text-[#5A8A88] hover:text-[#4A7A78] hover:bg-[#E8F3F2] rounded-[5px] transition-all"
@@ -314,10 +447,10 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                     "p-1 border-r border-[#D4E4E3] text-center bg-inherit",
                     isSingleDay 
                       ? "w-[38px] min-w-[38px] max-w-[38px]" 
-                      : cn("sticky z-20 w-[48px] min-w-[48px] max-w-[48px]", showManageCol ? "left-[56px]" : "left-0")
+                      : cn("sticky z-20 w-[48px] min-w-[48px] max-w-[48px]", showManageCol ? "left-[64px]" : "left-0")
                   )}>
                     <div className={cn(
-                      "rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3]",
+                      "rounded-md overflow-hidden bg-[#F0F5F4] mx-auto flex items-center justify-center border border-[#D4E4E3] relative",
                       isSingleDay ? "w-[24px] h-[24px]" : "w-[28px] h-[28px]"
                     )}>
                       {item.image ? (
@@ -331,15 +464,29 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       ) : (
                         <ShoppingCart size={isSingleDay ? 11 : 13} className="text-[#A8BCBB]" />
                       )}
+                      {isObsolete && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-md pointer-events-none" title="ซ่อนอยู่">
+                          <EyeOff size={10} className="text-white" />
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className={cn(
                     "px-2.5 py-1.5 border-r border-[#D4E4E3] bg-inherit",
                     isSingleDay 
                       ? "w-auto min-w-[120px]" 
-                      : cn("sticky z-20 w-[200px] min-w-[180px] max-w-[280px] shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]", showManageCol ? "left-[104px]" : "left-[48px]")
+                      : cn("sticky z-20 w-[200px] min-w-[180px] max-w-[280px] shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]", showManageCol ? "left-[112px]" : "left-[48px]")
                   )}>
-                    <div className="truncate text-[10px] font-medium text-[#2D4A49]" title={item.name}>{item.name}</div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className={cn("truncate text-[10px] font-medium", isObsolete ? "text-[#8BA3A2] line-through decoration-dotted" : "text-[#2D4A49]")} title={item.name}>
+                        {item.name}
+                      </div>
+                      {isObsolete && (
+                        <span className="shrink-0 px-1 py-0.2 rounded text-[9px] font-medium bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]" title={obsoleteMap[item.id]?.inactive_reason || 'ซ่อนอยู่'}>
+                          🚫 ไม่ใช้งาน
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {visibleCols.brand && (
                     <td className={cn(
@@ -484,7 +631,8 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </React.Fragment>
           ))}
           {ingredients.length === 0 && (
@@ -503,6 +651,221 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
         </tbody>
       </table>
       </div>
+
+      {/* SECTION: Hidden / Obsolete Ingredients Collapsible List */}
+      {hiddenIngredients.length > 0 && (
+        <div className="mt-4 border border-[#D4E4E3] rounded-xl bg-white shadow-[0_1px_4px_rgba(90,138,136,0.06)] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setIsObsoleteListExpanded(prev => !prev)}
+            className="w-full flex items-center justify-between p-3.5 bg-[#F9FBFA] hover:bg-[#F0F5F4] transition-colors text-left"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center">
+                <EyeOff size={14} />
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                <span className="text-xs font-bold text-[#2D4A49]">
+                  รายการที่ซ่อน ({hiddenIngredients.length} รายการ)
+                </span>
+                <span className="text-[11px] text-[#6B8F8E]">
+                  วัตถุดิบที่ถูกกำหนดสถานะไม่ใช้งาน (Obsolete) จะไม่นำไปคำนวณในแดชบอร์ด
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[#5A8A88] font-medium">
+              <span>{isObsoleteListExpanded ? 'ซ่อนรายละเอียด' : 'ดูรายการ'}</span>
+              {isObsoleteListExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+          </button>
+
+          {isObsoleteListExpanded && (
+            <div className="p-3 bg-white divide-y divide-[#EBF2F1]">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                {hiddenIngredients.map((item) => {
+                  const meta = obsoleteMap[item.id];
+                  const reason = meta?.inactive_reason || item.inactive_reason;
+                  const dateStr = meta?.inactive_at || item.inactive_at;
+                  return (
+                    <div 
+                      key={item.id} 
+                      className="p-2.5 rounded-lg border border-[#D4E4E3] bg-[#FDFEFE] hover:bg-[#F7FAFA] transition-all flex items-start justify-between gap-2.5"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-md bg-[#F0F5F4] border border-[#D4E4E3] flex items-center justify-center shrink-0 overflow-hidden relative">
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <ShoppingCart size={14} className="text-[#A8BCBB]" />
+                          )}
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <EyeOff size={10} className="text-white" />
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-xs text-[#2D4A49] truncate" title={item.name}>
+                            {item.name}
+                          </div>
+                          <div className="text-[10px] text-[#6B8F8E] flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.2 rounded font-medium">
+                              {item.category}
+                            </span>
+                            {item.brand && <span>· {item.brand}</span>}
+                          </div>
+                          {reason && (
+                            <div className="text-[10px] text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 mt-1 border border-amber-200/60 truncate" title={reason}>
+                              เหตุผล: {reason}
+                            </div>
+                          )}
+                          {dateStr && (
+                            <div className="text-[9px] text-[#A8BCBB] mt-0.5">
+                              ซ่อนเมื่อ: {format(new Date(dateStr), 'dd/MM/yyyy HH:mm')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setItemToRestore(item)}
+                        className="shrink-0 px-2 py-1 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#B45309] font-medium text-[11px] rounded-md transition-colors flex items-center gap-1 shadow-2xs"
+                        title="คืนสถานะวัตถุดิบนี้"
+                      >
+                        <Eye size={12} />
+                        คืนสถานะ
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Obsolete Modal */}
+      {itemToObsolete && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" 
+          onClick={() => !isSubmittingObsolete && setItemToObsolete(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full text-left transform transition-all animate-in zoom-in-95 duration-200 border border-[#D4E4E3]" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-amber-100 text-[#F59E0B] rounded-xl flex items-center justify-center shrink-0">
+                <EyeOff size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#2D4A49]">ซ่อนวัตถุดิบชั่วคราว (Obsolete)</h3>
+                <p className="text-xs text-[#6B8F8E]">กำหนดสถานะไม่ใช้งานสำหรับวัตถุดิบนี้</p>
+              </div>
+            </div>
+
+            {/* Item Snapshot */}
+            <div className="bg-[#F0F5F4] p-3 rounded-xl border border-[#D4E4E3] flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-white border border-[#D4E4E3] flex items-center justify-center overflow-hidden shrink-0">
+                {itemToObsolete.image ? (
+                  <img src={itemToObsolete.image} alt={itemToObsolete.name} className="w-full h-full object-cover" />
+                ) : (
+                  <ShoppingCart size={16} className="text-[#A8BCBB]" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-xs text-[#2D4A49] truncate">{itemToObsolete.name}</div>
+                <div className="text-[11px] text-[#6B8F8E]">
+                  หมวดหมู่: <span className="font-medium text-[#5A8A88]">{itemToObsolete.category}</span>
+                  {itemToObsolete.brand && ` · ยี่ห้อ: ${itemToObsolete.brand}`}
+                </div>
+              </div>
+            </div>
+
+            {/* Optional Reason Input */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-[#2D4A49] mb-1.5">
+                เหตุผลที่ซ่อน <span className="text-[#6B8F8E] font-normal">(ไม่บังคับ)</span>
+              </label>
+              <textarea
+                value={obsoleteReason}
+                onChange={(e) => setObsoleteReason(e.target.value)}
+                placeholder="เช่น เลิกผลิต, สินค้าขาดตลาด, ปรับสูตรใหม่, หยุดขายชั่วคราว..."
+                rows={2}
+                className="w-full text-xs p-2.5 rounded-lg border border-[#D4E4E3] focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 focus:outline-none"
+              />
+            </div>
+
+            {/* Warning Box */}
+            <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 mb-5 flex items-start gap-2.5">
+              <AlertCircle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-900 leading-relaxed">
+                วัตถุดิบนี้จะไม่แสดงใน <strong>Dashboard</strong> และ <strong>รายงานสต็อกประจำวัน</strong> แต่ข้อมูลประวัติยังคงอยู่ในระบบ และสามารถคืนสถานะได้ตลอดเวลา
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setItemToObsolete(null)}
+                disabled={isSubmittingObsolete}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3] disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmObsolete}
+                disabled={isSubmittingObsolete}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#D97706] hover:bg-[#B45309] transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isSubmittingObsolete ? <Loader2 size={14} className="animate-spin" /> : <EyeOff size={14} />}
+                🚫 ซ่อนวัตถุดิบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {itemToRestore && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" 
+          onClick={() => !isSubmittingObsolete && setItemToRestore(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center transform transition-all animate-in zoom-in-95 duration-200 border border-[#D4E4E3]" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Eye size={28} />
+            </div>
+            <h3 className="text-base font-bold text-[#2D4A49] mb-1">ยืนยันการคืนสถานะวัตถุดิบ</h3>
+            <p className="text-xs text-[#6B8F8E] mb-5">
+              ต้องการคืนสถานะวัตถุดิบ <strong className="text-[#2D4A49]">{itemToRestore.name}</strong> ให้กลับมาแสดงในสต็อกและ Dashboard ตามปกติหรือไม่?
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => setItemToRestore(null)}
+                disabled={isSubmittingObsolete}
+                className="flex-1 px-4 py-2 rounded-xl text-xs font-bold text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3] disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRestore}
+                disabled={isSubmittingObsolete}
+                className="flex-1 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#5A8A88] hover:bg-[#4A7A78] transition-colors shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isSubmittingObsolete ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                คืนสถานะใช้งาน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedImage && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
