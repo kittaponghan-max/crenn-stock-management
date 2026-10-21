@@ -3,6 +3,7 @@ import { Ingredient, StockRecord, CATEGORIES } from '../types';
 import { format } from 'date-fns';
 import { ShoppingCart, Send, Calendar as CalendarIcon, RotateCcw, Clock, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
 
 interface DailyStockCountProps {
   ingredients: Ingredient[];
@@ -18,11 +19,16 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  const obsoleteMap = useObsoleteIngredients();
+  const activeIngredients = useMemo(() => {
+    return ingredients.filter(ing => isIngredientActive(ing, obsoleteMap));
+  }, [ingredients, obsoleteMap]);
+
   // Initialize counts when date changes, but not automatically when stockRecord changes
   useEffect(() => {
     const dateKey = selectedDate;
     const newCounts: Record<string, number> = {};
-    ingredients.forEach(ing => {
+    activeIngredients.forEach(ing => {
       const val = stockRecord[dateKey]?.[ing.id];
       const remaining = typeof val === 'number' ? val : val?.remaining;
       if (remaining !== undefined) {
@@ -30,24 +36,24 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
       }
     });
     setCounts(newCounts);
-  }, [selectedDate, ingredients]); // Removed stockRecord to prevent auto-fill after submit
+  }, [selectedDate, activeIngredients]); // Removed stockRecord to prevent auto-fill after submit
 
   const lastSubmittedDate = useMemo(() => {
     const dates = Object.keys(stockRecord).filter(dateKey => {
       const recordsForDate = stockRecord[dateKey];
-      return Object.keys(recordsForDate).some(ingId => ingredients.some(ing => ing.id === ingId));
+      return Object.keys(recordsForDate).some(ingId => activeIngredients.some(ing => ing.id === ingId));
     });
     if (dates.length === 0) return null;
     return dates.sort().reverse()[0];
-  }, [stockRecord, ingredients]);
+  }, [stockRecord, activeIngredients]);
 
   const groupedIngredients = useMemo(() => {
-    return ingredients.reduce((acc, ing) => {
+    return activeIngredients.reduce((acc, ing) => {
       if (!acc[ing.category]) acc[ing.category] = [];
       acc[ing.category].push(ing);
       return acc;
     }, {} as Record<string, Ingredient[]>);
-  }, [ingredients]);
+  }, [activeIngredients]);
 
   const handleSubmit = () => {
     if (Object.keys(counts).length === 0) {
