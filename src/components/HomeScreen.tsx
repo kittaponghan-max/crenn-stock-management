@@ -77,8 +77,9 @@ export function HomeScreen({
     'out_of_stock' | 'low_stock' | 'normal' | 'purchasing' | 'pending_delivery' | null
   >(null);
 
-  // ─── PENDING ORDERS (รอส่งมอบ) DATA FETCH ───
+  // ─── PENDING ORDERS (รอส่งมอบ) DATA & AUTO-CLEAR LOGIC ───
   const [pendingOrders, setPendingOrders] = useState<{
+    id?: string;
     ingredient_id: string;
     order_date: string;
     order_qty: number;
@@ -87,56 +88,297 @@ export function HomeScreen({
     ordered_at?: string;
     branch: string;
     stock_date?: string;
+    delivered_at?: string | null;
+    status?: string;
   }[]>([]);
+  const [schemaNotice, setSchemaNotice] = useState<string | null>(null);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState<boolean>(false);
+  const [isProcessingClear, setIsProcessingClear] = useState<boolean>(false);
 
-  useEffect(() => {
-    const currentBranch = user?.branch || 'Rayong';
-    let isMounted = true;
-
-    const fetchPendingOrders = async () => {
-      // 1. Read from localStorage for immediate offline/instant count
-      let localOrders: any[] = [];
-      try {
-        const raw = localStorage.getItem('cafe_purchasing_orders');
-        if (raw) localOrders = JSON.parse(raw);
-      } catch (e) {
-        console.warn('Error reading local purchasing orders:', e);
+  // Format order datetime: 21/10/2026 14:58 น.
+  const formatOrderDateTime = useCallback((isoOrDateStr?: string) => {
+    if (!isoOrDateStr) return '';
+    try {
+      const d = new Date(isoOrDateStr);
+      if (isNaN(d.getTime())) return isoOrDateStr;
+      const day = d.getDate().toString().padStart(2, '0');
+      const month = (d.getMonth() + 1).toString().padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = d.getHours().toString().padStart(2, '0');
+      const mins = d.getMinutes().toString().padStart(2, '0');
+      if (isoOrDateStr.includes('T') || isoOrDateStr.includes(':')) {
+        return `${day}/${month}/${year} ${hours}:${mins} น.`;
       }
+      return `${day}/${month}/${year}`;
+    } catch {
+      return isoOrDateStr;
+    }
+  }, []);
 
-      if (isMounted) {
-        setPendingOrders(localOrders.filter(o => !o.branch || o.branch === currentBranch));
-      }
-
-      // 2. Fetch from Supabase purchasing_orders table
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('purchasing_orders')
-            .select('*')
-            .eq('branch', currentBranch);
-
-          if (!error && data && isMounted) {
-            setPendingOrders(data);
-            try {
-              localStorage.setItem('cafe_purchasing_orders', JSON.stringify(data));
-            } catch {}
-          } else if (error && (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist'))) {
-            // Table not yet created in Supabase schema cache; localOrders from localStorage is used
-          } else if (error) {
-            console.warn('Error fetching pending orders from Supabase:', error.message);
-          }
-        } catch (err) {
-          console.warn('Error fetching pending orders from Supabase:', err);
+  // Helper: calculate current stock level for an ingredient from stockRecord
+  const calculateCurrentRemaining = useCallback((ingId: string): number => {
+    const sortedDatesAsc = Object.keys(stockRecord).sort();
+    let remaining = 0;
+    sortedDatesAsc.forEach(dateKey => {
+      const val = stockRecord[dateKey]?.[ingId];
+      if (typeof val === 'number') {
+        remaining = val;
+      } else if (val) {
+        if (val.remaining !== undefined && val.remaining !== null) {
+          remaining = val.remaining;
+        } else {
+          const added = val.in || 0;
+          const removed = val.out || 0;
+          remaining = remaining + added - removed;
         }
       }
-    };
+    });
+    return remaining;
+  }, [stockRecord]);
 
-    fetchPendingOrders();
+  // Helper: get latest stock update timestamp from stock_records or stockRecord
+  const getLatestStockTimestamp = useCallback(async (ingId: string, currentBranch: string): Promise<Date | null> => {
+    if (supabase) {
+      try {
+        const { data: stockRow } = await supabase
+          .from('stock_records')
+          .select('updated_at, created_at, record_date, remaining')
+          .eq('ingredient_id', ingId)
+          .eq('branch', currentBranch)
+          .order('record_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (stockRow) {
+          if (stockRow.updated_at) return new Date(stockRow.updated_at);
+          if (stockRow.created_at) return new Date(stockRow.created_at);
+          if (stockRow.record_date) return new Date(stockRow.record_date + 'T23:59:59');
+        }
+      } catch (e) {
+        console.warn('Error querying stock_records timestamp:', e);
+      }
+    }
+
+    // Fallback: check dates in stockRecord object
+    const dates = Object.keys(stockRecord)
+      .filter(d => stockRecord[d]?.[ingId] !== undefined)
+      .sort();
+    const latestDate = dates.pop();
+    if (latestDate) {
+      return new Date(latestDate + 'T23:59:59');
+    }
+
+    return null;
+  }, [stockRecord]);
+
+  // Helper: check if conditions 1, 2, 3 are met for delivery
+  const checkDelivered = useCallback(async (order: any, currentBranch: string): Promise<boolean> => {
+    const ing = ingredients.find(i => i.id === order.ingredient_id);
+    const minStock = ing?.minStock || 0;
+    const currentStock = calculateCurrentRemaining(order.ingredient_id);
+
+    // CONDITION 1: current_stock >= min_stock
+    const isStockSufficient = currentStock >= minStock;
+    if (!isStockSufficient) return false;
+
+    // CONDITION 3: Item exists in purchasing_orders
+    if (!order.ingredient_id) return false;
+
+    // CONDITION 2: Stock was updated AFTER order date
+    const stockUpdatedAt = await getLatestStockTimestamp(order.ingredient_id, currentBranch);
+    const orderedAt = new Date(order.ordered_at || (order.order_date + 'T00:00:00'));
+
+    if (!stockUpdatedAt || isNaN(stockUpdatedAt.getTime()) || isNaN(orderedAt.getTime())) {
+      return false;
+    }
+
+    const isUpdatedAfterOrder = stockUpdatedAt.getTime() > orderedAt.getTime();
+
+    return isStockSufficient && isUpdatedAfterOrder;
+  }, [ingredients, calculateCurrentRemaining, getLatestStockTimestamp]);
+
+  // Main process: fetch and auto-clear pending delivery items
+  const processPendingDelivery = useCallback(async () => {
+    const currentBranch = user?.branch || 'Rayong';
+    let orderedList: any[] = [];
+
+    // 1. Read from localStorage for immediate display
+    try {
+      const raw = localStorage.getItem('cafe_purchasing_orders');
+      if (raw) {
+        const all: any[] = JSON.parse(raw);
+        orderedList = all.filter(o => 
+          (!o.branch || o.branch === currentBranch) &&
+          Boolean(o.order_date) &&
+          Number(o.order_qty) > 0 &&
+          !o.delivered_at &&
+          o.status !== 'delivered'
+        );
+      }
+    } catch (e) {
+      console.warn('Error reading local purchasing orders:', e);
+    }
+
+    // 2. Fetch from Supabase
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('purchasing_orders')
+          .select('*')
+          .eq('branch', currentBranch)
+          .not('order_date', 'is', null)
+          .gt('order_qty', 0);
+
+        if (!error && data) {
+          orderedList = data.filter((o: any) => !o.delivered_at && o.status !== 'delivered');
+        } else if (error && (error.code === '42703' || error.message?.includes('column'))) {
+          setSchemaNotice('กรุณาเพิ่มคอลัมน์ delivered_at (timestamp) และ status (text) ในตาราง purchasing_orders');
+        }
+      } catch (err) {
+        console.warn('Supabase fetch orders error:', err);
+      }
+    }
+
+    // 3. Evaluate each order for auto-clear
+    const stillPending: any[] = [];
+    const deliveredOrders: any[] = [];
+
+    for (const order of orderedList) {
+      const isDelivered = await checkDelivered(order, currentBranch);
+
+      if (isDelivered) {
+        deliveredOrders.push(order);
+        const nowIso = new Date().toISOString();
+
+        // Auto-update purchasing_orders record in Supabase
+        if (supabase && order.id) {
+          try {
+            const { error: updateErr } = await supabase
+              .from('purchasing_orders')
+              .update({
+                delivered_at: nowIso,
+                status: 'delivered'
+              })
+              .eq('id', order.id);
+
+            if (updateErr && (updateErr.code === '42703' || updateErr.message?.includes('column'))) {
+              setSchemaNotice('กรุณาเพิ่มคอลัมน์ delivered_at (timestamp) และ status (text) ในตาราง purchasing_orders');
+            }
+          } catch (supErr) {
+            console.warn('Auto-mark delivered Supabase error:', supErr);
+          }
+        }
+
+        // Auto-update in localStorage
+        try {
+          const rawAll = localStorage.getItem('cafe_purchasing_orders');
+          if (rawAll) {
+            const all: any[] = JSON.parse(rawAll);
+            const updated = all.map(o => {
+              if (o.id === order.id || (o.ingredient_id === order.ingredient_id && o.branch === currentBranch && o.order_date === order.order_date)) {
+                return { ...o, delivered_at: nowIso, status: 'delivered' };
+              }
+              return o;
+            });
+            localStorage.setItem('cafe_purchasing_orders', JSON.stringify(updated));
+          }
+        } catch {}
+      } else {
+        stillPending.push(order);
+      }
+    }
+
+    setPendingOrders(stillPending);
+  }, [user?.branch, checkDelivered]);
+
+  // Initial fetch and Real-Time listener on mount
+  useEffect(() => {
+    processPendingDelivery();
+
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('home_delivery_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_records' },
+        () => {
+          processPendingDelivery();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'checklist_records' },
+        () => {
+          processPendingDelivery();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'purchasing_orders' },
+        () => {
+          processPendingDelivery();
+        }
+      )
+      .subscribe();
 
     return () => {
-      isMounted = false;
+      supabase.removeChannel(channel);
     };
-  }, [user?.branch]);
+  }, [processPendingDelivery]);
+
+  // Manual Clear handler: clears items where stock >= min_stock regardless of date
+  const handleManualClear = async () => {
+    setIsProcessingClear(true);
+    const currentBranch = user?.branch || 'Rayong';
+    const nowIso = new Date().toISOString();
+
+    // Find all items where current_stock >= min_stock
+    const toClear = pendingDeliveryList.filter(order => {
+      const ing = ingredients.find(i => i.id === order.ingredient_id);
+      const minStock = ing?.minStock || 0;
+      const currentStock = calculateCurrentRemaining(order.ingredient_id);
+      return currentStock >= minStock;
+    });
+
+    for (const order of toClear) {
+      if (supabase && order.id) {
+        try {
+          const { error } = await supabase
+            .from('purchasing_orders')
+            .update({
+              delivered_at: nowIso,
+              status: 'delivered'
+            })
+            .eq('id', order.id);
+
+          if (error && (error.code === '42703' || error.message?.includes('column'))) {
+            setSchemaNotice('กรุณาเพิ่มคอลัมน์ delivered_at (timestamp) และ status (text) ในตาราง purchasing_orders');
+          }
+        } catch (err) {
+          console.warn('Manual clear error:', err);
+        }
+      }
+
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) {
+          const all: any[] = JSON.parse(raw);
+          const updated = all.map(o => {
+            if (o.id === order.id || (o.ingredient_id === order.ingredient_id && o.branch === currentBranch && o.order_date === order.order_date)) {
+              return { ...o, delivered_at: nowIso, status: 'delivered' };
+            }
+            return o;
+          });
+          localStorage.setItem('cafe_purchasing_orders', JSON.stringify(updated));
+        }
+      } catch {}
+    }
+
+    setPendingOrders(prev => prev.filter(o => !toClear.some(tc => tc.id === o.id || (tc.ingredient_id === o.ingredient_id && tc.order_date === o.order_date))));
+    setIsProcessingClear(false);
+    setShowClearConfirmModal(false);
+  };
 
   // Sync locationFilter with localStorage
   useEffect(() => {
@@ -446,15 +688,28 @@ export function HomeScreen({
           const ing = ingMap.get(order.ingredient_id);
           if (!ing) return null;
           const currentRemaining = stockData.stockMap[ing.id] !== undefined ? stockData.stockMap[ing.id] : 0;
+          const minStock = ing.minStock || 0;
+          const isPendingConfirm = currentRemaining >= minStock;
+
           return {
             ing,
             remaining: currentRemaining,
+            order,
+            isPendingConfirm,
             status: 'pending_delivery' as any,
             badgeLabel: `สั่งแล้ว ${order.order_qty} ${order.order_unit || ing.unit}`,
-            badgeClass: 'bg-blue-50 text-blue-600 font-semibold border border-blue-200'
+            badgeClass: 'bg-[#E8F3F2] text-[#5A8A88] font-bold border border-[#D4E4E3]'
           };
         })
-        .filter(Boolean) as { ing: Ingredient; remaining: number; status: any; badgeLabel: string; badgeClass: string }[];
+        .filter(Boolean) as { 
+          ing: Ingredient; 
+          remaining: number; 
+          status: any; 
+          badgeLabel: string; 
+          badgeClass: string;
+          order?: any;
+          isPendingConfirm?: boolean;
+        }[];
 
       return {
         panelTitle: 'รายการรอส่งมอบ (สั่งซื้อแล้ว)',
@@ -1121,17 +1376,29 @@ export function HomeScreen({
             </div>
           </section>
 
-          {/* 6. RIGHT PANEL: DYNAMIC LIST (CHANGE 3: Filtered by KPI or Default) */}
+          {/* 6. RIGHT PANEL: DYNAMIC LIST (Filtered by KPI or Default) */}
           <section className="md:col-span-5 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5">
-                  <AlertTriangle size={15} className="text-amber-500" />
+                  <AlertTriangle size={15} className="text-amber-500 shrink-0" />
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
                     {panelTitle}
                   </h3>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Manual Clear Button for Pending Delivery */}
+                  {activeKPI === 'pending_delivery' && pendingDeliveryList.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowClearConfirmModal(true)}
+                      className="text-[10px] font-bold text-[#5A8A88] hover:text-[#2D4A49] bg-[#E8F3F2] hover:bg-[#D4E4E3] border border-[#D4E4E3] px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                      title="ล้างรายการที่สต็อกเพียงพอแล้ว"
+                    >
+                      <CheckCircle2 size={11} className="text-[#5A8A88]" />
+                      <span>ล้างตัวเอง</span>
+                    </button>
+                  )}
                   {activeKPI && (
                     <button
                       onClick={() => setActiveKPI(null)}
@@ -1150,6 +1417,22 @@ export function HomeScreen({
                 </div>
               </div>
 
+              {/* Schema Notice if columns needed in Supabase */}
+              {schemaNotice && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-[11px] p-2.5 rounded-xl mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                    <span className="truncate">{schemaNotice}</span>
+                  </div>
+                  <button 
+                    onClick={() => setSchemaNotice(null)}
+                    className="text-amber-600 hover:text-amber-800 cursor-pointer shrink-0"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+
               {displayItems.length === 0 ? (
                 <div className="py-8 text-center text-[#6B8F8E]">
                   <CheckCircle2 size={36} className="mx-auto text-emerald-500 mb-2" />
@@ -1158,7 +1441,10 @@ export function HomeScreen({
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
-                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass }, index) => {
+                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass, order, isPendingConfirm }, index) => {
+                    const isPendingKpi = activeKPI === 'pending_delivery';
+                    const orderDateStr = order?.ordered_at || order?.order_date;
+
                     return (
                       <div key={`${ing.id}-${index}`} className="py-2.5 flex items-center justify-between gap-3 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -1178,6 +1464,11 @@ export function HomeScreen({
                             <p className="text-[10px] text-[#6B8F8E] truncate">
                               {ing.brand || '-'} &bull; ขั้นต่ำ: {ing.minStock} {ing.unit}
                             </p>
+                            {isPendingKpi && orderDateStr && (
+                              <p className="text-[10px] text-[#A8BCBB] truncate mt-0.5">
+                                สั่งเมื่อ: {formatOrderDateTime(orderDateStr)}
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -1185,8 +1476,17 @@ export function HomeScreen({
                           <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}`}>
                             {badgeLabel}
                           </span>
-                          <span className="text-[10px] font-medium text-slate-500 mt-0.5">
+                          <span className={`text-[10px] font-medium mt-0.5 ${
+                            isPendingKpi
+                              ? remaining < ing.minStock
+                                ? 'text-red-500 font-semibold'
+                                : isPendingConfirm
+                                  ? 'text-amber-600 font-semibold'
+                                  : 'text-slate-500'
+                              : 'text-slate-500'
+                          }`}>
                             คงเหลือ {remaining} / {ing.minStock} {ing.unit}
+                            {isPendingKpi && isPendingConfirm ? ' (รอยืนยันการส่งมอบ)' : ''}
                           </span>
                         </div>
                       </div>
@@ -1199,6 +1499,51 @@ export function HomeScreen({
         </div>
 
       </main>
+
+      {/* Clear Delivery Confirmation Modal */}
+      {showClearConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-[#D4E4E3] space-y-3.5 animate-in zoom-in-95 duration-150">
+            <div className="w-11 h-11 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+              <Truck size={22} />
+            </div>
+            <div className="text-center">
+              <h4 className="text-[14px] font-bold text-[#2D4A49]">ยืนยันการล้างรายการ</h4>
+              <p className="text-[12px] text-[#6B8F8E] mt-1.5 leading-relaxed">
+                ต้องการล้างรายการที่สต็อกเพียงพอแล้วหรือไม่?
+              </p>
+              <p className="text-[11px] text-[#A8BCBB] mt-1">
+                (รายการที่สต็อกคงเหลือ &ge; ขั้นต่ำ จะถูกเปลี่ยนสถานะเป็นส่งมอบแล้ว)
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirmModal(false)}
+                disabled={isProcessingClear}
+                className="flex-1 py-2 rounded-xl border border-[#D4E4E3] text-[#2D4A49] font-semibold text-[11px] hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleManualClear}
+                disabled={isProcessingClear}
+                className="flex-1 py-2 rounded-xl bg-[#5A8A88] text-white font-semibold text-[11px] hover:bg-[#4A7A78] transition-colors cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+              >
+                {isProcessingClear ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>กำลังล้าง...</span>
+                  </>
+                ) : (
+                  <span>ล้างรายการ</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profile Modal */}
       {showProfileModal && (
