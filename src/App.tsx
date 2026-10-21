@@ -21,6 +21,7 @@ import { BarWasteReport } from './components/BarWasteReport';
 import { WasteReport } from './components/WasteReport';
 import { RnDReport } from './components/RnDReport';
 import { PurchasingReport } from './components/PurchasingReport';
+import { OrderedItemsReport } from './components/OrderedItemsReport';
 import { UserSettings } from './components/UserSettings';
 import { DailySalesRecord } from './components/DailySalesRecord';
 import { DailyBakeryRecord } from './components/DailyBakeryRecord';
@@ -2395,6 +2396,19 @@ export default function App() {
           <WasteReport department="Bakery" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'rndReport' ? (
           <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
+        ) : activeTab === 'orderedItems' ? (
+          <OrderedItemsReport
+            user={user}
+            branch={user?.branch || 'Rayong'}
+            onNavigate={(tab) => handleTabNavigate(tab)}
+            onBack={() => handleTabNavigate('home')}
+            ingredients={ingredients}
+            stockRecord={stockRecord}
+            allowedDepartments={[
+              ...(hasPermission('dashboardBar') ? ['Bar' as const] : []),
+              ...(hasPermission('dashboardBakery') ? ['Bakery' as const] : [])
+            ]}
+          />
         ) : activeTab === 'barPurchasing' ? (
           <PurchasingReport 
             ingredients={ingredients} 
