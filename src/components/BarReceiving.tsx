@@ -3,6 +3,7 @@ import { Ingredient, ReceivingRecord } from '../types';
 import { format } from 'date-fns';
 import { Calendar, Package, Save, Trash2, RotateCcw, Plus, Search, ChevronDown, AlertCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
 
 interface BarReceivingProps {
   ingredients: Ingredient[];
@@ -143,8 +144,15 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  // Filter ingredients for department
-  const filteredIngredients = ingredients.filter(ing => ing.department === department || (!ing.department && department === 'Bar'));
+  const obsoleteMap = useObsoleteIngredients();
+
+  // Filter ingredients for department (excluding obsolete items)
+  const filteredIngredients = useMemo(() => {
+    return ingredients.filter(ing => 
+      (ing.department === department || (!ing.department && department === 'Bar')) &&
+      isIngredientActive(ing, obsoleteMap)
+    );
+  }, [ingredients, department, obsoleteMap]);
   
   // Get unique suppliers from filtered ingredients
   const suppliers = Array.from(new Set(filteredIngredients.map(ing => ing.supplier).filter(Boolean))).sort();
