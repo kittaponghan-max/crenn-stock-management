@@ -1,0 +1,1021 @@
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { format } from 'date-fns';
+import { 
+  ChevronLeft, 
+  Calendar, 
+  Download, 
+  Printer, 
+  PackageCheck, 
+  Coffee, 
+  ChefHat, 
+  LayoutGrid, 
+  Building2, 
+  ChevronDown, 
+  Check, 
+  X, 
+  Eye, 
+  ShoppingCart,
+  Loader2
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { Ingredient } from '../types';
+import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
+
+export interface OrderRecord {
+  id?: string;
+  ingredient_id: string;
+  order_date: string;
+  order_qty: number;
+  order_unit?: string;
+  ordered_by?: string;
+  ordered_at?: string;
+  branch: string;
+  stock_date: string;
+  created_at?: string;
+  ingredients?: any;
+}
+
+export interface OrderedItemsReportProps {
+  user?: { name: string; role?: string; branch?: string } | null;
+  branch?: string;
+  onNavigate?: (tab: string) => void;
+  onBack?: () => void;
+  ingredients?: Ingredient[];
+  stockRecord?: Record<string, Record<string, number | { in?: number; out?: number; remaining?: number; waste?: number; usageInfo?: string }>>;
+  allowedDepartments?: ('Bar' | 'Bakery')[];
+}
+
+type DepartmentFilter = 'All' | 'Bar' | 'Bakery';
+
+export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
+  user,
+  branch,
+  onNavigate,
+  onBack,
+  ingredients = [],
+  stockRecord = {},
+  allowedDepartments = ['Bar', 'Bakery'],
+}) => {
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
+  const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>(initialDept);
+  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
+  const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState<boolean>(false);
+  const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [ordersMap, setOrdersMap] = useState<Record<string, OrderRecord>>({});
+
+  const supplierDropdownRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    brand?: string;
+    category?: string;
+    unit?: string;
+  } | null>(null);
+
+  // Close image preview on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewImage(null);
+      }
+    };
+    if (previewImage) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage]);
+
+  // Close dropdowns on outside click or Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
+        setIsSupplierDropdownOpen(false);
+      }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSupplierDropdownOpen(false);
+        setIsExportOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Format datetime: DD/MM HH:MM น.
+  const formatOrderDateTime = (isoStr?: string) => {
+    if (!isoStr) return '';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      const day = d.getDate().toString().padStart(2, '0');
+      const month = (d.getMonth() + 1).toString().padStart(2, '0');
+      const hours = d.getHours().toString().padStart(2, '0');
+      const mins = d.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${mins} น.`;
+    } catch {
+      return isoStr;
+    }
+  };
+
+  // Format Thai date for read-only order date: e.g. "21 ต.ค. 2026"
+  const formatThaiDate = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parts[0];
+        const monthNum = parseInt(parts[1], 10);
+        const day = parseInt(parts[2], 10);
+        const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const monthName = months[monthNum - 1] || parts[1];
+        return `${day} ${monthName} ${year}`;
+      }
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+      return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Load ordered items from localStorage and Supabase
+  useEffect(() => {
+    const currentBranch = branch || 'Rayong';
+    let isMounted = true;
+    setIsLoading(true);
+
+    const loadOrders = async () => {
+      const map: Record<string, OrderRecord> = {};
+
+      // 1. Read from localStorage for immediate responsiveness and offline support
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) {
+          const list: OrderRecord[] = JSON.parse(raw);
+          list
+            .filter(item => 
+              (!item.branch || item.branch === currentBranch) &&
+              (item.stock_date === selectedDate || item.order_date === selectedDate) &&
+              Boolean(item.order_date) &&
+              Number(item.order_qty) > 0
+            )
+            .forEach(item => {
+              map[item.ingredient_id] = item;
+            });
+        }
+      } catch (e) {
+        console.warn('Error reading local purchasing orders:', e);
+      }
+
+      if (isMounted) {
+        setOrdersMap({ ...map });
+      }
+
+      // 2. Fetch from Supabase
+      if (supabase) {
+        try {
+          // Attempt query with join or without
+          const { data, error } = await supabase
+            .from('purchasing_orders')
+            .select('*')
+            .eq('branch', currentBranch)
+            .or(`stock_date.eq.${selectedDate},order_date.eq.${selectedDate}`)
+            .not('order_date', 'is', null)
+            .gt('order_qty', 0);
+
+          if (!error && data && isMounted) {
+            data.forEach((item: OrderRecord) => {
+              map[item.ingredient_id] = item;
+            });
+            setOrdersMap({ ...map });
+          } else if (error && (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist'))) {
+            // Check app_settings backup if table not in schema cache
+            try {
+              const { data: sData } = await supabase
+                .from('app_settings')
+                .select('setting_value')
+                .eq('setting_key', `purchasing_orders_${currentBranch}_${selectedDate}`)
+                .maybeSingle();
+
+              if (sData?.setting_value && Array.isArray(sData.setting_value) && isMounted) {
+                sData.setting_value.forEach((item: OrderRecord) => {
+                  if (item.order_date && Number(item.order_qty) > 0) {
+                    map[item.ingredient_id] = item;
+                  }
+                });
+                setOrdersMap({ ...map });
+              }
+            } catch (backupErr) {
+              console.warn('app_settings read warning:', backupErr);
+            }
+          }
+        } catch (supErr) {
+          console.warn('Supabase fetch error:', supErr);
+        }
+      }
+
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    };
+
+    loadOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [branch, selectedDate]);
+
+  // Build ordered items list with merged ingredient details
+  const orderedItemList = useMemo(() => {
+    const currentBranch = branch || 'Rayong';
+    const branchIngredients = currentBranch 
+      ? ingredients.filter(ing => !ing.branch || ing.branch === currentBranch)
+      : ingredients;
+
+    const allowedIngs = branchIngredients.filter(ing => allowedDepartments.includes(ing.department as any));
+    const departmentIngredients = activeDepartment === 'All' 
+      ? allowedIngs 
+      : allowedIngs.filter(ing => ing.department === activeDepartment);
+
+    // Calculate current stock from stockRecord
+    const sortedDatesAsc = Object.keys(stockRecord).sort();
+    const currentRemaining: Record<string, number> = {};
+    sortedDatesAsc.forEach(dateKey => {
+      if (dateKey > selectedDate) return;
+      departmentIngredients.forEach(ing => {
+        const id = ing.id;
+        const val = stockRecord[dateKey]?.[id];
+        
+        if (typeof val === 'number') {
+          currentRemaining[id] = val;
+        } else if (val) {
+          const inVal = (val as any).in === null || (val as any).in === undefined ? undefined : (val as any).in;
+          const outVal = (val as any).out === null || (val as any).out === undefined ? undefined : (val as any).out;
+          const explicitRemaining = (val as any).remaining === null || (val as any).remaining === undefined ? undefined : (val as any).remaining;
+          if (explicitRemaining !== undefined) {
+             currentRemaining[id] = explicitRemaining;
+          } else {
+             if (currentRemaining[id] !== undefined || inVal !== undefined || outVal !== undefined) {
+               const prevRemaining = currentRemaining[id] || 0;
+               const added = inVal || 0;
+               const removed = outVal || 0;
+               currentRemaining[id] = prevRemaining + added - removed;
+             }
+          }
+        }
+      });
+    });
+
+    // Match order records to ingredients
+    const list: (Ingredient & { currentStock: number; suggestedOrder: number; order: OrderRecord })[] = [];
+
+    // Loop over orderMap entries that have order_date and order_qty > 0
+    (Object.values(ordersMap) as OrderRecord[]).forEach((order: OrderRecord) => {
+      if (!order.order_date || !(Number(order.order_qty) > 0)) return;
+
+      const matchedIng = departmentIngredients.find(i => i.id === order.ingredient_id) 
+        || (order.ingredients ? {
+            id: order.ingredient_id,
+            name: order.ingredients.name || 'วัตถุดิบ',
+            brand: order.ingredients.brand || '-',
+            department: order.ingredients.department || 'Bar',
+            category: order.ingredients.category || 'Others',
+            unit: order.ingredients.unit || order.order_unit || 'หน่วย',
+            sizePerUnit: order.ingredients.sizePerUnit || '-',
+            minStock: order.ingredients.min_stock ?? order.ingredients.minStock ?? 0,
+            supplier: order.ingredients.supplier || 'ไม่ระบุผู้จัดจำหน่าย',
+            image: order.ingredients.image || '',
+            branch: currentBranch
+          } as Ingredient : undefined);
+
+      if (matchedIng) {
+        const currentStock = currentRemaining[matchedIng.id] !== undefined ? currentRemaining[matchedIng.id] : 0;
+        const suggestedOrder = matchedIng.minOrder || (matchedIng.minStock - currentStock > 0 ? matchedIng.minStock - currentStock : matchedIng.minStock || 1);
+
+        list.push({
+          ...matchedIng,
+          currentStock,
+          suggestedOrder,
+          order
+        });
+      }
+    });
+
+    return list.sort((a, b) => {
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      if (a.supplier !== b.supplier) return (a.supplier || '').localeCompare(b.supplier || '');
+      return a.name.localeCompare(b.name);
+    });
+  }, [ingredients, ordersMap, stockRecord, selectedDate, activeDepartment, allowedDepartments, branch]);
+
+  // Suppliers list derived from ordered items
+  const suppliers = useMemo(() => {
+    const supplierSet = new Set<string>();
+    orderedItemList.forEach(item => {
+      if (item.supplier) supplierSet.add(item.supplier);
+    });
+    return Array.from(supplierSet).sort();
+  }, [orderedItemList]);
+
+  // Reset selectedSupplier if not in available suppliers
+  useEffect(() => {
+    if (selectedSupplier && !suppliers.includes(selectedSupplier)) {
+      setSelectedSupplier(null);
+    }
+  }, [suppliers, selectedSupplier]);
+
+  // Filtered items by selected supplier
+  const filteredOrderedItems = useMemo(() => {
+    if (!selectedSupplier) return orderedItemList;
+    return orderedItemList.filter(item => item.supplier === selectedSupplier);
+  }, [orderedItemList, selectedSupplier]);
+
+  // Grouped items by supplier then category
+  const groupedOrderedItems = useMemo(() => {
+    const groups: Record<string, Record<string, typeof filteredOrderedItems>> = {};
+    filteredOrderedItems.forEach(item => {
+      const supKey = item.supplier || 'ไม่ระบุผู้จัดจำหน่าย';
+      if (!groups[supKey]) {
+        groups[supKey] = {};
+      }
+      if (!groups[supKey][item.category]) {
+        groups[supKey][item.category] = [];
+      }
+      groups[supKey][item.category].push(item);
+    });
+    return groups;
+  }, [filteredOrderedItems]);
+
+  const selectedSupplierCount = useMemo(() => {
+    if (!selectedSupplier) return orderedItemList.length;
+    return orderedItemList.filter(i => i.supplier === selectedSupplier).length;
+  }, [orderedItemList, selectedSupplier]);
+
+  const handleBackClick = () => {
+    if (onNavigate) {
+      onNavigate('barPurchasing');
+    } else if (onBack) {
+      onBack();
+    }
+  };
+
+  // Export to Excel (.xlsx)
+  const exportExcel = () => {
+    const data = filteredOrderedItems.map(item => {
+      const order = item.order;
+      return {
+        'หมวดหมู่': item.category,
+        'รายการสินค้า': item.name,
+        'ยี่ห้อ': item.brand || '-',
+        'ผู้จัดจำหน่าย': item.supplier || '-',
+        'ขนาด/หน่วย': item.sizePerUnit,
+        'คงเหลือขั้นต่ำ': `${item.minStock} ${item.unit}`,
+        'ยอดคงเหลือตรวจนับ': `${item.currentStock} ${item.unit}`,
+        'ยอดสั่งซื้อแนะนำ': `${item.suggestedOrder} ${item.unit}`,
+        'วันที่สั่งซื้อ': formatThaiDate(order.order_date),
+        'จำนวนที่สั่ง': `${order.order_qty} ${item.unit}`,
+        'ผู้สั่งซื้อ': order.ordered_by ? `${order.ordered_by} (${formatOrderDateTime(order.ordered_at)})` : '-',
+        'สถานะการสั่งซื้อ': 'สั่งซื้อแล้ว',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ordered Items');
+    XLSX.writeFile(wb, `Ordered_Items_${selectedDate}.xlsx`);
+  };
+
+  // Export to PDF / Print
+  const printReport = async () => {
+    const element = document.getElementById('ordered-items-report-content');
+    if (!element) return;
+
+    try {
+      const { toPng } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      const imgData = await toPng(element, {
+        backgroundColor: '#FFFFFF',
+        pixelRatio: 2,
+        filter: (node) => {
+          if (node instanceof HTMLElement && node.classList?.contains('print:hidden')) {
+            return false;
+          }
+          return true;
+        }
+      });
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`Ordered_Items_${selectedDate}.pdf`);
+    } catch (error) {
+      console.warn('Error generating PDF:', error);
+      alert('เกิดข้อผิดพลาดในการสร้างไฟล์ PDF โปรดลองอีกครั้ง');
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-[#F0F5F4] space-y-4 animate-in fade-in duration-300">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PAGE HEADER CARD
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+        
+        {/* ROW 1: Title block (left) + Date Selector (right) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+          
+          {/* LEFT: Back Button + Title + Subtitle */}
+          <div className="flex items-center gap-2.5">
+            <button 
+              onClick={handleBackClick}
+              title="ย้อนกลับ"
+              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
+            >
+              <ChevronLeft size={15} strokeWidth={2} />
+            </button>
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+              <PackageCheck size={18} />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                  รายการวัตถุดิบที่สั่งซื้อแล้ว
+                </h1>
+                {branch && (
+                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
+                    สาขา {branch}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                รายการวัตถุดิบที่มีการบันทึกการสั่งซื้อแล้ว
+              </p>
+            </div>
+          </div>
+
+          {/* RIGHT: Date Selector */}
+          <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+            <div className="flex items-center gap-1.5 bg-white px-2.5 h-[32px] rounded-[8px] border border-[#D4E4E3] shadow-2xs hover:bg-[#F0F5F4] transition-colors">
+              <Calendar size={13} className="text-[#5A8A88] shrink-0" />
+              <input 
+                type="date" 
+                className="bg-transparent border-none focus:outline-none text-[11px] font-medium text-[#2D4A49] cursor-pointer"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+        </div>
+
+        {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
+        <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
+
+        {/* ROW 2: Department Tabs + Supplier Filter + Export Dropdown */}
+        <div className="flex items-center justify-between gap-2 w-full pt-0.5 flex-wrap">
+          
+          {/* LEFT: Department Tabs + Supplier Selector */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            
+            {/* Department tabs */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">แผนก:</span>
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
+                {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
+                  .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
+                  .map((dept) => {
+                    const isActive = activeDepartment === dept;
+                    const Icon = dept === 'All' ? LayoutGrid : dept === 'Bar' ? Coffee : ChefHat;
+                    
+                    return (
+                      <button
+                        key={dept}
+                        type="button"
+                        onClick={() => setActiveDepartment(dept)}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[10px] sm:text-[11px] font-[600] transition-colors cursor-pointer",
+                          isActive 
+                            ? "bg-[#5A8A88] text-white shadow-xs" 
+                            : "text-[#2D4A49] hover:bg-white"
+                        )}
+                      >
+                        <Icon size={12} />
+                        <span>{dept === 'All' ? 'ทั้งหมด' : dept === 'Bar' ? 'บาร์' : 'ครัว'}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Supplier dropdown */}
+            {suppliers.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-[#6B8F8E] whitespace-nowrap">ผู้จัดจำหน่าย:</span>
+                <div className="relative" ref={supplierDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSupplierDropdownOpen(prev => !prev)}
+                    className={cn(
+                      "flex items-center justify-between gap-1.5 bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-[6px] h-[32px] text-[11px] text-[#2D4A49] min-w-[140px] max-w-[220px] cursor-pointer transition-colors shadow-2xs",
+                      isSupplierDropdownOpen ? "border-[#5A8A88] bg-[#E8F3F2]" : "hover:bg-[#F0F5F4]"
+                    )}
+                    aria-haspopup="listbox"
+                    aria-expanded={isSupplierDropdownOpen}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Building2 size={12} className="text-[#5A8A88] shrink-0" />
+                      <span className="truncate font-medium">
+                        {selectedSupplier ? selectedSupplier : 'ทั้งหมด'} ({selectedSupplierCount})
+                      </span>
+                    </div>
+                    <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150 shrink-0", isSupplierDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {/* Dropdown list */}
+                  {isSupplierDropdownOpen && (
+                    <div className="absolute left-0 top-[calc(100%+4px)] w-[240px] sm:w-[260px] bg-white border border-[#D4E4E3] rounded-xl shadow-lg max-h-[280px] overflow-y-auto z-50 p-1 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar">
+                      {/* Option: ทั้งหมด */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSupplier(null);
+                          setIsSupplierDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-2.5 py-1.5 rounded-[6px] text-[11px] transition-colors cursor-pointer text-left",
+                          selectedSupplier === null
+                            ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
+                            : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <LayoutGrid size={12} className="text-[#5A8A88] shrink-0" />
+                          <span className="truncate">ทั้งหมด</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="bg-[#E8F3F2] text-[#5A8A88] text-[9px] font-semibold rounded px-1.5 py-0.5">
+                            ({orderedItemList.length})
+                          </span>
+                          {selectedSupplier === null && (
+                            <Check size={12} className="text-[#5A8A88]" />
+                          )}
+                        </div>
+                      </button>
+
+                      <div className="h-[1px] bg-[#F0F5F4] my-1" />
+
+                      {/* Options: Suppliers */}
+                      {suppliers.map(sup => {
+                        const isSelected = selectedSupplier === sup;
+                        const count = orderedItemList.filter(i => i.supplier === sup).length;
+                        
+                        return (
+                          <button
+                            key={sup}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSupplier(sup);
+                              setIsSupplierDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between px-2.5 py-1.5 rounded-[6px] text-[11px] transition-colors cursor-pointer text-left",
+                              isSelected
+                                ? "bg-[#E8F3F2] text-[#5A8A88] font-semibold"
+                                : "text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88]"
+                            )}
+                          >
+                            <span className="truncate pr-2">{sup}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="bg-[#F0F5F4] text-[#6B8F8E] text-[9px] rounded px-1.5 py-0.5">
+                                {count}
+                              </span>
+                              {isSelected && (
+                                <Check size={12} className="text-[#5A8A88]" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* RIGHT: Export Dropdown */}
+          <div className="relative ml-auto shrink-0" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsExportOpen(!isExportOpen)}
+              disabled={filteredOrderedItems.length === 0}
+              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              title="ส่งออกข้อมูล (Excel, PDF)"
+            >
+              <Download size={13} className="text-[#5A8A88]" />
+              <span>ส่งออก</span>
+              <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportOpen && "rotate-180")} />
+            </button>
+
+            {isExportOpen && (
+              <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExportOpen(false);
+                    exportExcel();
+                  }}
+                  className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Download size={13} className="text-[#5A8A88]" />
+                  <span>Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExportOpen(false);
+                    printReport();
+                  }}
+                  className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Printer size={13} className="text-[#5A8A88]" />
+                  <span>PDF / พิมพ์</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          MAIN CONTENT AREA (Table & Groups)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="flex-1 overflow-auto custom-scrollbar" id="ordered-items-report-content">
+        <div className="space-y-4 sm:space-y-5">
+          {/* Printable Header */}
+          <div className="hidden print:block text-center mb-6">
+            <h1 className="text-xl font-black text-[#2D4A49]">รายการวัตถุดิบที่สั่งซื้อแล้ว (Ordered Items Report)</h1>
+            <p className="text-[#6B8F8E] text-xs mt-1">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
+          </div>
+
+          {isLoading ? (
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-12 text-center">
+              <Loader2 size={32} className="animate-spin text-[#5A8A88] mx-auto mb-3" />
+              <p className="text-[13px] font-semibold text-[#2D4A49]">กำลังโหลดข้อมูลรายการที่สั่งซื้อ...</p>
+            </div>
+          ) : filteredOrderedItems.length === 0 ? (
+            /* Empty State */
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-10 text-center">
+              <div className="w-16 h-16 bg-[#F0F5F4] rounded-full flex items-center justify-center mx-auto mb-3 text-[#C5D5D3]">
+                <PackageCheck size={48} />
+              </div>
+              <p className="text-[14px] font-bold text-[#6B8F8E]">ยังไม่มีรายการที่สั่งซื้อ</p>
+              <p className="text-[11px] text-[#A8BCBB] mt-1 max-w-sm mx-auto">
+                รายการที่บันทึกการสั่งซื้อแล้วจะแสดงที่นี่
+              </p>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => onNavigate ? onNavigate('barPurchasing') : onBack ? onBack() : undefined}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E8F3F2] hover:bg-[#D8ECEB] text-[#5A8A88] text-[11px] font-semibold rounded-[8px] border border-[#D4E4E3] transition-colors cursor-pointer shadow-2xs"
+                >
+                  <ShoppingCart size={13} />
+                  <span>ไปยังรายการที่ต้องสั่งซื้อ</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Grouped Ordered Tables by Supplier
+            Object.entries(groupedOrderedItems).map(([supplier, categories]) => {
+              const allSupplierItems = Object.values(categories).flat();
+              const totalItems = allSupplierItems.length;
+              
+              return (
+                <div 
+                  key={supplier} 
+                  className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] overflow-hidden"
+                >
+                  {/* Supplier Group Header */}
+                  <div className="bg-[#F0F5F4] border-l-[3px] border-l-[#5A8A88] pl-3 pr-4 py-2.5 border-b border-[#D4E4E3] flex items-center justify-between">
+                    <h4 className="font-bold text-[12px] sm:text-[13px] text-[#2D4A49] flex items-center gap-2">
+                      <Building2 size={14} className="text-[#5A8A88]" />
+                      <span>ผู้จัดจำหน่าย: {supplier}</span>
+                    </h4>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
+                        {totalItems} รายการ
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Table without Horizontal Scroll */}
+                  <div className="overflow-x-hidden overflow-y-visible w-full">
+                    <table className="w-full text-left border-collapse table-fixed" style={{ tableLayout: 'fixed', width: '100%' }}>
+                      <colgroup>
+                        <col style={{ width: '36px' }} />
+                        <col style={{ width: '154px' }} />
+                        <col style={{ width: '68px' }} />
+                        <col style={{ width: '74px' }} />
+                        <col style={{ width: '66px' }} />
+                        <col style={{ width: '70px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '68px' }} />
+                        <col style={{ width: '96px' }} />
+                      </colgroup>
+                      <thead>
+                        <tr className="bg-[#2D4A49] text-white text-[9.5px] font-semibold border-b border-[#2D4A49] leading-tight">
+                          <th className="p-1 text-center w-[36px] border-r border-[#3d605f] whitespace-nowrap">รูป</th>
+                          <th className="py-2 px-2 text-left w-[154px] border-r border-[#3d605f] whitespace-nowrap">รายการสินค้า</th>
+                          <th className="py-2 px-1 text-left w-[68px] border-r border-[#3d605f] whitespace-nowrap">ขนาด/หน่วย</th>
+                          <th className="py-2 px-1 text-center w-[74px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
+                          <th className="py-2 px-1 text-center w-[70px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-1 text-center w-[100px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
+                          <th className="py-2 px-1.5 text-left w-[96px] whitespace-nowrap">ผู้สั่งซื้อ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(categories).map(([category, items]) => (
+                          <React.Fragment key={category}>
+                            {/* Category Row */}
+                            <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
+                              <td colSpan={9} className="px-2.5 py-1">
+                                <div className="flex items-center gap-1.5 text-[9.5px] font-semibold text-[#5A8A88]">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
+                                  <span>{category}</span>
+                                </div>
+                              </td>
+                            </tr>
+                            {/* Items */}
+                            {items.map((item, index) => {
+                              const isLow = item.currentStock < item.minStock;
+                              const order = item.order;
+                              const orderDate = order.order_date;
+                              const orderQty = order.order_qty;
+
+                              return (
+                                <tr 
+                                  key={item.order?.id || `${item.id}-${index}`} 
+                                  className="relative transition-colors border-b border-[#F0F5F4] text-[9.5px] font-normal bg-[#E8F3F2]/60 border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
+                                >
+                                  {/* Item Image */}
+                                  <td className="relative p-1 border-r border-[#F0F5F4] text-center w-[36px]" style={{ width: '36px' }}>
+                                    {item.image ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewImage({ 
+                                          url: item.image!, 
+                                          title: item.name, 
+                                          brand: item.brand,
+                                          category: item.category,
+                                          unit: item.unit
+                                        })}
+                                        className="group relative inline-flex items-center justify-center rounded border border-[#D4E4E3] overflow-hidden hover:border-[#5A8A88] transition-all cursor-pointer shadow-2xs hover:shadow-xs hover:scale-105 bg-white p-0.5"
+                                        title="คลิกเพื่อดูรูปภาพขนาดใหญ่"
+                                      >
+                                        <img 
+                                          src={item.image} 
+                                          alt={item.name} 
+                                          className="w-6 h-6 object-cover rounded-[2px] mx-auto" 
+                                          referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-[2px]">
+                                          <Eye size={10} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-xs" />
+                                        </div>
+                                      </button>
+                                    ) : (
+                                      <div className="w-6 h-6 rounded border border-[#D4E4E3] bg-[#F8FAFA] flex items-center justify-center mx-auto text-[#6B8F8E]">
+                                        <PackageCheck size={11} />
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Item Name & Subtitle */}
+                                  <td className="px-2 py-1.5 border-r border-[#F0F5F4] w-[154px] max-w-[154px]" style={{ width: '154px', maxWidth: '154px' }}>
+                                    <div 
+                                      className="font-[600] text-[#2D4A49] text-[10px] leading-tight truncate overflow-hidden whitespace-nowrap" 
+                                      title={item.name}
+                                    >
+                                      {item.name}
+                                    </div>
+                                    {item.brand && (
+                                      <div 
+                                        className="text-[9px] font-normal text-[#6B8F8E] mt-0.5 truncate overflow-hidden whitespace-nowrap"
+                                        title={`ยี่ห้อ: ${item.brand}`}
+                                      >
+                                        ยี่ห้อ: {item.brand}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Size / Unit */}
+                                  <td 
+                                    className="px-1.5 py-1.5 border-r border-[#F0F5F4] text-[9.5px] font-normal text-[#6B8F8E] w-[68px] max-w-[68px] truncate overflow-hidden whitespace-nowrap"
+                                    title={item.sizePerUnit || '-'}
+                                    style={{ width: '68px', maxWidth: '68px' }}
+                                  >
+                                    {item.sizePerUnit || '-'}
+                                  </td>
+
+                                  {/* Min Stock (คงเหลือขั้นต่ำ) */}
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] text-center w-[74px] max-w-[74px]" style={{ width: '74px', maxWidth: '74px' }}>
+                                    {isLow ? (
+                                      <span className="inline-block px-1 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[9.5px] font-mono leading-tight whitespace-nowrap">
+                                        {item.minStock} {item.unit}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[#2D4A49] font-mono text-[9.5px] font-normal leading-tight whitespace-nowrap">
+                                        {item.minStock} {item.unit}
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Current Stock (ยอดตรวจนับ) */}
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] font-mono text-[9.5px] font-normal text-center text-[#6B8F8E] w-[66px] max-w-[66px] whitespace-nowrap" style={{ width: '66px', maxWidth: '66px' }}>
+                                    {item.currentStock} {item.unit}
+                                  </td>
+
+                                  {/* Suggested Order (ยอดสั่งแนะนำ) */}
+                                  <td className="px-1 py-1.5 font-mono text-[9.5px] text-center w-[70px] max-w-[70px] border-r border-[#F0F5F4]" style={{ width: '70px', maxWidth: '70px' }}>
+                                    <span className="inline-block px-1.5 py-0.5 rounded-[3px] text-[9.5px] leading-tight whitespace-nowrap bg-white text-[#5A8A88] font-[700] border border-[#5A8A88]/30 shadow-2xs">
+                                      {item.suggestedOrder} {item.unit}
+                                    </span>
+                                  </td>
+
+                                  {/* COLUMN 1 — วันที่สั่งซื้อ (READ-ONLY) */}
+                                  <td className="px-1 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
+                                    <span 
+                                      className="inline-block bg-[#E8F3F2] text-[#5A8A88] text-[11px] font-[600] rounded-[6px] px-2 py-[3px] whitespace-nowrap border border-[#D4E4E3]/60 shadow-2xs"
+                                      title={orderDate}
+                                    >
+                                      {formatThaiDate(orderDate)}
+                                    </span>
+                                  </td>
+
+                                  {/* COLUMN 2 — จำนวนที่สั่ง (READ-ONLY) */}
+                                  <td className="px-1 py-1 text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
+                                    <span 
+                                      className="inline-block bg-[#E8F3F2] text-[#5A8A88] text-[11px] font-[600] rounded-[6px] px-2 py-[3px] whitespace-nowrap border border-[#D4E4E3]/60 shadow-2xs"
+                                    >
+                                      {orderQty} {item.unit}
+                                    </span>
+                                  </td>
+
+                                  {/* COLUMN 3 — ผู้สั่งซื้อ (READ-ONLY) */}
+                                  <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px]" style={{ width: '96px', maxWidth: '96px' }}>
+                                    {order?.ordered_by ? (
+                                      <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
+                                        <span className="text-[10px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
+                                          {order.ordered_by}
+                                        </span>
+                                        {order.ordered_at && (
+                                          <span className="text-[9px] text-[#6B8F8E] leading-tight truncate w-full" title={formatOrderDateTime(order.ordered_at)}>
+                                            {formatOrderDateTime(order.ordered_at)}
+                                          </span>
+                                        )}
+                                        <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[4px] px-1.5 py-0.5 leading-none shadow-2xs whitespace-nowrap">
+                                          ✅ สั่งซื้อแล้ว
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="mt-0.5 inline-block bg-[#22C55E] text-white text-[9px] font-semibold rounded-[4px] px-1.5 py-0.5 leading-none shadow-2xs whitespace-nowrap">
+                                        ✅ สั่งซื้อแล้ว
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* Summary Footer Card */}
+          {filteredOrderedItems.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-4 sm:p-5 print:hidden">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-[13px] font-bold text-[#2D4A49]">สรุปรายการที่สั่งซื้อแล้ว</h4>
+                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-center sm:text-right">
+                    <div className="text-[10px] font-bold text-[#6B8F8E] uppercase">จำนวนรายการ</div>
+                    <div className="text-[18px] font-black text-[#5A8A88]">{filteredOrderedItems.length} รายการ</div>
+                  </div>
+                  <div className="w-[1px] h-7 bg-[#D4E4E3]" />
+                  <div className="text-center sm:text-right">
+                    <div className="text-[10px] font-bold text-[#6B8F8E] uppercase">ผู้จัดจำหน่าย</div>
+                    <div className="text-[18px] font-black text-[#2D4A49]">{Object.keys(groupedOrderedItems).length} ราย</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#D4E4E3] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFA] border-b border-[#D4E4E3]">
+              <div className="min-w-0 pr-3">
+                <h3 className="text-[13px] font-bold text-[#2D4A49] truncate" title={previewImage.title}>
+                  {previewImage.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#6B8F8E] flex-wrap">
+                  {previewImage.brand && <span>ยี่ห้อ: {previewImage.brand}</span>}
+                  {previewImage.brand && previewImage.category && <span>•</span>}
+                  {previewImage.category && <span>หมวด: {previewImage.category}</span>}
+                  {previewImage.unit && <span>• หน่วย: {previewImage.unit}</span>}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="w-7 h-7 rounded-full bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] transition-colors shrink-0 shadow-2xs cursor-pointer"
+                title="ปิด"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Image Body */}
+            <div className="p-4 bg-white flex items-center justify-center max-h-[70vh] min-h-[220px] overflow-hidden">
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                className="max-w-full max-h-[65vh] object-contain rounded-lg border border-[#F0F5F4]"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-2.5 bg-[#F8FAFA] border-t border-[#F0F5F4] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="px-3.5 py-1.5 text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg border border-[#D4E4E3] transition-colors cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
