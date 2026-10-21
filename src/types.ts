@@ -13,6 +13,9 @@ export interface Ingredient {
   image?: string;
   department?: 'Bar' | 'Bakery' | 'Kitchen';
   branch?: Branch;
+  is_active?: boolean;
+  inactive_reason?: string;
+  inactive_at?: string;
 }
 
 export interface DailyStock {
