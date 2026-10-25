@@ -278,6 +278,51 @@ const INITIAL_INGREDIENTS: Ingredient[] = [
   { id: 'b-edde83', name: 'ไม้จิ้มฟัน', brand: '-', sizePerUnit: 'N/A', department: 'Bakery', category: 'บรรจุภัณฑ์/อุปกรณ์ (Packaging & Tools)', minStock: 0, minOrder: 0, unit: 'ชิ้น', supplier: '-', image: 'https://picsum.photos/seed/bakery/200/200' },
 ];
 
+const canAccessUserSettings = (
+  user: { name: string; role: any; permissions?: any } | null
+): boolean => {
+  if (!user) return false;
+
+  // Allow admin roles always
+  const role = (user.role || '').toUpperCase();
+  if (
+    role === 'ADMIN' ||
+    role === 'CO-FOUNDER' ||
+    role === 'OWNER'
+  ) return true;
+
+  // Allow if explicitly granted permission
+  if (
+    (user.permissions as any)?.userSettings === 'edit' ||
+    (user.permissions as any)?.adminTools === 'Edit'
+  ) return true;
+
+  return false;
+};
+
+function AccessDeniedPage({ onNavigate, pageName = 'User Security Settings' }: { onNavigate: (tab: any) => void; pageName?: string }) {
+  return (
+    <div className="py-12 px-6 text-center bg-[#FAF8F5] min-h-[60vh] flex flex-col items-center justify-center rounded-2xl border border-[#D4E4E3] m-4">
+      <div className="w-14 h-14 rounded-full bg-[#FEE2E2] flex items-center justify-center mb-4 text-2xl shadow-xs">
+        🔒
+      </div>
+      <h2 className="text-lg font-bold text-[#2D4A49] mb-2">
+        ไม่มีสิทธิ์เข้าถึงหน้านี้
+      </h2>
+      <p className="text-xs text-[#6B8F8E] max-w-sm leading-relaxed mb-6">
+        หน้านี้ ({pageName}) สำหรับผู้ดูแลระบบเท่านั้น กรุณาติดต่อ Admin หรือ Co-founder หากต้องการเข้าถึง
+      </p>
+      <button
+        type="button"
+        onClick={() => onNavigate('home')}
+        className="bg-[#5A8A88] hover:bg-[#476E6C] text-white border-0 rounded-lg px-6 py-2.5 text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+      >
+        กลับหน้าหลัก
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(null);
 
@@ -2441,7 +2486,11 @@ export default function App() {
             }}
           />
         ) : activeTab === 'userSettings' ? (
-          <UserSettings currentUser={user} onCurrentUserUpdated={setUser} branch={user?.branch} />
+          !canAccessUserSettings(user) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} pageName="User Security Settings" />
+          ) : (
+            <UserSettings currentUser={user} user={user} onCurrentUserUpdated={setUser} branch={user?.branch} onNavigate={handleTabNavigate} />
+          )
         ) : (
           <>
             {/* ── HEADER CARD (Matches DailyBakeryRecord Layout & Style) ── */}
