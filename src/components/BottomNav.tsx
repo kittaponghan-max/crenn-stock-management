@@ -22,9 +22,10 @@ export interface BottomNavProps {
   onLogout: () => void;
   user: {
     name: string;
-    role: UserRole;
+    role: UserRole | string;
     branch?: Branch;
-  };
+    permissions?: any;
+  } | null | any;
 }
 
 interface SubMenuItem {
@@ -109,6 +110,23 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
     if (tabId === 'bakery') return activeTab === 'bakeryPlan' || activeTab === 'bakeryPlanHistory';
     if (tabId === 'rnd') return activeTab === 'rndReport';
     if (tabId === 'more') return activeTab === 'userSettings';
+    return false;
+  };
+
+  const canSeeSettings = (u: any): boolean => {
+    if (!u) return false;
+    const role = (u.role || '').toUpperCase();
+    if (
+      role === 'ADMIN' ||
+      role === 'CO-FOUNDER' ||
+      role === 'OWNER'
+    ) return true;
+
+    if (
+      u.permissions?.userSettings === 'edit' ||
+      u.permissions?.adminTools === 'Edit'
+    ) return true;
+
     return false;
   };
 
@@ -264,7 +282,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       groups: [
         {
           items: [
-            { route: 'userSettings', label: 'ตั้งค่า / Settings', emoji: '⚙️' },
+            ...(canSeeSettings(user) ? [
+              { route: 'userSettings', label: 'ตั้งค่า / Settings', emoji: '⚙️' }
+            ] : []),
             { label: 'โปรไฟล์ผู้ใช้', emoji: '👤', action: () => { setOpenTab(null); setShowProfileModal(true); } },
             { label: 'ข้อมูลสาขา', emoji: '🏪', action: () => { setOpenTab(null); setShowBranchModal(true); } },
             { route: 'logs', label: 'ประวัติแก้ไขข้อมูล', emoji: '🕐' },
