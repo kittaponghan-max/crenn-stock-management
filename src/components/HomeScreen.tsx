@@ -91,10 +91,77 @@ export function HomeScreen({
     stock_date?: string;
     delivered_at?: string | null;
     status?: string;
+    ingredient?: Ingredient | null;
   }[]>([]);
+  const [dbIngredientsMap, setDbIngredientsMap] = useState<Record<string, Ingredient>>({});
   const [schemaNotice, setSchemaNotice] = useState<string | null>(null);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState<boolean>(false);
   const [isProcessingClear, setIsProcessingClear] = useState<boolean>(false);
+
+  // Combined ingredients map: props.ingredients + dbIngredientsMap
+  const allIngredientsMap = useMemo(() => {
+    const map = new Map<string, Ingredient>();
+    ingredients.forEach(i => map.set(String(i.id), i));
+    Object.values(dbIngredientsMap).forEach((dbIng: Ingredient) => {
+      const existing = map.get(String(dbIng.id));
+      if (!existing || (!existing.name && dbIng.name)) {
+        map.set(String(dbIng.id), { ...existing, ...dbIng });
+      } else {
+        map.set(String(dbIng.id), { ...dbIng, ...existing, name: existing.name || dbIng.name });
+      }
+    });
+    return map;
+  }, [ingredients, dbIngredientsMap]);
+
+  // Robust ingredient resolution helper: checks all sources so name and details are NEVER missing
+  const resolveIngredientInfo = useCallback((order?: any, ing?: Ingredient | null) => {
+    const ingId = String(order?.ingredient_id || ing?.id || '');
+    
+    // Check all potential sources
+    const candidateFromDb = ingId ? dbIngredientsMap[ingId] : null;
+    const candidateFromAll = ingId ? allIngredientsMap.get(ingId) : null;
+    const candidateFromProps = ingId ? ingredients.find(i => String(i.id) === ingId) : null;
+    const candidateFromOrder = order?.ingredient;
+
+    // Prioritize candidate with a valid non-empty name
+    const bestIng: Ingredient | null = [candidateFromDb, candidateFromAll, candidateFromProps, candidateFromOrder, ing]
+      .find(c => c && typeof c.name === 'string' && c.name.trim().length > 0) 
+      || candidateFromDb 
+      || candidateFromAll 
+      || candidateFromProps 
+      || candidateFromOrder 
+      || ing 
+      || null;
+
+    const rawName = bestIng?.name || 
+      (bestIng as any)?.ingredient_name || 
+      (bestIng as any)?.item_name || 
+      order?.ingredient_name || 
+      order?.name || 
+      order?.item_name || 
+      '';
+
+    const cleanName = typeof rawName === 'string' ? rawName.trim() : '';
+    const displayName = cleanName.length > 0 
+      ? cleanName 
+      : (ingId ? `วัตถุดิบ #${ingId}` : 'ไม่ระบุชื่อวัตถุดิบ');
+
+    const rawBrand = (bestIng?.brand || (bestIng as any)?.ingredient_brand || order?.brand || '').trim();
+    const displayBrand = (rawBrand && rawBrand !== '-') ? rawBrand : '';
+
+    const minStock = bestIng?.minStock ?? (bestIng as any)?.min_stock ?? 0;
+    const unit = bestIng?.unit || order?.order_unit || (bestIng as any)?.unit || 'หน่วย';
+    const department = bestIng?.department || (bestIng as any)?.department || 'Bar';
+
+    return {
+      bestIng,
+      displayName,
+      displayBrand,
+      minStock,
+      unit,
+      department
+    };
+  }, [dbIngredientsMap, allIngredientsMap, ingredients]);
 
   // Format order datetime: 21/10/2026 14:58 น.
   const formatOrderDateTime = useCallback((isoOrDateStr?: string) => {
@@ -174,8 +241,8 @@ export function HomeScreen({
 
   // Helper: check if conditions 1, 2, 3 are met for delivery
   const checkDelivered = useCallback(async (order: any, currentBranch: string): Promise<boolean> => {
-    const ing = ingredients.find(i => i.id === order.ingredient_id);
-    const minStock = ing?.minStock || 0;
+    const resolved = resolveIngredientInfo(order, order.ingredient);
+    const minStock = resolved.minStock;
     const currentStock = calculateCurrentRemaining(order.ingredient_id);
 
     // CONDITION 1: current_stock >= min_stock
@@ -196,7 +263,7 @@ export function HomeScreen({
     const isUpdatedAfterOrder = stockUpdatedAt.getTime() > orderedAt.getTime();
 
     return isStockSufficient && isUpdatedAfterOrder;
-  }, [ingredients, calculateCurrentRemaining, getLatestStockTimestamp]);
+  }, [resolveIngredientInfo, calculateCurrentRemaining, getLatestStockTimestamp]);
 
   // Main process: fetch and auto-clear pending delivery items
   const processPendingDelivery = useCallback(async () => {
@@ -208,13 +275,21 @@ export function HomeScreen({
       const raw = localStorage.getItem('cafe_purchasing_orders');
       if (raw) {
         const all: any[] = JSON.parse(raw);
-        orderedList = all.filter(o => 
-          (!o.branch || o.branch === currentBranch) &&
-          Boolean(o.order_date) &&
-          Number(o.order_qty) > 0 &&
-          !o.delivered_at &&
-          o.status !== 'delivered'
-        );
+        orderedList = all
+          .filter(o => 
+            (!o.branch || o.branch === currentBranch) &&
+            Boolean(o.order_date) &&
+            Number(o.order_qty) > 0 &&
+            !o.delivered_at &&
+            o.status !== 'delivered'
+          )
+          .map(o => {
+            const resolved = resolveIngredientInfo(o, o.ingredient);
+            return {
+              ...o,
+              ingredient: resolved.bestIng
+            };
+          });
       }
     } catch (e) {
       console.warn('Error reading local purchasing orders:', e);
@@ -230,8 +305,74 @@ export function HomeScreen({
           .not('order_date', 'is', null)
           .gt('order_qty', 0);
 
+        console.log('=== Pending Delivery Debug ===');
+        console.log('Raw orders from DB:', data);
+
+        data?.forEach((order: any, idx: number) => {
+          console.log(`Order ${idx}:`, {
+            id: order.id,
+            ingredient_id: order.ingredient_id,
+            ingredients: order.ingredients,   // joined data
+            order_qty: order.order_qty,
+            order_unit: order.order_unit,
+          });
+
+          if (!order.ingredients) {
+            console.warn(`⚠️ No ingredient data for order ${order.id}, ingredient_id: ${order.ingredient_id}`);
+          }
+        });
+
         if (!error && data) {
-          orderedList = data.filter((o: any) => !o.delivered_at && o.status !== 'delivered');
+          const rawPending = data.filter((o: any) => !o.delivered_at && o.status !== 'delivered');
+
+          // Query ingredients separately for matching unique ingredientIds
+          const uniqueIngIds = Array.from(new Set(rawPending.map((o: any) => o.ingredient_id).filter(Boolean)));
+          const ingredientMap: Record<string, Ingredient> = {};
+
+          if (uniqueIngIds.length > 0) {
+            try {
+              const { data: ingData, error: ingError } = await supabase
+                .from('ingredients')
+                .select('id, name, brand, image, unit, min_stock, department')
+                .in('id', uniqueIngIds);
+
+              if (!ingError && ingData) {
+                ingData.forEach((ing: any) => {
+                  ingredientMap[String(ing.id)] = {
+                    id: String(ing.id),
+                    name: ing.name || '',
+                    brand: ing.brand || '',
+                    image: ing.image || '',
+                    unit: ing.unit || '',
+                    minStock: ing.min_stock ?? ing.minStock ?? 0,
+                    department: ing.department || 'Bar',
+                    category: ing.category || '',
+                    sizePerUnit: ing.size_per_unit || '',
+                    supplier: ing.supplier || '',
+                    minOrder: ing.min_order ?? ing.minOrder ?? 0
+                  };
+                });
+                setDbIngredientsMap(prev => ({ ...prev, ...ingredientMap }));
+              }
+            } catch (ingErr) {
+              console.warn('Error fetching ingredients for pending orders:', ingErr);
+            }
+          }
+
+          // Merge: ingredient: ingredientMap[order.ingredient_id] || null
+          orderedList = rawPending.map((order: any) => {
+            const ingId = String(order.ingredient_id);
+            const ing = ingredientMap[ingId] ||
+              allIngredientsMap.get(ingId) ||
+              ingredients.find(i => String(i.id) === ingId) ||
+              order.ingredient ||
+              null;
+            const resolved = resolveIngredientInfo(order, ing);
+            return {
+              ...order,
+              ingredient: resolved.bestIng
+            };
+          });
         } else if (error && (error.code === '42703' || error.message?.includes('column'))) {
           setSchemaNotice('กรุณาเพิ่มคอลัมน์ delivered_at (timestamp) และ status (text) ในตาราง purchasing_orders');
         }
@@ -290,7 +431,7 @@ export function HomeScreen({
     }
 
     setPendingOrders(stillPending);
-  }, [user?.branch, checkDelivered]);
+  }, [user?.branch, ingredients, allIngredientsMap, resolveIngredientInfo, checkDelivered]);
 
   // Initial fetch and Real-Time listener on mount
   useEffect(() => {
@@ -336,10 +477,10 @@ export function HomeScreen({
 
     // Find all items where current_stock >= min_stock
     const toClear = pendingDeliveryList.filter(order => {
-      const ing = ingredients.find(i => i.id === order.ingredient_id);
-      const minStock = ing?.minStock || 0;
+      const resolved = resolveIngredientInfo(order, order.ingredient);
+      const minStock = resolved.minStock;
       const currentStock = calculateCurrentRemaining(order.ingredient_id);
-      return currentStock >= minStock;
+      return Boolean(currentStock >= minStock);
     });
 
     for (const order of toClear) {
@@ -517,24 +658,24 @@ export function HomeScreen({
 
   // Filter pending delivery orders by locationFilter (excluding obsolete items)
   const pendingDeliveryList = useMemo(() => {
-    const ingMap = new Map<string, Ingredient>();
-    ingredients.forEach(i => ingMap.set(i.id, i));
-
     return pendingOrders.filter(order => {
-      if (!order.order_date || !order.order_qty || order.order_qty <= 0) return false;
-      const ing = ingMap.get(order.ingredient_id);
-      if (!ing) return false;
-      // Exclude obsolete ingredients from pending delivery
-      if (!isIngredientActive(ing, obsoleteMap)) return false;
+      if (!order.order_date || !order.order_qty || Number(order.order_qty) <= 0) return false;
+      const resolved = resolveIngredientInfo(order, order.ingredient);
+      const ing = resolved.bestIng;
       
-      if (locationFilter !== 'all') {
-        const dept = (ing.department || '').toLowerCase().trim();
-        if (locationFilter === 'bar' && dept !== 'bar') return false;
-        if (locationFilter === 'kitchen' && dept !== 'bakery' && dept !== 'kitchen') return false;
+      if (ing) {
+        // Exclude obsolete ingredients from pending delivery
+        if (!isIngredientActive(ing, obsoleteMap)) return false;
+        
+        if (locationFilter !== 'all') {
+          const dept = (resolved.department || '').toLowerCase().trim();
+          if (locationFilter === 'bar' && dept !== 'bar') return false;
+          if (locationFilter === 'kitchen' && dept !== 'bakery' && dept !== 'kitchen') return false;
+        }
       }
       return true;
     });
-  }, [pendingOrders, ingredients, locationFilter, obsoleteMap]);
+  }, [pendingOrders, resolveIngredientInfo, locationFilter, obsoleteMap]);
 
   const pendingDelivery = pendingDeliveryList.length;
 
@@ -691,29 +832,29 @@ export function HomeScreen({
       };
     }
     if (activeKPI === 'pending_delivery') {
-      const ingMap = new Map<string, Ingredient>();
-      ingredients.forEach(i => ingMap.set(i.id, i));
-
       const items = pendingDeliveryList
         .map(order => {
-          const ing = ingMap.get(order.ingredient_id);
-          if (!ing) return null;
-          const currentRemaining = stockData.stockMap[ing.id] !== undefined ? stockData.stockMap[ing.id] : 0;
-          const minStock = ing.minStock || 0;
-          const isPendingConfirm = currentRemaining >= minStock;
+          const resolved = resolveIngredientInfo(order, order.ingredient);
+          const ing = resolved.bestIng;
+          const currentRemaining = ing && stockData.stockMap[ing.id] !== undefined
+            ? stockData.stockMap[ing.id]
+            : (order.ingredient_id && stockData.stockMap[order.ingredient_id] !== undefined ? stockData.stockMap[order.ingredient_id] : 0);
+          const minStock = resolved.minStock;
+          const isPendingConfirm = Boolean(currentRemaining >= minStock);
 
           return {
             ing,
+            resolved,
             remaining: currentRemaining,
             order,
             isPendingConfirm,
             status: 'pending_delivery' as any,
-            badgeLabel: `สั่งแล้ว ${order.order_qty} ${order.order_unit || ing.unit}`,
+            badgeLabel: `สั่งแล้ว ${order.order_qty} ${order.order_unit || resolved.unit || 'หน่วย'}`,
             badgeClass: 'bg-[#E8F3F2] text-[#5A8A88] font-bold border border-[#D4E4E3]'
           };
-        })
-        .filter(Boolean) as { 
-          ing: Ingredient; 
+        }) as { 
+          ing: Ingredient | null;
+          resolved?: any;
           remaining: number; 
           status: any; 
           badgeLabel: string; 
@@ -1452,28 +1593,29 @@ export function HomeScreen({
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
-                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass, order, isPendingConfirm }, index) => {
+                  {displayItems.map(({ ing, remaining, badgeLabel, badgeClass, order, isPendingConfirm, resolved }: any, index) => {
                     const isPendingKpi = activeKPI === 'pending_delivery';
                     const orderDateStr = order?.ordered_at || order?.order_date;
+                    const info = resolved || resolveIngredientInfo(order, ing);
 
                     return (
-                      <div key={`${ing.id}-${index}`} className="py-2.5 flex items-center justify-between gap-3 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
-                        <div className="flex items-center gap-2.5 min-w-0">
+                      <div key={`${ing?.id || order?.id || order?.ingredient_id || index}-${index}`} className="py-2.5 flex items-center justify-between gap-2.5 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                             remaining <= 0 
                               ? 'bg-rose-50 text-rose-500' 
-                              : remaining <= ing.minStock 
+                              : remaining <= (info.minStock ?? 0) 
                                 ? 'bg-amber-50 text-amber-500' 
                                 : 'bg-[#E8F3F2] text-[#5A8A88]'
                           }`}>
-                            {ing.department === 'Bar' ? <Coffee size={16} /> : <Cake size={16} />}
+                            {info.department === 'Bar' ? <Coffee size={16} /> : info.department === 'Bakery' ? <Cake size={16} /> : <Package size={16} />}
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-[#2D4A49] truncate leading-snug">
-                              {ing.name}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-[#2D4A49] truncate leading-snug" title={info.displayName}>
+                              {info.displayName}
                             </p>
                             <p className="text-[10px] text-[#6B8F8E] truncate">
-                              {ing.brand || '-'} &bull; ขั้นต่ำ: {ing.minStock} {ing.unit}
+                              {info.displayBrand ? `${info.displayBrand} • ` : ''}ขั้นต่ำ: {info.minStock} {info.unit}
                             </p>
                             {isPendingKpi && orderDateStr && (
                               <p className="text-[10px] text-[#A8BCBB] truncate mt-0.5">
@@ -1483,22 +1625,26 @@ export function HomeScreen({
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0 flex flex-col items-end">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}`}>
+                        <div className="text-right shrink-0 flex flex-col items-end max-w-[48%] pl-2">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold truncate max-w-full ${badgeClass}`}>
                             {badgeLabel}
                           </span>
-                          <span className={`text-[10px] font-medium mt-0.5 ${
+                          <span className={`text-[10px] font-medium mt-0.5 truncate max-w-full ${
                             isPendingKpi
-                              ? remaining < ing.minStock
+                              ? remaining < (info.minStock ?? 0)
                                 ? 'text-red-500 font-semibold'
                                 : isPendingConfirm
                                   ? 'text-amber-600 font-semibold'
                                   : 'text-slate-500'
                               : 'text-slate-500'
                           }`}>
-                            คงเหลือ {remaining} / {ing.minStock} {ing.unit}
-                            {isPendingKpi && isPendingConfirm ? ' (รอยืนยันการส่งมอบ)' : ''}
+                            คงเหลือ {remaining} / {info.minStock} {info.unit}
                           </span>
+                          {isPendingKpi && isPendingConfirm && (
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded mt-0.5 whitespace-nowrap">
+                              (รอยืนยันการส่งมอบ)
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
