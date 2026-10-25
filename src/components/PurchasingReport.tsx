@@ -940,14 +940,6 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     return allPurchasesToMake.filter(i => i.supplier === selectedSupplier).length;
   }, [allPurchasesToMake, selectedSupplier]);
 
-  const pendingInCurrentList = useMemo(() => {
-    return purchasesToMake.filter(item => isPendingDelivery(item.id)).length;
-  }, [purchasesToMake, pendingOrderMap]);
-
-  const totalPending = pendingInCurrentList > 0 
-    ? pendingInCurrentList 
-    : Object.keys(pendingOrderMap).length;
-
   return (
     <div className="flex flex-col h-full bg-[#F0F5F4] space-y-4 animate-in fade-in duration-300">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1195,63 +1187,6 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             <p className="text-[#6B8F8E] text-xs mt-1">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
           </div>
 
-          {/* STEP 7 — Page-level summary banner */}
-          {totalPending > 0 && (
-            <div
-              className="print:hidden"
-              style={{
-                backgroundColor: '#EFF8FF',
-                border: '1px solid #93C5FD',
-                borderLeft: '4px solid #3B82F6',
-                borderRadius: '10px',
-                padding: '10px 16px',
-                marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '10px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Truck size={18} style={{ color: '#3B82F6', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: '#1D4ED8' }}>
-                  มี <strong>{totalPending}</strong> รายการที่สั่งซื้อแล้ว กำลังรอรับสินค้า — รายการเหล่านี้จะแสดงด้วย
-                  <span
-                    style={{
-                      background: '#DBEAFE',
-                      color: '#1D4ED8',
-                      padding: '1px 6px',
-                      borderRadius: '4px',
-                      fontWeight: 600,
-                      marginLeft: '4px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                    }}
-                  >
-                    <Truck size={10} style={{ color: '#1D4ED8' }} />
-                    รอส่งมอบ
-                  </span>
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleNavigate('orderedItems')}
-                style={{
-                  fontSize: '11px',
-                  color: '#2563EB',
-                  fontWeight: 600,
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  textDecoration: 'underline',
-                }}
-              >
-                ดูรายการรอส่งมอบ →
-              </button>
-            </div>
-          )}
 
           {/* Empty State */}
           {purchasesToMake.length === 0 ? (
@@ -1328,8 +1263,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                       {allSupplierItems.filter(item => isPendingDelivery(item.id)).length > 0 && (
                         <span 
                           style={{
-                            background: '#DBEAFE',
-                            color: '#1D4ED8',
+                            background: '#FEF3C7',
+                            color: '#92400E',
+                            border: '1px solid #FDE68A',
                             fontSize: '10px',
                             fontWeight: 600,
                             borderRadius: '5px',
@@ -1339,7 +1275,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                             gap: '4px',
                           }}
                         >
-                          <Truck size={10} />
+                          <Truck size={10} style={{ color: '#D97706' }} />
                           {allSupplierItems.filter(item => isPendingDelivery(item.id)).length} รอส่งมอบ
                         </span>
                       )}
@@ -1411,7 +1347,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   className={cn(
                                     "relative transition-colors border-b border-[#F0F5F4] text-[9.5px] font-normal",
                                     isPending
-                                      ? "bg-[#EFF8FF] border-l-[3px] border-l-[#3B82F6] hover:bg-[#DBEAFE]/50"
+                                      ? "bg-[#FFF7ED] border-l-[3px] border-l-[#F59E0B] hover:bg-[#FEF3C7]"
                                       : isChanged
                                         ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
                                         : isOrdered 
@@ -1481,8 +1417,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           display       : 'inline-flex',
                                           alignItems    : 'center',
                                           gap           : '4px',
-                                          background    : '#DBEAFE',
-                                          color         : '#1D4ED8',
+                                          background    : '#FEF3C7',
+                                          color         : '#92400E',
+                                          border        : '1px solid #FDE68A',
                                           fontSize      : '9px',
                                           fontWeight    : 600,
                                           borderRadius  : '4px',
@@ -1490,7 +1427,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           marginTop     : '3px',
                                           whiteSpace    : 'nowrap',
                                         }}>
-                                          <Truck size={9} style={{ color: '#1D4ED8' }} />
+                                          <Truck size={9} style={{ color: '#D97706' }} />
                                           รอส่งมอบ
                                         </span>
                                       </div>
@@ -1542,8 +1479,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                       <div className="flex items-center justify-center mx-auto" title={pendingTooltip}>
                                         <span 
                                           style={{
-                                            background: '#DBEAFE',
-                                            color: '#1D4ED8',
+                                            background: '#FEF3C7',
+                                            color: '#92400E',
+                                            border: '1px solid #FDE68A',
                                             fontSize: '10px',
                                             fontWeight: 600,
                                             borderRadius: '5px',
@@ -1573,8 +1511,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                       <div className="flex items-center justify-center gap-0.5 w-full" title={pendingTooltip}>
                                         <span
                                           style={{
-                                            background: '#DBEAFE',
-                                            color: '#1D4ED8',
+                                            background: '#FEF3C7',
+                                            color: '#92400E',
+                                            border: '1px solid #FDE68A',
                                             fontSize: '10px',
                                             fontWeight: 600,
                                             borderRadius: '5px',
@@ -1608,18 +1547,19 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px]" style={{ width: '96px', maxWidth: '96px' }}>
                                     {isPending ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden" title={pendingTooltip}>
-                                        <span className="text-[10px] font-bold text-[#1D4ED8] leading-tight truncate w-full" title={pendingInfo?.ordered_by}>
+                                        <span className="text-[10px] font-bold text-[#92400E] leading-tight truncate w-full" title={pendingInfo?.ordered_by}>
                                           {pendingInfo?.ordered_by || '—'}
                                         </span>
                                         {pendingInfo?.ordered_at && (
-                                          <span className="text-[9px] text-[#3B82F6] leading-tight truncate w-full" title={formatOrderDateTime(pendingInfo.ordered_at)}>
+                                          <span className="text-[9px] text-[#D97706] leading-tight truncate w-full" title={formatOrderDateTime(pendingInfo.ordered_at)}>
                                             {formatOrderDateTime(pendingInfo.ordered_at)}
                                           </span>
                                         )}
                                         <span 
                                           style={{
-                                            background: '#DBEAFE',
-                                            color: '#1D4ED8',
+                                            background: '#FEF3C7',
+                                            color: '#92400E',
+                                            border: '1px solid #FDE68A',
                                             fontSize: '9px',
                                             fontWeight: 600,
                                             borderRadius: '3px',
@@ -1631,7 +1571,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                             whiteSpace: 'nowrap',
                                           }}
                                         >
-                                          <Truck size={8} style={{ color: '#1D4ED8' }} />
+                                          <Truck size={8} style={{ color: '#D97706' }} />
                                           รอรับสินค้า
                                         </span>
                                       </div>
