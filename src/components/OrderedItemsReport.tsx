@@ -206,6 +206,22 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
     return `${formatDateThai(rangeStart)} – ${formatDateThai(rangeEnd)}`;
   }, [dateRangeMode, rangeStart, rangeEnd]);
 
+// Helper function to deduplicate orders by ingredient_id, keeping the latest record
+const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
+  const seen = new Map<string, OrderRecord>();
+  orders.forEach(order => {
+    const key = order.ingredient_id;
+    if (!key) return;
+    const existing = seen.get(key);
+    const orderTime = new Date(order.ordered_at || order.order_date || order.created_at || 0).getTime();
+    const existingTime = existing ? new Date(existing.ordered_at || existing.order_date || existing.created_at || 0).getTime() : 0;
+    if (!existing || orderTime > existingTime) {
+      seen.set(key, order);
+    }
+  });
+  return Array.from(seen.values());
+};
+
   // Load ordered items from localStorage and Supabase within the date range
   const fetchOrderedItems = useCallback(async () => {
     const currentBranch = branch || 'Rayong';
@@ -230,7 +246,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
       }
     };
 
-    const map: Record<string, OrderRecord> = {};
+    const localList: OrderRecord[] = [];
 
     // 1. Read from localStorage for immediate responsiveness and offline support
     try {
@@ -245,15 +261,19 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
             (isDateInRange(item.order_date) || isDateInRange(item.ordered_at) || isDateInRange(item.stock_date))
           )
           .forEach(item => {
-            const key = item.id || `${item.ingredient_id}_${item.order_date}_${item.ordered_at || ''}`;
-            map[key] = item;
+            localList.push(item);
           });
       }
     } catch (e) {
       console.warn('Error reading local purchasing orders:', e);
     }
 
-    setOrdersMap({ ...map });
+    const dedupedLocal = deduplicateOrders(localList);
+    const localMap: Record<string, OrderRecord> = {};
+    dedupedLocal.forEach(item => {
+      localMap[item.ingredient_id] = item;
+    });
+    setOrdersMap(localMap);
 
     // 2. Fetch from Supabase
     if (supabase) {
@@ -268,11 +288,16 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
           .lte('order_date', endStr);
 
         if (!error && data) {
-          data.forEach((item: OrderRecord) => {
-            const key = item.id || `${item.ingredient_id}_${item.order_date}_${item.ordered_at || ''}`;
-            map[key] = item;
+          const dedupedItems = deduplicateOrders(data);
+          console.log('Raw ordered items:', data?.length);
+          console.log('After dedup:', dedupedItems.length);
+          console.log('Duplicates found:', (data?.length || 0) - dedupedItems.length);
+
+          const finalMap: Record<string, OrderRecord> = {};
+          dedupedItems.forEach((item: OrderRecord) => {
+            finalMap[item.ingredient_id] = item;
           });
-          setOrdersMap({ ...map });
+          setOrdersMap(finalMap);
         } else if (error) {
           console.warn('Supabase order_date query error, fallback to ordered_at range:', error);
           const { data: altData } = await supabase
@@ -285,11 +310,16 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
             .lte('ordered_at', endISO);
 
           if (altData) {
-            altData.forEach((item: OrderRecord) => {
-              const key = item.id || `${item.ingredient_id}_${item.order_date}_${item.ordered_at || ''}`;
-              map[key] = item;
+            const dedupedItems = deduplicateOrders(altData);
+            console.log('Raw ordered items:', altData?.length);
+            console.log('After dedup:', dedupedItems.length);
+            console.log('Duplicates found:', (altData?.length || 0) - dedupedItems.length);
+
+            const finalMap: Record<string, OrderRecord> = {};
+            dedupedItems.forEach((item: OrderRecord) => {
+              finalMap[item.ingredient_id] = item;
             });
-            setOrdersMap({ ...map });
+            setOrdersMap(finalMap);
           }
         }
       } catch (supErr) {
@@ -351,10 +381,13 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
 
     // Match order records to ingredients
     const list: (Ingredient & { currentStock: number; suggestedOrder: number; order: OrderRecord })[] = [];
+    const seenIngredients = new Set<string>();
 
     // Loop over orderMap entries that have order_date and order_qty > 0
     (Object.values(ordersMap) as OrderRecord[]).forEach((order: OrderRecord) => {
       if (!order.order_date || !(Number(order.order_qty) > 0)) return;
+      if (seenIngredients.has(order.ingredient_id)) return;
+      seenIngredients.add(order.ingredient_id);
 
       const matchedIng = departmentIngredients.find(i => i.id === order.ingredient_id) 
         || (order.ingredients ? {
@@ -529,41 +562,41 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
       <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
         
         {/* ROW 1: Title block (left) + Date Range Selector (right) */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 w-full">
           
           {/* LEFT: Back Button + Title + Subtitle */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <button 
               onClick={handleBackClick}
               title="ย้อนกลับ"
-              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
+              className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
-              <ChevronLeft size={15} strokeWidth={2} />
+              <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
-              <PackageCheck size={18} />
+            <div className="w-10 h-10 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+              <PackageCheck size={20} />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center">
-                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-[16px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
                   รายการวัตถุดิบที่สั่งซื้อแล้ว
                 </h1>
                 {branch && (
-                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
+                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
                     สาขา {branch}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5 truncate">
                 รายการวัตถุดิบที่มีการบันทึกการสั่งซื้อแล้ว · {rangeDescription}
               </p>
             </div>
           </div>
 
           {/* RIGHT: Date Range Selector Group */}
-          <div className="flex flex-col items-start lg:items-end gap-1.5 shrink-0">
+          <div className="flex flex-col items-start md:items-end gap-1 shrink-0">
             {/* Quick Select Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={() => setDateRangeMode('7days')}
@@ -602,47 +635,47 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
               </button>
             </div>
 
-            {/* Custom Date Inputs (show only when dateRangeMode === 'custom') */}
-            {dateRangeMode === 'custom' && (
-              <div className="flex items-center gap-2 flex-wrap mt-1">
-                <span className="text-[12px] text-[#6B8F8E]">ตั้งแต่:</span>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
-                />
-                <span className="text-[12px] text-[#6B8F8E]">ถึง:</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
-                />
-                <button
-                  type="button"
-                  onClick={() => fetchOrderedItems()}
-                  disabled={!customStartDate || !customEndDate}
-                  className={cn(
-                    "flex items-center gap-1.5 text-[12px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-colors cursor-pointer",
-                    customStartDate && customEndDate
-                      ? "bg-[#5A8A88] text-white hover:bg-[#4a7270] shadow-xs"
-                      : "bg-[#D4E4E3] text-gray-400 cursor-not-allowed"
-                  )}
-                >
-                  <Search size={13} />
-                  <span>ดูข้อมูล</span>
-                </button>
-              </div>
-            )}
-
             {/* Active Range Display */}
-            <div className="text-[11px] text-[#6B8F8E] mt-0.5">
+            <div className="text-[11px] text-[#6B8F8E] mt-0.5 md:text-right">
               แสดงผล: {startDateTH} – {endDateTH} (พบ {filteredOrderedItems.length} รายการ)
             </div>
           </div>
 
         </div>
+
+        {/* Custom Date Inputs (show only when dateRangeMode === 'custom') */}
+        {dateRangeMode === 'custom' && (
+          <div className="flex items-center justify-end gap-2 flex-wrap pt-2.5 mt-2 border-t border-[#F0F5F4]">
+            <span className="text-[12px] text-[#6B8F8E]">ตั้งแต่:</span>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
+            />
+            <span className="text-[12px] text-[#6B8F8E]">ถึง:</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
+            />
+            <button
+              type="button"
+              onClick={() => fetchOrderedItems()}
+              disabled={!customStartDate || !customEndDate}
+              className={cn(
+                "flex items-center gap-1.5 text-[12px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-colors cursor-pointer",
+                customStartDate && customEndDate
+                  ? "bg-[#5A8A88] text-white hover:bg-[#4a7270] shadow-xs"
+                  : "bg-[#D4E4E3] text-gray-400 cursor-not-allowed"
+              )}
+            >
+              <Search size={13} />
+              <span>ดูข้อมูล</span>
+            </button>
+          </div>
+        )}
 
         {/* DIVIDER BETWEEN ROW 1 AND ROW 2 */}
         <div className="h-[1px] bg-[#F0F5F4] my-3 w-full" />
