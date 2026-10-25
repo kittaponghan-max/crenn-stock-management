@@ -16,7 +16,9 @@ import {
   X,
   Eye,
   Save,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  Truck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
@@ -40,6 +42,7 @@ interface PurchasingReportProps {
   ingredients: Ingredient[];
   stockRecord: Record<string, Record<string, number | { in?: number; out?: number; remaining?: number; waste?: number; usageInfo?: string }>>;
   onBack: () => void;
+  onNavigate?: (tab: string) => void;
   allowedDepartments?: ('Bar' | 'Bakery')[];
   branch?: string;
   user?: { name: string; role?: string };
@@ -51,10 +54,12 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   ingredients,
   stockRecord,
   onBack,
+  onNavigate,
   allowedDepartments = ['Bar', 'Bakery'],
   branch,
   user,
 }) => {
+  const currentBranch = branch || 'Rayong';
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
   const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>(initialDept);
@@ -63,6 +68,85 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // ─── PENDING DELIVERY STATE & HELPERS (STEP 1) ───
+  const [pendingOrderMap, setPendingOrderMap] = useState<Record<string, {
+    order_date: string;
+    order_qty: number;
+    order_unit: string;
+    ordered_by: string;
+    ordered_at: string;
+    delivered_at?: string;
+  }>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPendingOrders = async () => {
+      // 1. Instant fallback from localStorage
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) {
+          const list = JSON.parse(raw);
+          const localMap: Record<string, any> = {};
+          list.forEach((item: any) => {
+            if ((!item.branch || item.branch === currentBranch) && item.order_date && Number(item.order_qty) > 0 && !item.delivered_at) {
+              localMap[item.ingredient_id] = item;
+            }
+          });
+          if (isMounted && Object.keys(localMap).length > 0) {
+            setPendingOrderMap(localMap);
+          }
+        }
+      } catch {}
+
+      // 2. Fetch from Supabase purchasing_orders table
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('purchasing_orders')
+            .select('*')
+            .eq('branch', currentBranch)
+            .not('order_date', 'is', null)
+            .gt('order_qty', 0)
+            .is('delivered_at', null);
+
+          if (!error && data && isMounted) {
+            const map: Record<string, any> = {};
+            data.forEach((item: any) => {
+              map[item.ingredient_id] = item;
+            });
+            setPendingOrderMap(map);
+          }
+        } catch (e) {
+          console.warn('Error fetching pending orders from Supabase:', e);
+        }
+      }
+    };
+
+    fetchPendingOrders();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentBranch]);
+
+  const isPendingDelivery = (ingredientId: string): boolean => {
+    return !!pendingOrderMap[ingredientId];
+  };
+
+  const formatDisplayDate = (dStr?: string) => {
+    if (!dStr) return '';
+    try {
+      const parts = dStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      const d = new Date(dStr);
+      if (!isNaN(d.getTime())) {
+        return format(d, 'dd/MM/yyyy');
+      }
+    } catch {}
+    return dStr;
+  };
 
   // ─── ORDER TRACKING STATE & CURRENT USER ───
   const currentUser = useMemo(() => {
@@ -84,6 +168,56 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [supplierSaveState, setSupplierSaveState] = useState<Record<string, 'idle' | 'dirty' | 'saving' | 'saved'>>({});
+  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  const hasDirtySuppliers = useMemo(() => {
+    return Object.values(supplierSaveState)
+      .some(state => state === 'dirty');
+  }, [supplierSaveState]);
+
+  const dirtySupplierNames = useMemo(() => {
+    return Object.entries(supplierSaveState)
+      .filter(([_, state]) => state === 'dirty')
+      .map(([name, _]) => name);
+  }, [supplierSaveState]);
+
+  useEffect(() => {
+    const handleBeforeUnload =
+      (e: BeforeUnloadEvent) => {
+        if (hasDirtySuppliers) {
+          e.preventDefault();
+          e.returnValue =
+            'มีข้อมูลที่ยังไม่ได้บันทึก' +
+            ' ต้องการออกจากหน้านี้หรือไม่?';
+          return e.returnValue;
+        }
+      };
+
+    window.addEventListener(
+      'beforeunload', handleBeforeUnload
+    );
+
+    return () => {
+      window.removeEventListener(
+        'beforeunload', handleBeforeUnload
+      );
+    };
+  }, [hasDirtySuppliers]);
+
+  const handleNavigate = (tab: string) => {
+    if (hasDirtySuppliers) {
+      setPendingNavigation(tab);
+      setShowLeaveWarning(true);
+    } else {
+      if (onNavigate) {
+        onNavigate(tab);
+      } else {
+        onBack();
+      }
+    }
+  };
+
   const [previewImage, setPreviewImage] = useState<{
     url: string;
     title: string;
@@ -602,7 +736,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   };
 
   const handleBackClick = () => {
-    onBack();
+    handleNavigate('home');
   };
 
   const handleDateChange = (newDate: string) => {
@@ -805,6 +939,14 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     if (!selectedSupplier) return allPurchasesToMake.length;
     return allPurchasesToMake.filter(i => i.supplier === selectedSupplier).length;
   }, [allPurchasesToMake, selectedSupplier]);
+
+  const pendingInCurrentList = useMemo(() => {
+    return purchasesToMake.filter(item => isPendingDelivery(item.id)).length;
+  }, [purchasesToMake, pendingOrderMap]);
+
+  const totalPending = pendingInCurrentList > 0 
+    ? pendingInCurrentList 
+    : Object.keys(pendingOrderMap).length;
 
   return (
     <div className="flex flex-col h-full bg-[#F0F5F4] space-y-4 animate-in fade-in duration-300">
@@ -1053,6 +1195,64 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             <p className="text-[#6B8F8E] text-xs mt-1">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
           </div>
 
+          {/* STEP 7 — Page-level summary banner */}
+          {totalPending > 0 && (
+            <div
+              className="print:hidden"
+              style={{
+                backgroundColor: '#EFF8FF',
+                border: '1px solid #93C5FD',
+                borderLeft: '4px solid #3B82F6',
+                borderRadius: '10px',
+                padding: '10px 16px',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Truck size={18} style={{ color: '#3B82F6', flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: '#1D4ED8' }}>
+                  มี <strong>{totalPending}</strong> รายการที่สั่งซื้อแล้ว กำลังรอรับสินค้า — รายการเหล่านี้จะแสดงด้วย
+                  <span
+                    style={{
+                      background: '#DBEAFE',
+                      color: '#1D4ED8',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 600,
+                      marginLeft: '4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                    }}
+                  >
+                    <Truck size={10} style={{ color: '#1D4ED8' }} />
+                    รอส่งมอบ
+                  </span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleNavigate('orderedItems')}
+                style={{
+                  fontSize: '11px',
+                  color: '#2563EB',
+                  fontWeight: 600,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  textDecoration: 'underline',
+                }}
+              >
+                ดูรายการรอส่งมอบ →
+              </button>
+            </div>
+          )}
+
           {/* Empty State */}
           {purchasesToMake.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-10 text-center">
@@ -1125,6 +1325,25 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                         )}
                       </button>
 
+                      {allSupplierItems.filter(item => isPendingDelivery(item.id)).length > 0 && (
+                        <span 
+                          style={{
+                            background: '#DBEAFE',
+                            color: '#1D4ED8',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            borderRadius: '5px',
+                            padding: '3px 8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Truck size={10} />
+                          {allSupplierItems.filter(item => isPendingDelivery(item.id)).length} รอส่งมอบ
+                        </span>
+                      )}
+
                       <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
                         {totalItems} รายการ
                       </span>
@@ -1174,24 +1393,32 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                             {items.map((item, index) => {
                               const isLow = item.currentStock < item.minStock;
                               const isEven = index % 2 === 1;
+                              const isPending = isPendingDelivery(item.id);
+                              const pendingInfo = pendingOrderMap[item.id];
                               const order = orders[item.id];
-                              const orderDate = order?.order_date || '';
-                              const orderQty = order?.order_qty !== undefined ? order.order_qty : '';
+                              const orderDate = isPending ? (pendingInfo?.order_date || '') : (order?.order_date || '');
+                              const orderQty = isPending ? (pendingInfo?.order_qty ?? '') : (order?.order_qty !== undefined ? order.order_qty : '');
                               const isOrdered = Boolean(orderDate) && Number(orderQty) > 0;
                               const isChanged = changedItems.has(item.id);
+
+                              const pendingTooltip = isPending
+                                ? `รายการนี้สั่งซื้อแล้ว เมื่อ ${formatDisplayDate(pendingInfo?.order_date) || pendingInfo?.order_date}\nจำนวน ${pendingInfo?.order_qty} ${pendingInfo?.order_unit || item.unit}\nอยู่ระหว่างรอรับสินค้า ไม่สามารถสั่งซ้ำได้`
+                                : undefined;
 
                               return (
                                 <tr 
                                   key={item.id} 
                                   className={cn(
                                     "relative transition-colors border-b border-[#F0F5F4] text-[9.5px] font-normal",
-                                    isChanged
-                                      ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
-                                      : isOrdered 
-                                        ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
-                                        : isEven 
-                                          ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
-                                          : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
+                                    isPending
+                                      ? "bg-[#EFF8FF] border-l-[3px] border-l-[#3B82F6] hover:bg-[#DBEAFE]/50"
+                                      : isChanged
+                                        ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
+                                        : isOrdered 
+                                          ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
+                                          : isEven 
+                                            ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
+                                            : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
                                   )}
                                 >
                                   {/* Item Image */}
@@ -1248,6 +1475,26 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                         ยี่ห้อ: {item.brand}
                                       </div>
                                     )}
+                                    {isPending && (
+                                      <div>
+                                        <span style={{
+                                          display       : 'inline-flex',
+                                          alignItems    : 'center',
+                                          gap           : '4px',
+                                          background    : '#DBEAFE',
+                                          color         : '#1D4ED8',
+                                          fontSize      : '9px',
+                                          fontWeight    : 600,
+                                          borderRadius  : '4px',
+                                          padding       : '2px 6px',
+                                          marginTop     : '3px',
+                                          whiteSpace    : 'nowrap',
+                                        }}>
+                                          <Truck size={9} style={{ color: '#1D4ED8' }} />
+                                          รอส่งมอบ
+                                        </span>
+                                      </div>
+                                    )}
                                   </td>
 
                                   {/* Size / Unit */}
@@ -1291,35 +1538,104 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
                                   {/* COLUMN 1 — วันที่สั่งซื้อ */}
                                   <td className="px-0.5 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
-                                    <input 
-                                      type="date"
-                                      value={orderDate}
-                                      placeholder="เลือกวันที่"
-                                      onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit, supplier)}
-                                      className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer text-center mx-auto block"
-                                    />
+                                    {isPending ? (
+                                      <div className="flex items-center justify-center mx-auto" title={pendingTooltip}>
+                                        <span 
+                                          style={{
+                                            background: '#DBEAFE',
+                                            color: '#1D4ED8',
+                                            fontSize: '10px',
+                                            fontWeight: 600,
+                                            borderRadius: '5px',
+                                            padding: '3px 7px',
+                                            display: 'inline-block',
+                                            whiteSpace: 'nowrap',
+                                            cursor: 'not-allowed',
+                                          }}
+                                        >
+                                          {formatDisplayDate(pendingInfo?.order_date) || pendingInfo?.order_date || 'รอส่งมอบ'}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <input 
+                                        type="date"
+                                        value={orderDate}
+                                        placeholder="เลือกวันที่"
+                                        onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit, supplier)}
+                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer text-center mx-auto block"
+                                      />
+                                    )}
                                   </td>
 
                                   {/* COLUMN 2 — จำนวนที่สั่ง */}
                                   <td className="px-0.5 py-1 text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
-                                    <div className="flex items-center justify-center gap-0.5 w-full">
-                                      <input 
-                                        type="number"
-                                        min={0}
-                                        value={orderQty === 0 && !orderDate ? '' : orderQty}
-                                        placeholder="0"
-                                        onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit, supplier)}
-                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
-                                      />
-                                      <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[22px]" title={item.unit}>
-                                        {item.unit}
-                                      </span>
-                                    </div>
+                                    {isPending ? (
+                                      <div className="flex items-center justify-center gap-0.5 w-full" title={pendingTooltip}>
+                                        <span
+                                          style={{
+                                            background: '#DBEAFE',
+                                            color: '#1D4ED8',
+                                            fontSize: '10px',
+                                            fontWeight: 600,
+                                            borderRadius: '5px',
+                                            padding: '3px 6px',
+                                            display: 'inline-block',
+                                            whiteSpace: 'nowrap',
+                                            cursor: 'not-allowed',
+                                          }}
+                                        >
+                                          {pendingInfo?.order_qty} {pendingInfo?.order_unit || item.unit}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-center gap-0.5 w-full">
+                                        <input 
+                                          type="number"
+                                          min={0}
+                                          value={orderQty === 0 && !orderDate ? '' : orderQty}
+                                          placeholder="0"
+                                          onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit, supplier)}
+                                          className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                        />
+                                        <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[22px]" title={item.unit}>
+                                          {item.unit}
+                                        </span>
+                                      </div>
+                                    )}
                                   </td>
 
                                   {/* COLUMN 3 — ผู้สั่งซื้อ */}
                                   <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px]" style={{ width: '96px', maxWidth: '96px' }}>
-                                    {order?.ordered_by ? (
+                                    {isPending ? (
+                                      <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden" title={pendingTooltip}>
+                                        <span className="text-[10px] font-bold text-[#1D4ED8] leading-tight truncate w-full" title={pendingInfo?.ordered_by}>
+                                          {pendingInfo?.ordered_by || '—'}
+                                        </span>
+                                        {pendingInfo?.ordered_at && (
+                                          <span className="text-[9px] text-[#3B82F6] leading-tight truncate w-full" title={formatOrderDateTime(pendingInfo.ordered_at)}>
+                                            {formatOrderDateTime(pendingInfo.ordered_at)}
+                                          </span>
+                                        )}
+                                        <span 
+                                          style={{
+                                            background: '#DBEAFE',
+                                            color: '#1D4ED8',
+                                            fontSize: '9px',
+                                            fontWeight: 600,
+                                            borderRadius: '3px',
+                                            padding: '2px 5px',
+                                            marginTop: '2px',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                            whiteSpace: 'nowrap',
+                                          }}
+                                        >
+                                          <Truck size={8} style={{ color: '#1D4ED8' }} />
+                                          รอรับสินค้า
+                                        </span>
+                                      </div>
+                                    ) : order?.ordered_by ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
                                         <span className="text-[10px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
                                           {order.ordered_by}
@@ -1452,6 +1768,156 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                 ปิดหน้าต่าง
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Leave Warning Modal */}
+      {showLeaveWarning && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 250,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            padding: '28px 24px',
+            maxWidth: '380px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          }}>
+
+            {/* Icon */}
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: '#FEF3C7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <AlertTriangle
+                size={26}
+                style={{ color: '#F59E0B' }}
+              />
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: 700,
+              color: '#2D4A49',
+              textAlign: 'center',
+              margin: '0 0 8px',
+            }}>
+              มีข้อมูลที่ยังไม่ได้บันทึก
+            </h3>
+
+            {/* Body */}
+            <p style={{
+              fontSize: '12px',
+              color: '#6B8F8E',
+              textAlign: 'center',
+              lineHeight: 1.5,
+              margin: '0 0 12px',
+            }}>
+              ผู้จัดจำหน่ายต่อไปนี้มีข้อมูลที่
+              ยังไม่ได้บันทึก:
+            </p>
+
+            {/* Dirty supplier list */}
+            <div style={{
+              background: '#FEF3C7',
+              border: '1px solid #FDE68A',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '20px',
+            }}>
+              {dirtySupplierNames.map(name => (
+                <div key={name} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#92400E',
+                  padding: '2px 0',
+                }}>
+                  <span style={{ color: '#F59E0B' }}>
+                    ●
+                  </span>
+                  {name}
+                </div>
+              ))}
+            </div>
+
+            {/* Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+            }}>
+
+              {/* Leave without saving */}
+              <button
+                onClick={() => {
+                  setShowLeaveWarning(false);
+                  if (pendingNavigation) {
+                    if (onNavigate) {
+                      onNavigate(pendingNavigation);
+                    } else {
+                      onBack();
+                    }
+                    setPendingNavigation(null);
+                  } else {
+                    onBack();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: '10px',
+                  border: '1px solid #FCA5A5',
+                  background: '#FEE2E2',
+                  color: '#EF4444',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                ออกโดยไม่บันทึก
+              </button>
+
+              {/* Stay on page */}
+              <button
+                onClick={() => {
+                  setShowLeaveWarning(false);
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: '10px',
+                  border: '1px solid #D4E4E3',
+                  background: '#F0F5F4',
+                  color: '#6B8F8E',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                ยังอยู่หน้านี้
+              </button>
+
+            </div>
+
           </div>
         </div>
       )}
