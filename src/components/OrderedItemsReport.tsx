@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { 
   ChevronLeft, 
@@ -15,7 +15,8 @@ import {
   X, 
   Eye, 
   ShoppingCart,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
@@ -47,6 +48,7 @@ export interface OrderedItemsReportProps {
 }
 
 type DepartmentFilter = 'All' | 'Bar' | 'Bakery';
+export type DateRangeMode = '7days' | '30days' | 'custom';
 
 export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   user,
@@ -57,7 +59,9 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   stockRecord = {},
   allowedDepartments = ['Bar', 'Bakery'],
 }) => {
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [dateRangeMode, setDateRangeMode] = useState<DateRangeMode>('7days');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const initialDept = allowedDepartments.length === 2 ? 'All' : allowedDepartments[0] || 'All';
   const [activeDepartment, setActiveDepartment] = useState<DepartmentFilter>(initialDept);
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
@@ -131,6 +135,12 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
     }
   };
 
+  // Format Thai date for Date object: e.g. "21 ต.ค. 2026"
+  const formatDateThai = (d: Date) => {
+    const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
   // Format Thai date for read-only order date: e.g. "21 ต.ค. 2026"
   const formatThaiDate = (dateStr?: string) => {
     if (!dateStr) return '-';
@@ -153,93 +163,149 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
     }
   };
 
-  // Load ordered items from localStorage and Supabase
-  useEffect(() => {
+  // Function to calculate start and end of date range
+  const getDateRange = useCallback(() => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    if (dateRangeMode === '7days') {
+      const start = new Date(today);
+      start.setDate(today.getDate() - 6); // includes today = 7 days
+      start.setHours(0, 0, 0, 0);
+      return { start, end: today };
+    }
+
+    if (dateRangeMode === '30days') {
+      const start = new Date(today);
+      start.setDate(today.getDate() - 29); // includes today = 30 days
+      start.setHours(0, 0, 0, 0);
+      return { start, end: today };
+    }
+
+    if (dateRangeMode === 'custom') {
+      const start = customStartDate 
+        ? new Date(customStartDate + 'T00:00:00') 
+        : new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000);
+      const end = customEndDate 
+        ? new Date(customEndDate + 'T23:59:59') 
+        : today;
+      return { start, end };
+    }
+
+    return { start: today, end: today };
+  }, [dateRangeMode, customStartDate, customEndDate]);
+
+  const { start: rangeStart, end: rangeEnd } = getDateRange();
+  const startDateTH = formatDateThai(rangeStart);
+  const endDateTH = formatDateThai(rangeEnd);
+
+  // Dynamic description for subtitle
+  const rangeDescription = useMemo(() => {
+    if (dateRangeMode === '7days') return '7 วันย้อนหลัง';
+    if (dateRangeMode === '30days') return '30 วันย้อนหลัง';
+    return `${formatDateThai(rangeStart)} – ${formatDateThai(rangeEnd)}`;
+  }, [dateRangeMode, rangeStart, rangeEnd]);
+
+  // Load ordered items from localStorage and Supabase within the date range
+  const fetchOrderedItems = useCallback(async () => {
     const currentBranch = branch || 'Rayong';
-    let isMounted = true;
     setIsLoading(true);
 
-    const loadOrders = async () => {
-      const map: Record<string, OrderRecord> = {};
+    const { start, end } = getDateRange();
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
+    const startISO = start.toISOString();
+    const endISO = end.toISOString();
 
-      // 1. Read from localStorage for immediate responsiveness and offline support
+    const isDateInRange = (dateVal?: string) => {
+      if (!dateVal) return false;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+        return dateVal >= startStr && dateVal <= endStr;
+      }
       try {
-        const raw = localStorage.getItem('cafe_purchasing_orders');
-        if (raw) {
-          const list: OrderRecord[] = JSON.parse(raw);
-          list
-            .filter(item => 
-              (!item.branch || item.branch === currentBranch) &&
-              (item.stock_date === selectedDate || item.order_date === selectedDate) &&
-              Boolean(item.order_date) &&
-              Number(item.order_qty) > 0
-            )
-            .forEach(item => {
-              map[item.ingredient_id] = item;
-            });
-        }
-      } catch (e) {
-        console.warn('Error reading local purchasing orders:', e);
+        const t = new Date(dateVal).getTime();
+        return !isNaN(t) && t >= start.getTime() && t <= end.getTime();
+      } catch {
+        return false;
       }
+    };
 
-      if (isMounted) {
-        setOrdersMap({ ...map });
+    const map: Record<string, OrderRecord> = {};
+
+    // 1. Read from localStorage for immediate responsiveness and offline support
+    try {
+      const raw = localStorage.getItem('cafe_purchasing_orders');
+      if (raw) {
+        const list: OrderRecord[] = JSON.parse(raw);
+        list
+          .filter(item => 
+            (!item.branch || item.branch === currentBranch) &&
+            Boolean(item.order_date) &&
+            Number(item.order_qty) > 0 &&
+            (isDateInRange(item.order_date) || isDateInRange(item.ordered_at) || isDateInRange(item.stock_date))
+          )
+          .forEach(item => {
+            const key = item.id || `${item.ingredient_id}_${item.order_date}_${item.ordered_at || ''}`;
+            map[key] = item;
+          });
       }
+    } catch (e) {
+      console.warn('Error reading local purchasing orders:', e);
+    }
 
-      // 2. Fetch from Supabase
-      if (supabase) {
-        try {
-          // Attempt query with join or without
-          const { data, error } = await supabase
+    setOrdersMap({ ...map });
+
+    // 2. Fetch from Supabase
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('purchasing_orders')
+          .select('*')
+          .eq('branch', currentBranch)
+          .not('order_date', 'is', null)
+          .gt('order_qty', 0)
+          .gte('order_date', startStr)
+          .lte('order_date', endStr);
+
+        if (!error && data) {
+          data.forEach((item: OrderRecord) => {
+            const key = item.id || `${item.ingredient_id}_${item.order_date}_${item.ordered_at || ''}`;
+            map[key] = item;
+          });
+          setOrdersMap({ ...map });
+        } else if (error) {
+          console.warn('Supabase order_date query error, fallback to ordered_at range:', error);
+          const { data: altData } = await supabase
             .from('purchasing_orders')
             .select('*')
             .eq('branch', currentBranch)
-            .or(`stock_date.eq.${selectedDate},order_date.eq.${selectedDate}`)
             .not('order_date', 'is', null)
-            .gt('order_qty', 0);
+            .gt('order_qty', 0)
+            .gte('ordered_at', startISO)
+            .lte('ordered_at', endISO);
 
-          if (!error && data && isMounted) {
-            data.forEach((item: OrderRecord) => {
-              map[item.ingredient_id] = item;
+          if (altData) {
+            altData.forEach((item: OrderRecord) => {
+              const key = item.id || `${item.ingredient_id}_${item.order_date}_${item.ordered_at || ''}`;
+              map[key] = item;
             });
             setOrdersMap({ ...map });
-          } else if (error && (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist'))) {
-            // Check app_settings backup if table not in schema cache
-            try {
-              const { data: sData } = await supabase
-                .from('app_settings')
-                .select('setting_value')
-                .eq('setting_key', `purchasing_orders_${currentBranch}_${selectedDate}`)
-                .maybeSingle();
-
-              if (sData?.setting_value && Array.isArray(sData.setting_value) && isMounted) {
-                sData.setting_value.forEach((item: OrderRecord) => {
-                  if (item.order_date && Number(item.order_qty) > 0) {
-                    map[item.ingredient_id] = item;
-                  }
-                });
-                setOrdersMap({ ...map });
-              }
-            } catch (backupErr) {
-              console.warn('app_settings read warning:', backupErr);
-            }
           }
-        } catch (supErr) {
-          console.warn('Supabase fetch error:', supErr);
         }
+      } catch (supErr) {
+        console.warn('Supabase fetch error:', supErr);
       }
+    }
 
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(false);
+  }, [branch, getDateRange]);
 
-    loadOrders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [branch, selectedDate]);
+  // Auto-fetch on branch change or dateRangeMode change (for 7days and 30days)
+  useEffect(() => {
+    if (dateRangeMode !== 'custom') {
+      fetchOrderedItems();
+    }
+  }, [branch, dateRangeMode, fetchOrderedItems]);
 
   // Build ordered items list with merged ingredient details
   const orderedItemList = useMemo(() => {
@@ -253,11 +319,12 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
       ? allowedIngs 
       : allowedIngs.filter(ing => ing.department === activeDepartment);
 
-    // Calculate current stock from stockRecord
+    // Calculate current stock from stockRecord up to rangeEnd date
+    const endStr = format(rangeEnd, 'yyyy-MM-dd');
     const sortedDatesAsc = Object.keys(stockRecord).sort();
     const currentRemaining: Record<string, number> = {};
     sortedDatesAsc.forEach(dateKey => {
-      if (dateKey > selectedDate) return;
+      if (dateKey > endStr) return;
       departmentIngredients.forEach(ing => {
         const id = ing.id;
         const val = stockRecord[dateKey]?.[id];
@@ -322,7 +389,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
       if (a.supplier !== b.supplier) return (a.supplier || '').localeCompare(b.supplier || '');
       return a.name.localeCompare(b.name);
     });
-  }, [ingredients, ordersMap, stockRecord, selectedDate, activeDepartment, allowedDepartments, branch]);
+  }, [ingredients, ordersMap, stockRecord, rangeEnd, activeDepartment, allowedDepartments, branch]);
 
   // Suppliers list derived from ordered items
   const suppliers = useMemo(() => {
@@ -377,6 +444,9 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
 
   // Export to Excel (.xlsx)
   const exportExcel = () => {
+    const { start, end } = getDateRange();
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
     const data = filteredOrderedItems.map(item => {
       const order = item.order;
       return {
@@ -398,7 +468,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Ordered Items');
-    XLSX.writeFile(wb, `Ordered_Items_${selectedDate}.xlsx`);
+    XLSX.writeFile(wb, `Ordered_Items_${startStr}_to_${endStr}.xlsx`);
   };
 
   // Export to PDF / Print
@@ -441,7 +511,10 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
         heightLeft -= pageHeight;
       }
 
-      pdf.save(`Ordered_Items_${selectedDate}.pdf`);
+      const { start, end } = getDateRange();
+      const startStr = format(start, 'yyyy-MM-dd');
+      const endStr = format(end, 'yyyy-MM-dd');
+      pdf.save(`Ordered_Items_${startStr}_to_${endStr}.pdf`);
     } catch (error) {
       console.warn('Error generating PDF:', error);
       alert('เกิดข้อผิดพลาดในการสร้างไฟล์ PDF โปรดลองอีกครั้ง');
@@ -455,8 +528,8 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
         
-        {/* ROW 1: Title block (left) + Date Selector (right) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+        {/* ROW 1: Title block (left) + Date Range Selector (right) */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full">
           
           {/* LEFT: Back Button + Title + Subtitle */}
           <div className="flex items-center gap-2.5">
@@ -482,21 +555,90 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
                 )}
               </div>
               <p className="text-[11px] text-[#6B8F8E] mt-0.5">
-                รายการวัตถุดิบที่มีการบันทึกการสั่งซื้อแล้ว
+                รายการวัตถุดิบที่มีการบันทึกการสั่งซื้อแล้ว · {rangeDescription}
               </p>
             </div>
           </div>
 
-          {/* RIGHT: Date Selector */}
-          <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
-            <div className="flex items-center gap-1.5 bg-white px-2.5 h-[32px] rounded-[8px] border border-[#D4E4E3] shadow-2xs hover:bg-[#F0F5F4] transition-colors">
-              <Calendar size={13} className="text-[#5A8A88] shrink-0" />
-              <input 
-                type="date" 
-                className="bg-transparent border-none focus:outline-none text-[11px] font-medium text-[#2D4A49] cursor-pointer"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
+          {/* RIGHT: Date Range Selector Group */}
+          <div className="flex flex-col items-start lg:items-end gap-1.5 shrink-0">
+            {/* Quick Select Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setDateRangeMode('7days')}
+                className={cn(
+                  "text-[12px] rounded-[8px] px-3.5 py-[7px] cursor-pointer transition-all",
+                  dateRangeMode === '7days'
+                    ? "bg-[#5A8A88] text-white font-[600] shadow-xs border-none"
+                    : "bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:bg-[#E8F3F2]"
+                )}
+              >
+                7 วัน
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateRangeMode('30days')}
+                className={cn(
+                  "text-[12px] rounded-[8px] px-3.5 py-[7px] cursor-pointer transition-all",
+                  dateRangeMode === '30days'
+                    ? "bg-[#5A8A88] text-white font-[600] shadow-xs border-none"
+                    : "bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:bg-[#E8F3F2]"
+                )}
+              >
+                1 เดือน
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateRangeMode('custom')}
+                className={cn(
+                  "text-[12px] rounded-[8px] px-3.5 py-[7px] cursor-pointer transition-all",
+                  dateRangeMode === 'custom'
+                    ? "bg-[#5A8A88] text-white font-[600] shadow-xs border-none"
+                    : "bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:bg-[#E8F3F2]"
+                )}
+              >
+                กำหนดเอง
+              </button>
+            </div>
+
+            {/* Custom Date Inputs (show only when dateRangeMode === 'custom') */}
+            {dateRangeMode === 'custom' && (
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                <span className="text-[12px] text-[#6B8F8E]">ตั้งแต่:</span>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
+                />
+                <span className="text-[12px] text-[#6B8F8E]">ถึง:</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
+                />
+                <button
+                  type="button"
+                  onClick={() => fetchOrderedItems()}
+                  disabled={!customStartDate || !customEndDate}
+                  className={cn(
+                    "flex items-center gap-1.5 text-[12px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-colors cursor-pointer",
+                    customStartDate && customEndDate
+                      ? "bg-[#5A8A88] text-white hover:bg-[#4a7270] shadow-xs"
+                      : "bg-[#D4E4E3] text-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  <Search size={13} />
+                  <span>ดูข้อมูล</span>
+                </button>
+              </div>
+            )}
+
+            {/* Active Range Display */}
+            <div className="text-[11px] text-[#6B8F8E] mt-0.5">
+              แสดงผล: {startDateTH} – {endDateTH} (พบ {filteredOrderedItems.length} รายการ)
             </div>
           </div>
 
@@ -692,7 +834,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
           {/* Printable Header */}
           <div className="hidden print:block text-center mb-6">
             <h1 className="text-xl font-black text-[#2D4A49]">รายการวัตถุดิบที่สั่งซื้อแล้ว (Ordered Items Report)</h1>
-            <p className="text-[#6B8F8E] text-xs mt-1">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
+            <p className="text-[#6B8F8E] text-xs mt-1">ช่วงวันที่ {startDateTH} – {endDateTH}</p>
           </div>
 
           {isLoading ? (
@@ -941,7 +1083,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
                   <h4 className="text-[13px] font-bold text-[#2D4A49]">สรุปรายการที่สั่งซื้อแล้ว</h4>
-                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">ประจำวันที่ {format(new Date(selectedDate), 'dd/MM/yyyy')}</p>
+                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">ช่วงวันที่ {startDateTH} – {endDateTH}</p>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center sm:text-right">
