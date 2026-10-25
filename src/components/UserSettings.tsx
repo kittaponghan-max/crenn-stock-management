@@ -433,11 +433,107 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
 
 interface UserSettingsProps {
   branch?: string;
-  currentUser?: { name: string; role: UserRole; permissions?: AppPermissions };
+  currentUser?: { name: string; role: UserRole | string; permissions?: AppPermissions | any };
+  user?: { name: string; role: UserRole | string; permissions?: AppPermissions | any };
   onCurrentUserUpdated?: (user: { name: string; role: UserRole; permissions?: AppPermissions }) => void;
+  onNavigate?: (tab: any) => void;
 }
 
-export function UserSettings({ currentUser, onCurrentUserUpdated, branch }: UserSettingsProps) {
+export function UserSettings(props: UserSettingsProps) {
+  const isAuthorized = (): boolean => {
+    if (!props.user && !props.currentUser) return false;
+    const u = props.currentUser || props.user;
+    if (!u) return false;
+
+    // Roles that can always access
+    const adminRoles = [
+      'ADMIN',
+      'CO-FOUNDER',
+      'OWNER',
+    ];
+    const userRole = (u.role || '').toUpperCase();
+    if (adminRoles.includes(userRole)) {
+      return true;
+    }
+
+    // Explicit permission granted
+    if (
+      (u.permissions as any)?.userSettings === 'edit' ||
+      (u.permissions as any)?.adminTools === 'Edit'
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  if (!isAuthorized()) {
+    return (
+      <div style={{
+        padding: '48px 24px',
+        textAlign: 'center',
+        background: '#FAF8F5',
+        minHeight: '60vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <div style={{
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: '#FEE2E2',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+          fontSize: 24,
+        }}>
+          🔒
+        </div>
+        <div style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: '#2D4A49',
+          marginBottom: 8,
+        }}>
+          ไม่มีสิทธิ์เข้าถึงหน้านี้
+        </div>
+        <div style={{
+          fontSize: 13,
+          color: '#6B8F8E',
+          maxWidth: 360,
+          lineHeight: 1.6,
+          marginBottom: 24,
+        }}>
+          หน้านี้สำหรับผู้ดูแลระบบเท่านั้น
+          กรุณาติดต่อ Admin หรือ Co-founder
+          หากต้องการเข้าถึง
+        </div>
+        <button
+          onClick={() => props.onNavigate?.('home')}
+          style={{
+            background: '#5A8A88',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            padding: '10px 24px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          กลับหน้าหลัก
+        </button>
+      </div>
+    );
+  }
+
+  return <UserSettingsContent {...props} />;
+}
+
+function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavigate }: UserSettingsProps) {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
