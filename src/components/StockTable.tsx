@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { Ingredient, StockRecord, CATEGORIES } from '../types';
 import { format, isSameDay, startOfWeek, addDays, subDays, differenceInDays } from 'date-fns';
 import { 
@@ -20,6 +20,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 import { 
   useObsoleteIngredients, 
   isIngredientActive, 
@@ -71,7 +72,73 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
   // Obsolete / Hidden ingredients state
   const obsoleteMap = useObsoleteIngredients();
-  const [showObsolete, setShowObsolete] = useState(false);
+  const [dbActiveMap, setDbActiveMap] = useState<Record<string, boolean>>({});
+
+  // STEP 2: showObsolete defaults to false, uses sessionStorage (resets when user opens new tab/session)
+  const [showObsolete, setShowObsolete] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('showObsolete');
+        return saved === 'true';
+      } catch {}
+    }
+    return false;
+  });
+
+  const handleShowObsoleteChange = useCallback((checked: boolean) => {
+    setShowObsolete(checked);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('showObsolete', String(checked));
+      } catch {}
+    }
+  }, []);
+
+  // STEP 4: Reset when component mounts so showObsolete is always false on fresh navigation
+  useEffect(() => {
+    setShowObsolete(false);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('showObsolete');
+      } catch {}
+    }
+  }, []);
+
+  // STEP 3: Sync is_active from Supabase directly to ensure state survives page refresh & navigation
+  useEffect(() => {
+    let isMounted = true;
+    if (supabase) {
+      supabase
+        .from('ingredients')
+        .select('id, is_active, inactive_reason, inactive_at')
+        .then(({ data, error }) => {
+          if (isMounted && !error && data) {
+            const map: Record<string, boolean> = {};
+            data.forEach(row => {
+              if (row.is_active !== null && row.is_active !== undefined) {
+                map[String(row.id)] = Boolean(row.is_active);
+                if (row.is_active === false) {
+                  setLocalObsoleteStatus(String(row.id), false, row.inactive_reason);
+                }
+              }
+            });
+            setDbActiveMap(map);
+          }
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const isItemActive = useCallback((item: { id: string; is_active?: boolean }) => {
+    const id = String(item.id);
+    if (dbActiveMap[id] !== undefined) {
+      return dbActiveMap[id];
+    }
+    return isIngredientActive(item, obsoleteMap);
+  }, [dbActiveMap, obsoleteMap]);
+
   const [itemToObsolete, setItemToObsolete] = useState<Ingredient | null>(null);
   const [obsoleteReason, setObsoleteReason] = useState('');
   const [itemToRestore, setItemToRestore] = useState<Ingredient | null>(null);
@@ -79,15 +146,25 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
   const [schemaWarning, setSchemaWarning] = useState<string | null>(null);
   const [isObsoleteListExpanded, setIsObsoleteListExpanded] = useState(false);
 
+  // STEP 3: visibleIngredients filters based on is_active / isItemActive
+  const visibleIngredients = useMemo(() => {
+    if (showObsolete) {
+      return ingredients || [];
+    }
+    return (ingredients || []).filter(item => isItemActive(item));
+  }, [ingredients, showObsolete, isItemActive]);
+
   const hiddenIngredients = useMemo(() => {
-    return ingredients.filter(ing => !isIngredientActive(ing, obsoleteMap));
-  }, [ingredients, obsoleteMap]);
+    return (ingredients || []).filter(ing => !isItemActive(ing));
+  }, [ingredients, isItemActive]);
 
   const handleConfirmObsolete = async () => {
     if (!itemToObsolete) return;
+    const itemId = String(itemToObsolete.id);
     setIsSubmittingObsolete(true);
-    setLocalObsoleteStatus(itemToObsolete.id, false, obsoleteReason);
-    const { schemaMissing } = await syncObsoleteToSupabase(itemToObsolete.id, false, obsoleteReason);
+    setDbActiveMap(prev => ({ ...prev, [itemId]: false }));
+    setLocalObsoleteStatus(itemId, false, obsoleteReason);
+    const { schemaMissing } = await syncObsoleteToSupabase(itemId, false, obsoleteReason);
     if (schemaMissing) {
       setSchemaWarning(SCHEMA_MISSING_MESSAGE);
     }
@@ -98,9 +175,11 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
   const handleConfirmRestore = async () => {
     if (!itemToRestore) return;
+    const itemId = String(itemToRestore.id);
     setIsSubmittingObsolete(true);
-    setLocalObsoleteStatus(itemToRestore.id, true);
-    const { schemaMissing } = await syncObsoleteToSupabase(itemToRestore.id, true);
+    setDbActiveMap(prev => ({ ...prev, [itemId]: true }));
+    setLocalObsoleteStatus(itemId, true);
+    const { schemaMissing } = await syncObsoleteToSupabase(itemId, true);
     if (schemaMissing) {
       setSchemaWarning(SCHEMA_MISSING_MESSAGE);
     }
@@ -160,14 +239,12 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
 
   // Group ingredients by category (excluding obsolete unless showObsolete is checked)
   const groupedIngredients = useMemo<Record<string, Ingredient[]>>(() => {
-    return ingredients
-      .filter(ing => showObsolete || isIngredientActive(ing, obsoleteMap))
-      .reduce((acc, ing) => {
-        if (!acc[ing.category]) acc[ing.category] = [];
-        acc[ing.category].push(ing);
-        return acc;
-      }, {} as Record<string, Ingredient[]>);
-  }, [ingredients, showObsolete, obsoleteMap]);
+    return visibleIngredients.reduce((acc, ing) => {
+      if (!acc[ing.category]) acc[ing.category] = [];
+      acc[ing.category].push(ing);
+      return acc;
+    }, {} as Record<string, Ingredient[]>);
+  }, [visibleIngredients]);
 
   const baseColsCount = 
     (showManageCol ? 1 : 0) + 
@@ -206,22 +283,50 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             ผู้จัดจำหน่าย
           </label>
           <div className="h-3.5 w-px bg-[#D4E4E3] mx-1 hidden sm:block" />
-          <label className="flex items-center gap-1.5 text-[11px] text-[#2D4A49] font-medium cursor-pointer hover:text-[#5A8A88] select-none">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input 
               type="checkbox" 
+              id="showObsolete"
               checked={showObsolete} 
-              onChange={(e) => setShowObsolete(e.target.checked)} 
-              className="rounded border-[#D4E4E3] text-[#5A8A88] focus:ring-[#5A8A88] accent-[#5A8A88]" 
+              onChange={(e) => handleShowObsoleteChange(e.target.checked)} 
+              className="rounded border-[#D4E4E3] text-[#F59E0B] focus:ring-[#F59E0B] accent-[#F59E0B] cursor-pointer" 
+              style={{ accentColor: '#F59E0B' }}
             />
-            <span className="flex items-center gap-1">
+            <label 
+              htmlFor="showObsolete"
+              style={{
+                fontSize: '11px',
+                color: showObsolete ? '#92400E' : '#6B8F8E',
+                cursor: 'pointer',
+                userSelect: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
               แสดงรายการที่ซ่อน (Obsolete)
               {hiddenIngredients.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold border border-amber-200">
                   {hiddenIngredients.length}
                 </span>
               )}
-            </span>
-          </label>
+              {showObsolete && (
+                <span 
+                  style={{
+                    marginLeft: '6px',
+                    fontSize: '10px',
+                    background: '#FEF3C7',
+                    color: '#92400E',
+                    borderRadius: '4px',
+                    padding: '1px 5px',
+                    fontWeight: 600,
+                  }}
+                >
+                  กำลังแสดงรายการที่ซ่อน
+                </span>
+              )}
+            </label>
+          </div>
         </div>
 
         {isAdmin && (
@@ -392,7 +497,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                 </td>
               </tr>
               {items.map((item, index) => {
-                const isObsolete = !isIngredientActive(item, obsoleteMap);
+                const isObsolete = !isItemActive(item);
                 return (
                 <tr key={item.id} className={cn(
                   "group transition-colors border-b border-[#D4E4E3]",
