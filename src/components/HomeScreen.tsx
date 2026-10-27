@@ -92,7 +92,20 @@ export function HomeScreen({
     delivered_at?: string | null;
     status?: string;
     ingredient?: Ingredient | null;
-  }[]>([]);
+  }[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('cafe_purchasing_orders');
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            return list.filter(o => Boolean(o.order_date) && Number(o.order_qty) > 0 && !o.delivered_at && o.status !== 'delivered');
+          }
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [dbIngredientsMap, setDbIngredientsMap] = useState<Record<string, Ingredient>>({});
   const [schemaNotice, setSchemaNotice] = useState<string | null>(null);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState<boolean>(false);
@@ -820,6 +833,42 @@ export function HomeScreen({
   }, [pendingOrders, resolveIngredientInfo, locationFilter, obsoleteMap, deduplicatePendingOrders]);
 
   const pendingDelivery = pendingDeliveryList.length;
+
+  // Map of active pending orders by ingredient_id for alert badges (รอส่งมอบ)
+  const pendingOrderMap = useMemo(() => {
+    const map: Record<string, {
+      order_qty: number;
+      order_date: string;
+      order_unit: string;
+      ordered_at: string;
+    }> = {};
+
+    pendingOrders.forEach(order => {
+      const ingId = String(order.ingredient_id || '');
+      if (!ingId) return;
+      if (!order.order_qty || Number(order.order_qty) <= 0) return;
+      if (order.delivered_at || order.status === 'delivered') return;
+
+      const existing = map[ingId];
+      const orderTime = new Date(order.ordered_at || order.order_date || 0).getTime();
+      const existingTime = existing ? new Date(existing.ordered_at || existing.order_date || 0).getTime() : 0;
+
+      if (!existing || orderTime >= existingTime) {
+        const orderInfo = {
+          order_qty: Number(order.order_qty),
+          order_date: order.order_date || '',
+          order_unit: order.order_unit || (order.ingredient as any)?.unit || '',
+          ordered_at: order.ordered_at || order.order_date || ''
+        };
+        map[ingId] = orderInfo;
+        if (order.ingredient_id) {
+          map[String(order.ingredient_id)] = orderInfo;
+        }
+      }
+    });
+
+    return map;
+  }, [pendingOrders]);
 
   // Calculate current stock levels for filtered ingredients
   const stockData = useMemo(() => {
@@ -1753,11 +1802,20 @@ export function HomeScreen({
                     const isPendingKpi = activeKPI === 'pending_delivery';
                     const orderDateStr = order?.ordered_at || order?.order_date;
                     const info = resolved || resolveIngredientInfo(order, ing);
+                    const ingId = String(ing?.id || info?.bestIng?.id || order?.ingredient_id || '');
+                    const pendingInfo = !isPendingKpi && ingId ? (pendingOrderMap[ingId] || (ing?.id ? pendingOrderMap[ing.id] : undefined)) : undefined;
 
                     return (
-                      <div key={`${ing?.id || order?.id || order?.ingredient_id || index}-${index}`} className="py-2.5 flex items-center justify-between gap-2.5 hover:bg-[#F0F5F4]/50 px-1 rounded-lg transition-colors">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      <div 
+                        key={`${ing?.id || order?.id || order?.ingredient_id || index}-${index}`} 
+                        className={`py-2.5 flex items-start justify-between gap-2.5 transition-colors ${
+                          pendingInfo 
+                            ? 'bg-[#FFF7ED] border-l-2 border-[#F59E0B] px-2 rounded-r-lg' 
+                            : 'hover:bg-[#F0F5F4]/50 px-1 rounded-lg'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                             remaining <= 0 
                               ? 'bg-rose-50 text-rose-500' 
                               : remaining <= (info.minStock ?? 0) 
@@ -1778,10 +1836,18 @@ export function HomeScreen({
                                 สั่งเมื่อ: {formatOrderDateTime(orderDateStr)}
                               </p>
                             )}
+                            {pendingInfo && (
+                              <div
+                                className="inline-flex items-center gap-1 px-[7px] py-[2px] rounded-[5px] border border-[#FED7AA] bg-[#FFF7ED] text-[#C2410C] text-[10px] font-semibold mt-[3px] w-fit whitespace-nowrap shadow-2xs"
+                                title={`สั่งซื้อเมื่อ: ${formatOrderDateTime(pendingInfo.ordered_at || pendingInfo.order_date)} จำนวน: ${pendingInfo.order_qty} ${pendingInfo.order_unit || info.unit || 'หน่วย'} วันที่สั่ง: ${pendingInfo.order_date}`}
+                              >
+                                <span>🚚 สั่งซื้อแล้ว {pendingInfo.order_qty} {pendingInfo.order_unit || info.unit || 'หน่วย'} · รอส่งมอบ</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0 flex flex-col items-end max-w-[48%] pl-2">
+                        <div className="text-right shrink-0 flex flex-col items-end max-w-[48%] pl-2 self-start">
                           <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold truncate max-w-full ${badgeClass}`}>
                             {badgeLabel}
                           </span>
