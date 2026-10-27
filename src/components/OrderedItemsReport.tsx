@@ -16,7 +16,9 @@ import {
   Eye, 
   ShoppingCart,
   Loader2,
-  Search
+  Search,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
@@ -68,6 +70,147 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Action states: Edit and Delete
+  const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
+  const [editForm, setEditForm] = useState({
+    order_date: "",
+    order_qty: 0,
+    order_unit: "",
+  });
+  const [deletingOrder, setDeletingOrder] = useState<OrderRecord | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
+  };
+
+  const openEditModal = (order: OrderRecord, item?: any) => {
+    setEditingOrder({
+      ...order,
+      order_unit: order.order_unit || item?.unit || "",
+      ingredients: order.ingredients || { name: item?.name, brand: item?.brand, unit: item?.unit }
+    });
+    setEditForm({
+      order_date: order.order_date || "",
+      order_qty: order.order_qty || 0,
+      order_unit: order.order_unit || item?.unit || "",
+    });
+  };
+
+  const openDeleteConfirm = (order: OrderRecord, item?: any) => {
+    setDeletingOrder({
+      ...order,
+      ingredients: order.ingredients || { name: item?.name, brand: item?.brand, unit: item?.unit }
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingOrder) return;
+    setIsSaving(true);
+    try {
+      const currentBranch = branch || editingOrder.branch || "Rayong";
+      const nowIso = new Date().toISOString();
+
+      if (supabase && editingOrder.id) {
+        const { error } = await supabase
+          .from("purchasing_orders")
+          .update({
+            order_date: editForm.order_date,
+            order_qty: editForm.order_qty,
+            ordered_at: nowIso,
+          })
+          .eq("id", editingOrder.id);
+
+        if (error) throw error;
+      }
+
+      // Sync to localStorage
+      try {
+        const raw = localStorage.getItem("cafe_purchasing_orders");
+        if (raw) {
+          const list: OrderRecord[] = JSON.parse(raw);
+          const updated = list.map(o => {
+            if (
+              (editingOrder.id && o.id === editingOrder.id) ||
+              (o.ingredient_id === editingOrder.ingredient_id && (!o.branch || o.branch === currentBranch))
+            ) {
+              return {
+                ...o,
+                order_date: editForm.order_date,
+                order_qty: editForm.order_qty,
+                ordered_at: nowIso,
+              };
+            }
+            return o;
+          });
+          localStorage.setItem("cafe_purchasing_orders", JSON.stringify(updated));
+        }
+      } catch (localErr) {
+        console.warn("Error updating local storage order:", localErr);
+      }
+
+      await fetchOrderedItems();
+      setEditingOrder(null);
+      showToast("✅ แก้ไขคำสั่งซื้อสำเร็จ");
+
+    } catch (err: any) {
+      showToast(`❌ เกิดข้อผิดพลาด: ${err.message}`, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingOrder) return;
+    setIsSaving(true);
+    try {
+      const currentBranch = branch || deletingOrder.branch || "Rayong";
+
+      if (supabase) {
+        let query = supabase.from("purchasing_orders").delete();
+        if (deletingOrder.id) {
+          query = query.eq("id", deletingOrder.id);
+        } else {
+          query = query
+            .eq("ingredient_id", deletingOrder.ingredient_id)
+            .eq("branch", currentBranch)
+            .is("delivered_at", null);
+        }
+        const { error } = await query;
+        if (error) throw error;
+      }
+
+      // Sync to localStorage
+      try {
+        const raw = localStorage.getItem("cafe_purchasing_orders");
+        if (raw) {
+          const list: OrderRecord[] = JSON.parse(raw);
+          const filtered = list.filter(o => {
+            if (deletingOrder.id && o.id === deletingOrder.id) return false;
+            if (o.ingredient_id === deletingOrder.ingredient_id && (!o.branch || o.branch === currentBranch)) return false;
+            return true;
+          });
+          localStorage.setItem("cafe_purchasing_orders", JSON.stringify(filtered));
+        }
+      } catch (localErr) {
+        console.warn("Error deleting local storage order:", localErr);
+      }
+
+      await fetchOrderedItems();
+      setDeletingOrder(null);
+      showToast("🗑️ ลบคำสั่งซื้อสำเร็จ");
+
+    } catch (err: any) {
+      showToast(`❌ เกิดข้อผิดพลาด: ${err.message}`, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const [ordersMap, setOrdersMap] = useState<Record<string, OrderRecord>>({});
 
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
@@ -921,31 +1064,45 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                     </div>
                   </div>
 
-                  {/* Table without Horizontal Scroll */}
-                  <div className="overflow-x-hidden overflow-y-visible w-full">
-                    <table className="w-full text-left border-collapse table-fixed" style={{ tableLayout: 'fixed', width: '100%' }}>
+                  {/* Table with Horizontal Scroll */}
+                  <div className="overflow-x-auto overflow-y-visible w-full custom-scrollbar">
+                    <table className="w-full text-left border-collapse table-fixed min-w-[774px]" style={{ tableLayout: 'fixed', width: '100%', minWidth: '774px' }}>
                       <colgroup>
                         <col style={{ width: '36px' }} />
-                        <col style={{ width: '154px' }} />
+                        <col style={{ width: '146px' }} />
                         <col style={{ width: '68px' }} />
-                        <col style={{ width: '74px' }} />
                         <col style={{ width: '66px' }} />
-                        <col style={{ width: '70px' }} />
-                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '64px' }} />
+                        <col style={{ width: '66px' }} />
+                        <col style={{ width: '92px' }} />
                         <col style={{ width: '68px' }} />
                         <col style={{ width: '96px' }} />
+                        <col style={{ width: '72px' }} />
                       </colgroup>
                       <thead>
                         <tr className="bg-[#2D4A49] text-white text-[9.5px] font-semibold border-b border-[#2D4A49] leading-tight">
                           <th className="p-1 text-center w-[36px] border-r border-[#3d605f] whitespace-nowrap">รูป</th>
-                          <th className="py-2 px-2 text-left w-[154px] border-r border-[#3d605f] whitespace-nowrap">รายการสินค้า</th>
+                          <th className="py-2 px-2 text-left w-[146px] border-r border-[#3d605f] whitespace-nowrap">รายการสินค้า</th>
                           <th className="py-2 px-1 text-left w-[68px] border-r border-[#3d605f] whitespace-nowrap">ขนาด/หน่วย</th>
-                          <th className="py-2 px-1 text-center w-[74px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
-                          <th className="py-2 px-1 text-center w-[70px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
-                          <th className="py-2 px-1 text-center w-[100px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-1 text-center w-[64px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
+                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-1 text-center w-[92px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
                           <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
-                          <th className="py-2 px-1.5 text-left w-[96px] whitespace-nowrap">ผู้สั่งซื้อ</th>
+                          <th className="py-2 px-1.5 text-left w-[96px] border-r border-[#3d605f] whitespace-nowrap">ผู้สั่งซื้อ</th>
+                          <th 
+                            className="py-2 px-1 text-center w-[72px] whitespace-nowrap"
+                            style={{
+                              width: "72px",
+                              textAlign: "center",
+                              backgroundColor: "#1E5A7A",
+                              color: "#FFFFFF",
+                              fontSize: "10px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            จัดการ
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -953,7 +1110,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                           <React.Fragment key={category}>
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
-                              <td colSpan={9} className="px-2.5 py-1">
+                              <td colSpan={10} className="px-2.5 py-1">
                                 <div className="flex items-center gap-1.5 text-[9.5px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
@@ -1076,7 +1233,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                                   </td>
 
                                   {/* COLUMN 3 — ผู้สั่งซื้อ (READ-ONLY) */}
-                                  <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px]" style={{ width: '96px', maxWidth: '96px' }}>
+                                  <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px] border-r border-[#F0F5F4]" style={{ width: '96px', maxWidth: '96px' }}>
                                     {order?.ordered_by ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
                                         <span className="text-[10px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
@@ -1096,6 +1253,62 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                                         ✅ สั่งซื้อแล้ว
                                       </span>
                                     )}
+                                  </td>
+                                  {/* COLUMN 4 — จัดการ (Edit & Delete) */}
+                                  <td className="px-1 py-1 text-center w-[72px]" style={{ width: "72px" }}>
+                                    <div 
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "4px",
+                                        padding: "6px 4px",
+                                      }}
+                                    >
+                                      {/* Edit button */}
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditModal(order, item)}
+                                        title="แก้ไขคำสั่งซื้อ"
+                                        style={{
+                                          background: "transparent",
+                                          borderRadius: "6px",
+                                          padding: "5px",
+                                          cursor: "pointer",
+                                          border: "none",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          transition: "background-color 0.15s ease",
+                                        }}
+                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#EEF6FB")}
+                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                                      >
+                                        <Pencil size={13} color="#5BA4C8" />
+                                      </button>
+
+                                      {/* Delete button */}
+                                      <button
+                                        type="button"
+                                        onClick={() => openDeleteConfirm(order, item)}
+                                        title="ลบคำสั่งซื้อ"
+                                        style={{
+                                          background: "transparent",
+                                          borderRadius: "6px",
+                                          padding: "5px",
+                                          cursor: "pointer",
+                                          border: "none",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          transition: "background-color 0.15s ease",
+                                        }}
+                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#FEE2E2")}
+                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                                      >
+                                        <Trash2 size={13} color="#EF4444" />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -1191,6 +1404,302 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      {editingOrder && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(4px)",
+          zIndex: 250,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px",
+        }}>
+          <div style={{
+            background: "#FFFFFF",
+            borderRadius: "20px",
+            padding: "28px 24px",
+            maxWidth: "400px", width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+          }}>
+            {/* Header */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "20px",
+            }}>
+              <div style={{
+                width: "40px", height: "40px",
+                borderRadius: "50%",
+                background: "#EEF6FB",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                <Pencil size={18} color="#5BA4C8" />
+              </div>
+              <div>
+                <h3 style={{
+                  fontSize: "15px", fontWeight: 700,
+                  color: "#1E3D52", margin: 0,
+                }}>
+                  แก้ไขคำสั่งซื้อ
+                </h3>
+                <p style={{
+                  fontSize: "11px", color: "#4A7592",
+                  margin: "2px 0 0",
+                }}>
+                  {editingOrder.ingredients?.name || "รายการวัตถุดิบ"}
+                </p>
+              </div>
+            </div>
+
+            {/* Form fields */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* วันที่สั่งซื้อ */}
+              <div>
+                <label style={{
+                  fontSize: "11px", fontWeight: 500,
+                  color: "#4A7592",
+                  display: "block", marginBottom: "5px",
+                }}>
+                  วันที่สั่งซื้อ
+                </label>
+                <input
+                  type="date"
+                  value={editForm.order_date}
+                  onChange={e => setEditForm(prev =>
+                    ({ ...prev, order_date: e.target.value })
+                  )}
+                  style={{
+                    width: "100%", height: "38px",
+                    border: "1px solid #C8E3F0",
+                    borderRadius: "8px",
+                    padding: "0 12px",
+                    fontSize: "12px",
+                    color: "#1E3D52",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* จำนวนที่สั่ง */}
+              <div>
+                <label style={{
+                  fontSize: "11px", fontWeight: 500,
+                  color: "#4A7592",
+                  display: "block", marginBottom: "5px",
+                }}>
+                  จำนวนที่สั่ง
+                </label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.order_qty}
+                    onChange={e => setEditForm(prev =>
+                      ({ ...prev,
+                         order_qty: parseInt(e.target.value) || 0
+                      })
+                    )}
+                    style={{
+                      flex: 1, height: "38px",
+                      border: "1px solid #C8E3F0",
+                      borderRadius: "8px",
+                      padding: "0 12px",
+                      fontSize: "13px",
+                      color: "#1E3D52",
+                      textAlign: "center",
+                      outline: "none",
+                    }}
+                  />
+                  <span style={{
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "12px",
+                    color: "#4A7592",
+                    paddingRight: "4px",
+                  }}>
+                    {editForm.order_unit}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div style={{
+              display: "flex", gap: "8px",
+              marginTop: "24px",
+            }}>
+              <button
+                type="button"
+                onClick={() => setEditingOrder(null)}
+                disabled={isSaving}
+                style={{
+                  flex: 1, padding: "11px",
+                  borderRadius: "10px",
+                  border: "1px solid #C8E3F0",
+                  background: "#EEF6FB",
+                  color: "#4A7592",
+                  fontSize: "13px", fontWeight: 500,
+                  cursor: isSaving ? "not-allowed" : "pointer",
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => handleEditSave()}
+                disabled={isSaving}
+                style={{
+                  flex: 1, padding: "11px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: isSaving ? "#82BBD8" : "#5BA4C8",
+                  color: "white",
+                  fontSize: "13px", fontWeight: 600,
+                  cursor: isSaving ? "wait" : "pointer",
+                }}
+              >
+                {isSaving ? "กำลังบันทึก..." : "💾 บันทึกการแก้ไข"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingOrder && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(4px)",
+          zIndex: 250,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px",
+        }}>
+          <div style={{
+            background: "#FFFFFF",
+            borderRadius: "20px",
+            padding: "28px 24px",
+            maxWidth: "360px", width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            textAlign: "center",
+          }}>
+            {/* Icon */}
+            <div style={{
+              width: "60px", height: "60px",
+              borderRadius: "50%",
+              background: "#FEE2E2",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px",
+            }}>
+              <Trash2 size={26} color="#EF4444" />
+            </div>
+
+            <h3 style={{
+              fontSize: "16px", fontWeight: 700,
+              color: "#1E3D52", margin: "0 0 8px",
+            }}>
+              ลบคำสั่งซื้อ
+            </h3>
+
+            <p style={{
+              fontSize: "12px", color: "#4A7592",
+              margin: "0 0 6px",
+            }}>
+              ต้องการลบคำสั่งซื้อของ
+            </p>
+            <p style={{
+              fontSize: "14px", fontWeight: 700,
+              color: "#1E3D52", margin: "0 0 16px",
+            }}>
+              "{deletingOrder.ingredients?.name || "รายการนี้"}"
+            </p>
+
+            <div style={{
+              background: "#FEF3C7",
+              border: "1px solid #FDE68A",
+              borderRadius: "8px",
+              padding: "10px 14px",
+              marginBottom: "20px",
+              fontSize: "11px",
+              color: "#92400E",
+              textAlign: "left",
+              lineHeight: 1.5,
+            }}>
+              ⚠️ รายการนี้จะถูกลบออกจากรายการรอส่งมอบ และจะกลับไปเป็นรายการ "ต้องสั่งซื้อ" อีกครั้ง
+            </div>
+
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setDeletingOrder(null)}
+                disabled={isSaving}
+                style={{
+                  flex: 1, padding: "12px",
+                  borderRadius: "10px",
+                  border: "1px solid #C8E3F0",
+                  background: "#EEF6FB",
+                  color: "#4A7592",
+                  fontSize: "13px", fontWeight: 500,
+                  cursor: isSaving ? "not-allowed" : "pointer",
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete()}
+                disabled={isSaving}
+                style={{
+                  flex: 1, padding: "12px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: isSaving ? "#F87171" : "#EF4444",
+                  color: "white",
+                  fontSize: "13px", fontWeight: 700,
+                  cursor: isSaving ? "wait" : "pointer",
+                }}
+              >
+                {isSaving ? "กำลังลบ..." : "🗑️ ลบคำสั่งซื้อ"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            top: "24px",
+            right: "24px",
+            zIndex: 9999,
+            backgroundColor: toast.type === "error" ? "#EF4444" : "#10B981",
+            color: "#FFFFFF",
+            padding: "12px 20px",
+            borderRadius: "12px",
+            fontSize: "13px",
+            fontWeight: 600,
+            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <span>{toast.message}</span>
+        </div>
+      )}
+
     </div>
   );
 };
