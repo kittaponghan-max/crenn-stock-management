@@ -163,6 +163,44 @@ export function HomeScreen({
     };
   }, [dbIngredientsMap, allIngredientsMap, ingredients]);
 
+  // Helper: Deduplicate pending delivery orders by ingredient_id
+  // Sums order_qty across duplicate records and keeps the newest order information
+  const deduplicatePendingOrders = useCallback((orders: any[]): any[] => {
+    if (!orders || orders.length === 0) return [];
+
+    const parseTime = (item: any) => {
+      if (item.ordered_at) {
+        const t = new Date(item.ordered_at).getTime();
+        if (!isNaN(t)) return t;
+      }
+      if (item.order_date) {
+        const t = new Date(item.order_date + "T00:00:00").getTime();
+        if (!isNaN(t)) return t;
+      }
+      if (item.created_at) {
+        const t = new Date(item.created_at).getTime();
+        if (!isNaN(t)) return t;
+      }
+      return 0;
+    };
+
+    // Sort latest first
+    const sorted = [...orders].sort((a, b) => parseTime(b) - parseTime(a));
+
+    // Keep only latest per ingredient (do not sum quantities, prevent duplicate display)
+    const seen = new Map<string, any>();
+    sorted.forEach(order => {
+      const ingId = String(order.ingredient_id || order.id || "");
+      if (!ingId) return;
+
+      if (!seen.has(ingId)) {
+        seen.set(ingId, order);
+      }
+    });
+
+    return Array.from(seen.values());
+  }, []);
+
   // Format order datetime: 21/10/2026 14:58 น.
   const formatOrderDateTime = useCallback((isoOrDateStr?: string) => {
     if (!isoOrDateStr) return '';
@@ -305,23 +343,6 @@ export function HomeScreen({
           .not('order_date', 'is', null)
           .gt('order_qty', 0);
 
-        console.log('=== Pending Delivery Debug ===');
-        console.log('Raw orders from DB:', data);
-
-        data?.forEach((order: any, idx: number) => {
-          console.log(`Order ${idx}:`, {
-            id: order.id,
-            ingredient_id: order.ingredient_id,
-            ingredients: order.ingredients,   // joined data
-            order_qty: order.order_qty,
-            order_unit: order.order_unit,
-          });
-
-          if (!order.ingredients) {
-            console.warn(`⚠️ No ingredient data for order ${order.id}, ingredient_id: ${order.ingredient_id}`);
-          }
-        });
-
         if (!error && data) {
           const rawPending = data.filter((o: any) => !o.delivered_at && o.status !== 'delivered');
 
@@ -430,8 +451,8 @@ export function HomeScreen({
       }
     }
 
-    setPendingOrders(stillPending);
-  }, [user?.branch, ingredients, allIngredientsMap, resolveIngredientInfo, checkDelivered]);
+    setPendingOrders(deduplicatePendingOrders(stillPending));
+  }, [user?.branch, ingredients, allIngredientsMap, resolveIngredientInfo, checkDelivered, deduplicatePendingOrders]);
 
   // Initial fetch and Real-Time listener on mount
   useEffect(() => {
@@ -520,6 +541,125 @@ export function HomeScreen({
     setPendingOrders(prev => prev.filter(o => !toClear.some(tc => tc.id === o.id || (tc.ingredient_id === o.ingredient_id && tc.order_date === o.order_date))));
     setIsProcessingClear(false);
     setShowClearConfirmModal(false);
+  };
+
+  // Check if current user has Admin / Manager privileges
+  const isAdmin = useMemo(() => {
+    const role = String(user?.role || '').toLowerCase();
+    return role === 'admin' || role === 'owner' || role === 'co-founder' || role === 'branch manager';
+  }, [user?.role]);
+
+  const [isCleaningDuplicates, setIsCleaningDuplicates] = useState<boolean>(false);
+
+  // Admin Cleanup Tool: Detects and merges duplicate pending delivery records in purchasing_orders
+  const cleanupDuplicateOrders = async () => {
+    if (!supabase) {
+      alert('ไม่พบการเชื่อมต่อฐานข้อมูล Supabase');
+      return;
+    }
+
+    const currentBranch = user?.branch || 'Rayong';
+    setIsCleaningDuplicates(true);
+
+    try {
+      const { data: orders, error } = await supabase
+        .from('purchasing_orders')
+        .select('*')
+        .eq('branch', currentBranch)
+        .not('order_date', 'is', null)
+        .gt('order_qty', 0)
+        .is('delivered_at', null);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!orders || orders.length === 0) {
+        alert('ไม่พบรายการรอส่งมอบในระบบ');
+        return;
+      }
+
+      // Group by ingredient_id to find duplicates
+      const groups: Record<string, any[]> = {};
+      orders.forEach(o => {
+        const ingId = String(o.ingredient_id || '');
+        if (!ingId) return;
+        if (!groups[ingId]) groups[ingId] = [];
+        groups[ingId].push(o);
+      });
+
+      const duplicateIngredientIds = Object.keys(groups).filter(id => groups[id].length > 1);
+
+      if (duplicateIngredientIds.length === 0) {
+        alert('ไม่พบรายการซ้ำในระบบ ข้อมูลในฐานข้อมูลถูกต้องแล้ว');
+        return;
+      }
+
+      const idsToDelete: string[] = [];
+      const updatesToMake: { id: string; order_qty: number }[] = [];
+
+      duplicateIngredientIds.forEach(id => {
+        const group = groups[id];
+
+        // Sort descending: newest ordered_at / order_date / id first
+        group.sort((a, b) => {
+          const timeA = new Date(a.ordered_at || (a.order_date ? a.order_date + 'T00:00:00' : 0)).getTime();
+          const timeB = new Date(b.ordered_at || (b.order_date ? b.order_date + 'T00:00:00' : 0)).getTime();
+          return timeB - timeA;
+        });
+
+        const keep = group[0];
+        const older = group.slice(1);
+
+        // Sum order quantities across all duplicates
+        const totalQty = group.reduce((sum, item) => sum + (Number(item.order_qty) || 0), 0);
+        if (keep.id && totalQty !== Number(keep.order_qty)) {
+          updatesToMake.push({ id: keep.id, order_qty: totalQty });
+        }
+
+        older.forEach(item => {
+          if (item.id) idsToDelete.push(item.id);
+        });
+      });
+
+      // Update total qty on kept orders
+      for (const update of updatesToMake) {
+        await supabase
+          .from('purchasing_orders')
+          .update({ order_qty: update.order_qty })
+          .eq('id', update.id);
+      }
+
+      // Delete older duplicate records
+      if (idsToDelete.length > 0) {
+        const { error: delErr } = await supabase
+          .from('purchasing_orders')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (delErr) throw delErr;
+
+        // Clean up localStorage
+        try {
+          const raw = localStorage.getItem('cafe_purchasing_orders');
+          if (raw) {
+            const all: any[] = JSON.parse(raw);
+            const filtered = all.filter(o => !idsToDelete.includes(o.id));
+            localStorage.setItem('cafe_purchasing_orders', JSON.stringify(filtered));
+          }
+        } catch {}
+      }
+
+      // Refresh pending delivery data
+      await processPendingDelivery();
+
+      alert(`ล้างข้อมูลซ้ำสำเร็จ!\nลบรายการซ้ำทั้งหมด ${idsToDelete.length} รายการ สำหรับ ${duplicateIngredientIds.length} วัตถุดิบ`);
+    } catch (err: any) {
+      console.error('Error cleaning duplicate orders:', err);
+      alert(`เกิดข้อผิดพลาดในการล้างข้อมูลซ้ำ: ${err.message || 'โปรดลองอีกครั้ง'}`);
+    } finally {
+      setIsCleaningDuplicates(false);
+    }
   };
 
   // Sync locationFilter with localStorage
@@ -656,9 +796,9 @@ export function HomeScreen({
     }
   }, [locationFilter]);
 
-  // Filter pending delivery orders by locationFilter (excluding obsolete items)
+  // Filter pending delivery orders by locationFilter (excluding obsolete items) and deduplicate
   const pendingDeliveryList = useMemo(() => {
-    return pendingOrders.filter(order => {
+    const valid = pendingOrders.filter(order => {
       if (!order.order_date || !order.order_qty || Number(order.order_qty) <= 0) return false;
       const resolved = resolveIngredientInfo(order, order.ingredient);
       const ing = resolved.bestIng;
@@ -675,7 +815,9 @@ export function HomeScreen({
       }
       return true;
     });
-  }, [pendingOrders, resolveIngredientInfo, locationFilter, obsoleteMap]);
+
+    return deduplicatePendingOrders(valid);
+  }, [pendingOrders, resolveIngredientInfo, locationFilter, obsoleteMap, deduplicatePendingOrders]);
 
   const pendingDelivery = pendingDeliveryList.length;
 
@@ -1539,6 +1681,20 @@ export function HomeScreen({
                   </h3>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Admin Cleanup Button for Duplicates */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={cleanupDuplicateOrders}
+                      disabled={isCleaningDuplicates}
+                      className="text-[10px] font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1 shadow-2xs disabled:opacity-50"
+                      title="ลบรายการสั่งซื้อซ้ำซ้อนในระบบฐานข้อมูล"
+                    >
+                      {isCleaningDuplicates ? <Loader2 size={11} className="animate-spin text-amber-700" /> : <span>🧹</span>}
+                      <span>{isCleaningDuplicates ? 'กำลังล้าง...' : 'ล้างข้อมูลซ้ำ'}</span>
+                    </button>
+                  )}
+
                   {/* Manual Clear Button for Pending Delivery */}
                   {activeKPI === 'pending_delivery' && pendingDeliveryList.length > 0 && (
                     <button
