@@ -36,6 +36,8 @@ export interface OrderRecord {
   branch: string;
   stock_date: string;
   created_at?: string;
+  delivered_at?: string | null;
+  status?: string;
 }
 
 interface PurchasingReportProps {
@@ -167,6 +169,28 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [changedItems, setChangedItems] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+    // Reorder warning modal state
+  const [reorderWarning, setReorderWarning] = useState<{
+    show: boolean;
+    supplierId: string;
+    supplierItems: any[];
+    items: Array<{
+      ingredientId: string;
+      name: string;
+      brand: string;
+      unit: string;
+      existingDate: string;
+      existingQty: number;
+      newQty: number;
+      newDate: string;
+    }>;
+  }>({
+    show: false,
+    supplierId: "",
+    supplierItems: [],
+    items: []
+  });
+
   const [supplierSaveState, setSupplierSaveState] = useState<Record<string, 'idle' | 'dirty' | 'saving' | 'saved'>>({});
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -407,6 +431,92 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   };
 
   // Save order items for a specific supplier
+  
+  // Cancel reorder: revert pending items in warning back to saved state
+  const handleCancelReorder = () => {
+    if (!reorderWarning.items || reorderWarning.items.length === 0) {
+      setReorderWarning(prev => ({ ...prev, show: false }));
+      return;
+    }
+    const revertedOrders = { ...orders };
+    const nextChanged = new Set(changedItems);
+    
+    reorderWarning.items.forEach(warnItem => {
+      const ingId = warnItem.ingredientId;
+      nextChanged.delete(ingId);
+      if (savedOrders[ingId]) {
+        revertedOrders[ingId] = { ...savedOrders[ingId] };
+      } else {
+        delete revertedOrders[ingId];
+      }
+    });
+
+    setOrders(revertedOrders);
+    setChangedItems(nextChanged);
+    if (nextChanged.size === 0) {
+      setHasUnsavedChanges(false);
+    }
+    // Check if supplier has any other changed items
+    const supHasRemainingChanges = reorderWarning.supplierItems.some(
+      it => nextChanged.has(it.id)
+    );
+    if (!supHasRemainingChanges && reorderWarning.supplierId) {
+      setSupplierSaveState(prev => ({
+        ...prev,
+        [reorderWarning.supplierId]: "idle"
+      }));
+    }
+    setReorderWarning(prev => ({ ...prev, show: false, items: [] }));
+  };
+
+  // Guard before saving: check if any items are already pending delivery
+  const handleSaveWithCheck = (
+    supplierId: string,
+    supplierItems: (typeof purchasesToMake)
+  ) => {
+    const pendingConflicts: Array<{
+      ingredientId: string;
+      name: string;
+      brand: string;
+      unit: string;
+      existingDate: string;
+      existingQty: number;
+      newQty: number;
+      newDate: string;
+    }> = [];
+
+    supplierItems.forEach(item => {
+      const pending = pendingOrderMap[item.id];
+      const order = orders[item.id];
+      const isPending = Boolean(pending && pending.order_qty > 0);
+      const isOrdering = order && (Boolean(order.order_date) || Number(order.order_qty) > 0);
+
+      if (isPending && isOrdering) {
+        pendingConflicts.push({
+          ingredientId: item.id,
+          name: item.name,
+          brand: item.brand || "",
+          unit: item.unit,
+          existingDate: pending.order_date,
+          existingQty: pending.order_qty,
+          newQty: Number(order?.order_qty) || 0,
+          newDate: order?.order_date || selectedDate
+        });
+      }
+    });
+
+    if (pendingConflicts.length > 0) {
+      setReorderWarning({
+        show: true,
+        supplierId,
+        supplierItems,
+        items: pendingConflicts
+      });
+    } else {
+      handleSaveSupplier(supplierId, supplierItems);
+    }
+  };
+
   const handleSaveSupplier = async (
     supplierId: string,
     supplierItems: (typeof purchasesToMake)
@@ -477,15 +587,21 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         const rawAll = localStorage.getItem('cafe_purchasing_orders');
         let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
         itemsToSave.forEach(item => {
-          const idx = allList.findIndex(o => 
-            o.ingredient_id === item.ingredient_id && 
-            o.branch === currentBranch && 
-            o.stock_date === selectedDate
-          );
-          if (idx >= 0) {
-            allList[idx] = { ...allList[idx], ...item };
-          } else {
+          const isPending = Boolean(item.order_date) && Number(item.order_qty) > 0;
+          if (isPending) {
+            allList = allList.filter(o => !(o.ingredient_id === item.ingredient_id && o.branch === currentBranch && !o.delivered_at && o.status !== 'delivered'));
             allList.push(item);
+          } else {
+            const idx = allList.findIndex(o => 
+              o.ingredient_id === item.ingredient_id && 
+              o.branch === currentBranch && 
+              o.stock_date === selectedDate
+            );
+            if (idx >= 0) {
+              allList[idx] = { ...allList[idx], ...item };
+            } else {
+              allList.push(item);
+            }
           }
         });
         localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
@@ -493,49 +609,122 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         console.warn('Error saving local orders:', e);
       }
 
-      // 2. Upsert to Supabase
+      // 2. Prevent duplicate pending orders & upsert to Supabase
       if (supabase && itemsToSave.length > 0) {
         try {
-          const dbPayload = itemsToSave.map(item => ({
-            ingredient_id: item.ingredient_id,
-            order_date: item.order_date || null,
-            order_qty: item.order_qty || 0,
-            order_unit: item.order_unit || '',
-            ordered_by: item.ordered_by || null,
-            ordered_at: item.ordered_at || null,
-            branch: item.branch,
-            stock_date: item.stock_date
-          }));
+          // Identify ingredients that have a pending order (has date and qty > 0)
+          const pendingIngIds = itemsToSave
+            .filter(item => Boolean(item.order_date) && Number(item.order_qty) > 0)
+            .map(item => item.ingredient_id);
 
-          const { error } = await supabase
-            .from('purchasing_orders')
-            .upsert(dbPayload, {
-              onConflict: 'ingredient_id,stock_date,branch'
+          // Delete existing pending orders (delivered_at IS NULL) for these ingredients to avoid duplicate rows
+          if (pendingIngIds.length > 0) {
+            try {
+              await supabase
+                .from('purchasing_orders')
+                .delete()
+                .eq('branch', currentBranch)
+                .in('ingredient_id', pendingIngIds)
+                .is('delivered_at', null);
+            } catch (delErr) {
+              console.warn('Error deleting prior pending orders before insert:', delErr);
+            }
+          }
+
+          // If any item was cleared (order_qty === 0 or empty order_date), also delete existing pending order
+          const clearedIngIds = itemsToSave
+            .filter(item => !item.order_date || Number(item.order_qty) <= 0)
+            .map(item => item.ingredient_id);
+
+          if (clearedIngIds.length > 0) {
+            try {
+              await supabase
+                .from('purchasing_orders')
+                .delete()
+                .eq('branch', currentBranch)
+                .in('ingredient_id', clearedIngIds)
+                .is('delivered_at', null);
+            } catch (delErr) {
+              console.warn('Error deleting cleared orders:', delErr);
+            }
+          }
+
+          const dbPayload = itemsToSave
+            .filter(item => Boolean(item.order_date) || Number(item.order_qty) > 0)
+            .map(item => ({
+              ingredient_id: item.ingredient_id,
+              order_date: item.order_date || null,
+              order_qty: item.order_qty || 0,
+              order_unit: item.order_unit || '',
+              ordered_by: item.ordered_by || currentUser || null,
+              ordered_at: item.ordered_at || nowIso,
+              branch: item.branch,
+              stock_date: item.stock_date,
+              status: 'pending',
+              delivered_at: null,
+            }));
+
+          if (dbPayload.length > 0) {
+            const { error } = await supabase
+              .from('purchasing_orders')
+              .insert(dbPayload);
+
+            // Update pendingOrderMap locally so the UI badges refresh immediately
+            setPendingOrderMap(prev => {
+              const next = { ...prev };
+              itemsToSave.forEach(it => {
+                if (Boolean(it.order_date) && Number(it.order_qty) > 0) {
+                  next[it.ingredient_id] = {
+                    order_date: it.order_date || '',
+                    order_qty: Number(it.order_qty) || 0,
+                    order_unit: it.order_unit || '',
+                    ordered_by: it.ordered_by || currentUser || '',
+                    ordered_at: it.ordered_at || nowIso,
+                  };
+                } else {
+                  delete next[it.ingredient_id];
+                }
+              });
+              return next;
             });
 
-          if (error) {
-            if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
-              // purchasing_orders table does not exist in schema cache; save backup to app_settings
-              console.warn('purchasing_orders table not found in Supabase (PGRST205). Saving backup to app_settings and localStorage.');
-              try {
-                const rawAll = localStorage.getItem('cafe_purchasing_orders');
-                const allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
-                const currentDayOrders = allList.filter(o => o.branch === currentBranch && o.stock_date === selectedDate);
-                await supabase.from('app_settings').upsert({
-                  setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
-                  setting_value: currentDayOrders
-                });
-              } catch (backupErr) {
-                console.warn('app_settings backup error:', backupErr);
+            if (error) {
+              if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
+                // purchasing_orders table does not exist in schema cache; save backup to app_settings
+                console.warn('purchasing_orders table not found in Supabase (PGRST205). Saving backup to app_settings and localStorage.');
+                try {
+                  const rawAll = localStorage.getItem('cafe_purchasing_orders');
+                  const allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
+                  const currentDayOrders = allList.filter(o => o.branch === currentBranch && o.stock_date === selectedDate);
+                  await supabase.from('app_settings').upsert({
+                    setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
+                    setting_value: currentDayOrders
+                  });
+                } catch (backupErr) {
+                  console.warn('app_settings backup error:', backupErr);
+                }
+              } else {
+                console.warn('Supabase purchasing_orders upsert warning:', error.message);
               }
-            } else {
-              console.warn('Supabase purchasing_orders upsert warning:', error.message);
             }
           }
         } catch (supErr: any) {
           console.warn('Supabase save warning (saved to localStorage):', supErr?.message || supErr);
         }
       }
+
+      // Update pendingOrderMap locally so the amber "รอส่งมอบ" badge updates immediately
+      setPendingOrderMap(prev => {
+        const next = { ...prev };
+        itemsToSave.forEach(it => {
+          if (it.order_date && Number(it.order_qty) > 0) {
+            next[it.ingredient_id] = it;
+          } else {
+            delete next[it.ingredient_id];
+          }
+        });
+        return next;
+      });
 
       // Success state → reset after 2 sec
       setSupplierSaveState(prev => ({
@@ -594,15 +783,21 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       const rawAll = localStorage.getItem('cafe_purchasing_orders');
       let allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
       itemsToPersist.forEach(item => {
-        const idx = allList.findIndex(o => 
-          o.ingredient_id === item.ingredient_id && 
-          o.branch === currentBranch && 
-          o.stock_date === selectedDate
-        );
-        if (idx >= 0) {
-          allList[idx] = { ...allList[idx], ...item };
-        } else {
+        const isPending = Boolean(item.order_date) && Number(item.order_qty) > 0;
+        if (isPending) {
+          allList = allList.filter(o => !(o.ingredient_id === item.ingredient_id && o.branch === currentBranch && !o.delivered_at && o.status !== 'delivered'));
           allList.push(item);
+        } else {
+          const idx = allList.findIndex(o => 
+            o.ingredient_id === item.ingredient_id && 
+            o.branch === currentBranch && 
+            o.stock_date === selectedDate
+          );
+          if (idx >= 0) {
+            allList[idx] = { ...allList[idx], ...item };
+          } else {
+            allList.push(item);
+          }
         }
       });
       localStorage.setItem('cafe_purchasing_orders', JSON.stringify(allList));
@@ -610,40 +805,91 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       console.warn('Error saving local orders:', e);
     }
 
-    // 2. Upsert to Supabase
+    // 2. Prevent duplicate pending orders & upsert to Supabase
     if (supabase && itemsToPersist.length > 0) {
       try {
-        const payloads = itemsToPersist.map(r => ({
-          ingredient_id: r.ingredient_id,
-          order_date: r.order_date || null,
-          order_qty: r.order_qty || 0,
-          order_unit: r.order_unit || '',
-          ordered_by: r.ordered_by || null,
-          ordered_at: r.ordered_at || null,
-          branch: currentBranch,
-          stock_date: selectedDate,
-        }));
+        const pendingIngIds = itemsToPersist
+          .filter(item => Boolean(item.order_date) && Number(item.order_qty) > 0)
+          .map(item => item.ingredient_id);
 
-        const { error } = await supabase
-          .from('purchasing_orders')
-          .upsert(payloads, { onConflict: 'ingredient_id,stock_date,branch' });
+        if (pendingIngIds.length > 0) {
+          try {
+            await supabase
+              .from('purchasing_orders')
+              .delete()
+              .eq('branch', currentBranch)
+              .in('ingredient_id', pendingIngIds)
+              .is('delivered_at', null);
+          } catch (delErr) {
+            console.warn('Error deleting prior pending orders before insert:', delErr);
+          }
+        }
 
-        if (error) {
-          if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
-            try {
-              await supabase.from('app_settings').upsert({
-                setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
-                setting_value: itemsToPersist
-              });
-            } catch {}
-          } else {
-            console.warn('Supabase purchasing_orders upsert error:', error.message);
+        const clearedIngIds = itemsToPersist
+          .filter(item => !item.order_date || Number(item.order_qty) <= 0)
+          .map(item => item.ingredient_id);
+
+        if (clearedIngIds.length > 0) {
+          try {
+            await supabase
+              .from('purchasing_orders')
+              .delete()
+              .eq('branch', currentBranch)
+              .in('ingredient_id', clearedIngIds)
+              .is('delivered_at', null);
+          } catch (delErr) {
+            console.warn('Error deleting cleared orders:', delErr);
+          }
+        }
+
+        const payloads = itemsToPersist
+          .filter(r => Boolean(r.order_date) || Number(r.order_qty) > 0)
+          .map(r => ({
+            ingredient_id: r.ingredient_id,
+            order_date: r.order_date || null,
+            order_qty: r.order_qty || 0,
+            order_unit: r.order_unit || '',
+            ordered_by: r.ordered_by || null,
+            ordered_at: r.ordered_at || null,
+            branch: currentBranch,
+            stock_date: selectedDate,
+          }));
+
+        if (payloads.length > 0) {
+          const { error } = await supabase
+            .from('purchasing_orders')
+            .upsert(payloads, { onConflict: 'ingredient_id,stock_date,branch' });
+
+          if (error) {
+            if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
+              try {
+                await supabase.from('app_settings').upsert({
+                  setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
+                  setting_value: itemsToPersist
+                });
+              } catch {}
+            } else {
+              console.warn('Supabase purchasing_orders upsert error:', error.message);
+            }
           }
         }
       } catch (err) {
         console.warn('Error saving to Supabase:', err);
       }
     }
+
+    // Update pendingOrderMap locally
+    setPendingOrderMap(prev => {
+      const next = { ...prev };
+      itemsToPersist.forEach(it => {
+        if (it.order_date && Number(it.order_qty) > 0) {
+          next[it.ingredient_id] = it;
+        } else {
+          delete next[it.ingredient_id];
+        }
+      });
+      return next;
+    });
 
     setSavedOrders(updatedOrdersMap);
     setHasUnsavedChanges(false);
@@ -1222,7 +1468,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                       {/* Save button per supplier (matches DailyBakeryRecord behavior) */}
                       <button
                         type="button"
-                        onClick={() => handleSaveSupplier(supplier, allSupplierItems)}
+                        onClick={() => handleSaveWithCheck(supplier, allSupplierItems)}
                         disabled={supState === 'idle' || supState === 'saving' || supState === 'saved'}
                         title={supState === 'dirty' ? "คลิกเพื่อบันทึกรายการของผู้จัดจำหน่ายนี้" : undefined}
                         className={cn(
@@ -1861,6 +2107,156 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           </div>
         </div>
       )}
+
+      {/* Reorder Warning Confirmation Modal */}
+      {reorderWarning.show && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.45)",
+            backdropFilter: "blur(3px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "20px",
+              padding: "24px",
+              maxWidth: "440px",
+              width: "100%",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+              border: "1px solid #FED7AA",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+              <div
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "12px",
+                  background: "#FEF3C7",
+                  border: "1px solid #FCD34D",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <AlertTriangle size={22} style={{ color: "#D97706" }} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#92400E", margin: 0 }}>
+                  แจ้งเตือน: มีรายการรอส่งมอบอยู่แล้ว
+                </h3>
+                <p style={{ fontSize: "11px", color: "#B45309", margin: 0, marginTop: "2px" }}>
+                  พบรายการที่เคยสั่งซื้อไปแล้วและยังไม่ได้รับสินค้า
+                </p>
+              </div>
+            </div>
+
+            {/* List of conflicting items */}
+            <div
+              style={{
+                background: "#FFFBEB",
+                border: "1px solid #FDE68A",
+                borderRadius: "12px",
+                padding: "12px",
+                marginBottom: "18px",
+                maxHeight: "200px",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              {reorderWarning.items.map((item, idx) => (
+                <div
+                  key={item.ingredientId || idx}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #FCD34D",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: "#1F2937", marginBottom: "4px" }}>
+                    {item.name} {item.brand ? `(${item.brand})` : ""}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#6B7280", display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <div>
+                      📅 สั่งซื้อเมื่อ: <span style={{ fontWeight: 600, color: "#B45309" }}>{item.existingDate}</span>
+                    </div>
+                    <div>
+                      📦 จำนวนรอส่งเดิม: <span style={{ fontWeight: 600, color: "#B45309" }}>{item.existingQty} {item.unit}</span>
+                      {item.newQty > 0 && (
+                        <span> → ยอดสั่งใหม่: <span style={{ fontWeight: 600, color: "#059669" }}>{item.newQty} {item.unit}</span></span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ fontSize: "12px", color: "#4B5563", marginBottom: "18px", lineHeight: 1.5 }}>
+              ต้องการสั่งซ้ำเพื่อแทนที่คำสั่งซื้อเดิม หรือยกเลิกเพื่อไม่ให้เกิดการสั่งซื้อซ้ำซ้อน?
+            </p>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={handleCancelReorder}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid #D1D5DB",
+                  background: "#F3F4F6",
+                  color: "#374151",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ยกเลิก (ไม่สั่งซ้ำ)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { supplierId, supplierItems } = reorderWarning;
+                  setReorderWarning(prev => ({ ...prev, show: false, items: [] }));
+                  handleSaveSupplier(supplierId, supplierItems);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "#D97706",
+                  color: "#FFFFFF",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 4px rgba(217, 119, 6, 0.25)",
+                }}
+              >
+                ยืนยัน (อัปเดตคำสั่งซื้อ)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
   );
