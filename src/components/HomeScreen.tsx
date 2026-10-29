@@ -900,9 +900,15 @@ export function HomeScreen({
 
     filteredIngredients.forEach(ing => {
       const remaining = stockMap[ing.id] ?? 0;
+      const minStock = ing.minStock ?? 0;
+
+      // Business Rules:
+      // หมดสต็อก (Out of Stock): current_stock === 0 (or <= 0)
+      // ใกล้หมด (Low Stock): current_stock > 0 AND current_stock < min_stock (strictly LESS THAN)
+      // สต็อกปกติ (Normal Stock): current_stock >= min_stock
       if (remaining <= 0) {
         outOfStockList.push({ ing, remaining });
-      } else if (remaining <= ing.minStock) {
+      } else if (remaining < minStock) {
         lowStockList.push({ ing, remaining });
       } else {
         goodStockList.push({ ing, remaining });
@@ -1818,7 +1824,7 @@ export function HomeScreen({
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                             remaining <= 0 
                               ? 'bg-rose-50 text-rose-500' 
-                              : remaining <= (info.minStock ?? 0) 
+                              : remaining < (info.minStock ?? 0) 
                                 ? 'bg-amber-50 text-amber-500' 
                                 : 'bg-[#E8F3F2] text-[#5A8A88]'
                           }`}>
