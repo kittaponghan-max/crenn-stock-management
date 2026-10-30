@@ -100,7 +100,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       return [
         'logs', 'reports', 'stockSubmitHistory', 'receivingHistory',
         'barReceiving', 'bakeryReceiving', 'barDailyCount', 'bakeryDailyCount',
-        'barWaste', 'barWasteLog', 'bakeryWasteLog'
+        'barWaste', 'barWasteLog', 'bakeryWasteLog', 'maintenanceReport'
       ].includes(currentTab);
     }
     if (id === 'checkin') {
@@ -182,7 +182,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       dropdownAlignment: 'center',
       groups: [
         {
-          title: 'รายงานประจำวัน',
+          title: 'รายงานประจำวัน & อุปกรณ์',
           items: [
             { route: 'barReceiving', label: 'รายงานตรวจรับวัตถุดิบ (บาร์)', emoji: '📦' },
             { route: 'bakeryReceiving', label: 'รายงานตรวจรับวัตถุดิบ (ครัว)', emoji: '📦' },
@@ -191,6 +191,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
             { route: 'barWasteLog', label: 'รายงาน Waste/ของเสีย (บาร์)', emoji: '🗑️' },
             { route: 'bakeryWasteLog', label: 'รายงาน Waste/ของเสีย (ครัว)', emoji: '🗑️' },
             { route: 'barWaste', label: 'รายงาน Waste เมล็ดกาแฟ', emoji: '☕' },
+            { route: 'maintenanceReport', label: 'รายงานบำรุงรักษาเครื่องมือ (Maintenance)', emoji: '🔧' },
           ],
         },
         {
