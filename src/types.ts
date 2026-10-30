@@ -86,6 +86,34 @@ export interface RnDReportEntry {
   branch?: Branch;
 }
 
+export type MaintenanceType = 'Preventive' | 'Repair' | 'Inspection' | 'Calibration' | 'PartReplacement';
+export type MaintenanceStatus = 'Completed' | 'Pending' | 'Scheduled';
+
+export interface MaintenanceRecord {
+  id: string;
+  timestamp: string;
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
+  branch: Branch;
+  department: 'Bar' | 'Bakery' | 'General';
+  equipmentName: string;
+  equipmentCode?: string;
+  category: string;
+  maintenanceType: MaintenanceType;
+  status: MaintenanceStatus;
+  details: string;
+  partsReplaced?: string;
+  cost?: number;
+  performedBy: 'Internal' | 'Vendor';
+  technicianName?: string;
+  contactNumber?: string;
+  nextServiceDate?: string; // YYYY-MM-DD
+  imageUrl?: string;
+  imageUrls?: string[];
+  recorderName: string;
+  notes?: string;
+}
+
 export type PermissionLevel = 'Hidden' | 'Review' | 'Edit';
 
 export interface AppPermissions {
@@ -107,6 +135,7 @@ export interface AppPermissions {
   // Reports & History
   purchasingReport: PermissionLevel;
   rndReport: PermissionLevel;
+  maintenanceReport?: PermissionLevel;
   historyLogs: PermissionLevel;
   historyChecklist: PermissionLevel;
   historyWaste: PermissionLevel;
