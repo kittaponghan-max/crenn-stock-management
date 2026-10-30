@@ -122,7 +122,7 @@ export function HomeScreen({
   const [maintenanceList, setMaintenanceList] = useState<any[]>([]);
   const [loadingMaintenance, setLoadingMaintenance] = useState<boolean>(true);
   const [isRefreshingMaintenance, setIsRefreshingMaintenance] = useState<boolean>(false);
-  const [maintenanceFilter, setMaintenanceFilter] = useState<'all' | 'overdue' | 'week' | 'month'>('all');
+  const [maintenanceFilter, setMaintenanceFilter] = useState<'all' | 'overdue' | 'today' | 'week' | 'month' | 'future'>('all');
   const [maintenanceDeptFilter, setMaintenanceDeptFilter] = useState<'all' | 'Bar' | 'Bakery' | 'General'>('all');
 
   // Fetch maintenance records that have next_service_date
@@ -170,12 +170,22 @@ export function HomeScreen({
     // Normalize and filter records that have next_service_date / nextServiceDate
     const normalized = branchFiltered
       .map((r: any) => {
-        const nextDate = (r.next_service_date || r.nextServiceDate || '').trim();
+        const nextDate = String(r.next_service_date || r.nextServiceDate || '').trim();
+        const rawDept = String(r.department || '').toLowerCase().trim();
+        let dept: 'Bar' | 'Bakery' | 'General' = 'General';
+        if (rawDept === 'bar' || rawDept === 'บาร์') {
+          dept = 'Bar';
+        } else if (rawDept === 'bakery' || rawDept === 'kitchen' || rawDept === 'เบเกอรี่' || rawDept === 'ครัว') {
+          dept = 'Bakery';
+        } else {
+          dept = 'General';
+        }
+
         return {
           id: r.id || String(Math.random()),
           equipmentName: r.equipment_name || r.equipmentName || 'ไม่ระบุชื่ออุปกรณ์',
           equipmentCode: r.equipment_code || r.equipmentCode || '',
-          department: (r.department || 'Bar') as 'Bar' | 'Bakery' | 'General',
+          department: dept,
           category: r.category || 'General',
           maintenanceType: r.maintenance_type || r.maintenanceType || 'Preventive',
           status: r.status || 'Completed',
@@ -210,7 +220,8 @@ export function HomeScreen({
   const calculateDaysRemaining = useCallback((targetDateStr: string): number => {
     if (!targetDateStr) return 999;
     try {
-      const parts = targetDateStr.split('-');
+      const cleanStr = targetDateStr.split('T')[0].trim();
+      const parts = cleanStr.split('-');
       if (parts.length === 3) {
         const year = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
@@ -221,7 +232,7 @@ export function HomeScreen({
         const diffMs = targetDate.getTime() - today.getTime();
         return Math.round(diffMs / (1000 * 60 * 60 * 24));
       }
-      const d = new Date(targetDateStr);
+      const d = new Date(cleanStr);
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -244,14 +255,21 @@ export function HomeScreen({
     }
   }, []);
 
-  // Maintenance statistics & metrics
+  // Department-filtered base list (Independent of stock location filter)
+  const departmentFilteredMaintenanceList = useMemo(() => {
+    if (maintenanceDeptFilter === 'all') return maintenanceList;
+    return maintenanceList.filter(item => item.department === maintenanceDeptFilter);
+  }, [maintenanceList, maintenanceDeptFilter]);
+
+  // Maintenance statistics calculated from active department selection
   const maintenanceStats = useMemo(() => {
     let overdue = 0;
     let dueToday = 0;
     let due7Days = 0;
     let due30Days = 0;
+    let future = 0;
 
-    maintenanceList.forEach(item => {
+    departmentFilteredMaintenanceList.forEach(item => {
       const days = calculateDaysRemaining(item.nextServiceDate);
       if (days < 0) {
         overdue++;
@@ -261,33 +279,31 @@ export function HomeScreen({
         due7Days++;
       } else if (days > 7 && days <= 30) {
         due30Days++;
+      } else {
+        future++;
       }
     });
 
     return {
-      total: maintenanceList.length,
+      total: departmentFilteredMaintenanceList.length,
       overdue,
       dueToday,
       due7Days,
       due30Days,
+      future,
       urgentTotal: overdue + dueToday + due7Days
     };
-  }, [maintenanceList, calculateDaysRemaining]);
+  }, [departmentFilteredMaintenanceList, calculateDaysRemaining]);
 
   // Filtered maintenance records for display
   const displayedMaintenanceList = useMemo(() => {
-    return maintenanceList.filter(item => {
-      // 1. Filter by location / department if user selected bar or kitchen on the main page
-      if (locationFilter === 'bar' && item.department !== 'Bar') return false;
-      if (locationFilter === 'kitchen' && item.department !== 'Bakery') return false;
-
-      // Internal department tab filter
-      if (maintenanceDeptFilter !== 'all' && item.department !== maintenanceDeptFilter) return false;
-
-      // 2. Filter by countdown status tab
+    return departmentFilteredMaintenanceList.filter(item => {
       const days = calculateDaysRemaining(item.nextServiceDate);
       if (maintenanceFilter === 'overdue') {
-        return days <= 0; // Overdue or today
+        return days < 0;
+      }
+      if (maintenanceFilter === 'today') {
+        return days === 0;
       }
       if (maintenanceFilter === 'week') {
         return days >= 0 && days <= 7;
@@ -295,9 +311,12 @@ export function HomeScreen({
       if (maintenanceFilter === 'month') {
         return days >= 0 && days <= 30;
       }
+      if (maintenanceFilter === 'future') {
+        return days > 30;
+      }
       return true; // 'all'
     });
-  }, [maintenanceList, locationFilter, maintenanceDeptFilter, maintenanceFilter, calculateDaysRemaining]);
+  }, [departmentFilteredMaintenanceList, maintenanceFilter, calculateDaysRemaining]);
 
   // Combined ingredients map: props.ingredients + dbIngredientsMap
   const allIngredientsMap = useMemo(() => {
@@ -2072,148 +2091,152 @@ export function HomeScreen({
         </div>
 
         {/* ── 7. EQUIPMENT MAINTENANCE MONITOR CARD (มอนิเตอร์รอบซ่อมบำรุงและนับถอยหลัง) ── */}
-        <section className="bg-white rounded-2xl p-4 md:p-6 border border-[#D4E4E3] shadow-xs transition-all duration-200">
+        <section className="bg-white rounded-2xl p-3.5 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200">
           {/* Card Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3] shadow-2xs shrink-0">
-                <Wrench size={20} />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3] shadow-2xs shrink-0">
+                <Wrench size={16} />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm md:text-base font-bold text-[#2D4A49]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h3 className="text-[11px] font-bold text-[#2D4A49]">
                     ติดตามรอบซ่อมบำรุงและตรวจเช็คอุปกรณ์ (Maintenance Schedule)
                   </h3>
-                  <span className="text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-md border border-[#D4E4E3]">
+                  <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
                     สาขา {user.branch === 'Bangkok' ? 'กรุงเทพฯ' : 'ระยอง'}
                   </span>
                   {maintenanceStats.urgentTotal > 0 && (
-                    <span className="text-[10px] font-bold text-white bg-rose-500 px-2 py-0.5 rounded-full shadow-2xs animate-pulse">
+                    <span className="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded-full shadow-2xs animate-pulse">
                       แจ้งเตือน {maintenanceStats.urgentTotal} รายการ
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                <p className="text-[10px] text-[#6B8F8E] mt-0.5">
                   มอนิเตอร์กำหนดรอบตรวจเช็ค / PM เครื่องมือและอุปกรณ์ล่วงหน้า พร้อมนับถอยหลังจำนวนวัน
                 </p>
               </div>
             </div>
 
             {/* Header Action Buttons */}
-            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
               <button
                 type="button"
                 onClick={fetchMaintenanceSchedules}
                 disabled={isRefreshingMaintenance}
-                className="px-2.5 py-1.5 rounded-xl border border-[#D4E4E3] bg-[#F7FAFA] hover:bg-[#E8F3F2] text-[#2D4A49] text-[11px] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-2 py-1 rounded-lg border border-[#D4E4E3] bg-[#F7FAFA] hover:bg-[#E8F3F2] text-[#2D4A49] text-[10px] font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 title="รีเฟรชข้อมูลล่าสุด"
               >
-                <RefreshCw size={12} className={isRefreshingMaintenance ? 'animate-spin text-[#5A8A88]' : ''} />
+                <RefreshCw size={11} className={isRefreshingMaintenance ? 'animate-spin text-[#5A8A88]' : ''} />
                 <span className="hidden sm:inline">รีเฟรช</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onNavigate('maintenanceReport')}
-                className="px-3 py-1.5 rounded-xl bg-[#5A8A88] hover:bg-[#476E6C] text-white text-[11px] font-bold transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-[#5A8A88] hover:bg-[#476E6C] text-white text-[10px] font-bold transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
               >
                 <span>เปิดรายงานซ่อมบำรุง</span>
-                <ChevronRight size={14} />
+                <ChevronRight size={12} />
               </button>
             </div>
           </div>
 
-          {/* Quick Metrics (4 Mini KPI Cards) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 md:gap-3.5 my-4">
+          {/* Quick Metrics (4 Mini KPI Cards - Clicking selects status) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 my-3">
             {/* 1. ทั้งหมด */}
             <div 
               onClick={() => setMaintenanceFilter('all')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                 maintenanceFilter === 'all' 
                   ? 'bg-[#E8F3F2] border-[#5A8A88] shadow-xs' 
                   : 'bg-[#F9FBFA] border-[#D4E4E3] hover:bg-[#E8F3F2]/60'
               }`}
             >
               <div className="flex items-center justify-between text-[#6B8F8E]">
-                <span className="text-[11px] font-semibold">มีกำหนดรอบทั้งหมด</span>
-                <CalendarCheck size={14} className="text-[#5A8A88]" />
+                <span className="text-[10px] font-semibold">มีกำหนดรอบทั้งหมด</span>
+                <CalendarCheck size={13} className="text-[#5A8A88]" />
               </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-xl md:text-2xl font-black text-[#2D4A49]">
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className="text-[11px] font-black text-[#2D4A49]">
                   {maintenanceStats.total}
                 </span>
-                <span className="text-[10px] text-[#6B8F8E]">รายการ</span>
+                <span className="text-[9px] text-[#6B8F8E]">รายการ</span>
               </div>
             </div>
 
             {/* 2. เกินกำหนด (Overdue) */}
             <div 
-              onClick={() => setMaintenanceFilter('overdue')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${
+              onClick={() => setMaintenanceFilter(prev => prev === 'overdue' ? 'all' : 'overdue')}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                 maintenanceFilter === 'overdue' 
                   ? 'bg-rose-50 border-rose-400 shadow-xs' 
                   : 'bg-rose-50/50 border-rose-200 hover:bg-rose-50'
               }`}
             >
               <div className="flex items-center justify-between text-rose-700">
-                <span className="text-[11px] font-bold">เกินกำหนดแล้ว</span>
-                <AlertTriangle size={14} className="text-rose-500" />
+                <span className="text-[10px] font-bold">เกินกำหนดแล้ว</span>
+                <AlertTriangle size={13} className="text-rose-500" />
               </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className={`text-xl md:text-2xl font-black ${maintenanceStats.overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className={`text-[11px] font-black ${maintenanceStats.overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
                   {maintenanceStats.overdue}
                 </span>
-                <span className="text-[10px] text-rose-600">รายการ</span>
+                <span className="text-[9px] text-rose-600">รายการ</span>
               </div>
             </div>
 
-            {/* 3. ครบกำหนดวันนี้ */}
+            {/* 3. ครบกำหนดวันนี้ (Today) */}
             <div 
-              onClick={() => setMaintenanceFilter('overdue')}
-              className="p-3 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 transition-all cursor-pointer"
+              onClick={() => setMaintenanceFilter(prev => prev === 'today' ? 'all' : 'today')}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                maintenanceFilter === 'today'
+                  ? 'bg-amber-100/70 border-amber-400 shadow-xs'
+                  : 'bg-amber-50/50 border-amber-200 hover:bg-amber-50'
+              }`}
             >
               <div className="flex items-center justify-between text-amber-800">
-                <span className="text-[11px] font-bold">ครบกำหนดวันนี้</span>
-                <Clock size={14} className="text-amber-500" />
+                <span className="text-[10px] font-bold">ครบกำหนดวันนี้</span>
+                <Clock size={13} className="text-amber-500" />
               </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className={`text-xl md:text-2xl font-black ${maintenanceStats.dueToday > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className={`text-[11px] font-black ${maintenanceStats.dueToday > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
                   {maintenanceStats.dueToday}
                 </span>
-                <span className="text-[10px] text-amber-700">รายการ</span>
+                <span className="text-[9px] text-amber-700">รายการ</span>
               </div>
             </div>
 
-            {/* 4. ภายใน 7 วัน */}
+            {/* 4. ภายใน 7 วัน (Next 7 Days) */}
             <div 
-              onClick={() => setMaintenanceFilter('week')}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${
+              onClick={() => setMaintenanceFilter(prev => prev === 'week' ? 'all' : 'week')}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                 maintenanceFilter === 'week' 
                   ? 'bg-amber-50 border-amber-400 shadow-xs' 
                   : 'bg-[#F9FBFA] border-[#D4E4E3] hover:bg-amber-50/50'
               }`}
             >
               <div className="flex items-center justify-between text-[#6B8F8E]">
-                <span className="text-[11px] font-semibold">ภายใน 7 วัน</span>
-                <Clock size={14} className="text-amber-500" />
+                <span className="text-[10px] font-semibold">ภายใน 7 วัน</span>
+                <Clock size={13} className="text-amber-500" />
               </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className={`text-xl md:text-2xl font-black ${maintenanceStats.due7Days > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className={`text-[11px] font-black ${maintenanceStats.due7Days > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
                   {maintenanceStats.due7Days}
                 </span>
-                <span className="text-[10px] text-[#6B8F8E]">รายการ</span>
+                <span className="text-[9px] text-[#6B8F8E]">รายการ</span>
               </div>
             </div>
           </div>
 
           {/* Filter Bar (Tabs & Department Pills) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pt-0.5">
             {/* Countdown Status Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-[11px] font-medium">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-[10px]">
               <button
                 type="button"
                 onClick={() => setMaintenanceFilter('all')}
-                className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   maintenanceFilter === 'all'
                     ? 'bg-[#5A8A88] text-white font-bold shadow-2xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -2223,19 +2246,30 @@ export function HomeScreen({
               </button>
               <button
                 type="button"
-                onClick={() => setMaintenanceFilter('overdue')}
-                className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                onClick={() => setMaintenanceFilter(prev => prev === 'overdue' ? 'all' : 'overdue')}
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   maintenanceFilter === 'overdue'
                     ? 'bg-rose-600 text-white font-bold shadow-2xs'
                     : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
                 }`}
               >
-                🚨 เกินกำหนด / วันนี้ ({maintenanceStats.overdue + maintenanceStats.dueToday})
+                🚨 เกินกำหนด ({maintenanceStats.overdue})
               </button>
               <button
                 type="button"
-                onClick={() => setMaintenanceFilter('week')}
-                className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                onClick={() => setMaintenanceFilter(prev => prev === 'today' ? 'all' : 'today')}
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                  maintenanceFilter === 'today'
+                    ? 'bg-amber-600 text-white font-bold shadow-2xs'
+                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+                }`}
+              >
+                🔔 วันนี้ ({maintenanceStats.dueToday})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaintenanceFilter(prev => prev === 'week' ? 'all' : 'week')}
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   maintenanceFilter === 'week'
                     ? 'bg-amber-500 text-white font-bold shadow-2xs'
                     : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
@@ -2245,8 +2279,8 @@ export function HomeScreen({
               </button>
               <button
                 type="button"
-                onClick={() => setMaintenanceFilter('month')}
-                className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                onClick={() => setMaintenanceFilter(prev => prev === 'month' ? 'all' : 'month')}
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   maintenanceFilter === 'month'
                     ? 'bg-[#2D4A49] text-white font-bold shadow-2xs'
                     : 'bg-[#E8F3F2] text-[#2D4A49] hover:bg-[#D4E4E3]'
@@ -2254,60 +2288,121 @@ export function HomeScreen({
               >
                 🗓️ ภายใน 30 วัน ({maintenanceStats.due30Days})
               </button>
+              {maintenanceStats.future > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMaintenanceFilter(prev => prev === 'future' ? 'all' : 'future')}
+                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    maintenanceFilter === 'future'
+                      ? 'bg-teal-700 text-white font-bold shadow-2xs'
+                      : 'bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200'
+                  }`}
+                >
+                  ✨ มากกว่า 30 วัน ({maintenanceStats.future})
+                </button>
+              )}
             </div>
 
             {/* Department Filter Pills */}
-            <div className="flex items-center gap-1 text-[11px] self-end sm:self-auto shrink-0">
-              <span className="text-[#6B8F8E] text-[10px] mr-1 hidden md:inline">แผนก:</span>
-              {(['all', 'Bar', 'Bakery', 'General'] as const).map(dept => (
-                <button
-                  key={dept}
-                  type="button"
-                  onClick={() => setMaintenanceDeptFilter(dept)}
-                  className={`px-2 py-0.5 rounded-md text-[10px] transition-colors cursor-pointer font-medium ${
-                    maintenanceDeptFilter === dept
-                      ? 'bg-[#2D4A49] text-white font-bold'
-                      : 'bg-[#F0F5F4] text-[#6B8F8E] hover:bg-[#E8F3F2]'
-                  }`}
-                >
-                  {dept === 'all' ? 'ทุกแผนก' : dept === 'Bar' ? 'บาร์' : dept === 'Bakery' ? 'เบเกอรี่' : 'ส่วนกลาง'}
-                </button>
-              ))}
+            <div className="flex items-center gap-1 text-[10px] self-end sm:self-auto shrink-0">
+              <span className="text-[#6B8F8E] text-[9px] mr-0.5 hidden md:inline">แผนก:</span>
+              <button
+                type="button"
+                onClick={() => setMaintenanceDeptFilter('all')}
+                className={`px-2 py-0.5 rounded text-[9px] transition-colors cursor-pointer font-medium ${
+                  maintenanceDeptFilter === 'all'
+                    ? 'bg-[#2D4A49] text-white font-bold'
+                    : 'bg-[#F0F5F4] text-[#6B8F8E] hover:bg-[#E8F3F2]'
+                }`}
+              >
+                ทุกแผนก ({maintenanceList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaintenanceDeptFilter('Bar')}
+                className={`px-2 py-0.5 rounded text-[9px] transition-colors cursor-pointer font-medium ${
+                  maintenanceDeptFilter === 'Bar'
+                    ? 'bg-[#2D4A49] text-white font-bold'
+                    : 'bg-[#F0F5F4] text-[#6B8F8E] hover:bg-[#E8F3F2]'
+                }`}
+              >
+                บาร์ ({maintenanceList.filter(i => i.department === 'Bar').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaintenanceDeptFilter('Bakery')}
+                className={`px-2 py-0.5 rounded text-[9px] transition-colors cursor-pointer font-medium ${
+                  maintenanceDeptFilter === 'Bakery'
+                    ? 'bg-[#2D4A49] text-white font-bold'
+                    : 'bg-[#F0F5F4] text-[#6B8F8E] hover:bg-[#E8F3F2]'
+                }`}
+              >
+                เบเกอรี่ ({maintenanceList.filter(i => i.department === 'Bakery').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaintenanceDeptFilter('General')}
+                className={`px-2 py-0.5 rounded text-[9px] transition-colors cursor-pointer font-medium ${
+                  maintenanceDeptFilter === 'General'
+                    ? 'bg-[#2D4A49] text-white font-bold'
+                    : 'bg-[#F0F5F4] text-[#6B8F8E] hover:bg-[#E8F3F2]'
+                }`}
+              >
+                ส่วนกลาง ({maintenanceList.filter(i => i.department === 'General').length})
+              </button>
             </div>
           </div>
 
           {/* Cards Grid or Empty State */}
           {loadingMaintenance ? (
-            <div className="py-12 text-center text-[#6B8F8E]">
-              <Loader2 size={24} className="animate-spin mx-auto text-[#5A8A88] mb-2" />
-              <p className="text-xs">กำลังโหลดกำหนดการซ่อมบำรุง...</p>
+            <div className="py-8 text-center text-[#6B8F8E]">
+              <Loader2 size={20} className="animate-spin mx-auto text-[#5A8A88] mb-1.5" />
+              <p className="text-[10px]">กำลังโหลดกำหนดการซ่อมบำรุง...</p>
             </div>
           ) : displayedMaintenanceList.length === 0 ? (
-            <div className="py-10 px-4 text-center bg-[#F9FBFA] rounded-xl border border-dashed border-[#D4E4E3]">
-              <div className="w-12 h-12 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center mx-auto mb-2.5">
-                <ShieldCheck size={26} />
+            <div className="py-7 px-3 text-center bg-[#F9FBFA] rounded-xl border border-dashed border-[#D4E4E3]">
+              <div className="w-10 h-10 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center mx-auto mb-2">
+                <ShieldCheck size={20} />
               </div>
-              <h4 className="text-xs sm:text-sm font-bold text-[#2D4A49]">
+              <h4 className="text-[11px] font-bold text-[#2D4A49]">
                 {maintenanceFilter === 'overdue' 
-                  ? 'ไม่มีรายการที่เกินกำหนดหรือครบกำหนดในวันนี้' 
-                  : maintenanceFilter === 'week' 
-                    ? 'ไม่มีรายการที่ต้องตรวจเช็คภายใน 7 วันนี้' 
-                    : 'ไม่มีอุปกรณ์ที่มีกำหนดรอบซ่อมบำรุงในเงื่อนไขนี้'}
+                  ? `ไม่มีรายการที่เกินกำหนด (${maintenanceDeptFilter === 'all' ? 'ทุกแผนก' : maintenanceDeptFilter})` 
+                  : maintenanceFilter === 'today'
+                    ? `ไม่มีรายการที่ครบกำหนดวันนี้ (${maintenanceDeptFilter === 'all' ? 'ทุกแผนก' : maintenanceDeptFilter})`
+                    : maintenanceFilter === 'week' 
+                      ? `ไม่มีรายการที่ต้องตรวจเช็คภายใน 7 วันนี้ (${maintenanceDeptFilter === 'all' ? 'ทุกแผนก' : maintenanceDeptFilter})` 
+                      : `ไม่มีอุปกรณ์ที่มีกำหนดรอบซ่อมบำรุงในเงื่อนไขนี้ (${maintenanceDeptFilter === 'all' ? 'ทุกแผนก' : maintenanceDeptFilter})`}
               </h4>
-              <p className="text-[11px] text-[#6B8F8E] mt-1 max-w-sm mx-auto">
-                อุปกรณ์ทั้งหมดทำงานได้ตามปกติ หรือยังไม่ได้ระบุวันกำหนดรอบถัดไป (Next Service Date)
+              <p className="text-[10px] text-[#6B8F8E] mt-1 max-w-sm mx-auto leading-relaxed">
+                {maintenanceList.length > 0 
+                  ? `มีข้อมูลซ่อมบำรุงในระบบ ${maintenanceList.length} รายการ แต่ไม่ตรงกับตัวกรองที่เลือก` 
+                  : 'อุปกรณ์ทั้งหมดทำงานได้ตามปกติ หรือยังไม่ได้ระบุวันกำหนดรอบถัดไป'}
               </p>
-              <button
-                type="button"
-                onClick={() => onNavigate('maintenanceReport')}
-                className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#5A8A88] hover:bg-[#476E6C] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-              >
-                <Wrench size={13} />
-                <span>บันทึกการซ่อมบำรุง / กำหนดรอบตรวจเช็ค</span>
-              </button>
+              <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+                {(maintenanceFilter !== 'all' || maintenanceDeptFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceFilter('all');
+                      setMaintenanceDeptFilter('all');
+                    }}
+                    className="px-3 py-1 rounded-lg border border-[#D4E4E3] bg-white hover:bg-slate-50 text-[#2D4A49] text-[10px] font-semibold transition-colors cursor-pointer shadow-2xs"
+                  >
+                    แสดงทั้งหมด ({maintenanceList.length} รายการ)
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onNavigate('maintenanceReport')}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[#5A8A88] hover:bg-[#476E6C] text-white text-[10px] font-semibold shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Wrench size={12} />
+                  <span>บันทึกการซ่อมบำรุง / กำหนดรอบ</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {displayedMaintenanceList.map((item: any, idx: number) => {
                 const days = calculateDaysRemaining(item.nextServiceDate);
                 const isOverdue = days < 0;
@@ -2317,7 +2412,7 @@ export function HomeScreen({
                 return (
                   <div
                     key={item.id || idx}
-                    className={`p-3.5 rounded-xl border transition-all relative flex flex-col justify-between hover:shadow-xs ${
+                    className={`p-3 rounded-xl border transition-all relative flex flex-col justify-between hover:shadow-xs ${
                       isOverdue 
                         ? 'bg-rose-50/40 border-rose-200' 
                         : isToday 
@@ -2329,9 +2424,9 @@ export function HomeScreen({
                   >
                     <div>
                       {/* Top Row: Department & Countdown Pill */}
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
                             item.department === 'Bar' 
                               ? 'bg-blue-50 text-blue-700 border-blue-200' 
                               : item.department === 'Bakery' 
@@ -2342,14 +2437,14 @@ export function HomeScreen({
                           </span>
 
                           {item.equipmentCode && (
-                            <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                            <span className="text-[9px] font-mono font-medium text-slate-500 bg-slate-50 px-1 py-0.5 rounded border border-slate-200">
                               {item.equipmentCode}
                             </span>
                           )}
                         </div>
 
                         {/* COUNTDOWN BADGE */}
-                        <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shadow-2xs flex items-center gap-1 shrink-0 ${
+                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shadow-2xs flex items-center gap-1 shrink-0 ${
                           isOverdue 
                             ? 'bg-rose-600 text-white animate-pulse' 
                             : isToday 
@@ -2385,12 +2480,12 @@ export function HomeScreen({
                       </div>
 
                       {/* Equipment Name */}
-                      <h4 className="text-xs sm:text-sm font-bold text-[#2D4A49] leading-snug line-clamp-1" title={item.equipmentName}>
+                      <h4 className="text-[11px] font-bold text-[#2D4A49] leading-snug line-clamp-1" title={item.equipmentName}>
                         {item.equipmentName}
                       </h4>
 
                       {/* Maintenance Type & Category */}
-                      <div className="flex items-center gap-1.5 mt-1 text-[10px] text-[#6B8F8E] truncate">
+                      <div className="flex items-center gap-1 mt-0.5 text-[10px] text-[#6B8F8E] truncate">
                         <span className="truncate">{item.category}</span>
                         <span>•</span>
                         <span className="font-medium text-slate-700 truncate">
@@ -2403,9 +2498,9 @@ export function HomeScreen({
                       </div>
 
                       {/* Details & Technician */}
-                      <div className="mt-2.5 pt-2 border-t border-slate-100/80 space-y-1 text-[11px]">
+                      <div className="mt-2 pt-1.5 border-t border-slate-100/80 space-y-1 text-[10px]">
                         <div className="flex items-center justify-between text-slate-600">
-                          <span className="text-[10px] text-[#6B8F8E]">กำหนดรอบถัดไป:</span>
+                          <span className="text-[9px] text-[#6B8F8E]">กำหนดรอบถัดไป:</span>
                           <span className="font-bold text-[#2D4A49]">
                             {formatThaiDisplayDate(item.nextServiceDate)}
                           </span>
@@ -2413,8 +2508,8 @@ export function HomeScreen({
 
                         {item.technicianName && (
                           <div className="flex items-center justify-between text-slate-600">
-                            <span className="text-[10px] text-[#6B8F8E]">ผู้ดูแล / ช่าง:</span>
-                            <span className="font-medium text-slate-700 truncate max-w-[150px]">
+                            <span className="text-[9px] text-[#6B8F8E]">ผู้ดูแล / ช่าง:</span>
+                            <span className="font-medium text-slate-700 truncate max-w-[140px]">
                               {item.technicianName}
                             </span>
                           </div>
@@ -2422,19 +2517,19 @@ export function HomeScreen({
 
                         {item.contactNumber && (
                           <div className="flex items-center justify-between text-slate-600">
-                            <span className="text-[10px] text-[#6B8F8E]">เบอร์ติดต่อ:</span>
+                            <span className="text-[9px] text-[#6B8F8E]">เบอร์ติดต่อ:</span>
                             <a 
                               href={`tel:${item.contactNumber}`}
-                              className="font-mono text-[10px] text-blue-600 hover:underline flex items-center gap-0.5"
+                              className="font-mono text-[9px] text-blue-600 hover:underline flex items-center gap-0.5"
                             >
-                              <Phone size={10} />
+                              <Phone size={9} />
                               <span>{item.contactNumber}</span>
                             </a>
                           </div>
                         )}
 
                         {item.details && (
-                          <p className="text-[10px] text-[#6B8F8E] line-clamp-1 mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100" title={item.details}>
+                          <p className="text-[9px] text-[#6B8F8E] line-clamp-1 mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100" title={item.details}>
                             {item.details}
                           </p>
                         )}
@@ -2442,8 +2537,8 @@ export function HomeScreen({
                     </div>
 
                     {/* Bottom Action */}
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[9.5px] text-slate-400">
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[9px] text-slate-400">
                         {item.date ? `ทำล่าสุด: ${formatThaiDisplayDate(item.date)}` : 'รอบกำหนดใหม่'}
                       </span>
                       <button
@@ -2452,7 +2547,7 @@ export function HomeScreen({
                         className="text-[10px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
                       >
                         <span>เปิดประวัติ</span>
-                        <ChevronRight size={12} />
+                        <ChevronRight size={11} />
                       </button>
                     </div>
                   </div>
