@@ -1728,22 +1728,22 @@ export function HomeScreen({
         {/* 5 & 6. STOCK STATUS CARD + STOCK ALERT CARD (Responsive 2-column on md+) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
           {/* 5. STOCK STATUS CARD: Donut chart + legend (CHANGE 4: Highlights active segment) */}
-          <section className="md:col-span-7 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
+          <section className="md:col-span-7 bg-white rounded-2xl p-3.5 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></div>
-                <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
+                <div className="w-2 h-2 rounded-full bg-[#5A8A88]"></div>
+                <h3 className="text-[11px] font-bold text-slate-800 tracking-tight">
                   {chartTitle}
                 </h3>
               </div>
-              <span className="text-[11px] font-medium text-slate-400">
+              <span className="text-[10px] font-medium text-slate-400">
                 ทั้งหมด {stockData.total} รายการ
               </span>
             </div>
 
-            <div className="flex items-center justify-around gap-4 py-2 my-auto">
+            <div className="flex items-center justify-around gap-3.5 py-2 my-auto">
               {/* Donut Chart SVG */}
-              <div className="relative w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40 shrink-0 flex items-center justify-center">
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
                   {/* Background ring */}
                   <circle
@@ -1804,59 +1804,59 @@ export function HomeScreen({
                   )}
                 </svg>
 
-                {/* Center text (CHANGE 4: Updates with KPI Selection) */}
+                {/* Center text (Strictly 9-11px typography) */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none transition-all duration-200">
                   {activeKPI === 'out_of_stock' ? (
                     <>
-                      <span className="text-base sm:text-lg font-black text-rose-600 leading-none">
+                      <span className="text-[11px] font-black text-rose-600 leading-none">
                         {stockData.outCount}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-rose-500 mt-0.5">
+                      <span className="text-[9px] font-bold text-rose-500 mt-0.5">
                         หมดสต็อก
                       </span>
                     </>
                   ) : activeKPI === 'low_stock' ? (
                     <>
-                      <span className="text-base sm:text-lg font-black text-amber-600 leading-none">
+                      <span className="text-[11px] font-black text-amber-600 leading-none">
                         {stockData.lowCount}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 mt-0.5">
+                      <span className="text-[9px] font-bold text-amber-600 mt-0.5">
                         ใกล้หมด
                       </span>
                     </>
                   ) : activeKPI === 'normal' ? (
                     <>
-                      <span className="text-base sm:text-lg font-black text-[#5A8A88] leading-none">
+                      <span className="text-[11px] font-black text-[#5A8A88] leading-none">
                         {stockData.goodCount}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-[#5A8A88] mt-0.5">
+                      <span className="text-[9px] font-bold text-[#5A8A88] mt-0.5">
                         สต็อกปกติ
                       </span>
                     </>
                   ) : activeKPI === 'purchasing' ? (
                     <>
-                      <span className="text-base sm:text-lg font-black text-[#2D4A49] leading-none">
+                      <span className="text-[11px] font-black text-[#2D4A49] leading-none">
                         {stockData.purchasingCount}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-[#7A9E9C] mt-0.5">
+                      <span className="text-[9px] font-bold text-[#7A9E9C] mt-0.5">
                         ต้องสั่งซื้อ
                       </span>
                     </>
                   ) : activeKPI === 'pending_delivery' ? (
                     <>
-                      <span className="text-base sm:text-lg font-black text-[#3B82F6] leading-none">
+                      <span className="text-[11px] font-black text-[#3B82F6] leading-none">
                         {pendingDelivery}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-[#3B82F6] mt-0.5">
+                      <span className="text-[9px] font-bold text-[#3B82F6] mt-0.5">
                         รอส่งมอบ
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="text-base sm:text-lg font-black text-slate-800 leading-none">
+                      <span className="text-[11px] font-black text-slate-800 leading-none">
                         {chartValues.goodPct}%
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5">
+                      <span className="text-[9px] font-medium text-slate-400 mt-0.5">
                         ความพร้อม
                       </span>
                     </>
@@ -1864,8 +1864,8 @@ export function HomeScreen({
                 </div>
               </div>
 
-              {/* Legend (CHANGE 4: Active status row highlight) */}
-              <div className="space-y-2 flex-1 text-xs">
+              {/* Legend (Strictly 9-11px typography) */}
+              <div className="space-y-1.5 flex-1">
                 {/* 1. สต็อกปกติ */}
                 <div 
                   onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
@@ -1877,13 +1877,13 @@ export function HomeScreen({
                         : 'bg-slate-50 border border-slate-100 hover:bg-[#F0F5F4]'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></span>
-                    <span className="text-slate-700 font-medium">สต็อกปกติ</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
+                    <span className="text-[10px] text-slate-700 font-medium">สต็อกปกติ</span>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold text-slate-800">{stockData.goodCount}</span>
-                    <span className="text-[10px] text-slate-400">({chartValues.goodPct}%)</span>
+                    <span className="text-[11px] font-black text-slate-800">{stockData.goodCount}</span>
+                    <span className="text-[9px] text-slate-400">({chartValues.goodPct}%)</span>
                   </div>
                 </div>
 
@@ -1898,13 +1898,13 @@ export function HomeScreen({
                         : 'bg-amber-50/60 border border-amber-100 hover:bg-amber-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <span className="text-amber-900 font-medium">ใกล้หมด</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span className="text-[10px] text-amber-900 font-medium">ใกล้หมด</span>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold text-amber-700">{stockData.lowCount}</span>
-                    <span className="text-[10px] text-amber-500">({chartValues.lowPct}%)</span>
+                    <span className="text-[11px] font-black text-amber-700">{stockData.lowCount}</span>
+                    <span className="text-[9px] text-amber-500">({chartValues.lowPct}%)</span>
                   </div>
                 </div>
 
@@ -1919,13 +1919,13 @@ export function HomeScreen({
                         : 'bg-rose-50/60 border border-rose-100 hover:bg-rose-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                    <span className="text-rose-900 font-medium">หมดสต็อก</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span className="text-[10px] text-rose-900 font-medium">หมดสต็อก</span>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold text-rose-700">{stockData.outCount}</span>
-                    <span className="text-[10px] text-rose-500">({chartValues.outPct}%)</span>
+                    <span className="text-[11px] font-black text-rose-700">{stockData.outCount}</span>
+                    <span className="text-[9px] text-rose-500">({chartValues.outPct}%)</span>
                   </div>
                 </div>
               </div>
@@ -1933,12 +1933,12 @@ export function HomeScreen({
           </section>
 
           {/* 6. RIGHT PANEL: DYNAMIC LIST (Filtered by KPI or Default) */}
-          <section className="md:col-span-5 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
+          <section className="md:col-span-5 bg-white rounded-2xl p-3.5 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 flex-wrap gap-2">
+              <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5">
-                  <AlertTriangle size={15} className="text-amber-500 shrink-0" />
-                  <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">
+                  <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                  <h3 className="text-[11px] font-bold text-slate-800 tracking-tight">
                     {panelTitle}
                   </h3>
                 </div>
@@ -1952,7 +1952,7 @@ export function HomeScreen({
                       className="text-[10px] font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1 shadow-2xs disabled:opacity-50"
                       title="ลบรายการสั่งซื้อซ้ำซ้อนในระบบฐานข้อมูล"
                     >
-                      {isCleaningDuplicates ? <Loader2 size={11} className="animate-spin text-amber-700" /> : <span>🧹</span>}
+                      {isCleaningDuplicates ? <Loader2 size={10} className="animate-spin text-amber-700" /> : <span>🧹</span>}
                       <span>{isCleaningDuplicates ? 'กำลังล้าง...' : 'ล้างข้อมูลซ้ำ'}</span>
                     </button>
                   )}
@@ -1965,7 +1965,7 @@ export function HomeScreen({
                       className="text-[10px] font-bold text-[#5A8A88] hover:text-[#2D4A49] bg-[#E8F3F2] hover:bg-[#D4E4E3] border border-[#D4E4E3] px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
                       title="ล้างรายการที่สต็อกเพียงพอแล้ว"
                     >
-                      <CheckCircle2 size={11} className="text-[#5A8A88]" />
+                      <CheckCircle2 size={10} className="text-[#5A8A88]" />
                       <span>ล้างตัวเอง</span>
                     </button>
                   )}
@@ -1981,33 +1981,33 @@ export function HomeScreen({
                     onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing')}
                     className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
                   >
-                    สั่งซื้อ
-                    <ChevronRight size={13} />
+                    <span>สั่งซื้อ</span>
+                    <ChevronRight size={12} />
                   </button>
                 </div>
               </div>
 
               {/* Schema Notice if columns needed in Supabase */}
               {schemaNotice && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-[11px] p-2.5 rounded-xl mb-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-[10px] p-2 rounded-lg mb-2.5 flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <AlertTriangle size={12} className="text-amber-600 shrink-0" />
                     <span className="truncate">{schemaNotice}</span>
                   </div>
                   <button 
                     onClick={() => setSchemaNotice(null)}
                     className="text-amber-600 hover:text-amber-800 cursor-pointer shrink-0"
                   >
-                    <X size={13} />
+                    <X size={12} />
                   </button>
                 </div>
               )}
 
               {displayItems.length === 0 ? (
-                <div className="py-8 text-center text-[#6B8F8E]">
-                  <CheckCircle2 size={36} className="mx-auto text-emerald-500 mb-2" />
-                  <p className="text-xs md:text-sm font-semibold text-slate-700">ไม่มีรายการในหมวดนี้</p>
-                  <p className="text-[11px] text-[#6B8F8E] mt-0.5">{locationLabel} ในหมวดนี้ไม่มีรายการที่ต้องแสดง</p>
+                <div className="py-6 text-center text-[#6B8F8E]">
+                  <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-1.5" />
+                  <p className="text-[11px] font-bold text-slate-700">ไม่มีรายการในหมวดนี้</p>
+                  <p className="text-[10px] text-[#6B8F8E] mt-0.5">{locationLabel} ในหมวดนี้ไม่มีรายการที่ต้องแสดง</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
@@ -2021,37 +2021,37 @@ export function HomeScreen({
                     return (
                       <div 
                         key={`${ing?.id || order?.id || order?.ingredient_id || index}-${index}`} 
-                        className={`py-2.5 flex items-start justify-between gap-2.5 transition-colors ${
+                        className={`py-2 flex items-start justify-between gap-2 transition-colors ${
                           pendingInfo 
-                            ? 'bg-[#FFF7ED] border-l-2 border-[#F59E0B] px-2 rounded-r-lg' 
+                            ? 'bg-[#FFF7ED] border-l-2 border-[#F59E0B] px-1.5 rounded-r-lg' 
                             : 'hover:bg-[#F0F5F4]/50 px-1 rounded-lg'
                         }`}
                       >
-                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
                             remaining <= 0 
                               ? 'bg-rose-50 text-rose-500' 
                               : remaining < (info.minStock ?? 0) 
                                 ? 'bg-amber-50 text-amber-500' 
                                 : 'bg-[#E8F3F2] text-[#5A8A88]'
                           }`}>
-                            {info.department === 'Bar' ? <Coffee size={16} /> : info.department === 'Bakery' ? <Cake size={16} /> : <Package size={16} />}
+                            {info.department === 'Bar' ? <Coffee size={14} /> : info.department === 'Bakery' ? <Cake size={14} /> : <Package size={14} />}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-[#2D4A49] truncate leading-snug" title={info.displayName}>
+                            <p className="text-[11px] font-bold text-[#2D4A49] truncate leading-snug" title={info.displayName}>
                               {info.displayName}
                             </p>
-                            <p className="text-[10px] text-[#6B8F8E] truncate">
+                            <p className="text-[9px] text-[#6B8F8E] truncate">
                               {info.displayBrand ? `${info.displayBrand} • ` : ''}ขั้นต่ำ: {info.minStock} {info.unit}
                             </p>
                             {isPendingKpi && orderDateStr && (
-                              <p className="text-[10px] text-[#A8BCBB] truncate mt-0.5">
+                              <p className="text-[9px] text-[#A8BCBB] truncate mt-0.5">
                                 สั่งเมื่อ: {formatOrderDateTime(orderDateStr)}
                               </p>
                             )}
                             {pendingInfo && (
                               <div
-                                className="inline-flex items-center gap-1 px-[7px] py-[2px] rounded-[5px] border border-[#FED7AA] bg-[#FFF7ED] text-[#C2410C] text-[10px] font-semibold mt-[3px] w-fit whitespace-nowrap shadow-2xs"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-[#FED7AA] bg-[#FFF7ED] text-[#C2410C] text-[9px] font-bold mt-1 w-fit whitespace-nowrap shadow-2xs"
                                 title={`สั่งซื้อเมื่อ: ${formatOrderDateTime(pendingInfo.ordered_at || pendingInfo.order_date)} จำนวน: ${pendingInfo.order_qty} ${pendingInfo.order_unit || info.unit || 'หน่วย'} วันที่สั่ง: ${pendingInfo.order_date}`}
                               >
                                 <span>🚚 สั่งซื้อแล้ว {pendingInfo.order_qty} {pendingInfo.order_unit || info.unit || 'หน่วย'} · รอส่งมอบ</span>
@@ -2060,11 +2060,11 @@ export function HomeScreen({
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0 flex flex-col items-end max-w-[48%] pl-2 self-start">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold truncate max-w-full ${badgeClass}`}>
+                        <div className="text-right shrink-0 flex flex-col items-end max-w-[48%] pl-1.5 self-start">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold truncate max-w-full ${badgeClass}`}>
                             {badgeLabel}
                           </span>
-                          <span className={`text-[10px] font-medium mt-0.5 truncate max-w-full ${
+                          <span className={`text-[9px] font-medium mt-0.5 truncate max-w-full ${
                             isPendingKpi
                               ? remaining < (info.minStock ?? 0)
                                 ? 'text-red-500 font-semibold'
@@ -2076,7 +2076,7 @@ export function HomeScreen({
                             คงเหลือ {remaining} / {info.minStock} {info.unit}
                           </span>
                           {isPendingKpi && isPendingConfirm && (
-                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded mt-0.5 whitespace-nowrap">
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1 py-0.5 rounded mt-0.5 whitespace-nowrap">
                               (รอยืนยันการส่งมอบ)
                             </span>
                           )}
