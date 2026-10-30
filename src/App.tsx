@@ -20,6 +20,7 @@ import { BakeryPlanHistory } from './components/BakeryPlanHistory';
 import { BarWasteReport } from './components/BarWasteReport';
 import { WasteReport } from './components/WasteReport';
 import { RnDReport } from './components/RnDReport';
+import { MaintenanceReport } from './components/MaintenanceReport';
 import { PurchasingReport } from './components/PurchasingReport';
 import { OrderedItemsReport } from './components/OrderedItemsReport';
 import { UserSettings } from './components/UserSettings';
@@ -413,7 +414,7 @@ export default function App() {
   }, [stockViewMode, stockWeek, stockActiveChunkIdx]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'userSettings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings'>('home');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
@@ -2441,6 +2442,13 @@ export default function App() {
           <WasteReport department="Bakery" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
         ) : activeTab === 'rndReport' ? (
           <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
+        ) : activeTab === 'maintenanceReport' ? (
+          <MaintenanceReport 
+            currentUser={user?.name || 'Admin'} 
+            onBack={() => handleTabNavigate('home')} 
+            branch={user?.branch || 'Rayong'} 
+            isReadOnly={isReadOnly('maintenanceReport')}
+          />
         ) : activeTab === 'orderedItems' ? (
           <OrderedItemsReport
             user={user}
