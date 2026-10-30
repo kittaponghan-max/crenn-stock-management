@@ -1727,23 +1727,23 @@ export function HomeScreen({
 
         {/* 5 & 6. STOCK STATUS CARD + STOCK ALERT CARD (Responsive 2-column on md+) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-          {/* 5. STOCK STATUS CARD: Donut chart + legend (CHANGE 4: Highlights active segment) */}
-          <section className="md:col-span-7 bg-white rounded-2xl p-3.5 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
+          {/* 5. STOCK STATUS CARD: Donut chart + legend (Strictly 12-14px typography) */}
+          <section className="md:col-span-7 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-[#5A8A88]"></div>
-                <h3 className="text-[11px] font-bold text-slate-800 tracking-tight">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></div>
+                <h3 className="text-[14px] font-bold text-slate-800 tracking-tight">
                   {chartTitle}
                 </h3>
               </div>
-              <span className="text-[10px] font-medium text-slate-400">
+              <span className="text-[12px] font-medium text-slate-400">
                 ทั้งหมด {stockData.total} รายการ
               </span>
             </div>
 
-            <div className="flex items-center justify-around gap-3.5 py-2 my-auto">
+            <div className="flex items-center justify-around gap-4 py-2 my-auto">
               {/* Donut Chart SVG */}
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 flex items-center justify-center">
+              <div className="relative w-32 h-32 sm:w-36 sm:h-36 shrink-0 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
                   {/* Background ring */}
                   <circle
@@ -1804,59 +1804,59 @@ export function HomeScreen({
                   )}
                 </svg>
 
-                {/* Center text (Strictly 9-11px typography) */}
+                {/* Center text (Strictly 12-14px typography) */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none transition-all duration-200">
                   {activeKPI === 'out_of_stock' ? (
                     <>
-                      <span className="text-[11px] font-black text-rose-600 leading-none">
+                      <span className="text-[14px] font-black text-rose-600 leading-none">
                         {stockData.outCount}
                       </span>
-                      <span className="text-[9px] font-bold text-rose-500 mt-0.5">
+                      <span className="text-[12px] font-bold text-rose-500 mt-1">
                         หมดสต็อก
                       </span>
                     </>
                   ) : activeKPI === 'low_stock' ? (
                     <>
-                      <span className="text-[11px] font-black text-amber-600 leading-none">
+                      <span className="text-[14px] font-black text-amber-600 leading-none">
                         {stockData.lowCount}
                       </span>
-                      <span className="text-[9px] font-bold text-amber-600 mt-0.5">
+                      <span className="text-[12px] font-bold text-amber-600 mt-1">
                         ใกล้หมด
                       </span>
                     </>
                   ) : activeKPI === 'normal' ? (
                     <>
-                      <span className="text-[11px] font-black text-[#5A8A88] leading-none">
+                      <span className="text-[14px] font-black text-[#5A8A88] leading-none">
                         {stockData.goodCount}
                       </span>
-                      <span className="text-[9px] font-bold text-[#5A8A88] mt-0.5">
+                      <span className="text-[12px] font-bold text-[#5A8A88] mt-1">
                         สต็อกปกติ
                       </span>
                     </>
                   ) : activeKPI === 'purchasing' ? (
                     <>
-                      <span className="text-[11px] font-black text-[#2D4A49] leading-none">
+                      <span className="text-[14px] font-black text-[#2D4A49] leading-none">
                         {stockData.purchasingCount}
                       </span>
-                      <span className="text-[9px] font-bold text-[#7A9E9C] mt-0.5">
+                      <span className="text-[12px] font-bold text-[#7A9E9C] mt-1">
                         ต้องสั่งซื้อ
                       </span>
                     </>
                   ) : activeKPI === 'pending_delivery' ? (
                     <>
-                      <span className="text-[11px] font-black text-[#3B82F6] leading-none">
+                      <span className="text-[14px] font-black text-[#3B82F6] leading-none">
                         {pendingDelivery}
                       </span>
-                      <span className="text-[9px] font-bold text-[#3B82F6] mt-0.5">
+                      <span className="text-[12px] font-bold text-[#3B82F6] mt-1">
                         รอส่งมอบ
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="text-[11px] font-black text-slate-800 leading-none">
+                      <span className="text-[14px] font-black text-slate-800 leading-none">
                         {chartValues.goodPct}%
                       </span>
-                      <span className="text-[9px] font-medium text-slate-400 mt-0.5">
+                      <span className="text-[12px] font-medium text-slate-400 mt-1">
                         ความพร้อม
                       </span>
                     </>
@@ -1864,12 +1864,12 @@ export function HomeScreen({
                 </div>
               </div>
 
-              {/* Legend (Strictly 9-11px typography) */}
-              <div className="space-y-1.5 flex-1">
+              {/* Legend (Strictly 12-14px typography) */}
+              <div className="space-y-2 flex-1">
                 {/* 1. สต็อกปกติ */}
                 <div 
                   onClick={() => setActiveKPI(prev => prev === 'normal' ? null : 'normal')}
-                  className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                  className={`flex items-center justify-between p-2 sm:p-2.5 rounded-lg transition-all cursor-pointer ${
                     activeKPI === 'normal'
                       ? 'bg-[#E8F3F2] border-l-4 border-[#5A8A88] shadow-xs'
                       : hasActiveKPI
@@ -1877,20 +1877,20 @@ export function HomeScreen({
                         : 'bg-slate-50 border border-slate-100 hover:bg-[#F0F5F4]'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#5A8A88]"></span>
-                    <span className="text-[10px] text-slate-700 font-medium">สต็อกปกติ</span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]"></span>
+                    <span className="text-[13px] text-slate-700 font-medium">สต็อกปกติ</span>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[11px] font-black text-slate-800">{stockData.goodCount}</span>
-                    <span className="text-[9px] text-slate-400">({chartValues.goodPct}%)</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[14px] font-black text-slate-800">{stockData.goodCount}</span>
+                    <span className="text-[12px] text-slate-400 font-medium">({chartValues.goodPct}%)</span>
                   </div>
                 </div>
 
                 {/* 2. ใกล้หมด */}
                 <div 
                   onClick={() => setActiveKPI(prev => prev === 'low_stock' ? null : 'low_stock')}
-                  className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                  className={`flex items-center justify-between p-2 sm:p-2.5 rounded-lg transition-all cursor-pointer ${
                     activeKPI === 'low_stock' || activeKPI === 'purchasing'
                       ? 'bg-amber-50 border-l-4 border-amber-500 shadow-xs'
                       : hasActiveKPI
@@ -1898,20 +1898,20 @@ export function HomeScreen({
                         : 'bg-amber-50/60 border border-amber-100 hover:bg-amber-50'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span className="text-[10px] text-amber-900 font-medium">ใกล้หมด</span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span className="text-[13px] text-amber-900 font-medium">ใกล้หมด</span>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[11px] font-black text-amber-700">{stockData.lowCount}</span>
-                    <span className="text-[9px] text-amber-500">({chartValues.lowPct}%)</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[14px] font-black text-amber-700">{stockData.lowCount}</span>
+                    <span className="text-[12px] text-amber-500 font-medium">({chartValues.lowPct}%)</span>
                   </div>
                 </div>
 
                 {/* 3. หมดสต็อก */}
                 <div 
                   onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
-                  className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                  className={`flex items-center justify-between p-2 sm:p-2.5 rounded-lg transition-all cursor-pointer ${
                     activeKPI === 'out_of_stock' || activeKPI === 'purchasing'
                       ? 'bg-rose-50 border-l-4 border-rose-500 shadow-xs'
                       : hasActiveKPI
@@ -1919,13 +1919,13 @@ export function HomeScreen({
                         : 'bg-rose-50/60 border border-rose-100 hover:bg-rose-50'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span className="text-[10px] text-rose-900 font-medium">หมดสต็อก</span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <span className="text-[13px] text-rose-900 font-medium">หมดสต็อก</span>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[11px] font-black text-rose-700">{stockData.outCount}</span>
-                    <span className="text-[9px] text-rose-500">({chartValues.outPct}%)</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[14px] font-black text-rose-700">{stockData.outCount}</span>
+                    <span className="text-[12px] text-rose-500 font-medium">({chartValues.outPct}%)</span>
                   </div>
                 </div>
               </div>
