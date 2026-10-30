@@ -102,7 +102,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
     if (tabId === 'reports') {
       return [
         'barReceiving', 'bakeryReceiving', 'barDailyCount', 'bakeryDailyCount',
-        'barWasteLog', 'bakeryWasteLog', 'barWaste', 'logs', 'stockSubmitHistory', 'receivingHistory'
+        'barWasteLog', 'bakeryWasteLog', 'barWaste', 'maintenanceReport', 'logs', 'stockSubmitHistory', 'receivingHistory'
       ].includes(activeTab);
     }
     if (tabId === 'checkin') return activeTab === 'barChecklist' || activeTab === 'bakeryChecklist' || activeTab === 'checklistHistory';
@@ -187,7 +187,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       alignmentClass: 'left-[-30px] sm:left-1/2 sm:-translate-x-1/2',
       groups: [
         {
-          title: 'รายงานประจำวัน',
+          title: 'รายงานประจำวัน & อุปกรณ์',
           items: [
             { route: 'barReceiving', label: 'รับวัตถุดิบ (บาร์)', emoji: '📦' },
             { route: 'bakeryReceiving', label: 'รับวัตถุดิบ (ครัว)', emoji: '📦' },
@@ -196,6 +196,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
             { route: 'barWasteLog', label: 'Waste/ของเสีย (บาร์)', emoji: '🗑️' },
             { route: 'bakeryWasteLog', label: 'Waste/ของเสีย (ครัว)', emoji: '🗑️' },
             { route: 'barWaste', label: 'Waste เมล็ดกาแฟ', emoji: '☕' },
+            { route: 'maintenanceReport', label: 'บำรุงรักษาเครื่องมือ (Maintenance)', emoji: '🔧' },
           ],
         },
         {
