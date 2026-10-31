@@ -1992,11 +1992,14 @@ WITH CHECK (true);`;
                           ...prev,
                           performedBy: vendorObj.name.includes('ทีมงานภายใน') ? 'Internal' : 'Vendor',
                           technicianName: vendorObj.name,
-                          // Requirement 6: Auto-fill phone from database!
-                          contactNumber: vendorObj.phone || prev.contactNumber
+                          contactNumber: vendorObj.phone || '-'
                         }));
                       } else {
-                        setFormData(prev => ({ ...prev, technicianName: val }));
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          technicianName: val,
+                          contactNumber: '-' 
+                        }));
                       }
                     }}
                     className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
@@ -2008,7 +2011,7 @@ WITH CHECK (true);`;
                         .filter(v => v.branch === formData.branch || !v.branch)
                         .map(v => (
                           <option key={v.id} value={v.name}>
-                            {v.name} {v.phone ? `(${v.phone})` : ''}
+                            {v.name} {v.serviceDetails ? `(${v.serviceDetails})` : ''}
                           </option>
                         ))}
                     </optgroup>
@@ -2030,13 +2033,15 @@ WITH CHECK (true);`;
                   })()}
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">เบอร์ติดต่อช่าง</label>
+                  <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">
+                    เบอร์ติดต่อช่าง
+                  </label>
                   <input
                     type="text"
-                    placeholder="เช่น 081-234-5678"
-                    value={formData.contactNumber}
-                    onChange={e => setFormData({ ...formData, contactNumber: e.target.value })}
-                    className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    readOnly
+                    value={formData.contactNumber || '-'}
+                    className="w-full py-1.5 px-2.5 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded-lg text-slate-700 font-semibold focus:outline-none cursor-not-allowed select-none"
+                    title="ข้อมูลเบอร์ติดต่อจะขึ้นให้อัตโนมัติตามช่างที่เลือก"
                   />
                 </div>
               </div>
