@@ -433,8 +433,8 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
 
 interface UserSettingsProps {
   branch?: string;
-  currentUser?: { name: string; role: UserRole | string; permissions?: AppPermissions | any };
-  user?: { name: string; role: UserRole | string; permissions?: AppPermissions | any };
+  currentUser?: { name: string; role: UserRole | string; permissions?: AppPermissions | any; branch?: string };
+  user?: { name: string; role: UserRole | string; permissions?: AppPermissions | any; branch?: string };
   onCurrentUserUpdated?: (user: { name: string; role: UserRole; permissions?: AppPermissions }) => void;
   onNavigate?: (tab: any) => void;
 }
@@ -533,7 +533,17 @@ export function UserSettings(props: UserSettingsProps) {
   return <UserSettingsContent {...props} />;
 }
 
-function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavigate }: UserSettingsProps) {
+function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavigate, user }: UserSettingsProps) {
+  const initialBranch = branch || user?.branch || currentUser?.branch || 'Rayong';
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>(initialBranch);
+
+  useEffect(() => {
+    const active = branch || user?.branch || currentUser?.branch;
+    if (active) {
+      setSelectedBranchFilter(active);
+    }
+  }, [branch, user?.branch, currentUser?.branch]);
+
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -713,9 +723,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             }
           });
 
-          // Priority 1: Current branch
-          if (branch) {
-            const currentMatch = data.find((r: any) => r.branch === branch && r.setting_value);
+          // Priority 1: Current selected branch filter
+          const targetBranch = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : (branch || 'Rayong');
+          if (targetBranch) {
+            const currentMatch = data.find((r: any) => r.branch === targetBranch && r.setting_value);
             if (currentMatch && typeof currentMatch.setting_value === 'object') {
               resolvedTemplates = currentMatch.setting_value;
             }
@@ -746,7 +757,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
     // Fallback to local storage
     if (!resolvedTemplates) {
-      const saved = (branch ? localStorage.getItem(`role_permissions_templates_${branch}`) : null) ||
+      const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : (branch || 'Rayong');
+      const saved = (activeBr ? localStorage.getItem(`role_permissions_templates_${activeBr}`) : null) ||
                     localStorage.getItem('role_permissions_templates') || 
                     localStorage.getItem('role_permissions_templates_global');
       if (saved) {
@@ -770,7 +782,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     
     if (supabase) {
       try {
-        const branchesToUpdate = new Set<string>(['GLOBAL', 'Rayong', branch || 'Rayong']);
+        const branchesToUpdate = new Set<string>(['GLOBAL', 'Rayong', selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong']);
 
         // If sync across all branches is enabled, query all active branches
         if (syncAcrossAllBranches) {
@@ -806,8 +818,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     // Save to local storage backups
     localStorage.setItem('role_permissions_templates', JSON.stringify(updatedTemplates));
     localStorage.setItem('role_permissions_templates_global', JSON.stringify(updatedTemplates));
-    if (branch) {
-      localStorage.setItem(`role_permissions_templates_${branch}`, JSON.stringify(updatedTemplates));
+    if (selectedBranchFilter !== 'ALL') {
+      localStorage.setItem(`role_permissions_templates_${selectedBranchFilter}`, JSON.stringify(updatedTemplates));
     }
 
     setRoleTemplates(updatedTemplates);
@@ -821,11 +833,23 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
   const fetchUsers = async () => {
     setIsLoading(true);
-    // Get locally saved backup
+    const activeBranch = selectedBranchFilter;
+
+    // Get locally saved backup for active branch
     let localSavedUsers: AppUser[] = [];
     try {
-      const saved = localStorage.getItem('cafe-app-users');
-      if (saved) localSavedUsers = JSON.parse(saved);
+      const savedBranch = activeBranch !== 'ALL' ? localStorage.getItem(`cafe-app-users-${activeBranch}`) : null;
+      const savedGlobal = localStorage.getItem('cafe-app-users');
+      if (savedBranch) {
+        localSavedUsers = JSON.parse(savedBranch);
+      } else if (savedGlobal) {
+        const parsed = JSON.parse(savedGlobal);
+        if (Array.isArray(parsed)) {
+          localSavedUsers = activeBranch === 'ALL' 
+            ? parsed 
+            : parsed.filter((u: any) => u.branch === activeBranch);
+        }
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -833,8 +857,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     if (supabase) {
       try {
         let query = supabase.from('app_users').select('*');
-        if (branch) {
-          query = query.eq('branch', branch);
+        if (activeBranch && activeBranch !== 'ALL') {
+          query = query.eq('branch', activeBranch);
         }
         const { data, error } = await query;
 
@@ -853,7 +877,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           console.warn('Could not fetch cloud user_permissions_map:', settingsErr);
         }
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           const merged = (data as AppUser[]).map(dbUser => {
             const localUser = localSavedUsers.find(u => u.id === dbUser.id || u.name === dbUser.name);
             let userSpecificSaved: any = null;
@@ -871,37 +895,17 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             };
           });
           setUsers(merged);
+          if (activeBranch && activeBranch !== 'ALL') {
+            localStorage.setItem(`cafe-app-users-${activeBranch}`, JSON.stringify(merged));
+          }
           localStorage.setItem('cafe-app-users', JSON.stringify(merged));
           localStorage.setItem('app_users', JSON.stringify(merged));
         } else {
-          // Fallback check if users exist without branch filter
-          const { data: allData, error: allError } = await supabase.from('app_users').select('*');
-          if (!allError && allData && allData.length > 0) {
-            const merged = (allData as AppUser[]).map(dbUser => {
-              const localUser = localSavedUsers.find(u => u.id === dbUser.id || u.name === dbUser.name);
-              let userSpecificSaved: any = null;
-              try {
-                const uSaved = localStorage.getItem(`cafe_user_permissions_${dbUser.id}`) || localStorage.getItem(`cafe_user_permissions_${dbUser.name}`);
-                if (uSaved) userSpecificSaved = JSON.parse(uSaved);
-              } catch (e) {
-                console.warn(e);
-              }
-              const perms = dbUser.permissions || cloudPermissionsMap[dbUser.id] || cloudPermissionsMap[dbUser.name] || userSpecificSaved || localUser?.permissions;
-              return {
-                ...dbUser,
-                permissions: perms
-              };
-            });
-            setUsers(merged);
-            localStorage.setItem('cafe-app-users', JSON.stringify(merged));
-            localStorage.setItem('app_users', JSON.stringify(merged));
-          } else if (localSavedUsers.length > 0) {
-            setUsers(localSavedUsers);
-          }
+          setUsers(localSavedUsers);
         }
       } catch (err) {
         console.warn('Error fetching users from Supabase:', err);
-        if (localSavedUsers.length > 0) setUsers(localSavedUsers);
+        setUsers(localSavedUsers);
       }
     } else {
       // Offline mock data
@@ -909,12 +913,14 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
         setUsers(localSavedUsers);
       } else {
         const defaultUsers: AppUser[] = [
-          { id: '1', name: 'Admin', role: 'Admin' },
-          { id: '2', name: 'Branch Manager', role: 'Branch Manager' },
-          { id: '3', name: 'Barista', role: 'Barista' }
+          { id: '1', name: 'Admin', role: 'Admin', branch: activeBranch },
+          { id: '2', name: 'Branch Manager', role: 'Branch Manager', branch: activeBranch },
+          { id: '3', name: 'Barista', role: 'Barista', branch: activeBranch }
         ];
         setUsers(defaultUsers);
-        localStorage.setItem('cafe-app-users', JSON.stringify(defaultUsers));
+        if (activeBranch && activeBranch !== 'ALL') {
+          localStorage.setItem(`cafe-app-users-${activeBranch}`, JSON.stringify(defaultUsers));
+        }
       }
     }
     setIsLoading(false);
@@ -923,7 +929,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   useEffect(() => {
     fetchUsers();
     fetchRoleTemplates();
-  }, [branch]);
+  }, [selectedBranchFilter]);
 
   // Discord Notify Integration States & Handlers
   const [discordSettings, setDiscordSettings] = useState<any>({
@@ -1023,16 +1029,17 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
     const targetUserId = editingUser ? editingUser.id : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
 
+    const targetBranch = selectedBranchFilter !== 'ALL'
+      ? selectedBranchFilter
+      : (branch || user?.branch || currentUser?.branch || 'Rayong');
+
     const payload: any = {
       id: targetUserId,
       name: formData.name.trim(),
       role: formData.role,
-      permissions: savePerms
+      permissions: savePerms,
+      branch: targetBranch
     };
-
-    if (branch) {
-      payload.branch = branch;
-    }
 
     if (!editingUser) {
       payload.password = formData.password;
@@ -1093,7 +1100,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           await supabase
             .from('app_settings')
             .upsert({
-              branch,
+              branch: targetBranch,
               setting_key: 'user_permissions_map',
               setting_value: currentMap
             });
@@ -1106,12 +1113,12 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
           await supabase.from('audit_logs').insert({
             id: logId,
-            branch: branch || 'Bangkok',
+            branch: targetBranch,
             timestamp: new Date().toISOString(),
             user_email: currentUser?.name || 'Admin',
             user_role: currentUser?.role || 'Admin',
             action: editingUser ? 'UPDATE_USER_PERMISSIONS' : 'CREATE_USER',
-            details: `${editingUser ? 'แก้ไขผู้ใช้และสิทธิ์การเข้าถึง' : 'เพิ่มผู้ใช้งานใหม่'}: ${formData.name} (${formData.role})`
+            details: `${editingUser ? 'แก้ไขผู้ใช้และสิทธิ์การเข้าถึง' : 'เพิ่มผู้ใช้งานใหม่'}: ${formData.name} (${formData.role}) [สาขา: ${targetBranch}]`
           });
         } catch (logErr) {
           console.warn('Audit log recording error:', logErr);
@@ -1138,6 +1145,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       updatedUsers.push({ ...payload });
     }
     setUsers(updatedUsers);
+    localStorage.setItem(`cafe-app-users-${targetBranch}`, JSON.stringify(updatedUsers));
     localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
     localStorage.setItem('app_users', JSON.stringify(updatedUsers));
 
@@ -1162,7 +1170,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     } else {
       setUserSaveStatus({
         type: 'success',
-        message: `บันทึกข้อมูลและสิทธิ์การเข้าถึงของ "${formData.name}" สำเร็จเรียบร้อย`
+        message: `บันทึกข้อมูลและสิทธิ์การเข้าถึงของ "${formData.name}" (${targetBranch}) สำเร็จเรียบร้อย`
       });
     }
 
@@ -1193,6 +1201,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     }
     const updatedUsers = users.map(u => u.id === userId ? { ...u, password: passwordForm.password } : u);
     setUsers(updatedUsers);
+    const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+    localStorage.setItem(`cafe-app-users-${activeBr}`, JSON.stringify(updatedUsers));
     localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
     localStorage.setItem('app_users', JSON.stringify(updatedUsers));
 
@@ -1221,6 +1231,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     }
     const updatedUsers = users.filter(u => u.id !== id);
     setUsers(updatedUsers);
+    const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+    localStorage.setItem(`cafe-app-users-${activeBr}`, JSON.stringify(updatedUsers));
     localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsers));
     localStorage.setItem('app_users', JSON.stringify(updatedUsers));
     setUserToDelete(null);
@@ -1715,16 +1727,54 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           USER LIST SECTION
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div>
-        {/* Section header row */}
-        <div className="flex items-center justify-between mb-3 px-1">
-          <div className="flex items-center gap-2">
+        {/* Section header row with Branch Selector Tabs */}
+        <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Users size={16} className="text-[#5A8A88]" />
             <h3 className="text-[13px] font-bold text-[#2D4A49]">
               รายชื่อผู้ใช้งาน
             </h3>
+
+            {/* Interactive Branch Filter Tabs */}
+            <div className="flex items-center gap-1 bg-[#E8F3F2] p-1 rounded-lg border border-[#D4E4E3] ml-1">
+              <button
+                type="button"
+                onClick={() => setSelectedBranchFilter('Rayong')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                  selectedBranchFilter === 'Rayong'
+                    ? 'bg-[#2D4A49] text-white shadow-2xs'
+                    : 'text-[#5A8A88] hover:bg-[#D4E4E3]/50'
+                }`}
+              >
+                สาขา ระยอง
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedBranchFilter('Bangkok')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                  selectedBranchFilter === 'Bangkok'
+                    ? 'bg-[#2D4A49] text-white shadow-2xs'
+                    : 'text-[#5A8A88] hover:bg-[#D4E4E3]/50'
+                }`}
+              >
+                สาขา Bangkok
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedBranchFilter('ALL')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                  selectedBranchFilter === 'ALL'
+                    ? 'bg-[#2D4A49] text-white shadow-2xs'
+                    : 'text-[#5A8A88] hover:bg-[#D4E4E3]/50'
+                }`}
+              >
+                ทั้งหมด
+              </button>
+            </div>
           </div>
+
           <span className="bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2 py-0.5 rounded-md border border-[#D4E4E3]">
-            {users.length} ผู้ใช้งาน
+            {users.length} ผู้ใช้งาน {selectedBranchFilter !== 'ALL' ? `(สาขา ${selectedBranchFilter === 'Rayong' ? 'ระยอง' : selectedBranchFilter})` : '(ทุกสาขา)'}
           </span>
         </div>
 
