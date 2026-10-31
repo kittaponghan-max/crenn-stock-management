@@ -114,6 +114,29 @@ export interface MaintenanceRecord {
   notes?: string;
 }
 
+export interface MaintenanceEquipmentMaster {
+  id: string;
+  branch: Branch;
+  name: string;
+  code?: string;
+  category?: string;
+  department?: 'Bar' | 'Bakery' | 'General';
+}
+
+export interface MaintenanceCategoryMaster {
+  id: string;
+  branch: Branch;
+  name: string;
+}
+
+export interface MaintenanceVendorMaster {
+  id: string;
+  branch: Branch;
+  name: string;
+  serviceDetails?: string;
+  phone?: string;
+}
+
 export type PermissionLevel = 'Hidden' | 'Review' | 'Edit';
 
 export interface AppPermissions {
