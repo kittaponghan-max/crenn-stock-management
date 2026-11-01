@@ -89,6 +89,20 @@ export interface RnDReportEntry {
 export type MaintenanceType = 'Preventive' | 'Repair' | 'Inspection' | 'Calibration' | 'PartReplacement';
 export type MaintenanceStatus = 'Completed' | 'Pending' | 'Scheduled';
 
+export interface MaintenancePartItem {
+  id?: string;
+  name: string;
+  cost: number | '';
+}
+
+export interface MaintenanceEquipmentItem {
+  id?: string;
+  equipmentName: string;
+  equipmentCode: string;
+  category: string;
+  department?: 'Bar' | 'Bakery' | 'General';
+}
+
 export interface MaintenanceRecord {
   id: string;
   timestamp: string;
@@ -112,6 +126,8 @@ export interface MaintenanceRecord {
   imageUrls?: string[];
   recorderName: string;
   notes?: string;
+  equipmentList?: MaintenanceEquipmentItem[];
+  partsItems?: MaintenancePartItem[];
 }
 
 export interface MaintenanceEquipmentMaster {
