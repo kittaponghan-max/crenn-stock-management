@@ -38,7 +38,17 @@ import {
 import { format, isAfter, isBefore, addDays, parseISO, isToday, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { th } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
-import { MaintenanceRecord, MaintenanceType, MaintenanceStatus, Branch, MaintenanceEquipmentMaster, MaintenanceCategoryMaster, MaintenanceVendorMaster } from '../types';
+import { 
+  MaintenanceRecord, 
+  MaintenanceType, 
+  MaintenanceStatus, 
+  Branch, 
+  MaintenanceEquipmentMaster, 
+  MaintenanceCategoryMaster, 
+  MaintenanceVendorMaster,
+  MaintenancePartItem,
+  MaintenanceEquipmentItem
+} from '../types';
 import { supabase } from '../lib/supabase';
 import { generateUUID } from '../lib/utils';
 
@@ -184,14 +194,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     time: string;
     branch: Branch;
     department: 'Bar' | 'Bakery' | 'General';
-    equipmentName: string;
-    equipmentCode: string;
-    category: string;
+    equipments: MaintenanceEquipmentItem[];
     maintenanceType: MaintenanceType;
     status: MaintenanceStatus;
     details: string;
-    partsReplaced: string;
-    cost: number | '';
+    partsItems: MaintenancePartItem[];
     performedBy: 'Internal' | 'Vendor';
     technicianName: string;
     contactNumber: string;
@@ -203,14 +210,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     time: format(new Date(), 'HH:mm'),
     branch: currentBranch,
     department: 'Bar',
-    equipmentName: '',
-    equipmentCode: '',
-    category: 'Coffee Machine',
+    equipments: [{ id: 'eq-1', equipmentName: '', equipmentCode: '', category: 'Coffee Machine', department: 'Bar' }],
     maintenanceType: 'Preventive',
     status: 'Completed',
     details: '',
-    partsReplaced: '',
-    cost: '',
+    partsItems: [{ id: 'pt-1', name: '', cost: '' }],
     performedBy: 'Internal',
     technicianName: '',
     contactNumber: '',
@@ -226,10 +230,99 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
   const [categoryMasters, setCategoryMasters] = useState<MaintenanceCategoryMaster[]>([]);
   const [vendorMasters, setVendorMasters] = useState<MaintenanceVendorMaster[]>([]);
 
-  // Modals for "+" buttons
+  // Modals for "+", "Edit" buttons
   const [showAddEquipmentModal, setShowAddEquipmentModal] = useState(false);
+  const [showManageEquipmentModal, setShowManageEquipmentModal] = useState(false);
+  const [editingEquipmentMaster, setEditingEquipmentMaster] = useState<MaintenanceEquipmentMaster | null>(null);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
+
+  // Equipment Row Handlers for Form
+  const handleAddEquipmentRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      equipments: [
+        ...prev.equipments,
+        {
+          id: generateUUID(),
+          equipmentName: '',
+          equipmentCode: '',
+          category: 'Coffee Machine',
+          department: prev.department
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveEquipmentRow = (index: number) => {
+    if (formData.equipments.length <= 1) return;
+    setFormData(prev => ({
+      ...prev,
+      equipments: prev.equipments.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleEquipmentChange = (index: number, field: keyof MaintenanceEquipmentItem, value: string) => {
+    setFormData(prev => {
+      const updated = [...prev.equipments];
+      const target = { ...updated[index], [field]: value };
+
+      if (field === 'equipmentName') {
+        const customEquip = equipmentMasters.find(m => m.name === value && m.branch === prev.branch);
+        const presetEquip = PRESET_EQUIPMENT.find(p => p.name === value);
+
+        if (customEquip) {
+          target.equipmentName = customEquip.name;
+          if (customEquip.code) target.equipmentCode = customEquip.code;
+          if (customEquip.category) target.category = customEquip.category;
+          if (customEquip.department) target.department = customEquip.department;
+        } else if (presetEquip) {
+          target.equipmentName = presetEquip.name;
+          if (presetEquip.codePrefix) target.equipmentCode = presetEquip.codePrefix;
+          if (presetEquip.category) target.category = presetEquip.category;
+          if (presetEquip.department) target.department = presetEquip.department;
+        }
+      }
+
+      updated[index] = target;
+      return { ...prev, equipments: updated };
+    });
+  };
+
+  // Part / Cost Row Handlers for Form
+  const handleAddPartRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      partsItems: [
+        ...prev.partsItems,
+        { id: generateUUID(), name: '', cost: '' }
+      ]
+    }));
+  };
+
+  const handleRemovePartRow = (index: number) => {
+    if (formData.partsItems.length <= 1) return;
+    setFormData(prev => ({
+      ...prev,
+      partsItems: prev.partsItems.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handlePartChange = (index: number, field: keyof MaintenancePartItem, value: any) => {
+    setFormData(prev => {
+      const updated = [...prev.partsItems];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, partsItems: updated };
+    });
+  };
+
+  // Compute total cost across all part items
+  const computedTotalCost = useMemo(() => {
+    return formData.partsItems.reduce((sum, item) => {
+      const val = typeof item.cost === 'number' ? item.cost : parseFloat(String(item.cost)) || 0;
+      return sum + val;
+    }, 0);
+  }, [formData.partsItems]);
 
   // New Equipment Form State
   const [newEquipment, setNewEquipment] = useState<{
@@ -407,6 +500,79 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
 
     setNewEquipment({ name: '', code: '', category: 'Coffee Machine', department: 'Bar' });
     setShowAddEquipmentModal(false);
+  };
+
+  const handleDeleteEquipmentMaster = async (id: string) => {
+    const targetBranch = formData.branch;
+    const updated = equipmentMasters.filter(m => m.id !== id);
+    setEquipmentMasters(updated);
+    try {
+      localStorage.setItem(`cafe-maintenance-equipment-${targetBranch}`, JSON.stringify(updated.filter(x => x.branch === targetBranch)));
+    } catch {}
+
+    if (supabase) {
+      try {
+        await supabase.from('maintenance_equipment').delete().eq('id', id);
+        await supabase.from('app_settings').upsert({
+          setting_key: `maint_equip_${targetBranch}`,
+          setting_value: updated.filter(x => x.branch === targetBranch),
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Delete equipment master error:', err);
+      }
+    }
+  };
+
+  const handleSaveEditEquipmentMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEquipmentMaster || !editingEquipmentMaster.name.trim()) return;
+
+    const targetBranch = formData.branch;
+    const updated = equipmentMasters.map(m => m.id === editingEquipmentMaster.id ? editingEquipmentMaster : m);
+    setEquipmentMasters(updated);
+
+    try {
+      localStorage.setItem(`cafe-maintenance-equipment-${targetBranch}`, JSON.stringify(updated.filter(x => x.branch === targetBranch)));
+    } catch {}
+
+    if (supabase) {
+      try {
+        await supabase.from('maintenance_equipment').upsert({
+          id: editingEquipmentMaster.id,
+          branch: editingEquipmentMaster.branch,
+          name: editingEquipmentMaster.name,
+          code: editingEquipmentMaster.code,
+          category: editingEquipmentMaster.category,
+          department: editingEquipmentMaster.department
+        });
+        await supabase.from('app_settings').upsert({
+          setting_key: `maint_equip_${targetBranch}`,
+          setting_value: updated.filter(x => x.branch === targetBranch),
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Update equipment master error:', err);
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      equipments: prev.equipments.map(eq => {
+        if (eq.equipmentName === editingEquipmentMaster.name || eq.id === editingEquipmentMaster.id) {
+          return {
+            ...eq,
+            equipmentName: editingEquipmentMaster.name,
+            equipmentCode: editingEquipmentMaster.code || eq.equipmentCode,
+            category: editingEquipmentMaster.category || eq.category,
+            department: editingEquipmentMaster.department || eq.department
+          };
+        }
+        return eq;
+      })
+    }));
+
+    setEditingEquipmentMaster(null);
   };
 
   const handleSaveCategoryMaster = async (e: React.FormEvent) => {
@@ -656,14 +822,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       time: format(new Date(), 'HH:mm'),
       branch: currentBranch,
       department: 'Bar',
-      equipmentName: '',
-      equipmentCode: '',
-      category: 'Coffee Machine',
+      equipments: [{ id: generateUUID(), equipmentName: '', equipmentCode: '', category: 'Coffee Machine', department: 'Bar' }],
       maintenanceType: 'Preventive',
       status: 'Completed',
       details: '',
-      partsReplaced: '',
-      cost: '',
+      partsItems: [{ id: generateUUID(), name: '', cost: '' }],
       performedBy: 'Internal',
       technicianName: '',
       contactNumber: '',
@@ -678,19 +841,45 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
   // Open Form for Editing Record
   const openEditForm = (rec: MaintenanceRecord) => {
     setEditingRecord(rec);
+
+    // Build equipments array from rec
+    let loadedEquipments: MaintenanceEquipmentItem[] = [];
+    if (rec.equipmentList && rec.equipmentList.length > 0) {
+      loadedEquipments = rec.equipmentList;
+    } else {
+      loadedEquipments = [{
+        id: generateUUID(),
+        equipmentName: rec.equipmentName || '',
+        equipmentCode: rec.equipmentCode || '',
+        category: rec.category || 'General',
+        department: rec.department || 'Bar'
+      }];
+    }
+
+    // Build partsItems array from rec
+    let loadedPartItems: MaintenancePartItem[] = [];
+    if (rec.partsItems && rec.partsItems.length > 0) {
+      loadedPartItems = rec.partsItems;
+    } else if (rec.partsReplaced || (rec.cost && rec.cost > 0)) {
+      loadedPartItems = [{
+        id: generateUUID(),
+        name: rec.partsReplaced || '',
+        cost: rec.cost !== undefined ? rec.cost : ''
+      }];
+    } else {
+      loadedPartItems = [{ id: generateUUID(), name: '', cost: '' }];
+    }
+
     setFormData({
       date: rec.date,
       time: rec.time || format(new Date(), 'HH:mm'),
       branch: rec.branch,
       department: rec.department,
-      equipmentName: rec.equipmentName,
-      equipmentCode: rec.equipmentCode || '',
-      category: rec.category,
+      equipments: loadedEquipments,
       maintenanceType: rec.maintenanceType,
       status: rec.status,
       details: rec.details,
-      partsReplaced: rec.partsReplaced || '',
-      cost: rec.cost !== undefined ? rec.cost : '',
+      partsItems: loadedPartItems,
       performedBy: rec.performedBy,
       technicianName: rec.technicianName || '',
       contactNumber: rec.contactNumber || '',
@@ -707,17 +896,26 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     setFormData(prev => ({
       ...prev,
       department: preset.department,
-      category: preset.category,
-      equipmentName: preset.name,
-      equipmentCode: prev.equipmentCode ? prev.equipmentCode : preset.codePrefix
+      equipments: [
+        {
+          id: generateUUID(),
+          equipmentName: preset.name,
+          equipmentCode: preset.codePrefix,
+          category: preset.category,
+          department: preset.department
+        }
+      ]
     }));
   };
 
   // Save Record (Insert / Update)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.equipmentName.trim()) {
-      setFormError('กรุณาระบุชื่อเครื่องมือหรืออุปกรณ์');
+    
+    // Validate equipment names
+    const validEquipments = formData.equipments.filter(e => e.equipmentName.trim());
+    if (validEquipments.length === 0) {
+      setFormError('กรุณาระบุชื่อเครื่องมือหรืออุปกรณ์อย่างน้อย 1 รายการ');
       return;
     }
     if (!formData.details.trim()) {
@@ -728,8 +926,25 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     setIsSaving(true);
     setFormError(null);
 
-    const costNum = typeof formData.cost === 'number' ? formData.cost : parseFloat(String(formData.cost)) || 0;
     const nowIso = new Date().toISOString();
+    const primaryEquip = validEquipments[0];
+
+    // Combine equipment strings
+    const combinedEquipmentName = validEquipments.map(e => e.equipmentName.trim()).join(', ');
+    const combinedEquipmentCode = validEquipments.map(e => e.equipmentCode.trim()).filter(Boolean).join(', ');
+    const combinedCategory = Array.from(new Set(validEquipments.map(e => e.category.trim()).filter(Boolean))).join(', ') || 'General';
+
+    // Combine parts strings & calculate total cost
+    const validParts = formData.partsItems.filter(p => p.name.trim() || (typeof p.cost === 'number' && p.cost > 0));
+    const combinedParts = validParts.map(p => {
+      const c = typeof p.cost === 'number' ? p.cost : parseFloat(String(p.cost)) || 0;
+      return c > 0 ? `${p.name.trim()} (฿${c.toLocaleString('th-TH')})` : p.name.trim();
+    }).filter(Boolean).join(', ');
+
+    const totalCost = validParts.reduce((sum, item) => {
+      const c = typeof item.cost === 'number' ? item.cost : parseFloat(String(item.cost)) || 0;
+      return sum + c;
+    }, 0);
 
     const recordToSave: MaintenanceRecord = {
       id: editingRecord ? editingRecord.id : generateUUID(),
@@ -737,15 +952,15 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       date: formData.date || format(new Date(), 'yyyy-MM-dd'),
       time: formData.time,
       branch: formData.branch,
-      department: formData.department,
-      equipmentName: formData.equipmentName.trim(),
-      equipmentCode: formData.equipmentCode.trim(),
-      category: formData.category.trim() || 'General',
+      department: primaryEquip.department || formData.department,
+      equipmentName: combinedEquipmentName,
+      equipmentCode: combinedEquipmentCode,
+      category: combinedCategory,
       maintenanceType: formData.maintenanceType,
       status: formData.status,
       details: formData.details.trim(),
-      partsReplaced: formData.partsReplaced.trim(),
-      cost: costNum,
+      partsReplaced: combinedParts,
+      cost: totalCost,
       performedBy: formData.performedBy,
       technicianName: formData.technicianName.trim(),
       contactNumber: formData.contactNumber.trim(),
@@ -753,7 +968,9 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       imageUrl: formData.imageUrls[0] || '',
       imageUrls: formData.imageUrls,
       recorderName: editingRecord ? editingRecord.recorderName : currentUser,
-      notes: formData.notes.trim()
+      notes: formData.notes.trim(),
+      equipmentList: validEquipments,
+      partsItems: validParts
     };
 
     let updatedList: MaintenanceRecord[] = [];
@@ -1673,195 +1890,195 @@ WITH CHECK (true);`;
                 </div>
               </div>
 
-              {/* Row 2: Equipment Name & Code & Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                <div className="sm:col-span-6">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold text-[#2D4A49]">
-                      ชื่อเครื่องมือ / อุปกรณ์ *
-                    </label>
+              {/* Row 2: Equipment Name, Serial Code & Category (Multi-equipment support) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-[#D4E4E3] pb-1.5">
+                  <span className="text-[12px] font-bold text-[#2D4A49] flex items-center gap-1.5">
+                    <Wrench size={14} className="text-[#5A8A88]" />
+                    <span>ชื่อเครื่องมือ / อุปกรณ์ (และรหัสเครื่อง / หมวดหมู่) *</span>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowManageEquipmentModal(true)}
+                      className="px-2 py-0.5 text-[10px] font-bold text-[#2D4A49] bg-[#E8F3F2] hover:bg-[#D4E4E3] border border-[#D4E4E3] rounded flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                      title="จัดการและแก้ไขรายการเครื่องมือเดิมที่มีอยู่"
+                    >
+                      <Edit3 size={11} className="text-[#5A8A88]" />
+                      <span>แก้ไขรายการเดิม</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setNewEquipment({ name: '', code: '', category: formData.category || 'Coffee Machine', department: formData.department || 'Bar' });
+                        setNewEquipment({ name: '', code: '', category: 'Coffee Machine', department: formData.department || 'Bar' });
                         setShowAddEquipmentModal(true);
                       }}
-                      className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded flex items-center gap-0.5 transition-colors shadow-2xs cursor-pointer"
+                      className="px-2 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
                       title="สร้างชื่อเครื่องมือ / อุปกรณ์ใหม่ของสาขานี้"
                     >
                       <Plus size={12} />
-                      <span>สร้างใหม่</span>
+                      <span>+ สร้างชื่อใหม่</span>
                     </button>
                   </div>
-                  <select
-                    required
-                    value={formData.equipmentName}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '__CREATE_NEW_EQUIPMENT__') {
-                        setNewEquipment({ name: '', code: '', category: formData.category || 'Coffee Machine', department: formData.department || 'Bar' });
-                        setShowAddEquipmentModal(true);
-                        return;
-                      }
+                </div>
 
-                      const customEquip = equipmentMasters.find(m => m.name === val && m.branch === formData.branch);
-                      const presetEquip = PRESET_EQUIPMENT.find(p => p.name === val);
-
-                      if (customEquip) {
-                        setFormData(prev => ({
-                          ...prev,
-                          equipmentName: customEquip.name,
-                          equipmentCode: customEquip.code || prev.equipmentCode,
-                          category: customEquip.category || prev.category,
-                          department: customEquip.department || prev.department
-                        }));
-                      } else if (presetEquip) {
-                        setFormData(prev => ({
-                          ...prev,
-                          equipmentName: presetEquip.name,
-                          equipmentCode: presetEquip.codePrefix || prev.equipmentCode,
-                          category: presetEquip.category || prev.category,
-                          department: presetEquip.department || prev.department
-                        }));
-                      } else {
-                        setFormData(prev => ({ ...prev, equipmentName: val }));
-                      }
-                    }}
-                    className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
-                  >
-                    <option value="">-- เลือกชื่อเครื่องมือ / อุปกรณ์ --</option>
-
-                    {equipmentMasters.filter(m => m.branch === formData.branch).length > 0 && (
-                      <optgroup label={`⭐ อุปกรณ์เพิ่มพิเศษ (สาขา ${formData.branch})`}>
-                        {equipmentMasters
-                          .filter(m => m.branch === formData.branch)
-                          .map(m => (
-                            <option key={m.id} value={m.name}>
-                              {m.name} {m.code ? `[${m.code}]` : ''}
-                            </option>
-                          ))}
-                      </optgroup>
+                {formData.equipments.map((eqItem, eqIdx) => (
+                  <div key={eqItem.id || eqIdx} className="bg-[#F8FAF9] p-3 rounded-xl border border-[#D4E4E3] space-y-2 relative">
+                    {formData.equipments.length > 1 && (
+                      <div className="flex items-center justify-between text-[11px] font-bold text-[#5A8A88]">
+                        <span>อุปกรณ์เครื่องที่ {eqIdx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEquipmentRow(eqIdx)}
+                          className="text-rose-500 hover:text-rose-700 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                          <span>ลบอุปกรณ์นี้</span>
+                        </button>
+                      </div>
                     )}
 
-                    <optgroup label="☕ อุปกรณ์โซนบาร์ (Bar)">
-                      {PRESET_EQUIPMENT.filter(p => p.department === 'Bar').map((p, idx) => (
-                        <option key={`bar-${idx}`} value={p.name}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                      <div className="sm:col-span-6">
+                        <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">
+                          ชื่อเครื่องมือ / อุปกรณ์ *
+                        </label>
+                        <select
+                          required
+                          value={eqItem.equipmentName}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '__CREATE_NEW_EQUIPMENT__') {
+                              setNewEquipment({ name: '', code: '', category: 'Coffee Machine', department: formData.department || 'Bar' });
+                              setShowAddEquipmentModal(true);
+                              return;
+                            }
+                            handleEquipmentChange(eqIdx, 'equipmentName', val);
+                          }}
+                          className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
+                        >
+                          <option value="">-- เลือกชื่อเครื่องมือ / อุปกรณ์ --</option>
 
-                    <optgroup label="🍳 อุปกรณ์โซนครัว/เบเกอรี่ (Bakery)">
-                      {PRESET_EQUIPMENT.filter(p => p.department === 'Bakery').map((p, idx) => (
-                        <option key={`bakery-${idx}`} value={p.name}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
+                          {equipmentMasters.filter(m => m.branch === formData.branch).length > 0 && (
+                            <optgroup label={`⭐ อุปกรณ์เพิ่มพิเศษ (สาขา ${formData.branch})`}>
+                              {equipmentMasters
+                                .filter(m => m.branch === formData.branch)
+                                .map(m => (
+                                  <option key={m.id} value={m.name}>
+                                    {m.name} {m.code ? `[${m.code}]` : ''}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          )}
 
-                    <optgroup label="🏢 อุปกรณ์ส่วนกลาง / อาคาร (Facility)">
-                      {PRESET_EQUIPMENT.filter(p => p.department === 'General').map((p, idx) => (
-                        <option key={`gen-${idx}`} value={p.name}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
+                          <optgroup label="☕ อุปกรณ์โซนบาร์ (Bar)">
+                            {PRESET_EQUIPMENT.filter(p => p.department === 'Bar').map((p, idx) => (
+                              <option key={`bar-${idx}`} value={p.name}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </optgroup>
 
-                    <option value="__CREATE_NEW_EQUIPMENT__">➕ + สร้างชื่อเครื่องมือ / อุปกรณ์ใหม่...</option>
-                  </select>
-                  {formData.equipmentName && 
-                    !equipmentMasters.some(m => m.name === formData.equipmentName) && 
-                    !PRESET_EQUIPMENT.some(p => p.name === formData.equipmentName) && (
-                      <input
-                        type="text"
-                        value={formData.equipmentName}
-                        onChange={e => setFormData({ ...formData, equipmentName: e.target.value })}
-                        className="w-full mt-1 py-1 px-2 text-xs border border-[#D4E4E3] rounded-md bg-[#F4F8F7]"
-                        placeholder="ชื่ออุปกรณ์เพิ่มเติม..."
-                      />
-                  )}
-                </div>
+                          <optgroup label="🍳 อุปกรณ์โซนครัว/เบเกอรี่ (Bakery)">
+                            {PRESET_EQUIPMENT.filter(p => p.department === 'Bakery').map((p, idx) => (
+                              <option key={`bakery-${idx}`} value={p.name}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </optgroup>
 
-                <div className="sm:col-span-3">
-                  <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">
-                    รหัสเครื่อง / Serial
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="เช่น BAR-ESP-01"
-                    value={formData.equipmentCode}
-                    onChange={e => setFormData({ ...formData, equipmentCode: e.target.value })}
-                    className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
-                  />
-                </div>
+                          <optgroup label="🏢 อุปกรณ์ส่วนกลาง / อาคาร (Facility)">
+                            {PRESET_EQUIPMENT.filter(p => p.department === 'General').map((p, idx) => (
+                              <option key={`gen-${idx}`} value={p.name}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </optgroup>
 
-                <div className="sm:col-span-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold text-[#2D4A49]">
-                      หมวดหมู่
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewCategoryName('');
-                        setShowAddCategoryModal(true);
-                      }}
-                      className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded flex items-center gap-0.5 transition-colors shadow-2xs cursor-pointer"
-                      title="สร้างหมวดหมู่ใหม่ของสาขานี้"
-                    >
-                      <Plus size={12} />
-                      <span>สร้างใหม่</span>
-                    </button>
+                          <option value="__CREATE_NEW_EQUIPMENT__">➕ + สร้างชื่อเครื่องมือ / อุปกรณ์ใหม่...</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">
+                          รหัสเครื่อง / Serial
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="เช่น BAR-ESP-01"
+                          value={eqItem.equipmentCode}
+                          onChange={e => handleEquipmentChange(eqIdx, 'equipmentCode', e.target.value)}
+                          className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-[#2D4A49]">
+                            หมวดหมู่
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewCategoryName('');
+                              setShowAddCategoryModal(true);
+                            }}
+                            className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded cursor-pointer"
+                            title="สร้างหมวดหมู่ใหม่"
+                          >
+                            + หมวดหมู่
+                          </button>
+                        </div>
+                        <select
+                          value={eqItem.category}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '__CREATE_NEW_CATEGORY__') {
+                              setNewCategoryName('');
+                              setShowAddCategoryModal(true);
+                              return;
+                            }
+                            handleEquipmentChange(eqIdx, 'category', val);
+                          }}
+                          className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
+                        >
+                          <option value="">-- เลือกหมวดหมู่ --</option>
+                          
+                          {categoryMasters.filter(c => c.branch === formData.branch).length > 0 && (
+                            <optgroup label={`⭐ หมวดหมู่พิเศษ (สาขา ${formData.branch})`}>
+                              {categoryMasters
+                                .filter(c => c.branch === formData.branch)
+                                .map(c => (
+                                  <option key={c.id} value={c.name}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          )}
+
+                          <optgroup label="📋 หมวดหมู่มาตรฐาน">
+                            {DEFAULT_CATEGORIES.map((cat, idx) => (
+                              <option key={idx} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
+                          </optgroup>
+
+                          <option value="__CREATE_NEW_CATEGORY__">➕ + สร้างหมวดหมู่ใหม่...</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                  <select
-                    value={formData.category}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '__CREATE_NEW_CATEGORY__') {
-                        setNewCategoryName('');
-                        setShowAddCategoryModal(true);
-                        return;
-                      }
-                      setFormData(prev => ({ ...prev, category: val }));
-                    }}
-                    className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
-                  >
-                    <option value="">-- เลือกหมวดหมู่ --</option>
-                    
-                    {categoryMasters.filter(c => c.branch === formData.branch).length > 0 && (
-                      <optgroup label={`⭐ หมวดหมู่พิเศษ (สาขา ${formData.branch})`}>
-                        {categoryMasters
-                          .filter(c => c.branch === formData.branch)
-                          .map(c => (
-                            <option key={c.id} value={c.name}>
-                              {c.name}
-                            </option>
-                          ))}
-                      </optgroup>
-                    )}
+                ))}
 
-                    <optgroup label="📋 หมวดหมู่มาตรฐาน">
-                      {DEFAULT_CATEGORIES.map((cat, idx) => (
-                        <option key={idx} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </optgroup>
-
-                    <option value="__CREATE_NEW_CATEGORY__">➕ + สร้างหมวดหมู่ใหม่...</option>
-                  </select>
-                  {formData.category && 
-                    !categoryMasters.some(c => c.name === formData.category) && 
-                    !DEFAULT_CATEGORIES.includes(formData.category) && (
-                      <input
-                        type="text"
-                        value={formData.category}
-                        onChange={e => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full mt-1 py-1 px-2 text-xs border border-[#D4E4E3] rounded-md bg-[#F4F8F7]"
-                        placeholder="หมวดหมู่เพิ่มเติม..."
-                      />
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={handleAddEquipmentRow}
+                  className="w-full py-2 border-2 border-dashed border-[#8FB3B1] hover:border-[#5A8A88] bg-[#F4F8F7] hover:bg-[#E8F3F2] text-[#2D4A49] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Plus size={15} className="text-[#5A8A88]" />
+                  <span>+ เพิ่มเครื่องมือ / อุปกรณ์ซ่อมแซมอีก 1 เครื่อง (กรณีซ่อมพร้อมกันหลายเครื่อง)</span>
+                </button>
               </div>
 
               {/* Row 3: Maintenance Type & Status */}
@@ -1913,33 +2130,73 @@ WITH CHECK (true);`;
                 />
               </div>
 
-              {/* Row 5: Parts Replaced & Cost */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                <div className="sm:col-span-8">
-                  <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">
-                    อะไหล่หรือชิ้นส่วนที่เปลี่ยน (ถ้ามี)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="เช่น ยางซีลหัวชง 2 ชิ้น, Shower Screen 2 แผ่น"
-                    value={formData.partsReplaced}
-                    onChange={e => setFormData({ ...formData, partsReplaced: e.target.value })}
-                    className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
-                  />
+              {/* Row 5: Services / Parts Replaced & Dynamic Costs */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between border-b border-[#D4E4E3] pb-1.5 mt-2">
+                  <span className="text-[12px] font-bold text-[#2D4A49] flex items-center gap-1.5">
+                    <Tag size={14} className="text-[#5A8A88]" />
+                    <span>การบริการ/อะไหล่ หรือชิ้นส่วนที่เปลี่ยน (และค่าใช้จ่าย)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddPartRow}
+                    className="px-2 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <Plus size={12} />
+                    <span>+ เพิ่มรายการบริการ/อะไหล่</span>
+                  </button>
                 </div>
-                <div className="sm:col-span-4">
-                  <label className="block text-[11px] font-bold text-[#2D4A49] mb-1">
-                    ค่าใช้จ่าย (บาท)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="0.00"
-                    value={formData.cost}
-                    onChange={e => setFormData({ ...formData, cost: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                    className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
-                  />
+
+                {formData.partsItems.map((partItem, partIdx) => (
+                  <div key={partItem.id || partIdx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                    <div className="sm:col-span-7">
+                      <label className="block text-[10px] font-semibold text-[#6B8F8E] mb-0.5">
+                        รายการที่ {partIdx + 1}: รายละเอียดบริการ / อะไหล่ที่เปลี่ยน
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น ค่าซ่อมเชื่อมแผงรังผึ้งรั่ว, เติมน้ำยาแอร์, ยางซีลหัวชง..."
+                        value={partItem.name}
+                        onChange={e => handlePartChange(partIdx, 'name', e.target.value)}
+                        className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="block text-[10px] font-semibold text-[#6B8F8E] mb-0.5">
+                        ค่าใช้จ่าย (บาท)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.00"
+                        value={partItem.cost}
+                        onChange={e => handlePartChange(partIdx, 'cost', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                        className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-1 flex items-end justify-center pt-2 sm:pt-4">
+                      {formData.partsItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePartRow(partIdx)}
+                          className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="ลบรายการนี้"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="bg-[#E8F3F2] p-2.5 rounded-xl border border-[#D4E4E3] flex items-center justify-between text-xs">
+                  <span className="font-bold text-[#2D4A49]">รวมค่าใช้จ่ายทั้งหมด ({formData.partsItems.length} รายการ):</span>
+                  <span className="text-sm font-black text-[#2D4A49]">
+                    ฿ {computedTotalCost.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท
+                  </span>
                 </div>
               </div>
 
@@ -2639,6 +2896,164 @@ WITH CHECK (true);`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 14. MANAGE / EDIT EXISTING EQUIPMENT MASTER MODAL ── */}
+      {showManageEquipmentModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#D4E4E3] w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-[#2D4A49] text-white px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit3 size={16} className="text-[#8FB3B1]" />
+                <h4 className="font-bold text-sm">จัดการและแก้ไขรายการเครื่องมือ / อุปกรณ์ (สาขา {formData.branch})</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManageEquipmentModal(false);
+                  setEditingEquipmentMaster(null);
+                }}
+                className="text-slate-300 hover:text-white p-1 rounded-md"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 text-xs max-h-[75vh] overflow-y-auto">
+              {editingEquipmentMaster ? (
+                <form onSubmit={handleSaveEditEquipmentMaster} className="bg-[#F4F8F7] p-3.5 rounded-xl border border-[#D4E4E3] space-y-3">
+                  <div className="flex items-center justify-between font-bold text-[#2D4A49]">
+                    <span>แก้ไขอุปกรณ์: {editingEquipmentMaster.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingEquipmentMaster(null)}
+                      className="text-slate-500 hover:text-slate-700 text-[10px] cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#2D4A49] mb-1">ชื่อเครื่องมือ / อุปกรณ์ *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingEquipmentMaster.name}
+                      onChange={e => setEditingEquipmentMaster({ ...editingEquipmentMaster, name: e.target.value })}
+                      className="w-full py-1.5 px-2.5 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-bold text-[#2D4A49] mb-1">รหัสเครื่อง / Serial</label>
+                      <input
+                        type="text"
+                        value={editingEquipmentMaster.code || ''}
+                        onChange={e => setEditingEquipmentMaster({ ...editingEquipmentMaster, code: e.target.value })}
+                        className="w-full py-1.5 px-2.5 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#2D4A49] mb-1">แผนก</label>
+                      <select
+                        value={editingEquipmentMaster.department || 'Bar'}
+                        onChange={e => setEditingEquipmentMaster({ ...editingEquipmentMaster, department: e.target.value as any })}
+                        className="w-full py-1.5 px-2 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                      >
+                        <option value="Bar">บาร์ (Bar)</option>
+                        <option value="Bakery">ครัว / เบเกอรี่ (Bakery)</option>
+                        <option value="General">ส่วนกลาง (Facility)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#2D4A49] mb-1">หมวดหมู่</label>
+                    <input
+                      type="text"
+                      value={editingEquipmentMaster.category || ''}
+                      onChange={e => setEditingEquipmentMaster({ ...editingEquipmentMaster, category: e.target.value })}
+                      className="w-full py-1.5 px-2.5 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingEquipmentMaster(null)}
+                      className="px-3 py-1 font-semibold text-slate-600 hover:bg-slate-200 rounded-lg cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg shadow-2xs cursor-pointer"
+                    >
+                      บันทึกการแก้ไข
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[#6B8F8E] font-medium text-[11px]">
+                    รายการเครื่องมือเพิ่มพิเศษของสาขา {formData.branch} (สามารถแก้ไขชื่อ รหัสเครื่อง และหมวดหมู่ได้ที่นี่):
+                  </p>
+
+                  {equipmentMasters.filter(m => m.branch === formData.branch).length === 0 ? (
+                    <p className="text-center py-6 text-slate-400">ยังไม่มีรายการเครื่องมือที่สร้างเพิ่มในสาขานี้</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {equipmentMasters
+                        .filter(m => m.branch === formData.branch)
+                        .map(m => (
+                          <div key={m.id} className="py-2 flex items-center justify-between gap-2 hover:bg-slate-50 px-2 rounded-lg">
+                            <div>
+                              <p className="font-bold text-[#2D4A49]">{m.name}</p>
+                              <p className="text-[10px] text-slate-400">
+                                {m.code ? `รหัส: ${m.code}` : ''} {m.category ? `| หมวดหมู่: ${m.category}` : ''}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setEditingEquipmentMaster(m)}
+                                className="px-2 py-1 text-[11px] font-bold text-[#5A8A88] bg-[#E8F3F2] hover:bg-[#D4E4E3] rounded-md flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit3 size={12} />
+                                <span>แก้ไข</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEquipmentMaster(m.id)}
+                                className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md cursor-pointer"
+                                title="ลบรายการ"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowManageEquipmentModal(false);
+                    setEditingEquipmentMaster(null);
+                  }}
+                  className="px-4 py-1.5 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg cursor-pointer"
+                >
+                  ปิดหน้าต่าง
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
