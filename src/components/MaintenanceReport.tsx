@@ -1324,7 +1324,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
 
   // Filtered Records Calculation
   const filteredRecords = useMemo(() => {
-    return records.filter(rec => {
+    const list = records.filter(rec => {
       // Branch
       if (selectedBranch !== 'All' && rec.branch !== selectedBranch) return false;
       // Department
@@ -1365,6 +1365,23 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       }
 
       return true;
+    });
+
+    // เรียงลำดับวัน จากวันที่ล่าสุด เรียงลงไปหาวันที่เก่าที่สุด แบบอัตโนมัติ เสมอ (Always auto-sorted descending)
+    return list.sort((a, b) => {
+      const dateA = a.date || '';
+      const dateB = b.date || '';
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA); // วันที่ล่าสุดขึ้นก่อน
+      }
+      const timeA = a.time || '';
+      const timeB = b.time || '';
+      if (timeA !== timeB) {
+        return timeB.localeCompare(timeA); // เวลาล่าสุดขึ้นก่อน
+      }
+      const tsA = a.timestamp || '';
+      const tsB = b.timestamp || '';
+      return tsB.localeCompare(tsA);
     });
   }, [records, selectedBranch, departmentFilter, typeFilter, statusFilter, dateFilter, customStartDate, customEndDate, searchQuery]);
 
@@ -1852,19 +1869,24 @@ WITH CHECK (true);`;
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#1E5A7A] text-white text-[11px] font-semibold uppercase tracking-wider">
-                    <th className="py-3 px-3.5 w-28">วันที่ / เวลา</th>
-                    <th className="py-3 px-3 w-24">สาขา / แผนก</th>
-                    <th className="py-3 px-3 min-w-[200px]">อุปกรณ์ / รหัสเครื่อง</th>
-                    <th className="py-3 px-3 w-36">ประเภทงาน</th>
-                    <th className="py-3 px-3 min-w-[220px]">รายละเอียดการซ่อมบำรุง</th>
-                    <th className="py-3 px-3 w-28 text-right">ค่าใช้จ่าย</th>
-                    <th className="py-3 px-3 w-32">ผู้ดูแล / ช่าง</th>
-                    <th className="py-3 px-3 w-28 text-center">สถานะ</th>
-                    <th className="py-3 px-3 w-24 text-center">จัดการ</th>
+                  <tr className="bg-[#1E5A7A] text-white text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider">
+                    <th className="py-2.5 px-3.5 w-28 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <span>วันที่ / เวลา</span>
+                        <span className="text-[9px] text-[#A2D2DF] font-bold" title="เรียงลำดับจากล่าสุดไปหาเก่าที่สุดอัตโนมัติ">↓</span>
+                      </div>
+                    </th>
+                    <th className="py-2.5 px-3 w-24 whitespace-nowrap">สาขา / แผนก</th>
+                    <th className="py-2.5 px-3 min-w-[200px]">อุปกรณ์ / รหัสเครื่อง</th>
+                    <th className="py-2.5 px-3 w-36">ประเภทงาน</th>
+                    <th className="py-2.5 px-3 min-w-[220px]">รายละเอียดการซ่อมบำรุง</th>
+                    <th className="py-2.5 px-3 w-28 text-right">ค่าใช้จ่าย</th>
+                    <th className="py-2.5 px-3 w-32">ผู้ดูแล / ช่าง</th>
+                    <th className="py-2.5 px-3 w-28 text-center">สถานะ</th>
+                    <th className="py-2.5 px-3 w-24 text-center">จัดการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
+                <tbody className="divide-y divide-slate-100 text-[10px]">
                   {filteredRecords.map(rec => {
                     const typeCfg = MAINTENANCE_TYPE_CONFIG[rec.maintenanceType] || MAINTENANCE_TYPE_CONFIG.Preventive;
                     const statusCfg = STATUS_CONFIG[rec.status] || STATUS_CONFIG.Completed;
@@ -1876,8 +1898,8 @@ WITH CHECK (true);`;
                         className="hover:bg-[#F0F5F4]/60 transition-colors"
                       >
                         {/* Date & Time */}
-                        <td className="py-3 px-3.5 align-top whitespace-nowrap">
-                          <p className="font-bold text-[#2D4A49]">{rec.date}</p>
+                        <td className="py-2.5 px-3.5 align-top whitespace-nowrap">
+                          <p className="font-bold text-[#2D4A49] text-[11px] leading-tight">{rec.date}</p>
                           <p className="text-[10px] text-[#6B8F8E] mt-0.5">{rec.time || 'ไม่ระบุเวลา'}</p>
                           {rec.nextServiceDate && (
                             <div className="mt-1 flex items-center gap-1 text-[9px] text-[#5A8A88] font-medium" title="รอบถัดไป">
@@ -1888,7 +1910,7 @@ WITH CHECK (true);`;
                         </td>
 
                         {/* Branch / Department */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap">
+                        <td className="py-2.5 px-3 align-top whitespace-nowrap">
                           <span className="inline-block text-[10px] font-bold text-[#5A8A88] bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
                             {rec.branch}
                           </span>
@@ -1899,43 +1921,43 @@ WITH CHECK (true);`;
                         </td>
 
                         {/* Equipment Name & Code */}
-                        <td className="py-3 px-3 align-top">
-                          <p className="font-bold text-[#2D4A49] leading-snug">
+                        <td className="py-2.5 px-3 align-top">
+                          <p className="font-bold text-[#2D4A49] leading-snug text-[11px]">
                             {rec.equipmentName}
                           </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#6B8F8E]">
+                          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#6B8F8E] flex-wrap">
                             {rec.equipmentCode && (
-                              <span className="font-mono bg-slate-100 text-slate-700 px-1 rounded">
+                              <span className="font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded text-[9px]">
                                 {rec.equipmentCode}
                               </span>
                             )}
-                            <span>{rec.category}</span>
+                            <span className="text-[10px]">{rec.category}</span>
                           </div>
                         </td>
 
                         {/* Type of Maintenance */}
-                        <td className="py-3 px-3 align-top">
+                        <td className="py-2.5 px-3 align-top">
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${typeCfg.bg} ${typeCfg.text} ${typeCfg.border}`}>
                             <span>{typeCfg.label}</span>
                           </span>
                         </td>
 
                         {/* Details & Parts */}
-                        <td className="py-3 px-3 align-top">
-                          <p className="text-slate-800 line-clamp-2 leading-relaxed">
+                        <td className="py-2.5 px-3 align-top">
+                          <p className="text-slate-800 line-clamp-2 leading-relaxed text-[10px]">
                             {rec.details}
                           </p>
                           {rec.partsReplaced && (
                             <p className="text-[10px] text-amber-700 mt-0.5 flex items-center gap-1">
                               <Tag size={10} />
-                              <span className="font-semibold">อะไหล่:</span> {rec.partsReplaced}
+                              <span className="font-semibold text-[10px]">อะไหล่:</span> {rec.partsReplaced}
                             </p>
                           )}
                           {hasPhotos && (
                             <button
                               type="button"
                               onClick={() => setViewingRecord(rec)}
-                              className="mt-1 inline-flex items-center gap-1 text-[10px] text-[#5A8A88] font-bold hover:underline"
+                              className="mt-1 inline-flex items-center gap-1 text-[10px] text-[#5A8A88] font-bold hover:underline cursor-pointer"
                             >
                               <Camera size={11} />
                               <span>ดูรูปถ่าย ({rec.imageUrls?.length})</span>
@@ -1944,19 +1966,19 @@ WITH CHECK (true);`;
                         </td>
 
                         {/* Cost */}
-                        <td className="py-3 px-3 align-top text-right whitespace-nowrap">
+                        <td className="py-2.5 px-3 align-top text-right whitespace-nowrap">
                           {rec.cost && rec.cost > 0 ? (
-                            <span className="font-bold text-[#2D4A49]">
+                            <span className="font-bold text-[#2D4A49] text-[11px]">
                               ฿{rec.cost.toLocaleString('th-TH')}
                             </span>
                           ) : (
-                            <span className="text-[11px] text-slate-400">-</span>
+                            <span className="text-[10px] text-slate-400">-</span>
                           )}
                         </td>
 
                         {/* Technician */}
-                        <td className="py-3 px-3 align-top">
-                          <p className="font-semibold text-slate-700 truncate">
+                        <td className="py-2.5 px-3 align-top">
+                          <p className="font-semibold text-slate-700 truncate text-[11px]">
                             {rec.technicianName || (rec.performedBy === 'Internal' ? 'ทีมงานภายใน' : 'ช่างบริการ')}
                           </p>
                           {rec.contactNumber && (
@@ -1971,7 +1993,7 @@ WITH CHECK (true);`;
                         </td>
 
                         {/* Status */}
-                        <td className="py-3 px-3 align-top text-center whitespace-nowrap">
+                        <td className="py-2.5 px-3 align-top text-center whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusCfg.badgeClass}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dotColor}`} />
                             <span>{statusCfg.label}</span>
@@ -1979,15 +2001,15 @@ WITH CHECK (true);`;
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3 px-3 align-top text-center whitespace-nowrap">
+                        <td className="py-2.5 px-3 align-top text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => setViewingRecord(rec)}
-                              className="p-1.5 text-slate-500 hover:text-[#2D4A49] hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+                              className="p-1 text-slate-500 hover:text-[#2D4A49] hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                               title="ดูรายละเอียดฉบับเต็ม"
                             >
-                              <Eye size={14} />
+                              <Eye size={13} />
                             </button>
 
                             {!isReadOnly && (
@@ -1995,18 +2017,18 @@ WITH CHECK (true);`;
                                 <button
                                   type="button"
                                   onClick={() => openEditForm(rec)}
-                                  className="p-1.5 text-[#5A8A88] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-md transition-colors cursor-pointer"
+                                  className="p-1 text-[#5A8A88] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-md transition-colors cursor-pointer"
                                   title="แก้ไขข้อมูล"
                                 >
-                                  <Edit3 size={14} />
+                                  <Edit3 size={13} />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setRecordToDelete(rec)}
-                                  className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                                  className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                                   title="ลบรายการ"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={13} />
                                 </button>
                               </>
                             )}
@@ -2021,7 +2043,7 @@ WITH CHECK (true);`;
           )}
 
           {/* Table Footer info */}
-          <div className="bg-[#F8FAF9] px-4 py-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#6B8F8E] flex-wrap gap-2">
+          <div className="bg-[#F8FAF9] px-4 py-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-[#6B8F8E] flex-wrap gap-2">
             <span>แสดง {filteredRecords.length} จากทั้งหมด {records.length} รายการ</span>
             <span>อัปเดตล่าสุด: {format(lastRefreshed, 'd MMM yyyy HH:mm น.', { locale: th })}</span>
           </div>
