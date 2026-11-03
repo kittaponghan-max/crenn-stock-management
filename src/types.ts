@@ -101,6 +101,17 @@ export interface MaintenanceEquipmentItem {
   equipmentCode: string;
   category: string;
   department?: 'Bar' | 'Bakery' | 'General';
+  maintenanceType?: MaintenanceType;
+  status?: MaintenanceStatus;
+  details?: string;
+  partsItems?: MaintenancePartItem[];
+  performedBy?: 'Internal' | 'Vendor';
+  technicianName?: string;
+  contactNumber?: string;
+  nextServiceDate?: string;
+  notes?: string;
+  imageUrls?: string[];
+  cost?: number;
 }
 
 export interface MaintenanceRecord {
