@@ -1152,7 +1152,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       'วันที่': r.date,
       'เวลา': r.time || '-',
       'สาขา': r.branch,
-      'แผนก': r.department === 'Bar' ? 'บาร์' : r.department === 'Bakery' ? 'เบเกอรี่' : 'ส่วนกลาง',
+      'แผนก': r.department === 'Bar' ? 'บาร์' : r.department === 'Bakery' ? 'ครัว' : 'ส่วนกลาง',
       'ชื่ออุปกรณ์/เครื่องมือ': r.equipmentName,
       'รหัสอุปกรณ์': r.equipmentCode || '-',
       'หมวดหมู่': r.category,
@@ -1223,108 +1223,92 @@ WITH CHECK (true);`;
 
   return (
     <div className="min-h-screen bg-[#F4F8F7] text-slate-800 pb-16 font-sans">
-      
-      {/* ── 1. HEADER CARD ── */}
-      <div className="bg-white border-b border-[#D4E4E3] shadow-2xs sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          
-          {/* Title & Back */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-9 h-9 rounded-xl bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#2D4A49] flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-              title="กลับหน้าหลัก"
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[#2D4A49] text-white flex items-center justify-center shadow-xs">
-                <Wrench size={19} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-lg font-bold text-[#2D4A49] leading-tight">
-                    รายงานการบำรุงรักษาเครื่องมือและอุปกรณ์
-                  </h1>
-                  <span className="text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-md border border-[#D4E4E3]">
-                    {selectedBranch === 'All' ? 'ทุกสาขา' : `สาขา ${selectedBranch}`}
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#6B8F8E]">
-                  บันทึกประวัติการตรวจเช็ค, ซ่อมแซม, PM และเปลี่ยนอะไหล่เครื่องมือในร้าน
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Sync status */}
-            <button
-              type="button"
-              onClick={() => setShowSqlModal(true)}
-              className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer ${
-                isUsingLocalStorage 
-                  ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-              }`}
-              title="ดูการเชื่อมต่อฐานข้อมูล Supabase"
-            >
-              <Database size={13} />
-              <span>{isUsingLocalStorage ? 'โหมด Local (คลิกตั้งค่า DB)' : 'Supabase Cloud Sync'}</span>
-            </button>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={fetchRecords}
-              disabled={loading}
-              className="w-8 h-8 rounded-lg bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#2D4A49] flex items-center justify-center transition-colors cursor-pointer"
-              title="รีเฟรชข้อมูล"
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            </button>
-
-            {/* Export Excel */}
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              disabled={filteredRecords.length === 0}
-              className="text-[11px] font-bold text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all disabled:opacity-40 cursor-pointer"
-            >
-              <FileSpreadsheet size={14} className="text-emerald-600" />
-              <span>ส่งออก Excel</span>
-            </button>
-
-            {/* Print */}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="text-[11px] font-bold text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-            >
-              <Printer size={14} className="text-[#5A8A88]" />
-              <span className="hidden sm:inline">พิมพ์</span>
-            </button>
-
-            {/* Add Record (Primary) */}
-            {!isReadOnly && (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-4">
+        
+        {/* ── 1. HEADER CARD ── */}
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-2xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            
+            {/* Title & Back */}
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={openNewForm}
-                className="text-[12px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                onClick={onBack}
+                className="w-9 h-9 rounded-xl bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#2D4A49] flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
+                title="กลับหน้าหลัก"
               >
-                <Plus size={16} />
-                <span>บันทึกซ่อมบำรุง</span>
+                <ChevronLeft size={20} />
               </button>
-            )}
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#2D4A49] text-white flex items-center justify-center shadow-xs">
+                  <Wrench size={19} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-base sm:text-lg font-bold text-[#2D4A49] leading-tight">
+                      รายงานการบำรุงรักษาเครื่องมือและอุปกรณ์
+                    </h1>
+                    <span className="text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-md border border-[#D4E4E3]">
+                      {selectedBranch === 'All' ? 'ทุกสาขา' : `สาขา ${selectedBranch}`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#6B8F8E]">
+                    บันทึกประวัติการตรวจเช็ค, ซ่อมแซม, PM และเปลี่ยนอะไหล่เครื่องมือในร้าน
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Refresh */}
+              <button
+                type="button"
+                onClick={fetchRecords}
+                disabled={loading}
+                className="w-8 h-8 rounded-lg bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#2D4A49] flex items-center justify-center transition-colors cursor-pointer"
+                title="รีเฟรชข้อมูล"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              </button>
+
+              {/* Export Excel */}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={filteredRecords.length === 0}
+                className="text-[11px] font-bold text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all disabled:opacity-40 cursor-pointer"
+              >
+                <FileSpreadsheet size={14} className="text-emerald-600" />
+                <span>ส่งออก Excel</span>
+              </button>
+
+              {/* Print */}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="text-[11px] font-bold text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              >
+                <Printer size={14} className="text-[#5A8A88]" />
+                <span className="hidden sm:inline">พิมพ์</span>
+              </button>
+
+              {/* Add Record (Primary) */}
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={openNewForm}
+                  className="text-[12px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus size={16} />
+                  <span>บันทึกซ่อมบำรุง</span>
+                </button>
+              )}
+            </div>
+
           </div>
-
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-4">
 
         {/* ── 2. UPCOMING / OVERDUE ALERT BANNER ── */}
         {(stats.overdueCount > 0 || stats.upcomingDueCount > 0) && (
@@ -1475,7 +1459,7 @@ WITH CHECK (true);`;
               >
                 <option value="All">ทุกแผนก (All Depts)</option>
                 <option value="Bar">☕ บาร์ (Bar)</option>
-                <option value="Bakery">🍳 ครัว / เบเกอรี่ (Bakery)</option>
+                <option value="Bakery">🍳 ครัว (Bakery)</option>
                 <option value="General">🏢 ส่วนกลาง / อาคาร (Facility)</option>
               </select>
             </div>
@@ -1648,7 +1632,7 @@ WITH CHECK (true);`;
                           </span>
                           <p className="text-[10px] font-semibold text-slate-600 mt-1 flex items-center gap-1">
                             {rec.department === 'Bar' ? <Coffee size={11} className="text-amber-700" /> : rec.department === 'Bakery' ? <Cake size={11} className="text-rose-600" /> : <Building size={11} className="text-slate-600" />}
-                            <span>{rec.department === 'Bar' ? 'บาร์' : rec.department === 'Bakery' ? 'เบเกอรี่' : 'ส่วนกลาง'}</span>
+                            <span>{rec.department === 'Bar' ? 'บาร์' : rec.department === 'Bakery' ? 'ครัว' : 'ส่วนกลาง'}</span>
                           </p>
                         </td>
 
@@ -1884,7 +1868,7 @@ WITH CHECK (true);`;
                     className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
                   >
                     <option value="Bar">☕ บาร์ (Bar)</option>
-                    <option value="Bakery">🍳 ครัว / เบเกอรี่ (Bakery)</option>
+                    <option value="Bakery">🍳 ครัว (Bakery)</option>
                     <option value="General">🏢 ส่วนกลาง (Facility)</option>
                   </select>
                 </div>
@@ -1979,7 +1963,7 @@ WITH CHECK (true);`;
                             ))}
                           </optgroup>
 
-                          <optgroup label="🍳 อุปกรณ์โซนครัว/เบเกอรี่ (Bakery)">
+                          <optgroup label="🍳 อุปกรณ์โซนครัว (Bakery)">
                             {PRESET_EQUIPMENT.filter(p => p.department === 'Bakery').map((p, idx) => (
                               <option key={`bakery-${idx}`} value={p.name}>
                                 {p.name}
@@ -2432,7 +2416,7 @@ WITH CHECK (true);`;
                       สาขา {viewingRecord.branch}
                     </span>
                     <span className="text-[10px] font-semibold text-slate-500">
-                      แผนก: {viewingRecord.department === 'Bar' ? 'บาร์' : viewingRecord.department === 'Bakery' ? 'เบเกอรี่' : 'ส่วนกลาง'}
+                      แผนก: {viewingRecord.department === 'Bar' ? 'บาร์' : viewingRecord.department === 'Bakery' ? 'ครัว' : 'ส่วนกลาง'}
                     </span>
                     <h2 className="text-base font-bold text-[#2D4A49] mt-1">
                       {viewingRecord.equipmentName}
@@ -2738,7 +2722,7 @@ WITH CHECK (true);`;
                     className="w-full py-1.5 px-2 border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
                   >
                     <option value="Bar">บาร์ (Bar)</option>
-                    <option value="Bakery">ครัว / เบเกอรี่ (Bakery)</option>
+                    <option value="Bakery">ครัว (Bakery)</option>
                     <option value="General">ส่วนกลาง (Facility)</option>
                   </select>
                 </div>
@@ -2964,7 +2948,7 @@ WITH CHECK (true);`;
                         className="w-full py-1.5 px-2 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
                       >
                         <option value="Bar">บาร์ (Bar)</option>
-                        <option value="Bakery">ครัว / เบเกอรี่ (Bakery)</option>
+                        <option value="Bakery">ครัว (Bakery)</option>
                         <option value="General">ส่วนกลาง (Facility)</option>
                       </select>
                     </div>
