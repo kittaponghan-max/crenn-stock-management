@@ -2337,7 +2337,7 @@ export function HomeScreen({
                     : 'bg-[#F0F5F4] text-[#6B8F8E] hover:bg-[#E8F3F2]'
                 }`}
               >
-                เบเกอรี่ ({maintenanceList.filter(i => i.department === 'Bakery').length})
+                ครัว ({maintenanceList.filter(i => i.department === 'Bakery').length})
               </button>
               <button
                 type="button"
@@ -2433,7 +2433,7 @@ export function HomeScreen({
                                 ? 'bg-amber-50 text-amber-700 border-amber-200' 
                                 : 'bg-slate-100 text-slate-700 border-slate-200'
                           }`}>
-                            {item.department === 'Bar' ? 'บาร์' : item.department === 'Bakery' ? 'เบเกอรี่' : 'ส่วนกลาง'}
+                            {item.department === 'Bar' ? 'บาร์' : item.department === 'Bakery' ? 'ครัว' : 'ส่วนกลาง'}
                           </span>
 
                           {item.equipmentCode && (
