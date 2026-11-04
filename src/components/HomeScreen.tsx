@@ -122,7 +122,7 @@ export function HomeScreen({
   const [maintenanceList, setMaintenanceList] = useState<any[]>([]);
   const [loadingMaintenance, setLoadingMaintenance] = useState<boolean>(true);
   const [isRefreshingMaintenance, setIsRefreshingMaintenance] = useState<boolean>(false);
-  const [maintenanceFilter, setMaintenanceFilter] = useState<'all' | 'overdue' | 'today' | 'week' | 'month' | 'future'>('all');
+  const [maintenanceFilter, setMaintenanceFilter] = useState<'all' | 'overdue' | 'today' | 'week' | 'month' | 'future'>('overdue');
   const [maintenanceDeptFilter, setMaintenanceDeptFilter] = useState<'all' | 'Bar' | 'Bakery' | 'General'>('all');
 
   // Fetch maintenance records that have next_service_date
