@@ -223,6 +223,21 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Export dropdown state (matches DailyBakeryRecord)
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Form Fields State (Each equipment item has independent maintenance fields)
   const [formData, setFormData] = useState<{
     date: string;
@@ -1504,83 +1519,103 @@ WITH CHECK (true);`;
     <div className="min-h-screen bg-[#F4F8F7] text-slate-800 pb-16 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-4">
         
-        {/* ── 1. HEADER CARD ── */}
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-2xs">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* ── 1. HEADER CARD (Matches DailyBakeryRecord Layout, Design & Typography) ── */}
+        <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
             
-            {/* Title & Back */}
-            <div className="flex items-center gap-3">
+            {/* LEFT: Back Button + Title Block */}
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={onBack}
-                className="w-9 h-9 rounded-xl bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#2D4A49] flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                title="กลับหน้าหลัก"
+                title="ย้อนกลับ"
+                className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={15} strokeWidth={2} />
               </button>
 
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#2D4A49] text-white flex items-center justify-center shadow-xs">
-                  <Wrench size={19} />
+              <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+                <Wrench size={18} />
+              </div>
+
+              <div className="flex flex-col">
+                <div className="flex items-center">
+                  <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                    รายงานการบำรุงรักษาเครื่องมือและอุปกรณ์
+                  </h1>
+                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] ml-1.5 whitespace-nowrap">
+                    สาขา {selectedBranch === 'All' ? 'ทุกสาขา' : selectedBranch}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-base sm:text-lg font-bold text-[#2D4A49] leading-tight">
-                      รายงานการบำรุงรักษาเครื่องมือและอุปกรณ์
-                    </h1>
-                    <span className="text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-md border border-[#D4E4E3]">
-                      {selectedBranch === 'All' ? 'ทุกสาขา' : `สาขา ${selectedBranch}`}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#6B8F8E]">
-                    บันทึกประวัติการตรวจเช็ค, ซ่อมแซม, PM และเปลี่ยนอะไหล่เครื่องมือในร้าน
-                  </p>
-                </div>
+                <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                  บันทึกประวัติการตรวจเช็ค, ซ่อมแซม, PM และเปลี่ยนอะไหล่เครื่องมือในร้าน
+                </p>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Refresh */}
+            {/* RIGHT: Action Buttons (Matches DailyBakeryRecord Layout & Function) */}
+            <div className="flex items-center gap-1.5 self-start md:self-auto shrink-0 flex-wrap">
+              {/* Refresh Button */}
               <button
                 type="button"
                 onClick={fetchRecords}
                 disabled={loading}
-                className="w-8 h-8 rounded-lg bg-[#E8F3F2] hover:bg-[#D4E4E3] text-[#2D4A49] flex items-center justify-center transition-colors cursor-pointer"
-                title="รีเฟรชข้อมูล"
+                className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                title="รีเฟรชข้อมูลล่าสุด"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <RefreshCw size={13} className={loading ? 'animate-spin text-[#5A8A88]' : ''} />
               </button>
 
-              {/* Export Excel */}
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                disabled={filteredRecords.length === 0}
-                className="text-[11px] font-bold text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all disabled:opacity-40 cursor-pointer"
-              >
-                <FileSpreadsheet size={14} className="text-emerald-600" />
-                <span>ส่งออก Excel</span>
-              </button>
+              {/* Export Dropdown (Matches DailyBakeryRecord) */}
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsExportOpen(!isExportOpen)}
+                  disabled={filteredRecords.length === 0}
+                  className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="ส่งออกข้อมูล (Excel, PDF / พิมพ์)"
+                >
+                  <Download size={13} className="text-[#5A8A88]" />
+                  <span>ส่งออก</span>
+                  <ChevronDown size={11} className={`text-[#5A8A88] transition-transform duration-150 ${isExportOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-              {/* Print */}
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="text-[11px] font-bold text-[#2D4A49] bg-white hover:bg-[#E8F3F2] border border-[#D4E4E3] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-              >
-                <Printer size={14} className="text-[#5A8A88]" />
-                <span className="hidden sm:inline">พิมพ์</span>
-              </button>
+                {isExportOpen && (
+                  <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExportOpen(false);
+                        handleExportExcel();
+                      }}
+                      className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Download size={13} className="text-[#5A8A88]" />
+                      <span>Excel (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExportOpen(false);
+                        window.print();
+                      }}
+                      className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Printer size={13} className="text-[#5A8A88]" />
+                      <span>PDF / พิมพ์</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
-              {/* Add Record (Primary) */}
+              {/* Add Record (Primary Button) */}
               {!isReadOnly && (
                 <button
                   type="button"
                   onClick={openNewForm}
-                  className="text-[12px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] bg-[#5A8A88] hover:bg-[#476E6C] transition-all shadow-xs cursor-pointer whitespace-nowrap"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} />
                   <span>บันทึกซ่อมบำรุง</span>
                 </button>
               )}
