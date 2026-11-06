@@ -1,6 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ingredient, BAR_CATEGORIES, BAKERY_CATEGORIES } from '../types';
-import { X, Package, Tag, Scale, Layers, AlertTriangle, ShoppingCart, Truck, Box, Plus, Star } from 'lucide-react';
+import { 
+  X, 
+  Package, 
+  Tag, 
+  Scale, 
+  Layers, 
+  AlertTriangle, 
+  ShoppingCart, 
+  Truck, 
+  Box, 
+  Plus, 
+  Star,
+  Edit2,
+  Trash2,
+  RotateCcw,
+  Check,
+  Settings
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+// หน่วยพื้นฐานตามรูปภาพแนบ + หน่วยบรรจุและนับสต็อกมาตรฐานของคาเฟ่
+export const DEFAULT_UNITS: string[] = [
+  // 21 หน่วยตามที่ระบุในรูปภาพ:
+  'ml',
+  'g',
+  'แก้ว',
+  'หลอด',
+  'ชิ้น',
+  'อัน',
+  'ฟอง',
+  'กล่อง',
+  'ลูก',
+  'สำรับ',
+  'ผืน',
+  'แท่ง',
+  'กิโลกรัม',
+  'ลิตร',
+  'เสิร์ฟ',
+  'ใบ',
+  'ก้อน',
+  'เส้น',
+  'มิลลิลิตร',
+  'กรัม',
+  'ไม้',
+  // หน่วยบรรจุภัณฑ์และนับสต็อกเพิ่มเติมของร้าน:
+  'kg',
+  'ถุง',
+  'ขวด',
+  'ลัง',
+  'แพ็ค',
+  'กระปุก',
+  'กระป๋อง',
+  'แกลลอน',
+  'ถัง',
+  'ม้วน',
+  'คู่',
+  'ซอง',
+  'แผง',
+  'มัด',
+  'units'
+];
+
+// ฟังก์ชันแยกขนาดบรรจุเดิมเป็น: จำนวน 1, หน่วย 1, จำนวน 2, หน่วย 2 (เช่น 1 kg / 1 ถุง)
+function parseSizePerUnit(rawSize?: string, defaultUnit?: string) {
+  if (!rawSize || !rawSize.trim()) {
+    return {
+      qty1: '1',
+      unit1: 'kg',
+      qty2: '1',
+      unit2: defaultUnit && defaultUnit !== 'units' ? defaultUnit : 'ถุง'
+    };
+  }
+
+  const s = rawSize.trim();
+
+  // Pattern 1: e.g. "1 kg / 1 ถุง" or "100 g / 2 ซอง"
+  const matchTwo = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Zก-๙]+)?\s*[\/ต่อ]\s*(\d+(?:\.\d+)?)\s*([a-zA-Zก-๙]+)?$/i);
+  if (matchTwo) {
+    return {
+      qty1: matchTwo[1] || '1',
+      unit1: matchTwo[2]?.trim() || 'kg',
+      qty2: matchTwo[3] || '1',
+      unit2: matchTwo[4]?.trim() || defaultUnit || 'ถุง'
+    };
+  }
+
+  // Pattern 2: e.g. "1 kg / ถุง"
+  const matchOne = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Zก-๙]+)?\s*[\/ต่อ]\s*([a-zA-Zก-๙]+)$/i);
+  if (matchOne) {
+    return {
+      qty1: matchOne[1] || '1',
+      unit1: matchOne[2]?.trim() || 'kg',
+      qty2: '1',
+      unit2: matchOne[3]?.trim() || defaultUnit || 'ถุง'
+    };
+  }
+
+  // Pattern 3: e.g. "1kg x 1 ถุง"
+  const matchX = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Zก-๙]+)?\s*[xX*]\s*(\d+(?:\.\d+)?)\s*([a-zA-Zก-๙]+)?$/i);
+  if (matchX) {
+    return {
+      qty1: matchX[1] || '1',
+      unit1: matchX[2]?.trim() || 'kg',
+      qty2: matchX[3] || '1',
+      unit2: matchX[4]?.trim() || defaultUnit || 'ถุง'
+    };
+  }
+
+  // Pattern 4: single quantity + unit e.g. "1 แพ็ค"
+  const matchSingle = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Zก-๙]+)$/i);
+  if (matchSingle) {
+    return {
+      qty1: matchSingle[1] || '1',
+      unit1: matchSingle[2]?.trim() || 'แพ็ค',
+      qty2: '1',
+      unit2: defaultUnit && defaultUnit !== 'units' ? defaultUnit : matchSingle[2]?.trim() || 'แพ็ค'
+    };
+  }
+
+  return {
+    qty1: '1',
+    unit1: s,
+    qty2: '1',
+    unit2: defaultUnit || 'ถุง'
+  };
+}
 
 interface IngredientFormProps {
   initialData?: Ingredient;
@@ -23,6 +148,107 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
   const [suppliers, setSuppliers] = useState<string[]>(cleanedSuppliers);
   const [primaryIndex, setPrimaryIndex] = useState<number>(initialPrimary);
 
+  // Parse existing sizePerUnit into separate fields
+  const parsedSize = parseSizePerUnit(initialData?.sizePerUnit, initialData?.unit);
+  const [packQty1, setPackQty1] = useState<string>(parsedSize.qty1);
+  const [packUnit1, setPackUnit1] = useState<string>(parsedSize.unit1);
+  const [packQty2, setPackQty2] = useState<string>(parsedSize.qty2);
+  const [packUnit2, setPackUnit2] = useState<string>(parsedSize.unit2);
+
+  // Units list state with localStorage & Supabase persistence
+  const [availableUnits, setAvailableUnits] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('cafe-ingredient-units');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return Array.from(new Set([...DEFAULT_UNITS, ...parsed]));
+        }
+      }
+    } catch {}
+    return DEFAULT_UNITS;
+  });
+
+  // Load custom units from Supabase if available
+  useEffect(() => {
+    if (!supabase) return;
+    const fetchUnits = async () => {
+      try {
+        const { data } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'ingredient_units').single();
+        if (data?.setting_value && Array.isArray(data.setting_value)) {
+          setAvailableUnits(prev => Array.from(new Set([...DEFAULT_UNITS, ...data.setting_value, ...prev])));
+        }
+      } catch {}
+    };
+    fetchUnits();
+  }, []);
+
+  // Unit Manager Modal state
+  const [showUnitManager, setShowUnitManager] = useState(false);
+  const [newUnitInput, setNewUnitInput] = useState('');
+  const [editingUnitIndex, setEditingUnitIndex] = useState<number | null>(null);
+  const [editingUnitName, setEditingUnitName] = useState('');
+  const [unitSearch, setUnitSearch] = useState('');
+
+  const saveUnitsList = (updated: string[]) => {
+    setAvailableUnits(updated);
+    try {
+      localStorage.setItem('cafe-ingredient-units', JSON.stringify(updated));
+      if (supabase) {
+        supabase.from('app_settings').upsert({
+          setting_key: 'ingredient_units',
+          setting_value: updated,
+          branch: 'Rayong'
+        }).then(() => {}, () => {});
+      }
+    } catch {}
+  };
+
+  const handleAddUnit = () => {
+    const trimmed = newUnitInput.trim();
+    if (!trimmed) return;
+    if (availableUnits.includes(trimmed)) {
+      alert(`หน่วย "${trimmed}" มีอยู่ในระบบแล้ว`);
+      return;
+    }
+    const updated = [...availableUnits, trimmed];
+    saveUnitsList(updated);
+    setNewUnitInput('');
+    // Auto select in form
+    setPackUnit2(trimmed);
+    setFormData(prev => ({ ...prev, unit: trimmed }));
+  };
+
+  const handleSaveEditUnit = (index: number) => {
+    const trimmed = editingUnitName.trim();
+    if (!trimmed) return;
+    const oldName = availableUnits[index];
+    const updated = [...availableUnits];
+    updated[index] = trimmed;
+    saveUnitsList(updated);
+    setEditingUnitIndex(null);
+    setEditingUnitName('');
+
+    // Update form selections if matched
+    if (packUnit1 === oldName) setPackUnit1(trimmed);
+    if (packUnit2 === oldName) setPackUnit2(trimmed);
+    if (formData.unit === oldName) setFormData(prev => ({ ...prev, unit: trimmed }));
+  };
+
+  const handleDeleteUnit = (index: number) => {
+    const unitToRemove = availableUnits[index];
+    if (window.confirm(`ต้องการลบหน่วย "${unitToRemove}" ออกจากระบบหรือไม่?`)) {
+      const updated = availableUnits.filter((_, i) => i !== index);
+      saveUnitsList(updated);
+    }
+  };
+
+  const handleResetUnits = () => {
+    if (window.confirm('ต้องการคืนค่ารายการหน่วยนับเริ่มต้นตามระบบหรือไม่?')) {
+      saveUnitsList(DEFAULT_UNITS);
+    }
+  };
+
   const [formData, setFormData] = useState<Omit<Ingredient, 'id'>>(initialData ? {
     name: initialData.name,
     brand: initialData.brand || '',
@@ -31,7 +257,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
     minStock: initialData.minStock,
     minOrder: initialData.minOrder,
     supplier: initialData.supplier,
-    unit: initialData.unit,
+    unit: initialData.unit || parsedSize.unit2 || 'units',
     image: initialData.image || '',
     department: initialData.department || defaultDepartment,
   } : {
@@ -42,7 +268,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
     minStock: 0,
     minOrder: 0,
     supplier: '',
-    unit: 'units',
+    unit: parsedSize.unit2 || 'ถุง',
     image: '',
     department: defaultDepartment,
   });
@@ -54,9 +280,28 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
       if (!trimmed) return null;
       return i === primaryIndex ? `${trimmed} (หลัก)` : trimmed;
     }).filter(Boolean);
+
+    // ประกอบข้อมูลขนาดบรรจุมาตรฐาน: "จำนวน หน่วย / จำนวน หน่วย" เช่น "1 kg / 1 ถุง"
+    const q1 = packQty1.trim() || '1';
+    const u1 = packUnit1.trim();
+    const q2 = packQty2.trim() || '1';
+    const u2 = packUnit2.trim();
+
+    let finalSizePerUnit = '';
+    if (u1 && u2) {
+      finalSizePerUnit = `${q1} ${u1} / ${q2} ${u2}`;
+    } else if (u1) {
+      finalSizePerUnit = `${q1} ${u1}`;
+    } else if (formData.sizePerUnit) {
+      finalSizePerUnit = formData.sizePerUnit;
+    }
+
+    const finalUnit = formData.unit.trim() || u2 || u1 || 'units';
     
     onSubmit({
       ...formData,
+      sizePerUnit: finalSizePerUnit,
+      unit: finalUnit,
       supplier: formattedSuppliers.join(', '),
       id: initialData?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
     });
@@ -183,38 +428,151 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
               </div>
             </div>
 
-            {/* Section 2: Unit & Size */}
+            {/* Section 2: Unit & Size (ขนาดและหน่วยนับ) */}
             <div className="bg-white p-3 rounded-lg border border-[#D4E4E3] shadow-2xs space-y-2.5">
-              <h3 className="text-[11px] font-semibold text-[#2D4A49] flex items-center gap-1.5">
-                <Scale className="text-[#EA580C]" size={14} />
-                ขนาดและหน่วยนับ
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[10.5px] font-medium text-[#4A6B6A] mb-1">ขนาดบรรจุ (Size/Unit)</label>
-                  <input
-                    type="text"
-                    className="w-full border border-[#D4E4E3] rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all text-[11px] text-[#2D4A49] placeholder:text-[#9BB5B4] bg-white h-[32px]"
-                    placeholder="เช่น 1kg x 1 ถุง"
-                    value={formData.sizePerUnit}
-                    onChange={(e) => setFormData({ ...formData, sizePerUnit: e.target.value })}
-                  />
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-[#2D4A49] flex items-center gap-1.5">
+                  <Scale className="text-[#EA580C]" size={14} />
+                  ขนาดและหน่วยนับ
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowUnitManager(true)}
+                  className="text-[10px] text-[#5A8A88] hover:text-[#2D4A49] hover:bg-[#E8F3F2] px-2 py-0.5 rounded transition-colors flex items-center gap-1 font-semibold cursor-pointer border border-[#D4E4E3]"
+                  title="จัดการ เพิ่ม/แก้ไข รายชื่อหน่วยนับในระบบ"
+                >
+                  <Plus size={11} />
+                  <span>เพิ่ม/แก้ไขหน่วยนับ</span>
+                </button>
+              </div>
+
+              {/* ข้อ 1: ขนาดบรรจุ (Size/Unit) แยกเป็น: จำนวน, หน่วย / จำนวน, หน่วย เช่น 1 kg / 1 ถุง */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10.5px] font-medium text-[#4A6B6A]">
+                    ขนาดบรรจุ (Size/Unit) <span className="text-[9.5px] text-[#6B8F8E] font-normal">(จำนวน, หน่วย / จำนวน, หน่วย)</span>
+                  </label>
+                  <span className="text-[9.5px] font-mono text-[#5A8A88] bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
+                    ตัวอย่าง: 1 kg / 1 ถุง
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-[10.5px] font-medium text-[#4A6B6A] mb-1">หน่วยนับ (Unit)</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                      <Box className="text-[#5A8A88]" size={13} />
-                    </div>
+
+                <div className="bg-[#F8FAF9] p-2 rounded-lg border border-[#D4E4E3] flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+                  {/* จำนวน 1 */}
+                  <div className="w-16 sm:w-20 shrink-0">
                     <input
-                      required
-                      type="text"
-                      className="w-full border border-[#D4E4E3] rounded-md pl-7 pr-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all text-[11px] text-[#2D4A49] placeholder:text-[#9BB5B4] bg-white h-[32px]"
-                      placeholder="เช่น ถุง, ขวด, ลัง"
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      type="number"
+                      step="any"
+                      min="0"
+                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-center font-mono text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none"
+                      placeholder="จำนวน (1)"
+                      value={packQty1}
+                      onChange={(e) => setPackQty1(e.target.value)}
                     />
                   </div>
+
+                  {/* หน่วย 1 (Dropdown) */}
+                  <div className="flex-1 min-w-[100px]">
+                    <select
+                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none cursor-pointer"
+                      value={packUnit1}
+                      onChange={(e) => {
+                        if (e.target.value === '__manage__') {
+                          setShowUnitManager(true);
+                        } else {
+                          setPackUnit1(e.target.value);
+                        }
+                      }}
+                    >
+                      <option value="">-- เลือกหน่วย --</option>
+                      {availableUnits.map((u) => (
+                        <option key={`pack-u1-${u}`} value={u}>{u}</option>
+                      ))}
+                      <option value="__manage__" className="text-[#5A8A88] font-bold">+ เพิ่ม/แก้ไขหน่วย...</option>
+                    </select>
+                  </div>
+
+                  {/* เครื่องหมายคั่น / */}
+                  <span className="text-slate-400 font-bold text-sm px-0.5 select-none">/</span>
+
+                  {/* จำนวน 2 */}
+                  <div className="w-14 sm:w-16 shrink-0">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-center font-mono text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none"
+                      placeholder="1"
+                      value={packQty2}
+                      onChange={(e) => setPackQty2(e.target.value)}
+                    />
+                  </div>
+
+                  {/* หน่วย 2 (Dropdown) */}
+                  <div className="flex-1 min-w-[100px]">
+                    <select
+                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none cursor-pointer"
+                      value={packUnit2}
+                      onChange={(e) => {
+                        if (e.target.value === '__manage__') {
+                          setShowUnitManager(true);
+                        } else {
+                          const val = e.target.value;
+                          setPackUnit2(val);
+                          // ซิงค์หน่วยนับให้อัตโนมัติหากยังไม่ได้ระบุ
+                          if (!formData.unit || formData.unit === 'units' || formData.unit === packUnit2) {
+                            setFormData(prev => ({ ...prev, unit: val }));
+                          }
+                        }
+                      }}
+                    >
+                      <option value="">-- เลือกหน่วยบรรจุ --</option>
+                      {availableUnits.map((u) => (
+                        <option key={`pack-u2-${u}`} value={u}>{u}</option>
+                      ))}
+                      <option value="__manage__" className="text-[#5A8A88] font-bold">+ เพิ่ม/แก้ไขหน่วย...</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Live Preview Display */}
+                <div className="flex items-center justify-between text-[10px] text-[#6B8F8E] pt-0.5 px-0.5">
+                  <span>
+                    ข้อมูลที่จะบันทึก:{' '}
+                    <strong className="text-[#2D4A49] font-mono font-bold bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
+                      {packQty1 || '1'} {packUnit1 || 'kg'} / {packQty2 || '1'} {packUnit2 || 'ถุง'}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* ข้อ 2: หน่วยนับ (Unit) สำหรับการนับสต็อก เป็น Dropdown List */}
+              <div>
+                <label className="block text-[10.5px] font-medium text-[#4A6B6A] mb-1">
+                  หน่วยนับ (Unit) ในการนับสต็อก *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                    <Box className="text-[#5A8A88]" size={13} />
+                  </div>
+                  <select
+                    required
+                    className="w-full border border-[#D4E4E3] rounded-md pl-7 pr-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all text-[11px] text-[#2D4A49] bg-white h-[32px] cursor-pointer"
+                    value={formData.unit}
+                    onChange={(e) => {
+                      if (e.target.value === '__manage__') {
+                        setShowUnitManager(true);
+                      } else {
+                        setFormData({ ...formData, unit: e.target.value });
+                      }
+                    }}
+                  >
+                    <option value="">-- เลือกหน่วยนับสต็อก --</option>
+                    {availableUnits.map((u) => (
+                      <option key={`stock-u-${u}`} value={u}>{u}</option>
+                    ))}
+                    <option value="__manage__" className="text-[#5A8A88] font-bold">+ เพิ่ม/แก้ไขหน่วย...</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -334,6 +692,184 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
           </button>
         </div>
       </div>
+
+      {/* ── UNIT MANAGER MODAL (เพิ่ม/แก้ไข รายการหน่วยนับในระบบ) ── */}
+      {showUnitManager && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#D4E4E3] w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="bg-[#2D4A49] px-4 py-3 flex items-center justify-between text-white shrink-0">
+              <div className="flex items-center gap-2">
+                <Scale size={16} className="text-[#8FB3B1]" />
+                <div>
+                  <h3 className="font-bold text-[12px]">จัดการรายชื่อหน่วยนับ (Unit Master)</h3>
+                  <p className="text-[9.5px] text-[#D4E4E3]">เพิ่ม แก้ไข หรือลบ หน่วยนับสำหรับขนาดบรรจุและสต็อก</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnitManager(false);
+                  setEditingUnitIndex(null);
+                  setEditingUnitName('');
+                }}
+                className="p-1 text-white/80 hover:text-white rounded-lg cursor-pointer"
+                title="ปิด"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-3.5 sm:p-4 overflow-y-auto space-y-3.5 bg-[#F8FAFA]">
+              {/* Add New Unit Form */}
+              <div className="bg-white p-3 rounded-xl border border-[#D4E4E3] shadow-2xs space-y-2">
+                <label className="block text-[10.5px] font-bold text-[#2D4A49]">
+                  + เพิ่มหน่วยนับใหม่
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="เช่น ถุง, แกลลอน, ซอง, กก., มัด..."
+                    value={newUnitInput}
+                    onChange={(e) => setNewUnitInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddUnit();
+                      }
+                    }}
+                    className="flex-1 border border-[#D4E4E3] rounded-lg px-2.5 py-1.5 text-[11px] text-[#2D4A49] placeholder:text-[#9BB5B4] bg-white h-[32px] focus:outline-none focus:border-[#5A8A88]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddUnit}
+                    disabled={!newUnitInput.trim()}
+                    className="px-3 py-1.5 bg-[#5A8A88] hover:bg-[#476E6C] text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-40 shadow-2xs shrink-0 flex items-center gap-1"
+                  >
+                    <Plus size={13} />
+                    <span>เพิ่มหน่วย</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Units List Header & Search */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-[#2D4A49]">
+                    หน่วยนับที่มีในระบบ ({availableUnits.length} หน่วย)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetUnits}
+                    className="text-[9.5px] text-[#5A8A88] hover:text-[#2D4A49] hover:underline flex items-center gap-1 cursor-pointer"
+                    title="คืนค่าเป็น 21 หน่วยมาตรฐานเริ่มต้น"
+                  >
+                    <RotateCcw size={10} />
+                    <span>คืนค่าเริ่มต้น</span>
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อหน่วย..."
+                  value={unitSearch}
+                  onChange={(e) => setUnitSearch(e.target.value)}
+                  className="w-full border border-[#D4E4E3] rounded-lg px-2.5 py-1 text-[10.5px] text-[#2D4A49] placeholder:text-[#9BB5B4] bg-white h-[28px] focus:outline-none focus:border-[#5A8A88]"
+                />
+
+                {/* Unit List Container */}
+                <div className="bg-white rounded-xl border border-[#D4E4E3] p-2 max-h-[220px] overflow-y-auto space-y-1 divide-y divide-slate-100">
+                  {availableUnits
+                    .map((unit, originalIdx) => ({ unit, originalIdx }))
+                    .filter(item => !unitSearch.trim() || item.unit.toLowerCase().includes(unitSearch.toLowerCase()))
+                    .map(({ unit, originalIdx }) => {
+                      const isEditing = editingUnitIndex === originalIdx;
+
+                      return (
+                        <div key={originalIdx} className="pt-1 first:pt-0 flex items-center justify-between gap-2 py-1 px-1 hover:bg-[#F0F5F4]/60 rounded-md transition-colors">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <input
+                                type="text"
+                                autoFocus
+                                value={editingUnitName}
+                                onChange={(e) => setEditingUnitName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveEditUnit(originalIdx);
+                                  if (e.key === 'Escape') setEditingUnitIndex(null);
+                                }}
+                                className="flex-1 border border-[#5A8A88] rounded px-2 py-0.5 text-[11px] text-[#2D4A49] bg-white h-[26px] outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditUnit(originalIdx)}
+                                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
+                              >
+                                บันทึก
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingUnitIndex(null)}
+                                className="px-1.5 py-0.5 text-slate-500 hover:text-slate-700 text-[10px] cursor-pointer"
+                              >
+                                ยกเลิก
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium text-[#2D4A49] bg-[#E8F3F2] px-2 py-0.5 rounded border border-[#D4E4E3]">
+                                  {unit}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingUnitIndex(originalIdx);
+                                    setEditingUnitName(unit);
+                                  }}
+                                  className="p-1 text-[#5A8A88] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded cursor-pointer transition-colors"
+                                  title="แก้ไขชื่อหน่วยนี้"
+                                >
+                                  <Edit2 size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteUnit(originalIdx)}
+                                  className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer transition-colors"
+                                  title="ลบหน่วยนี้"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-4 py-2.5 border-t border-[#D4E4E3] bg-white flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnitManager(false);
+                  setEditingUnitIndex(null);
+                  setEditingUnitName('');
+                }}
+                className="px-4 py-1.5 bg-[#2D4A49] hover:bg-[#1E3635] text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+              >
+                เสร็จสิ้น
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
