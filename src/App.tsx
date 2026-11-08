@@ -40,6 +40,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { BottomNav } from './components/BottomNav';
 import { TopNav } from './components/TopNav';
 import { SupabaseStatusBar } from './components/SupabaseStatusBar';
+import { ProdCalcApp } from './components/prodcalc/ProdCalcApp';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -325,7 +326,8 @@ function AccessDeniedPage({ onNavigate, pageName = 'User Security Settings' }: {
 }
 
 export default function App() {
-  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok' } | null>(null);
+  const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok'; app?: string } | null>(null);
+  const [currentApp, setCurrentApp] = useState<'cafe' | 'prodcalc'>('cafe');
 
   // Sync user object to cafe-user in localStorage so all components share the active branch
   useEffect(() => {
@@ -2364,7 +2366,36 @@ export default function App() {
   }, [ingredients, stockRecord]);
 
   if (!user) {
-    return <LoginForm onLogin={(userData) => setUser(userData)} />;
+    return (
+      <LoginForm 
+        onLogin={(userData) => {
+          setUser(userData);
+          if (userData.app === 'prodcalc') {
+            setCurrentApp('prodcalc');
+          } else {
+            setCurrentApp('cafe');
+          }
+        }} 
+      />
+    );
+  }
+
+  // ProdCalc Standalone App Mode
+  if (currentApp === 'prodcalc') {
+    return (
+      <ProdCalcApp
+        currentUser={{
+          name: user.name,
+          role: user.role,
+          branch: user.branch || 'Rayong'
+        }}
+        onSwitchToCafe={() => setCurrentApp('cafe')}
+        onLogout={() => {
+          setUser(null);
+          setCurrentApp('cafe');
+        }}
+      />
+    );
   }
 
   return (
@@ -2385,6 +2416,7 @@ export default function App() {
             userRole={user.role}
             onLogoClick={() => handleTabNavigate('home')}
             onAvatarClick={() => handleTabNavigate('userSettings')}
+            onSwitchApp={() => setCurrentApp('prodcalc')}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
             needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
@@ -2404,6 +2436,7 @@ export default function App() {
             stockRecord={stockRecord}
             onNavigate={(tab) => setActiveTab(tab)}
             onLogout={() => setUser(null)}
+            onSwitchApp={() => setCurrentApp('prodcalc')}
             dbStatus={dbStatus === 'offline' ? 'offline' : dbStatus === 'connected' ? 'connected' : 'checking'}
             onChangeBranch={(newBranch) => {
               setUser(prev => prev ? { ...prev, branch: newBranch } : null);
