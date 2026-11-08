@@ -208,17 +208,17 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
           <div className="flex items-center gap-2.5">
             <div 
               style={{ background: '#5BA4C8' }}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-lg shadow-sm"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[12px] shadow-sm"
             >
               🧮
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-black text-sm tracking-wider uppercase text-[#1E5A7A]">CRENN</span>
-                <span className="text-xs text-[#5BA4C8] font-bold">|</span>
-                <span className="font-extrabold text-sm text-[#1E3D52]">ProdCalc</span>
+                <span className="font-black text-[12px] tracking-wider uppercase text-[#1E5A7A]">CRENN</span>
+                <span className="text-[10px] text-[#5BA4C8] font-bold">|</span>
+                <span className="font-extrabold text-[12px] text-[#1E3D52]">ProdCalc</span>
               </div>
-              <span className="text-[10px] text-[#4A7592] font-medium hidden sm:block">
+              <span className="text-[9.5px] text-[#4A7592] font-medium hidden sm:block">
                 Production Cost Calculator
               </span>
             </div>
@@ -232,9 +232,9 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
                 background: currentTab === 'ingredients' ? '#5BA4C8' : 'transparent',
                 color: currentTab === 'ingredients' ? '#FFFFFF' : '#4A7592'
               }}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <FlaskConical size={14} />
+              <FlaskConical size={13} />
               <span>วัตถุดิบ & Yield</span>
             </button>
 
@@ -244,9 +244,9 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
                 background: currentTab === 'recipes' || currentTab === 'recipeEditor' ? '#5BA4C8' : 'transparent',
                 color: currentTab === 'recipes' || currentTab === 'recipeEditor' ? '#FFFFFF' : '#4A7592'
               }}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <BookOpen size={14} />
+              <BookOpen size={13} />
               <span>สูตรอาหาร ({recipes.length})</span>
             </button>
 
@@ -256,9 +256,9 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
                 background: currentTab === 'reports' ? '#5BA4C8' : 'transparent',
                 color: currentTab === 'reports' ? '#FFFFFF' : '#4A7592'
               }}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <BarChart2 size={14} />
+              <BarChart2 size={13} />
               <span>รายงานต้นทุน</span>
             </button>
           </nav>
@@ -273,22 +273,22 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
                 border: '1.5px solid #C8E3F0',
                 color: '#1E5A7A'
               }}
-              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-[#EEF6FB] hover:border-[#5BA4C8] transition-all cursor-pointer shadow-2xs"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-[#EEF6FB] hover:border-[#5BA4C8] transition-all cursor-pointer shadow-2xs"
               title="สลับไปยังระบบ Cafe Management System"
             >
-              <Coffee size={14} color="#5BA4C8" />
+              <Coffee size={13} color="#5BA4C8" />
               <span className="hidden sm:inline">สลับไป Cafe Mgmt</span>
-              <span className="sm:hidden text-[11px]">Cafe</span>
+              <span className="sm:hidden text-[10px]">Cafe</span>
             </button>
 
             {/* User Badge */}
-            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#EEF6FB] border border-[#C8E3F0] text-xs">
-              <div className="w-6 h-6 rounded-full bg-[#5BA4C8] text-white flex items-center justify-center font-bold text-[10px]">
+            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#EEF6FB] border border-[#C8E3F0] text-[10px]">
+              <div className="w-5 h-5 rounded-full bg-[#5BA4C8] text-white flex items-center justify-center font-bold text-[9px]">
                 {currentUser.name.charAt(0)}
               </div>
               <div className="text-left leading-tight">
-                <span className="font-bold text-[#1E3D52] block text-[11px]">{currentUser.name}</span>
-                <span className="text-[9.5px] text-[#4A7592]">{currentUser.branch}</span>
+                <span className="font-bold text-[#1E3D52] block text-[10.5px]">{currentUser.name}</span>
+                <span className="text-[9px] text-[#4A7592]">{currentUser.branch}</span>
               </div>
             </div>
 
@@ -299,7 +299,7 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
               className="p-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
               title="ออกจากระบบ"
             >
-              <LogOut size={16} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
@@ -367,10 +367,10 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
               background: currentTab === 'ingredients' ? '#5BA4C8' : 'transparent',
               color: currentTab === 'ingredients' ? '#FFFFFF' : '#4A7592'
             }}
-            className="flex-1 py-2 rounded-full text-xs font-bold flex flex-col items-center gap-0.5 transition-all"
+            className="flex-1 py-1.5 rounded-full text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all"
           >
-            <FlaskConical size={16} />
-            <span className="text-[10px]">วัตถุดิบ</span>
+            <FlaskConical size={15} />
+            <span className="text-[9.5px]">วัตถุดิบ</span>
           </button>
 
           <button
@@ -379,10 +379,10 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
               background: currentTab === 'recipes' || currentTab === 'recipeEditor' ? '#5BA4C8' : 'transparent',
               color: currentTab === 'recipes' || currentTab === 'recipeEditor' ? '#FFFFFF' : '#4A7592'
             }}
-            className="flex-1 py-2 rounded-full text-xs font-bold flex flex-col items-center gap-0.5 transition-all"
+            className="flex-1 py-1.5 rounded-full text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all"
           >
-            <BookOpen size={16} />
-            <span className="text-[10px]">สูตร</span>
+            <BookOpen size={15} />
+            <span className="text-[9.5px]">สูตร</span>
           </button>
 
           <button
@@ -391,10 +391,10 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
               background: currentTab === 'reports' ? '#5BA4C8' : 'transparent',
               color: currentTab === 'reports' ? '#FFFFFF' : '#4A7592'
             }}
-            className="flex-1 py-2 rounded-full text-xs font-bold flex flex-col items-center gap-0.5 transition-all"
+            className="flex-1 py-1.5 rounded-full text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all"
           >
-            <BarChart2 size={16} />
-            <span className="text-[10px]">รายงาน</span>
+            <BarChart2 size={15} />
+            <span className="text-[9.5px]">รายงาน</span>
           </button>
         </div>
       </div>
