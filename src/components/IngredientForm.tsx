@@ -150,10 +150,22 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
 
   // Parse existing sizePerUnit into separate fields
   const parsedSize = parseSizePerUnit(initialData?.sizePerUnit, initialData?.unit);
-  const [packQty1, setPackQty1] = useState<string>(parsedSize.qty1);
-  const [packUnit1, setPackUnit1] = useState<string>(parsedSize.unit1);
-  const [packQty2, setPackQty2] = useState<string>(parsedSize.qty2);
-  const [packUnit2, setPackUnit2] = useState<string>(parsedSize.unit2);
+  const [packQty1, setPackQty1] = useState<string>(
+    initialData?.pack_qty_1 !== undefined && initialData.pack_qty_1 !== null
+      ? String(initialData.pack_qty_1)
+      : parsedSize.qty1
+  );
+  const [packUnit1, setPackUnit1] = useState<string>(
+    initialData?.pack_unit_1 || parsedSize.unit1
+  );
+  const [packQty2, setPackQty2] = useState<string>(
+    initialData?.pack_qty_2 !== undefined && initialData.pack_qty_2 !== null
+      ? String(initialData.pack_qty_2)
+      : parsedSize.qty2
+  );
+  const [packUnit2, setPackUnit2] = useState<string>(
+    initialData?.pack_unit_2 || parsedSize.unit2
+  );
 
   // Units list state with localStorage & Supabase persistence
   const [availableUnits, setAvailableUnits] = useState<string[]>(() => {
@@ -302,6 +314,10 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
       ...formData,
       sizePerUnit: finalSizePerUnit,
       unit: finalUnit,
+      pack_qty_1: Number(q1) || 1,
+      pack_unit_1: u1 || 'kg',
+      pack_qty_2: Number(q2) || 1,
+      pack_unit_2: u2 || 'ถุง',
       supplier: formattedSuppliers.join(', '),
       id: initialData?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
     });
