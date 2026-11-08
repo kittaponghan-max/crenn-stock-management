@@ -7,6 +7,7 @@ interface TopNavProps {
   userRole?: string;
   onLogoClick?: () => void;
   onAvatarClick?: () => void;
+  onSwitchApp?: () => void;
   hasNotification?: boolean;
   outCount?: number;
   lowCount?: number;
@@ -21,6 +22,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   userRole,
   onLogoClick,
   onAvatarClick,
+  onSwitchApp,
   hasNotification = true,
   outCount = 0,
   lowCount = 0,
@@ -145,6 +147,19 @@ export const TopNav: React.FC<TopNavProps> = ({
               </div>
             )}
           </div>
+
+          {/* Switch to ProdCalc Button */}
+          {onSwitchApp && (
+            <button
+              type="button"
+              onClick={onSwitchApp}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EEF6FB] hover:bg-[#DDF0F8] border border-[#5BA4C8] text-[#1E5A7A] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer"
+              title="เปิดแอปพลิเคชัน ProdCalc (คำนวณต้นทุนการผลิต)"
+            >
+              <span className="text-sm">🧮</span>
+              <span className="hidden sm:inline">ProdCalc</span>
+            </button>
+          )}
 
           {/* User Avatar Pill */}
           <button
