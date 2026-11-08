@@ -26,7 +26,7 @@ import {
   ShieldCheck,
   ArrowUpRight
 } from 'lucide-react';
-import { Ingredient, StockRecord, Branch, AppPermissions } from '../types';
+import { Ingredient, StockRecord, Branch, AppPermissions, canAccessProdCalc } from '../types';
 import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
 import { SupabaseStatusBar } from './SupabaseStatusBar';
@@ -1390,7 +1390,7 @@ export function HomeScreen({
             </div>
 
             {/* Switch to ProdCalc */}
-            {onSwitchApp && (
+            {onSwitchApp && canAccessProdCalc(user) && (
               <button
                 type="button"
                 onClick={() => onSwitchApp('prodcalc')}
