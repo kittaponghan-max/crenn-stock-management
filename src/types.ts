@@ -16,6 +16,11 @@ export interface Ingredient {
   is_active?: boolean;
   inactive_reason?: string;
   inactive_at?: string;
+  // Discrete Size & Unit fields (ขนาดบรรจุแยกตาม จำนวน 1, หน่วย 1 / จำนวน 2, หน่วย 2)
+  pack_qty_1?: number;
+  pack_unit_1?: string;
+  pack_qty_2?: number;
+  pack_unit_2?: string;
 }
 
 export interface DailyStock {
