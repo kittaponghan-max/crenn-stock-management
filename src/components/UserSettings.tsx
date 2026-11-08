@@ -63,6 +63,9 @@ export interface UserPermissions {
   userSettings: PagePermission;
   canEditDateRange: boolean;
 
+  // Add-ons / Applications
+  prodcalc: PagePermission;
+
   [key: string]: any;
 }
 
@@ -93,7 +96,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       history_receiving: 'edit',
       history_bakery: 'edit',
       userSettings: 'edit',
-      canEditDateRange: true
+      canEditDateRange: true,
+      prodcalc: 'edit'
     };
   }
   if (r === 'BRANCH MANAGER') {
@@ -121,7 +125,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       history_receiving: 'edit',
       history_bakery: 'edit',
       userSettings: 'hidden',
-      canEditDateRange: false
+      canEditDateRange: false,
+      prodcalc: 'hidden'
     };
   }
   if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
@@ -149,7 +154,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       history_receiving: 'read',
       history_bakery: 'read',
       userSettings: 'hidden',
-      canEditDateRange: false
+      canEditDateRange: false,
+      prodcalc: 'hidden'
     };
   }
   if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE') {
@@ -177,7 +183,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       history_receiving: 'read',
       history_bakery: 'hidden',
       userSettings: 'hidden',
-      canEditDateRange: false
+      canEditDateRange: false,
+      prodcalc: 'hidden'
     };
   }
   // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER:
@@ -205,7 +212,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     history_receiving: 'read',
     history_bakery: 'read',
     userSettings: 'hidden',
-    canEditDateRange: false
+    canEditDateRange: false,
+    prodcalc: 'hidden'
   };
 };
 
@@ -258,7 +266,8 @@ export const normalizePermissions = (raw: any, role: string): UserPermissions =>
     history_bakery: toLevel(parsed.history_bakery !== undefined ? parsed.history_bakery : parsed.historyBakery, defaults.history_bakery),
 
     userSettings: toLevel(parsed.userSettings !== undefined ? parsed.userSettings : parsed.adminTools, defaults.userSettings),
-    canEditDateRange: typeof parsed.canEditDateRange === 'boolean' ? parsed.canEditDateRange : defaults.canEditDateRange
+    canEditDateRange: typeof parsed.canEditDateRange === 'boolean' ? parsed.canEditDateRange : defaults.canEditDateRange,
+    prodcalc: toLevel(parsed.prodcalc !== undefined ? parsed.prodcalc : (parsed.ProdCalc || parsed.prodCalc), defaults.prodcalc || 'hidden')
   };
 };
 
@@ -291,6 +300,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     history_bakery: perms.history_bakery,
     userSettings: perms.userSettings,
     canEditDateRange: !!perms.canEditDateRange,
+    prodcalc: perms.prodcalc || 'hidden',
 
     // Legacy fields for backward compatibility
     dailyRecord: perms.dailySales,
@@ -311,7 +321,8 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     historyReceiving: toLegacy(perms.history_receiving),
     historyBakery: toLegacy(perms.history_bakery),
     manageIngredients: (perms.bar_stock === 'edit' || perms.kitchen_stock === 'edit') ? 'Edit' : 'Hidden',
-    adminTools: toLegacy(perms.userSettings)
+    adminTools: toLegacy(perms.userSettings),
+    ProdCalc: toLegacy(perms.prodcalc || 'hidden')
   };
 };
 
@@ -380,9 +391,10 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'admin',
-    name: 'GROUP 6: ⚙️ Admin',
+    name: 'GROUP 6: ⚙️ Admin & Add-on Apps',
     items: [
       { key: 'userSettings', name: 'User Settings', icon: '👤' },
+      { key: 'prodcalc', name: 'คำนวณต้นทุนการผลิต (ProdCalc)', icon: '🧮' },
     ]
   }
 ];
@@ -406,7 +418,8 @@ const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'historyWaste', name: 'รายงาน Waste เมล็ดกาแฟ' },
   { id: 'historyReceiving', name: 'ประวัติการรับวัตถุดิบ' },
   { id: 'manageIngredients', name: 'จัดการรายการวัตถุดิบ' },
-  { id: 'adminTools', name: 'ตั้งค่าผู้ดูแลระบบ (Admin Only)' }
+  { id: 'adminTools', name: 'ตั้งค่าผู้ดูแลระบบ (Admin Only)' },
+  { id: 'prodcalc' as any, name: 'คำนวณต้นทุนการผลิต (ProdCalc)' }
 ];
 
 const DEFAULT_PERMISSIONS: AppPermissions = {
@@ -428,7 +441,8 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   historyWaste: 'Edit',
   historyReceiving: 'Edit',
   manageIngredients: 'Edit',
-  adminTools: 'Hidden'
+  adminTools: 'Hidden',
+  prodcalc: 'Hidden'
 };
 
 interface UserSettingsProps {
@@ -602,7 +616,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'rndReport',
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
-      'userSettings'
+      'userSettings', 'prodcalc'
     ];
     const updated: any = { ...formData.permissions };
     allKeys.forEach(k => {
@@ -661,7 +675,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'rndReport',
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
-      'userSettings'
+      'userSettings', 'prodcalc'
     ];
     const updated: any = { ...templateForm };
     allKeys.forEach(k => { updated[k] = level; });
