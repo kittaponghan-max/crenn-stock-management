@@ -53,7 +53,7 @@ interface AppUser extends TypesAppUser {
 }
 
 interface LoginFormProps {
-  onLogin: (user: { name: string; role: UserRole; permissions?: AppPermissions; branch: Branch }) => void;
+  onLogin: (user: { name: string; role: UserRole; permissions?: AppPermissions; branch: Branch; app?: AppOption }) => void;
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {
@@ -297,11 +297,13 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           break;
 
         case 'prodcalc':
-          // Show "coming soon" for now
-          setInfoModal('🧮 ProdCalc - Production Cost Calculator\nกำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้');
-          try {
-            alert('ProdCalc - Production Cost Calculator\nกำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้');
-          } catch {}
+          onLogin({
+            name: matchedUser.name,
+            role: matchedUser.role,
+            permissions: matchedUser.permissions,
+            branch: selectedBranch,
+            app: 'prodcalc'
+          });
           break;
 
         default:
