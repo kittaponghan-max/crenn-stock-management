@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch } from './types';
+import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc } from './types';
 import { IngredientForm } from './components/IngredientForm';
 import { StockTable } from './components/StockTable';
 import { LoginForm, UserRole } from './components/LoginForm';
@@ -2371,7 +2371,12 @@ export default function App() {
         onLogin={(userData) => {
           setUser(userData);
           if (userData.app === 'prodcalc') {
-            setCurrentApp('prodcalc');
+            if (canAccessProdCalc(userData)) {
+              setCurrentApp('prodcalc');
+            } else {
+              alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน ProdCalc (Admin Only หรือต้องได้รับสิทธิ์ใน User Security Settings)');
+              setCurrentApp('cafe');
+            }
           } else {
             setCurrentApp('cafe');
           }
@@ -2382,6 +2387,23 @@ export default function App() {
 
   // ProdCalc Standalone App Mode
   if (currentApp === 'prodcalc') {
+    if (!canAccessProdCalc(user)) {
+      return (
+        <div className="min-h-screen bg-[#FDFAF5] flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-md border border-[#E2EAE9] max-w-md w-full text-center space-y-4">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl">⚠️</div>
+            <h2 className="text-base font-bold text-gray-800">ไม่มีสิทธิ์เข้าถึง ProdCalc</h2>
+            <p className="text-xs text-gray-500">ฟังก์ชันนี้สงวนไว้สำหรับผู้ดูแลระบบ (Admin) หรือผู้ใช้ที่ได้รับอนุญาตใน User Security Settings เท่านั้น</p>
+            <button
+              onClick={() => setCurrentApp('cafe')}
+              className="w-full py-2.5 px-4 bg-[#5BA4C8] hover:bg-[#3D7FA3] text-white rounded-xl font-bold text-xs transition cursor-pointer"
+            >
+              กลับสู่ Cafe Management
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <ProdCalcApp
         currentUser={{
@@ -2416,7 +2438,7 @@ export default function App() {
             userRole={user.role}
             onLogoClick={() => handleTabNavigate('home')}
             onAvatarClick={() => handleTabNavigate('userSettings')}
-            onSwitchApp={() => setCurrentApp('prodcalc')}
+            onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
             needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
@@ -2436,7 +2458,7 @@ export default function App() {
             stockRecord={stockRecord}
             onNavigate={(tab) => setActiveTab(tab)}
             onLogout={() => setUser(null)}
-            onSwitchApp={() => setCurrentApp('prodcalc')}
+            onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
             dbStatus={dbStatus === 'offline' ? 'offline' : dbStatus === 'connected' ? 'connected' : 'checking'}
             onChangeBranch={(newBranch) => {
               setUser(prev => prev ? { ...prev, branch: newBranch } : null);
