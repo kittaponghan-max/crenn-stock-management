@@ -47,6 +47,7 @@ export interface HomeScreenProps {
   dbStatus: 'connected' | 'checking' | 'offline';
   onChangeBranch?: (branch: Branch) => void;
   hasPermission?: (funcId: keyof AppPermissions) => boolean;
+  onSwitchApp?: (app: 'prodcalc') => void;
 }
 
 export function HomeScreen({
@@ -57,7 +58,8 @@ export function HomeScreen({
   onLogout,
   dbStatus,
   onChangeBranch,
-  hasPermission = () => true
+  hasPermission = () => true,
+  onSwitchApp
 }: HomeScreenProps) {
   // Filters
   const [timeFilter, setTimeFilter] = useState<'thisMonth' | 'thisWeek' | 'all'>('thisMonth');
@@ -1386,6 +1388,19 @@ export function HomeScreen({
                 </div>
               )}
             </div>
+
+            {/* Switch to ProdCalc */}
+            {onSwitchApp && (
+              <button
+                type="button"
+                onClick={() => onSwitchApp('prodcalc')}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EEF6FB] hover:bg-[#DDF0F8] border border-[#5BA4C8] text-[#1E5A7A] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer"
+                title="สลับไปยังแอปพลิเคชัน ProdCalc (คำนวณต้นทุนการผลิต)"
+              >
+                <span className="text-sm">🧮</span>
+                <span className="hidden sm:inline">ProdCalc</span>
+              </button>
+            )}
 
             {/* Avatar Circle */}
             <button
