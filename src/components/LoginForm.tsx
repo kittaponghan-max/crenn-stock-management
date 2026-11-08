@@ -1,7 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, Coffee, Sparkles } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, Coffee, Sparkles, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AppUser as TypesAppUser, AppPermissions, Branch } from '../types';
+
+export type AppOption = 'cafe' | 'sop' | 'prodcalc';
+
+export const APP_OPTIONS = [
+  {
+    id          : 'cafe',
+    label       : 'Cafe Management System',
+    description : 'จัดการสต็อก วัตถุดิบ และการดำเนินงาน',
+    icon        : '☕',
+    color       : '#1E5A7A',
+    isExisting  : true,
+  },
+  {
+    id          : 'sop',
+    label       : 'SOP - Standard Operating Procedure',
+    description : 'ขั้นตอนการปฏิบัติงานมาตรฐาน',
+    icon        : '📋',
+    color       : '#5BA4C8',
+    isExisting  : false,
+    badge       : 'ใหม่',
+  },
+  {
+    id          : 'prodcalc',
+    label       : 'ProdCalc - Production Cost Calculator',
+    description : 'คำนวณต้นทุนการผลิตและประเมินกำไร',
+    icon        : '🧮',
+    color       : '#D4A853',
+    isExisting  : false,
+    badge       : 'ใหม่',
+  },
+];
 
 export type UserRole = 
   | 'Admin' 
@@ -36,6 +67,31 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const [infoModal, setInfoModal] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showUserDropdown, setShowUserDropdown] = useState<boolean>(false);
+
+  // STEP 1 & 4 — State for selected app and dropdown visibility
+  const [selectedApp, setSelectedApp] = useState<AppOption>('cafe');
+  const [showAppDropdown, setShowAppDropdown] = useState<boolean>(false);
+
+  // STEP 4 — Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showAppDropdown) {
+        setShowAppDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAppDropdown]);
+
+  // STEP 6 — Dynamic Login button label
+  const getLoginButtonText = () => {
+    switch (selectedApp) {
+      case 'cafe'    : return 'เข้าสู่ระบบ';
+      case 'sop'     : return 'เข้าสู่ SOP';
+      case 'prodcalc': return 'เข้าสู่ ProdCalc';
+      default        : return 'Login';
+    }
+  };
 
   // Supabase read-only connection status
   const [supabaseStatus, setSupabaseStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
@@ -219,12 +275,43 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         localStorage.setItem('crenn-last-branch', selectedBranch);
         localStorage.setItem('crenn-last-username', matchedUser.name);
       }
-      onLogin({
-        name: matchedUser.name,
-        role: matchedUser.role,
-        permissions: matchedUser.permissions,
-        branch: selectedBranch
-      });
+      setIsSubmitting(false);
+
+      // STEP 5 — Route based on selected app
+      switch (selectedApp) {
+        case 'cafe':
+          onLogin({
+            name: matchedUser.name,
+            role: matchedUser.role,
+            permissions: matchedUser.permissions,
+            branch: selectedBranch
+          });
+          break;
+
+        case 'sop':
+          // Show "coming soon" for now
+          setInfoModal('📋 SOP - Standard Operating Procedure\nกำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้');
+          try {
+            alert('SOP - Standard Operating Procedure\nกำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้');
+          } catch {}
+          break;
+
+        case 'prodcalc':
+          // Show "coming soon" for now
+          setInfoModal('🧮 ProdCalc - Production Cost Calculator\nกำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้');
+          try {
+            alert('ProdCalc - Production Cost Calculator\nกำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้');
+          } catch {}
+          break;
+
+        default:
+          onLogin({
+            name: matchedUser.name,
+            role: matchedUser.role,
+            permissions: matchedUser.permissions,
+            branch: selectedBranch
+          });
+      }
     } else {
       setError('รหัสผ่านไม่ถูกต้อง (Invalid password)');
       setIsSubmitting(false);
@@ -458,6 +545,172 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                 </button>
               </div>
 
+              {/* App Selector */}
+              <div style={{ marginBottom: '12px' }}>
+
+                {/* Label */}
+                <label 
+                  className="text-white md:text-[#4A7592]"
+                  style={{
+                    fontSize     : '11px',
+                    fontWeight   : 500,
+                    marginBottom : '6px',
+                    display      : 'block',
+                  }}
+                >
+                  เลือก Application
+                </label>
+
+                {/* Custom dropdown trigger */}
+                <div
+                  style={{
+                    position     : 'relative',
+                    cursor       : 'pointer',
+                  }}
+                  onClick={() => setShowAppDropdown(!showAppDropdown)}
+                >
+                  {/* Selected display */}
+                  <div style={{
+                    display       : 'flex',
+                    alignItems    : 'center',
+                    gap           : '10px',
+                    padding       : '10px 14px',
+                    background    : '#F8FCFE',
+                    border        : showAppDropdown
+                                    ? '1.5px solid #5BA4C8'
+                                    : '1.5px solid #C8E3F0',
+                    borderRadius  : '10px',
+                    transition    : 'border 150ms',
+                  }}>
+
+                    {/* Icon */}
+                    <span style={{ fontSize: '16px' }}>
+                      {APP_OPTIONS.find(a => a.id === selectedApp)?.icon}
+                    </span>
+
+                    {/* Label */}
+                    <span style={{
+                      flex       : 1,
+                      fontSize   : '13px',
+                      fontWeight : 500,
+                      color      : '#1E3D52',
+                    }}>
+                      {APP_OPTIONS.find(a => a.id === selectedApp)?.label}
+                    </span>
+
+                    {/* Chevron */}
+                    <ChevronDown
+                      size={16}
+                      color="#4A7592"
+                      style={{
+                        transform  : showAppDropdown
+                                     ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition : 'transform 200ms',
+                      }}
+                    />
+                  </div>
+
+                  {/* Dropdown panel */}
+                  {showAppDropdown && (
+                    <div style={{
+                      position     : 'absolute',
+                      top          : 'calc(100% + 4px)',
+                      left         : 0, right: 0,
+                      background   : '#FFFFFF',
+                      border       : '1px solid #C8E3F0',
+                      borderRadius : '12px',
+                      boxShadow    : '0 8px 24px rgba(90,164,200,0.15)',
+                      zIndex       : 100,
+                      overflow     : 'hidden',
+                    }}>
+                      {APP_OPTIONS.map((app, idx) => (
+                        <div
+                          key={app.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedApp(app.id as AppOption);
+                            setShowAppDropdown(false);
+                          }}
+                          style={{
+                            display      : 'flex',
+                            alignItems   : 'center',
+                            gap          : '12px',
+                            padding      : '12px 16px',
+                            cursor       : 'pointer',
+                            background   : selectedApp === app.id
+                                           ? '#EEF6FB' : '#FFFFFF',
+                            borderBottom : idx < APP_OPTIONS.length - 1
+                                           ? '1px solid #EEF6FB' : 'none',
+                            transition   : 'background 100ms',
+                          }}
+                          onMouseEnter={e => {
+                            if (selectedApp !== app.id)
+                              (e.currentTarget as HTMLDivElement)
+                                .style.background = '#F8FCFE';
+                          }}
+                          onMouseLeave={e => {
+                            if (selectedApp !== app.id)
+                              (e.currentTarget as HTMLDivElement)
+                                .style.background = '#FFFFFF';
+                          }}
+                        >
+                          {/* App icon */}
+                          <span style={{
+                            fontSize    : '20px',
+                            flexShrink  : 0,
+                          }}>
+                            {app.icon}
+                          </span>
+
+                          {/* App info */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{
+                              display    : 'flex',
+                              alignItems : 'center',
+                              gap        : '6px',
+                            }}>
+                              <span style={{
+                                fontSize   : '13px',
+                                fontWeight : selectedApp === app.id
+                                             ? 700 : 500,
+                                color      : '#1E3D52',
+                              }}>
+                                {app.label}
+                              </span>
+                              {app.badge && (
+                                <span style={{
+                                  fontSize     : '9px',
+                                  fontWeight   : 700,
+                                  color        : '#FFFFFF',
+                                  background   : '#5BA4C8',
+                                  borderRadius : '4px',
+                                  padding      : '1px 5px',
+                                }}>
+                                  {app.badge}
+                                </span>
+                              )}
+                            </div>
+                            <span style={{
+                              fontSize : '10px',
+                              color    : '#4A7592',
+                              display  : 'block',
+                              marginTop: '1px',
+                            }}>
+                              {app.description}
+                            </span>
+                          </div>
+
+                          {/* Selected checkmark */}
+                          {selectedApp === app.id && (
+                            <Check size={14} color="#5BA4C8" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Row below fields: Remember me + Forgot password */}
               <div className="flex items-center justify-between px-2 pt-0.5 text-[12px] md:text-[13px]">
                 {/* Left: Remember me checkbox */}
@@ -499,7 +752,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                   disabled={isSubmitting}
                   className="w-full h-[48px] xl:h-[52px] px-6 rounded-full bg-white md:bg-[#5A8A88] text-[#5A8A88] md:text-white font-bold text-[15px] xl:text-[16px] shadow-[0_6px_20px_rgba(90,138,136,0.35)] hover:shadow-[0_8px_24px_rgba(90,138,136,0.45)] hover:bg-white/95 md:hover:bg-[#4a7573] active:scale-[0.99] transition-all duration-200 focus:outline-none cursor-pointer flex items-center justify-center"
                 >
-                  {isSubmitting ? 'Logging in...' : 'Login'}
+                  {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : getLoginButtonText()}
                 </button>
               </div>
             </form>
