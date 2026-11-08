@@ -631,6 +631,10 @@ export default function App() {
             name: ing.name,
             brand: ing.brand,
             sizePerUnit: ing.size_per_unit,
+            pack_qty_1: ing.pack_qty_1,
+            pack_unit_1: ing.pack_unit_1,
+            pack_qty_2: ing.pack_qty_2,
+            pack_unit_2: ing.pack_unit_2,
             minStock: ing.min_stock,
             minOrder: ing.min_order,
             supplier: ing.supplier,
@@ -1470,7 +1474,8 @@ export default function App() {
     setIsFormOpen(false);
     
     if (supabase) {
-      await supabase.from('ingredients').insert({ branch: user?.branch || 'Rayong',
+      const payload: Record<string, any> = {
+        branch: user?.branch || 'Rayong',
         id: ingredient.id,
         name: ingredient.name,
         brand: ingredient.brand,
@@ -1482,7 +1487,22 @@ export default function App() {
         category: ingredient.category,
         image: ingredient.image,
         department: ingredient.department
-      });
+      };
+
+      if (ingredient.pack_qty_1 !== undefined) payload.pack_qty_1 = ingredient.pack_qty_1;
+      if (ingredient.pack_unit_1 !== undefined) payload.pack_unit_1 = ingredient.pack_unit_1;
+      if (ingredient.pack_qty_2 !== undefined) payload.pack_qty_2 = ingredient.pack_qty_2;
+      if (ingredient.pack_unit_2 !== undefined) payload.pack_unit_2 = ingredient.pack_unit_2;
+
+      const { error } = await supabase.from('ingredients').insert(payload);
+      // Fallback: If columns do not exist yet in Supabase schema cache
+      if (error && (error.code === 'PGRST204' || error.message?.includes('pack_') || error.message?.includes('column'))) {
+        delete payload.pack_qty_1;
+        delete payload.pack_unit_1;
+        delete payload.pack_qty_2;
+        delete payload.pack_unit_2;
+        await supabase.from('ingredients').insert(payload);
+      }
     }
   };
 
@@ -1492,7 +1512,7 @@ export default function App() {
     setEditingIngredient(null);
     
     if (supabase) {
-      await supabase.from('ingredients').update({
+      const updatePayload: Record<string, any> = {
         name: updatedIngredient.name,
         brand: updatedIngredient.brand,
         size_per_unit: updatedIngredient.sizePerUnit,
@@ -1503,7 +1523,22 @@ export default function App() {
         category: updatedIngredient.category,
         image: updatedIngredient.image,
         department: updatedIngredient.department
-      }).eq('id', updatedIngredient.id).eq('branch', user?.branch || 'Rayong');
+      };
+
+      if (updatedIngredient.pack_qty_1 !== undefined) updatePayload.pack_qty_1 = updatedIngredient.pack_qty_1;
+      if (updatedIngredient.pack_unit_1 !== undefined) updatePayload.pack_unit_1 = updatedIngredient.pack_unit_1;
+      if (updatedIngredient.pack_qty_2 !== undefined) updatePayload.pack_qty_2 = updatedIngredient.pack_qty_2;
+      if (updatedIngredient.pack_unit_2 !== undefined) updatePayload.pack_unit_2 = updatedIngredient.pack_unit_2;
+
+      const { error } = await supabase.from('ingredients').update(updatePayload).eq('id', updatedIngredient.id).eq('branch', user?.branch || 'Rayong');
+      // Fallback: If columns do not exist yet in Supabase schema cache
+      if (error && (error.code === 'PGRST204' || error.message?.includes('pack_') || error.message?.includes('column'))) {
+        delete updatePayload.pack_qty_1;
+        delete updatePayload.pack_unit_1;
+        delete updatePayload.pack_qty_2;
+        delete updatePayload.pack_unit_2;
+        await supabase.from('ingredients').update(updatePayload).eq('id', updatedIngredient.id).eq('branch', user?.branch || 'Rayong');
+      }
     }
   };
 
@@ -2497,7 +2532,7 @@ export default function App() {
           !canAccessUserSettings(user) ? (
             <AccessDeniedPage onNavigate={handleTabNavigate} pageName="User Security Settings" />
           ) : (
-            <UserSettings currentUser={user} user={user} onCurrentUserUpdated={setUser} branch={user?.branch} onNavigate={handleTabNavigate} />
+            <UserSettings currentUser={user} user={user} onCurrentUserUpdated={setUser} branch={user?.branch || 'Rayong'} onNavigate={handleTabNavigate} />
           )
         ) : (
           <>
