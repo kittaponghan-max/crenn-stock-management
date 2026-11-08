@@ -288,31 +288,31 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
           background: '#FFFFFF',
           border: '1.5px solid #C8E3F0',
           borderRadius: '16px',
-          padding: '18px 22px',
+          padding: '14px 18px',
           boxShadow: '0 4px 20px rgba(90, 164, 200, 0.08)'
         }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
       >
         <div>
-          <div className="flex items-center gap-2.5">
-            <span className="text-2xl">🧪</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-lg sm:text-xl font-bold tracking-tight">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px]">🧪</span>
+            <h1 style={{ color: '#1E3D52' }} className="text-[12px] font-bold tracking-tight">
               รายการวัตถุดิบ (Ingredient Pricing)
             </h1>
           </div>
-          <p style={{ color: '#4A7592' }} className="text-xs sm:text-[13px] mt-1 font-normal leading-relaxed">
+          <p style={{ color: '#4A7592' }} className="text-[9.5px] mt-0.5 font-normal leading-relaxed">
             ดึงข้อมูลจาก Cafe Management System &nbsp;·&nbsp; อัปเดต Yield และราคาจากแหล่งจัดซื้อเพื่อคำนวณต้นทุน
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end sm:self-center">
+        <div className="flex items-center gap-2 self-end sm:self-center">
           <span 
             style={{ 
               background: '#EEF6FB', 
               color: '#1E5A7A',
               border: '1px solid #C8E3F0' 
             }}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5"
+            className="text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5"
           >
             <span>📍 สาขา: {currentBranch}</span>
           </span>
@@ -324,9 +324,9 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
               background: '#5BA4C8',
               color: '#FFFFFF'
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+            <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
             <span>{isSyncing ? 'กำลัง Sync...' : 'Sync จาก CMS'}</span>
           </button>
         </div>
@@ -336,14 +336,14 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
       {syncMessage && (
         <div 
           style={{ background: '#EEF6FB', border: '1px solid #5BA4C8', color: '#1E5A7A' }}
-          className="p-3 rounded-xl text-xs font-medium flex items-center justify-between animate-in fade-in duration-200"
+          className="p-2.5 rounded-xl text-[10.5px] font-medium flex items-center justify-between animate-in fade-in duration-200"
         >
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} color="#5BA4C8" />
+            <CheckCircle2 size={14} color="#5BA4C8" />
             <span>{syncMessage}</span>
           </div>
-          <button onClick={() => setSyncMessage(null)} className="text-[#4A7592] hover:text-[#1E3D52]">
-            <X size={14} />
+          <button onClick={() => setSyncMessage(null)} className="text-[#4A7592] hover:text-[#1E3D52] cursor-pointer">
+            <X size={13} />
           </button>
         </div>
       )}
@@ -356,13 +356,13 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
           background: '#FFFFFF',
           border: '1px solid #C8E3F0',
           borderRadius: '12px',
-          padding: '12px 16px'
+          padding: '10px 14px'
         }}
-        className="flex flex-wrap items-center justify-between gap-3"
+        className="flex flex-wrap items-center justify-between gap-2.5"
       >
-        <div className="flex items-center gap-2.5 flex-1 min-w-[240px]">
+        <div className="flex items-center gap-2 flex-1 min-w-[220px]">
           <div className="relative flex-1">
-            <Search size={15} color="#4A7592" className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search size={13} color="#4A7592" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="ค้นหาชื่อวัตถุดิบ หรือยี่ห้อ..."
@@ -373,7 +373,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                 border: '1px solid #C8E3F0',
                 color: '#1E3D52'
               }}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs outline-none focus:border-[#5BA4C8] transition-colors"
+              className="w-full pl-8 pr-2.5 py-1 rounded-lg text-[11px] outline-none focus:border-[#5BA4C8] transition-colors"
             />
           </div>
 
@@ -386,7 +386,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                 border: '1px solid #C8E3F0',
                 color: '#1E3D52'
               }}
-              className="px-3 py-1.5 rounded-lg text-xs outline-none cursor-pointer"
+              className="px-2.5 py-1 rounded-lg text-[10.5px] outline-none cursor-pointer"
             >
               <option value="ALL">ทุกหมวดหมู่ ({items.length})</option>
               {categories.map(cat => (
@@ -396,12 +396,12 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
           )}
         </div>
 
-        <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-[#1E3D52] font-medium">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-[10.5px] text-[#1E3D52] font-medium">
           <input
             type="checkbox"
             checked={showPricedOnly}
             onChange={(e) => setShowPricedOnly(e.target.checked)}
-            className="w-4 h-4 rounded text-[#5BA4C8] border-[#C8E3F0] focus:ring-0 cursor-pointer"
+            className="w-3.5 h-3.5 rounded text-[#5BA4C8] border-[#C8E3F0] focus:ring-0 cursor-pointer"
           />
           <span>แสดงเฉพาะที่ตั้งราคาแล้ว ({items.filter(i => i.effective_cost_per_unit > 0).length})</span>
         </label>
@@ -420,35 +420,35 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
         }}
       >
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-[10.5px] border-collapse">
             <thead>
-              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none">
-                <th className="py-3 px-3.5 w-12 text-center">รูป</th>
-                <th className="py-3 px-3 min-w-[160px]">ชื่อวัตถุดิบ (CMS)</th>
-                <th className="py-3 px-3 min-w-[100px]">ยี่ห้อ</th>
-                <th className="py-3 px-3 min-w-[90px]">หน่วย (CMS)</th>
-                <th className="py-3 px-3 min-w-[260px]">Sourcing (แหล่งราคา)</th>
-                <th className="py-3 px-3 min-w-[90px] text-center">Yield %</th>
-                <th className="py-3 px-3 min-w-[130px] text-right">ต้นทุนจริง/หน่วย</th>
-                <th className="py-3 px-3.5 w-24 text-center">จัดการ</th>
+              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px]">
+                <th className="py-2.5 px-3 w-12 text-center">รูป</th>
+                <th className="py-2.5 px-3 min-w-[150px]">ชื่อวัตถุดิบ (CMS)</th>
+                <th className="py-2.5 px-3 min-w-[90px]">ยี่ห้อ</th>
+                <th className="py-2.5 px-3 min-w-[80px]">หน่วย (CMS)</th>
+                <th className="py-2.5 px-3 min-w-[240px]">Sourcing (แหล่งราคา)</th>
+                <th className="py-2.5 px-3 min-w-[80px] text-center">Yield %</th>
+                <th className="py-2.5 px-3 min-w-[120px] text-right">ต้นทุนจริง/หน่วย</th>
+                <th className="py-2.5 px-3 w-20 text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E4F1F8]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-[#4A7592]">
+                  <td colSpan={8} className="py-10 text-center text-[#4A7592]">
                     <div className="flex flex-col items-center gap-2">
-                      <RefreshCw size={24} className="animate-spin text-[#5BA4C8]" />
-                      <span className="text-xs">กำลังโหลดข้อมูลวัตถุดิบ...</span>
+                      <RefreshCw size={20} className="animate-spin text-[#5BA4C8]" />
+                      <span className="text-[11px]">กำลังโหลดข้อมูลวัตถุดิบ...</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-[#4A7592]">
-                    <Package size={32} className="mx-auto mb-2 text-[#90C4DC]" />
-                    <p className="font-medium">ไม่พบรายการวัตถุดิบ</p>
-                    <p className="text-[11px] text-[#90C4DC] mt-0.5">กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก</p>
+                  <td colSpan={8} className="py-10 text-center text-[#4A7592]">
+                    <Package size={28} className="mx-auto mb-1.5 text-[#90C4DC]" />
+                    <p className="font-medium text-[11px]">ไม่พบรายการวัตถุดิบ</p>
+                    <p className="text-[9.5px] text-[#90C4DC] mt-0.5">กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก</p>
                   </td>
                 </tr>
               ) : (
@@ -465,57 +465,57 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                         className="hover:bg-[#EEF6FB]/60 transition-colors"
                       >
                         {/* Image */}
-                        <td className="py-2.5 px-3.5 text-center">
+                        <td className="py-2 px-3 text-center">
                           {item.image ? (
                             <img 
                               src={item.image} 
                               alt={item.ingredient_name}
-                              className="w-8 h-8 rounded-lg object-cover mx-auto border border-[#C8E3F0]"
+                              className="w-7 h-7 rounded-lg object-cover mx-auto border border-[#C8E3F0]"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-lg bg-[#EEF6FB] flex items-center justify-center mx-auto text-xs text-[#5BA4C8]">
+                            <div className="w-7 h-7 rounded-lg bg-[#EEF6FB] flex items-center justify-center mx-auto text-[10px] text-[#5BA4C8]">
                               🧪
                             </div>
                           )}
                         </td>
 
                         {/* Name */}
-                        <td className="py-2.5 px-3">
-                          <div className="font-semibold text-[#1E3D52]">{item.ingredient_name}</div>
+                        <td className="py-2 px-3">
+                          <div className="font-semibold text-[#1E3D52] text-[11px]">{item.ingredient_name}</div>
                           {item.category && (
-                            <span className="text-[10px] text-[#4A7592] bg-[#EEF6FB] px-1.5 py-0.2 rounded border border-[#C8E3F0]/60 inline-block mt-0.5">
+                            <span className="text-[9px] text-[#4A7592] bg-[#EEF6FB] px-1.5 py-0.2 rounded border border-[#C8E3F0]/60 inline-block mt-0.5">
                               {item.category}
                             </span>
                           )}
                         </td>
 
                         {/* Brand */}
-                        <td className="py-2.5 px-3 text-[#4A7592]">
+                        <td className="py-2 px-3 text-[#4A7592] text-[10.5px]">
                           {item.ingredient_brand || '-'}
                         </td>
 
                         {/* Unit */}
-                        <td className="py-2.5 px-3 text-[#1E3D52]">
-                          <span className="font-mono">{item.ingredient_unit}</span>
+                        <td className="py-2 px-3 text-[#1E3D52]">
+                          <span className="font-mono text-[10.5px]">{item.ingredient_unit}</span>
                         </td>
 
                         {/* Sourcing */}
-                        <td className="py-2.5 px-3">
+                        <td className="py-2 px-3">
                           <div className="flex items-center justify-between gap-2">
                             {defaultSource && defaultSource.price > 0 ? (
                               <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-[#1E3D52]">{defaultSource.source_name}:</span>
-                                <span className="font-bold text-[#1E5A7A] font-mono">฿{defaultSource.price.toLocaleString()}</span>
-                                <span className="text-[11px] text-[#4A7592]">/{defaultSource.qty} {defaultSource.unit}</span>
+                                <span className="font-semibold text-[#1E3D52] text-[10.5px]">{defaultSource.source_name}:</span>
+                                <span className="font-bold text-[#1E5A7A] font-mono text-[11px]">฿{defaultSource.price.toLocaleString()}</span>
+                                <span className="text-[10px] text-[#4A7592]">/{defaultSource.qty} {defaultSource.unit}</span>
                                 {item.sourcing.length > 1 && (
-                                  <span className="text-[10px] bg-[#EEF6FB] text-[#3D7FA3] px-1.5 py-0.5 rounded-full font-bold">
+                                  <span className="text-[9.5px] bg-[#EEF6FB] text-[#3D7FA3] px-1.5 py-0.5 rounded-full font-bold">
                                     +{item.sourcing.length - 1}
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <AlertTriangle size={10} />
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <AlertTriangle size={9} />
                                 ยังไม่ตั้งราคา
                               </span>
                             )}
@@ -523,16 +523,16 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                             <button
                               onClick={() => setExpandedId(isExpanded ? null : item.id)}
                               style={{ border: '1px solid #C8E3F0' }}
-                              className="px-2 py-0.5 rounded-md text-[11px] font-medium text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E5A7A] transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E5A7A] transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                             >
                               <span>{isExpanded ? 'ซ่อน' : 'จัดการแหล่ง'}</span>
-                              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                             </button>
                           </div>
                         </td>
 
                         {/* Yield % */}
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-2 px-3 text-center">
                           <div className="inline-flex items-center justify-center gap-1">
                             <input
                               type="number"
@@ -547,14 +547,14 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                 border: '1px solid #C8E3F0',
                                 color: item.yield_pct === 100 ? '#22C55E' : item.yield_pct >= 70 ? '#1E3D52' : '#F59E0B'
                               }}
-                              className="w-14 text-center py-1 rounded-md text-xs font-bold font-mono outline-none focus:border-[#5BA4C8]"
+                              className="w-12 text-center py-0.5 rounded-md text-[11px] font-bold font-mono outline-none focus:border-[#5BA4C8]"
                             />
-                            <span className="text-[11px] text-[#4A7592] font-semibold">%</span>
+                            <span className="text-[10px] text-[#4A7592] font-semibold">%</span>
                           </div>
                         </td>
 
                         {/* Effective Cost Per Unit */}
-                        <td className="py-2.5 px-3 text-right">
+                        <td className="py-2 px-3 text-right">
                           {hasPrice ? (
                             <div 
                               style={{ 
@@ -562,36 +562,36 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                 border: '1px solid #C8E3F0',
                                 color: '#1E5A7A' 
                               }}
-                              className="inline-block px-2.5 py-1 rounded-lg text-right"
+                              className="inline-block px-2 py-0.5 rounded-lg text-right"
                             >
-                              <div className="font-black text-xs font-mono">
+                              <div className="font-black text-[12px] font-mono">
                                 ฿ {item.effective_cost_per_unit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
-                              <div className="text-[9.5px] text-[#4A7592]">
+                              <div className="text-[9px] text-[#4A7592]">
                                 ต่อ {defaultSource?.unit || item.ingredient_unit}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[#90C4DC] font-mono text-xs">-</span>
+                            <span className="text-[#90C4DC] font-mono text-[10.5px]">-</span>
                           )}
                         </td>
 
                         {/* Actions */}
-                        <td className="py-2.5 px-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-2 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => setEditingItem(item)}
                               title="แก้ไขราคาและแหล่งซื้อ"
                               className="p-1 rounded-lg text-[#3D7FA3] hover:bg-[#EEF6FB] transition-colors cursor-pointer"
                             >
-                              <Edit3 size={14} />
+                              <Edit3 size={13} />
                             </button>
                             <button
                               onClick={() => handleResetPricing(item)}
                               title="ล้างข้อมูลราคาใน ProdCalc"
                               className="p-1 rounded-lg text-[#EF4444] hover:bg-rose-50 transition-colors cursor-pointer"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -602,14 +602,14 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                       {isExpanded && (
                         <tr style={{ background: '#F8FCFE' }}>
-                          <td colSpan={8} className="p-3.5 border-t border-b border-[#C8E3F0]">
-                            <div className="bg-white p-3.5 rounded-xl border border-[#C8E3F0] space-y-3">
+                          <td colSpan={8} className="p-3 border-t border-b border-[#C8E3F0]">
+                            <div className="bg-white p-3 rounded-xl border border-[#C8E3F0] space-y-2.5">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-[#1E3D52] text-xs">
+                                  <span className="font-bold text-[#1E3D52] text-[11px]">
                                     🛒 แหล่งจัดซื้อ (Sourcing Options) สำหรับ: {item.ingredient_name}
                                   </span>
-                                  <span className="text-[10px] text-[#4A7592] bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
+                                  <span className="text-[9.5px] text-[#4A7592] bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
                                     คลิก ⭐ เพื่อเลือกใช้เป็นราคาหลักในการคำนวณต้นทุน
                                   </span>
                                 </div>
@@ -629,24 +629,24 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                     });
                                   }}
                                   style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                                  className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
                                 >
-                                  <Plus size={12} />
+                                  <Plus size={11} />
                                   <span>เพิ่มแหล่งซื้อ</span>
                                 </button>
                               </div>
 
                               <div className="overflow-x-auto">
-                                <table className="w-full text-xs">
+                                <table className="w-full text-[10px]">
                                   <thead>
                                     <tr className="text-[#4A7592] border-b border-[#E4F1F8]">
-                                      <th className="py-1.5 px-2 w-16 text-center">ราคาหลัก</th>
-                                      <th className="py-1.5 px-2">ชื่อแหล่งซื้อ (Vendor/Store)</th>
-                                      <th className="py-1.5 px-2 w-28">ราคา (บาท)</th>
-                                      <th className="py-1.5 px-2 w-24">ปริมาณ</th>
-                                      <th className="py-1.5 px-2 w-28">หน่วย</th>
-                                      <th className="py-1.5 px-2 text-right">ต้นทุน/หน่วยดิบ</th>
-                                      <th className="py-1.5 px-2 w-10 text-center"></th>
+                                      <th className="py-1 px-2 w-14 text-center">ราคาหลัก</th>
+                                      <th className="py-1 px-2">ชื่อแหล่งซื้อ (Vendor/Store)</th>
+                                      <th className="py-1 px-2 w-24">ราคา (บาท)</th>
+                                      <th className="py-1 px-2 w-20">ปริมาณ</th>
+                                      <th className="py-1 px-2 w-24">หน่วย</th>
+                                      <th className="py-1 px-2 text-right">ต้นทุน/หน่วยดิบ</th>
+                                      <th className="py-1 px-2 w-8 text-center"></th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[#F1F7FA]">
@@ -655,7 +655,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                       return (
                                         <tr key={source.id} className={source.is_default ? 'bg-[#EEF6FB]/40' : ''}>
                                           {/* Default Radio */}
-                                          <td className="py-2 px-2 text-center">
+                                          <td className="py-1.5 px-2 text-center">
                                             <button
                                               type="button"
                                               onClick={() => {
@@ -666,17 +666,17 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               title={source.is_default ? 'ราคานี้ถูกตั้งเป็นค่าเริ่มต้น' : 'คลิกเพื่อตั้งเป็นราคาเริ่มต้น'}
-                                              className="p-1 text-amber-500 hover:scale-110 transition-transform cursor-pointer"
+                                              className="p-0.5 text-amber-500 hover:scale-110 transition-transform cursor-pointer"
                                             >
                                               <Star 
-                                                size={15} 
+                                                size={13} 
                                                 className={source.is_default ? 'fill-amber-400 text-amber-500' : 'text-slate-300'} 
                                               />
                                             </button>
                                           </td>
 
                                           {/* Source Name */}
-                                          <td className="py-2 px-2">
+                                          <td className="py-1.5 px-2">
                                             <input
                                               type="text"
                                               placeholder="เช่น Makro, Shopee, Tops"
@@ -687,14 +687,14 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-2 py-1 rounded text-xs outline-none focus:border-[#5BA4C8] bg-white"
+                                              className="w-full px-2 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white"
                                             />
                                           </td>
 
                                           {/* Price */}
-                                          <td className="py-2 px-2">
+                                          <td className="py-1.5 px-2">
                                             <div className="relative">
-                                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400">฿</span>
+                                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
                                               <input
                                                 type="number"
                                                 step="any"
@@ -707,13 +707,13 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                                   handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                                 }}
                                                 style={{ border: '1px solid #C8E3F0' }}
-                                                className="w-full pl-6 pr-2 py-1 rounded text-xs font-mono font-bold outline-none focus:border-[#5BA4C8] bg-white text-right"
+                                                className="w-full pl-5 pr-1.5 py-0.5 rounded text-[10.5px] font-mono font-bold outline-none focus:border-[#5BA4C8] bg-white text-right"
                                               />
                                             </div>
                                           </td>
 
                                           {/* Qty */}
-                                          <td className="py-2 px-2">
+                                          <td className="py-1.5 px-2">
                                             <input
                                               type="number"
                                               step="any"
@@ -725,12 +725,12 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-2 py-1 rounded text-xs font-mono outline-none focus:border-[#5BA4C8] bg-white text-center"
+                                              className="w-full px-1.5 py-0.5 rounded text-[10px] font-mono outline-none focus:border-[#5BA4C8] bg-white text-center"
                                             />
                                           </td>
 
                                           {/* Unit */}
-                                          <td className="py-2 px-2">
+                                          <td className="py-1.5 px-2">
                                             <input
                                               type="text"
                                               value={source.unit}
@@ -740,17 +740,17 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-2 py-1 rounded text-xs outline-none focus:border-[#5BA4C8] bg-white text-center"
+                                              className="w-full px-1.5 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white text-center"
                                             />
                                           </td>
 
                                           {/* Raw Cost */}
-                                          <td className="py-2 px-2 text-right font-mono font-semibold text-[#1E3D52]">
+                                          <td className="py-1.5 px-2 text-right font-mono font-semibold text-[#1E3D52] text-[10.5px]">
                                             ฿{rawCost.toFixed(2)}
                                           </td>
 
                                           {/* Delete Source */}
-                                          <td className="py-2 px-2 text-center">
+                                          <td className="py-1.5 px-2 text-center">
                                             {item.sourcing.length > 1 && (
                                               <button
                                                 type="button"
@@ -761,9 +761,9 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                                   }
                                                   handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                                 }}
-                                                className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                                                className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
                                               >
-                                                <X size={13} />
+                                                <X size={12} />
                                               </button>
                                             )}
                                           </td>
@@ -793,32 +793,32 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div 
             style={{ border: '1.5px solid #C8E3F0' }}
-            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[#E4F1F8]">
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#E4F1F8]">
               <div className="flex items-center gap-2">
-                <span className="text-xl">✏️</span>
-                <h3 className="font-bold text-[#1E3D52] text-sm">
+                <span className="text-[12px]">✏️</span>
+                <h3 className="font-bold text-[#1E3D52] text-[12px]">
                   แก้ไขราคาวัตถุดิบ: {editingItem.ingredient_name}
                 </h3>
               </div>
               <button 
                 onClick={() => setEditingItem(null)} 
-                className="text-[#4A7592] hover:text-[#1E3D52] p-1 rounded-lg"
+                className="text-[#4A7592] hover:text-[#1E3D52] p-1 rounded-lg cursor-pointer"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
             {/* Yield Input */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#1E3D52] flex items-center justify-between">
+            <div className="space-y-1">
+              <label className="block text-[10.5px] font-semibold text-[#1E3D52] flex items-center justify-between">
                 <span>Yield % (เปอร์เซ็นต์ที่ใช้งานได้จริงหลังเตรียม)</span>
-                <span className="text-[11px] font-normal text-[#4A7592]">
+                <span className="text-[10px] font-normal text-[#4A7592]">
                   {editingItem.yield_pct}%
                 </span>
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <input
                   type="range"
                   min="1"
@@ -834,10 +834,10 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                   value={editingItem.yield_pct}
                   onChange={(e) => setEditingItem({ ...editingItem, yield_pct: Math.min(100, Math.max(1, Number(e.target.value) || 100)) })}
                   style={{ border: '1px solid #C8E3F0' }}
-                  className="w-16 text-center py-1 rounded text-xs font-bold font-mono outline-none"
+                  className="w-14 text-center py-0.5 rounded text-[11px] font-bold font-mono outline-none"
                 />
               </div>
-              <p className="text-[11px] text-[#4A7592]">
+              <p className="text-[9.5px] text-[#4A7592]">
                 เช่น มะม่วง 1 กก. หลังปอกเหลือ 800 กรัม = Yield 80% (ระบบจะปรับต้นทุนขึ้นให้สอดคล้องกับส่วนที่สูญเสีย)
               </p>
             </div>
@@ -845,27 +845,27 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
             {/* Calculation Preview */}
             <div 
               style={{ background: '#EEF6FB', border: '1px solid #5BA4C8' }}
-              className="p-3.5 rounded-xl space-y-1.5"
+              className="p-3 rounded-xl space-y-1"
             >
-              <div className="text-xs font-bold text-[#1E5A7A] flex items-center gap-1.5">
-                <Sparkles size={14} color="#5BA4C8" />
+              <div className="text-[11px] font-bold text-[#1E5A7A] flex items-center gap-1.5">
+                <Sparkles size={13} color="#5BA4C8" />
                 <span>สรุปต้นทุนจริงหลังคำนวณ Yield</span>
               </div>
-              <div className="text-xl font-black text-[#1E5A7A] font-mono">
+              <div className="text-[12px] font-black text-[#1E5A7A] font-mono">
                 ฿ {calculateEffectiveCost(editingItem.sourcing, editingItem.yield_pct).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                <span className="text-xs font-normal text-[#4A7592] ml-1.5">
+                <span className="text-[10px] font-normal text-[#4A7592] ml-1.5">
                   / {editingItem.sourcing.find(s => s.is_default)?.unit || editingItem.ingredient_unit}
                 </span>
               </div>
             </div>
 
             {/* Modal Buttons */}
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-1.5">
               <button
                 type="button"
                 onClick={() => setEditingItem(null)}
                 style={{ border: '1px solid #C8E3F0', color: '#4A7592' }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-[11px] font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -876,7 +876,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                   setEditingItem(null);
                 }}
                 style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-                className="px-5 py-2 rounded-xl text-xs font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
+                className="px-4 py-1.5 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
               >
                 บันทึกการเปลี่ยนแปลง
               </button>
