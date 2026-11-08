@@ -104,19 +104,19 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
           background: '#FFFFFF',
           border: '1.5px solid #C8E3F0',
           borderRadius: '16px',
-          padding: '18px 22px',
+          padding: '14px 18px',
           boxShadow: '0 4px 20px rgba(90, 164, 200, 0.08)'
         }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
       >
         <div>
-          <div className="flex items-center gap-2.5">
-            <span className="text-2xl">📊</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-lg sm:text-xl font-bold tracking-tight">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px]">📊</span>
+            <h1 style={{ color: '#1E3D52' }} className="text-[12px] font-bold tracking-tight">
               รายงานวิเคราะห์ต้นทุนและผลกำไร (Cost & Profit Reports)
             </h1>
           </div>
-          <p style={{ color: '#4A7592' }} className="text-xs sm:text-[13px] mt-1 font-normal leading-relaxed">
+          <p style={{ color: '#4A7592' }} className="text-[9.5px] mt-0.5 font-normal leading-relaxed">
             ภาพรวมการจัดอันดับสินค้าตามความคุ้มค่า สัดส่วนต้นทุนวัตถุดิบ และประมาณการกำไร
           </p>
         </div>
@@ -129,9 +129,9 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
               border: '1.5px solid #C8E3F0',
               color: '#1E5A7A'
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
           >
-            <Download size={14} />
+            <Download size={13} />
             <span>ส่งออก Excel</span>
           </button>
 
@@ -141,9 +141,9 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
               background: '#5BA4C8',
               color: '#FFFFFF'
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
           >
-            <Printer size={14} />
+            <Printer size={13} />
             <span>พิมพ์รายงาน</span>
           </button>
         </div>
@@ -152,35 +152,35 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* SUMMARY METRICS CARDS */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Metric 1 */}
         <div 
           style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-4 shadow-xs"
+          className="p-3.5 shadow-xs"
         >
-          <div className="flex items-center justify-between text-xs text-[#4A7592]">
+          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
             <span>จำนวนสูตรทั้งหมด</span>
-            <span className="p-1.5 rounded-lg bg-[#EEF6FB] text-[#5BA4C8]">
-              <Package size={14} />
+            <span className="p-1 rounded-lg bg-[#EEF6FB] text-[#5BA4C8]">
+              <Package size={13} />
             </span>
           </div>
-          <div className="text-2xl font-black text-[#1E3D52] font-mono mt-2">
-            {summary.totalRecipes} <span className="text-xs font-normal text-[#4A7592]">รายการ</span>
+          <div className="text-[12px] font-black text-[#1E3D52] font-mono mt-1.5">
+            {summary.totalRecipes} <span className="text-[9.5px] font-normal text-[#4A7592]">รายการ</span>
           </div>
         </div>
 
         {/* Metric 2 */}
         <div 
           style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-4 shadow-xs"
+          className="p-3.5 shadow-xs"
         >
-          <div className="flex items-center justify-between text-xs text-[#4A7592]">
+          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
             <span>กำไรเฉลี่ยภาพรวม</span>
-            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-              <TrendingUp size={14} />
+            <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600">
+              <TrendingUp size={13} />
             </span>
           </div>
-          <div className="text-2xl font-black text-emerald-600 font-mono mt-2">
+          <div className="text-[12px] font-black text-emerald-600 font-mono mt-1.5">
             {summary.avgProfitPct}%
           </div>
         </div>
@@ -188,15 +188,15 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
         {/* Metric 3 */}
         <div 
           style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-4 shadow-xs"
+          className="p-3.5 shadow-xs"
         >
-          <div className="flex items-center justify-between text-xs text-[#4A7592]">
+          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
             <span>ต้นทุนเฉลี่ย/ชิ้น</span>
-            <span className="p-1.5 rounded-lg bg-[#EEF6FB] text-[#1E5A7A]">
-              <DollarSign size={14} />
+            <span className="p-1 rounded-lg bg-[#EEF6FB] text-[#1E5A7A]">
+              <DollarSign size={13} />
             </span>
           </div>
-          <div className="text-2xl font-black text-[#1E5A7A] font-mono mt-2">
+          <div className="text-[12px] font-black text-[#1E5A7A] font-mono mt-1.5">
             ฿{summary.avgCostPerPiece.toFixed(2)}
           </div>
         </div>
@@ -204,19 +204,19 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
         {/* Metric 4 */}
         <div 
           style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-4 shadow-xs"
+          className="p-3.5 shadow-xs"
         >
-          <div className="flex items-center justify-between text-xs text-[#4A7592]">
+          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
             <span>กำไรสูงสุดในร้าน</span>
-            <span className="p-1.5 rounded-lg bg-amber-50 text-amber-500">
-              <Award size={14} />
+            <span className="p-1 rounded-lg bg-amber-50 text-amber-500">
+              <Award size={13} />
             </span>
           </div>
-          <div className="text-sm font-bold text-[#1E3D52] truncate mt-2">
+          <div className="text-[11px] font-bold text-[#1E3D52] truncate mt-1.5">
             {summary.topProfitRecipe?.name || '-'}
           </div>
           {summary.topProfitRecipe && (
-            <span className="text-[11px] font-bold text-emerald-600 font-mono">
+            <span className="text-[9.5px] font-bold text-emerald-600 font-mono block mt-0.5">
               กำไร {summary.topProfitRecipe.profit_pct.toFixed(1)}% (฿{summary.topProfitRecipe.profit_per_piece.toFixed(2)})
             </span>
           )}
@@ -231,53 +231,53 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
           background: '#FFFFFF',
           border: '1.5px solid #C8E3F0',
           borderRadius: '16px',
-          padding: '18px',
+          padding: '14px',
           boxShadow: '0 4px 16px rgba(90, 164, 200, 0.06)'
         }}
-        className="space-y-3"
+        className="space-y-2.5"
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BarChart3 size={16} color="#5BA4C8" />
-            <h3 className="font-bold text-xs sm:text-sm text-[#1E3D52]">
+          <div className="flex items-center gap-1.5">
+            <BarChart3 size={14} color="#5BA4C8" />
+            <h3 className="font-bold text-[12px] text-[#1E3D52]">
               เปรียบเทียบ ต้นทุน (Cost) vs ราคาขาย (Price)
             </h3>
           </div>
-          <div className="flex items-center gap-3 text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[#EF4444]" />
+          <div className="flex items-center gap-2.5 text-[9.5px]">
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" />
               <span className="text-[#4A7592]">ต้นทุน/ชิ้น</span>
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[#5BA4C8]" />
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#5BA4C8]" />
               <span className="text-[#4A7592]">ราคาขาย</span>
             </span>
           </div>
         </div>
 
         {recipes.length === 0 ? (
-          <div className="py-8 text-center text-xs text-[#4A7592]">
+          <div className="py-6 text-center text-[10.5px] text-[#4A7592]">
             ยังไม่มีข้อมูลสูตรสำหรับแสดงกราฟเปรียบเทียบ
           </div>
         ) : (
-          <div className="space-y-2.5 pt-2">
+          <div className="space-y-2 pt-1">
             {recipes.slice(0, 8).map(recipe => {
               const maxVal = Math.max(recipe.selling_price, recipe.cost_per_piece, 1);
               const costWidth = Math.min(100, (recipe.cost_per_piece / maxVal) * 100);
               const sellWidth = Math.min(100, (recipe.selling_price / maxVal) * 100);
 
               return (
-                <div key={recipe.id} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
+                <div key={recipe.id} className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[10.5px]">
                     <span className="font-semibold text-[#1E3D52] truncate max-w-[200px]">
                       {recipe.name}
                     </span>
-                    <span className="text-[11px] font-mono text-[#4A7592]">
+                    <span className="text-[9.5px] font-mono text-[#4A7592]">
                       กำไร ฿{recipe.profit_per_piece.toFixed(2)} ({recipe.profit_pct.toFixed(1)}%)
                     </span>
                   </div>
 
-                  <div className="w-full h-4 bg-slate-100 rounded-lg overflow-hidden flex relative">
+                  <div className="w-full h-3 bg-slate-100 rounded-md overflow-hidden flex relative">
                     <div 
                       style={{ width: `${costWidth}%`, background: '#F87171' }} 
                       className="h-full rounded-l transition-all"
@@ -308,26 +308,26 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
           boxShadow: '0 4px 20px rgba(90, 164, 200, 0.06)'
         }}
       >
-        <div className="p-3.5 border-b border-[#E4F1F8] flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={14} color="#4A7592" className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="p-3 border-b border-[#E4F1F8] flex flex-wrap items-center justify-between gap-2.5">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={13} color="#4A7592" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="ค้นหารายการสูตร..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ background: '#F8FCFE', border: '1px solid #C8E3F0' }}
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none focus:border-[#5BA4C8]"
+              className="w-full pl-8 pr-2.5 py-1 rounded-lg text-[11px] outline-none focus:border-[#5BA4C8]"
             />
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#4A7592]">
+          <div className="flex items-center gap-2 text-[10.5px] text-[#4A7592]">
             <span>จัดเรียงตาม:</span>
             <select
               value={sortField}
               onChange={(e) => setSortField(e.target.value as any)}
               style={{ border: '1px solid #C8E3F0' }}
-              className="px-2.5 py-1 rounded-lg text-xs outline-none bg-white cursor-pointer"
+              className="px-2 py-0.5 rounded-lg text-[10.5px] outline-none bg-white cursor-pointer"
             >
               <option value="profit_pct">อัตรากำไร %</option>
               <option value="profit_per_piece">กำไรบาท/ชิ้น</option>
@@ -340,30 +340,30 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
               className="p-1 rounded-lg hover:bg-[#EEF6FB] cursor-pointer"
               title="สลับลำดับ มาก/น้อย"
             >
-              <ArrowUpDown size={14} />
+              <ArrowUpDown size={13} />
             </button>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-[10.5px] border-collapse">
             <thead>
-              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none">
-                <th className="py-2.5 px-3 w-12 text-center">อันดับ</th>
-                <th className="py-2.5 px-3 min-w-[150px]">ชื่อสินค้า/สูตร</th>
-                <th className="py-2.5 px-3 min-w-[100px]">หมวดหมู่</th>
-                <th className="py-2.5 px-3 text-center">ผลิตได้ (ชิ้น)</th>
-                <th className="py-2.5 px-3 text-right">ต้นทุนรวมสูตร</th>
-                <th className="py-2.5 px-3 text-right">ต้นทุน/ชิ้น</th>
-                <th className="py-2.5 px-3 text-right">ราคาขาย</th>
-                <th className="py-2.5 px-3 text-right">กำไร/ชิ้น</th>
-                <th className="py-2.5 px-3 text-center font-bold">อัตรากำไร (%)</th>
+              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px]">
+                <th className="py-2 px-3 w-12 text-center">อันดับ</th>
+                <th className="py-2 px-3 min-w-[140px]">ชื่อสินค้า/สูตร</th>
+                <th className="py-2 px-3 min-w-[90px]">หมวดหมู่</th>
+                <th className="py-2 px-3 text-center">ผลิตได้ (ชิ้น)</th>
+                <th className="py-2 px-3 text-right">ต้นทุนรวมสูตร</th>
+                <th className="py-2 px-3 text-right">ต้นทุน/ชิ้น</th>
+                <th className="py-2 px-3 text-right">ราคาขาย</th>
+                <th className="py-2 px-3 text-right">กำไร/ชิ้น</th>
+                <th className="py-2 px-3 text-center font-bold">อัตรากำไร (%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E4F1F8]">
               {sortedRecipes.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-[#4A7592]">
+                  <td colSpan={9} className="py-8 text-center text-[#4A7592] text-[10.5px]">
                     ไม่พบรายการสูตร
                   </td>
                 </tr>
@@ -372,39 +372,39 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
                   const rowBg = idx % 2 === 0 ? '#FFFFFF' : '#F8FCFE';
                   return (
                     <tr key={r.id} style={{ background: rowBg }} className="hover:bg-[#EEF6FB]">
-                      <td className="py-2.5 px-3 text-center font-mono font-bold text-[#4A7592]">
+                      <td className="py-2 px-3 text-center font-mono font-bold text-[#4A7592] text-[10.5px]">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-[#1E3D52]">
+                      <td className="py-2 px-3 font-semibold text-[#1E3D52] text-[11px]">
                         {r.name}
-                        <span className="block text-[10px] text-[#90C4DC] font-mono">{r.code}</span>
+                        <span className="block text-[9px] text-[#90C4DC] font-mono">{r.code}</span>
                       </td>
-                      <td className="py-2.5 px-3 text-[#4A7592]">
+                      <td className="py-2 px-3 text-[#4A7592] text-[10px]">
                         {r.category}
                       </td>
-                      <td className="py-2.5 px-3 text-center font-mono">
+                      <td className="py-2 px-3 text-center font-mono text-[10.5px]">
                         {r.yield_qty}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-[#4A7592]">
+                      <td className="py-2 px-3 text-right font-mono text-[#4A7592] text-[10.5px]">
                         ฿{r.total_batch_cost.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-[#1E5A7A]">
+                      <td className="py-2 px-3 text-right font-mono font-semibold text-[#1E5A7A] text-[11px]">
                         ฿{r.cost_per_piece.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#1E3D52]">
+                      <td className="py-2 px-3 text-right font-mono font-bold text-[#1E3D52] text-[11px]">
                         ฿{r.selling_price.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600">
+                      <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 text-[11px]">
                         +฿{r.profit_per_piece.toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-3 text-center">
+                      <td className="py-2 px-3 text-center">
                         <span 
                           style={{
                             background: r.profit_pct >= 50 ? '#ECFDF5' : r.profit_pct >= 30 ? '#FFFBEB' : '#FEF2F2',
                             color: r.profit_pct >= 50 ? '#22C55E' : r.profit_pct >= 30 ? '#F59E0B' : '#EF4444',
                             border: `1px solid ${r.profit_pct >= 50 ? '#A7F3D0' : r.profit_pct >= 30 ? '#FDE68A' : '#FECACA'}`
                           }}
-                          className="px-2 py-0.5 rounded-full font-mono font-black text-xs inline-block"
+                          className="px-2 py-0.5 rounded-full font-mono font-black text-[10.5px] inline-block"
                         >
                           {r.profit_pct.toFixed(1)}%
                         </span>
