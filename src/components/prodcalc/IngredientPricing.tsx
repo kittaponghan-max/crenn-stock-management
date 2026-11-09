@@ -57,6 +57,30 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
   };
 
   // Load ingredients from Prodcalc table or initialize from CMS table
+  // Helper to parse single or multiple suppliers from ingredient supplier string or brand
+  const parseSuppliers = (supplierStr?: string, brandStr?: string): string[] => {
+    const result: string[] = [];
+    if (supplierStr && supplierStr.trim() !== '' && supplierStr.trim() !== '-') {
+      const rawList = supplierStr.split(/[,/;\n|]+/).map(s => s.trim()).filter(Boolean);
+      rawList.forEach(s => {
+        if (!result.includes(s)) {
+          result.push(s);
+        }
+      });
+    }
+
+    if (result.length === 0 && brandStr && brandStr.trim() !== '' && brandStr.trim() !== '-') {
+      result.push(brandStr.trim());
+    }
+
+    if (result.length === 0) {
+      result.push('Makro');
+    }
+
+    return result;
+  };
+
+  // Load ingredients from Prodcalc table or initialize from CMS table
   const loadData = async (forceSync = false) => {
     setIsLoading(true);
     let loadedItems: ProdcalcIngredientPrice[] = [];
@@ -76,6 +100,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
             ingredient_name: d.ingredient_name,
             ingredient_brand: d.ingredient_brand || '-',
             ingredient_unit: d.ingredient_unit || 'หน่วย',
+            size_per_unit: d.size_per_unit || d.ingredient_size_per_unit || '',
             yield_pct: Number(d.yield_pct) || 100,
             sourcing: Array.isArray(d.sourcing) ? d.sourcing : [],
             effective_cost_per_unit: Number(d.effective_cost_per_unit) || 0,
@@ -103,8 +128,8 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
     if (forceSync || loadedItems.length === 0) {
       await syncWithCMS(loadedItems);
     } else {
-      setItems(loadedItems);
-      setIsLoading(false);
+      // Perform a silent sync to ensure size_per_unit and suppliers are updated from CMS database
+      syncWithCMS(loadedItems);
     }
   };
 
@@ -114,14 +139,24 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
     let newCount = 0;
 
     try {
-      let cmsList: Array<{ id: string; name: string; brand?: string; unit: string; image?: string; category?: string }> = [];
+      let cmsList: Array<{
+        id: string;
+        name: string;
+        brand?: string;
+        size_per_unit?: string;
+        sizePerUnit?: string;
+        unit: string;
+        supplier?: string;
+        image?: string;
+        category?: string;
+      }> = [];
 
       if (supabase) {
         // Query CMS table: ONLY SELECT, NEVER WRITE
         try {
           const { data, error } = await supabase
             .from('ingredients')
-            .select('id, name, brand, unit, image, category')
+            .select('id, name, brand, size_per_unit, unit, supplier, image, category')
             .eq('branch', currentBranch);
 
           if (!error && data) {
@@ -142,21 +177,24 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
         }
       }
 
-      // Merge: create new pricing entries for any CMS ingredients not yet in ProdCalc
+      // Merge: create new pricing entries or update existing entries with size_per_unit and suppliers
       const existingMap = new Map(existingItems.map(item => [item.ingredient_id, item]));
       const updatedList = [...existingItems];
 
       for (const ing of cmsList) {
+        const fetchedSize = ing.size_per_unit || ing.sizePerUnit || ing.unit || 'หน่วย';
+        const supplierList = parseSuppliers(ing.supplier, ing.brand);
+
         if (!existingMap.has(ing.id)) {
           newCount++;
-          const defaultSource: SourcingOption = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
-            source_name: ing.brand && ing.brand !== '-' ? ing.brand : 'Makro',
+          const sourcingOptions: SourcingOption[] = supplierList.map((supName, idx) => ({
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9) + idx,
+            source_name: supName,
             price: 0,
             qty: 1,
-            unit: ing.unit || 'กิโลกรัม',
-            is_default: true
-          };
+            unit: ing.unit || 'หน่วย',
+            is_default: idx === 0
+          }));
 
           const newItem: ProdcalcIngredientPrice = {
             id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
@@ -164,20 +202,40 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
             ingredient_name: ing.name,
             ingredient_brand: ing.brand || '-',
             ingredient_unit: ing.unit || 'หน่วย',
+            size_per_unit: fetchedSize,
             yield_pct: 100,
-            sourcing: [defaultSource],
+            sourcing: sourcingOptions,
             effective_cost_per_unit: 0,
             branch: currentBranch,
             category: ing.category || 'ทั่วไป',
             image: ing.image || ''
           };
           updatedList.push(newItem);
+        } else {
+          // Update existing item size_per_unit and merge any suppliers from database
+          const existingItem = existingMap.get(ing.id)!;
+          if (fetchedSize && (!existingItem.size_per_unit || existingItem.size_per_unit === existingItem.ingredient_unit)) {
+            existingItem.size_per_unit = fetchedSize;
+          }
+          const currentSourceNames = new Set(existingItem.sourcing.map(s => s.source_name.trim().toLowerCase()));
+          supplierList.forEach((supName) => {
+            if (!currentSourceNames.has(supName.toLowerCase())) {
+              existingItem.sourcing.push({
+                id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+                source_name: supName,
+                price: 0,
+                qty: 1,
+                unit: existingItem.ingredient_unit || ing.unit || 'หน่วย',
+                is_default: false
+              });
+            }
+          });
         }
       }
 
       setItems(updatedList);
       saveItems(updatedList);
-      setSyncMessage(newCount > 0 ? `Sync สำเร็จ: เพิ่ม ${newCount} รายการใหม่จาก CMS` : 'Sync สำเร็จ: ข้อมูลวัตถุดิบเป็นปัจจุบันแล้ว');
+      setSyncMessage(newCount > 0 ? `Sync สำเร็จ: เพิ่ม ${newCount} รายการใหม่จาก CMS` : 'Sync สำเร็จ: ข้อมูลวัตถุดิบและผู้จัดจำหน่ายเป็นปัจจุบันแล้ว');
       setTimeout(() => setSyncMessage(null), 3500);
     } catch (err) {
       console.error('Error syncing with CMS:', err);
@@ -200,6 +258,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
           ingredient_name: item.ingredient_name,
           ingredient_brand: item.ingredient_brand,
           ingredient_unit: item.ingredient_unit,
+          size_per_unit: item.size_per_unit || item.ingredient_unit,
           yield_pct: item.yield_pct,
           sourcing: item.sourcing,
           effective_cost_per_unit: item.effective_cost_per_unit,
@@ -426,7 +485,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                 <th className="py-2.5 px-3 w-12 text-center">รูป</th>
                 <th className="py-2.5 px-3 min-w-[150px]">ชื่อวัตถุดิบ (CMS)</th>
                 <th className="py-2.5 px-3 min-w-[90px]">ยี่ห้อ</th>
-                <th className="py-2.5 px-3 min-w-[80px]">หน่วย (CMS)</th>
+                <th className="py-2.5 px-3 min-w-[120px]">ขนาดต่อหน่วย (CMS)</th>
                 <th className="py-2.5 px-3 min-w-[240px]">Sourcing (แหล่งราคา)</th>
                 <th className="py-2.5 px-3 min-w-[80px] text-center">Yield %</th>
                 <th className="py-2.5 px-3 min-w-[120px] text-right">ต้นทุนจริง/หน่วย</th>
@@ -494,9 +553,9 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                           {item.ingredient_brand || '-'}
                         </td>
 
-                        {/* Unit */}
+                        {/* Size Per Unit */}
                         <td className="py-2 px-3 text-[#1E3D52]">
-                          <span className="font-mono text-[10.5px]">{item.ingredient_unit}</span>
+                          <span className="font-mono text-[10.5px] font-medium">{item.size_per_unit || item.ingredient_unit}</span>
                         </td>
 
                         {/* Sourcing */}
