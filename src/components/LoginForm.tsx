@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, Coffee, Sparkles, Check } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, Coffee, Sparkles, Check, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AppUser as TypesAppUser, AppPermissions, Branch } from '../types';
 
@@ -52,8 +52,17 @@ interface AppUser extends TypesAppUser {
   role: UserRole;
 }
 
+export interface UserLoginPayload {
+  name: string;
+  role: UserRole;
+  permissions?: AppPermissions;
+  branch: Branch;
+  app?: AppOption;
+  targetTab?: string;
+}
+
 interface LoginFormProps {
-  onLogin: (user: { name: string; role: UserRole; permissions?: AppPermissions; branch: Branch; app?: AppOption }) => void;
+  onLogin: (user: UserLoginPayload) => void;
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {
@@ -318,6 +327,71 @@ export function LoginForm({ onLogin }: LoginFormProps) {
       setError('รหัสผ่านไม่ถูกต้อง (Invalid password)');
       setIsSubmitting(false);
     }
+  };
+
+  const handleAccountSettingClick = () => {
+    setError('');
+
+    if (!selectedBranch) {
+      setError('กรุณาเลือกสาขาก่อนเข้าสู่ Account Setting (Please select a branch)');
+      return;
+    }
+
+    if (!username.trim()) {
+      setError('กรุณากรอก Username ของบัญชี Admin ก่อนเข้าสู่ Account Setting');
+      return;
+    }
+
+    if (!password) {
+      setError('กรุณากรอก Password ของบัญชี Admin ก่อนเข้าสู่ Account Setting');
+      return;
+    }
+
+    const query = username.trim().toLowerCase();
+    const matchedUser = users.find(
+      (u) =>
+        u.name.toLowerCase() === query ||
+        u.role.toLowerCase() === query ||
+        `${u.name} (${u.role})`.toLowerCase() === query ||
+        u.id === username.trim()
+    );
+
+    if (!matchedUser) {
+      setError('ไม่พบบัญชีผู้ใช้ในสาขานี้ (User not found in this branch)');
+      return;
+    }
+
+    if (matchedUser.password !== password) {
+      setError('รหัสผ่านไม่ถูกต้อง (Invalid password)');
+      return;
+    }
+
+    const roleUpper = (matchedUser.role || '').toUpperCase();
+    const isAdmin =
+      roleUpper === 'ADMIN' ||
+      roleUpper === 'OWNER' ||
+      roleUpper === 'CO-FOUNDER' ||
+      matchedUser.permissions?.userSettings === 'edit' ||
+      matchedUser.permissions?.adminTools === 'Edit';
+
+    if (!isAdmin) {
+      setError('ไม่มีสิทธิ์เข้าถึง: Account Setting สำหรับผู้ดูแลระบบ (Admin) เท่านั้น');
+      return;
+    }
+
+    if (rememberMe) {
+      localStorage.setItem('crenn-last-branch', selectedBranch);
+      localStorage.setItem('crenn-last-username', matchedUser.name);
+    }
+
+    onLogin({
+      name: matchedUser.name,
+      role: matchedUser.role,
+      permissions: matchedUser.permissions,
+      branch: selectedBranch,
+      app: selectedApp,
+      targetTab: 'userSettings'
+    });
   };
 
   return (
@@ -760,20 +834,14 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             </form>
 
             {/* FOOTER */}
-            <div className="w-full flex flex-col items-center gap-1.5 shrink-0 mt-4">
-              <span className="text-white md:text-[#6B8F8E] text-[13px] font-normal tracking-wide">
-                Not a member?
-              </span>
+            <div className="w-full flex flex-col items-center shrink-0 mt-4">
               <button
                 type="button"
-                onClick={() =>
-                  setInfoModal(
-                    'กรุณาติดต่อฝ่ายบุคคลหรือผู้จัดการเพื่อขอรับสิทธิ์เข้าใช้งานระบบ\n\nPlease contact HR or Branch Manager to request an account.'
-                  )
-                }
-                className="border border-white md:border-[#5A8A88] text-white md:text-[#5A8A88] bg-transparent rounded-full px-6 py-2 text-[13px] font-semibold hover:bg-white/10 md:hover:bg-[#E8F3F2] active:scale-95 transition-all focus:outline-none tracking-wide cursor-pointer"
+                onClick={handleAccountSettingClick}
+                className="border border-white md:border-[#5A8A88] text-white md:text-[#5A8A88] bg-transparent rounded-full px-6 py-2.5 text-[13px] font-semibold hover:bg-white/10 md:hover:bg-[#E8F3F2] active:scale-95 transition-all focus:outline-none tracking-wide cursor-pointer flex items-center justify-center gap-2 shadow-xs"
               >
-                Create account
+                <Shield size={16} />
+                <span>Account Setting</span>
               </button>
             </div>
 
