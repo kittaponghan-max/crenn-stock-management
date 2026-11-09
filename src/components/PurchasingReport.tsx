@@ -1056,13 +1056,22 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
     const toBuy: (Ingredient & { currentStock: number; suggestedOrder: number })[] = [];
     departmentIngredients.forEach(item => {
-      const currentStock = currentRemaining[item.id] !== undefined ? currentRemaining[item.id] : 0;
-      // Must match home/dashboard and stock summary condition: remaining <= minStock
-      if (currentStock <= item.minStock) {
+      const hasRecord = currentRemaining[item.id] !== undefined;
+      const currentStock = hasRecord ? currentRemaining[item.id] : 0;
+      const minStock = item.minStock || 0;
+
+      // Status check: Only include items in "ใกล้หมด" (Low stock) or "หมดสต๊อก" (Out of stock)
+      // Must strictly match Home/Dashboard business rules:
+      // 1. Out of stock (หมดสต๊อก): currentStock <= 0 AND (minStock > 0 OR (hasRecord && (item.minOrder || 0) > 0))
+      // 2. Low stock (ใกล้หมด): minStock > 0 AND currentStock > 0 AND currentStock < minStock (strictly less than minStock)
+      const isOutOfStock = currentStock <= 0 && (minStock > 0 || (hasRecord && (item.minOrder || 0) > 0));
+      const isLowStock = minStock > 0 && currentStock > 0 && currentStock < minStock;
+
+      if (isOutOfStock || isLowStock) {
         toBuy.push({
           ...item,
           currentStock,
-          suggestedOrder: item.minOrder || (item.minStock - currentStock > 0 ? item.minStock - currentStock : item.minStock || 1),
+          suggestedOrder: item.minOrder || (minStock - currentStock > 0 ? minStock - currentStock : minStock || 1),
         });
       }
     });
