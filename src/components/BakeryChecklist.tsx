@@ -250,38 +250,110 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
     if (!element) return;
 
     try {
-      const { toPng } = await import('html-to-image');
+      const { toCanvas } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
-      const imgData = await toPng(element, {
-        backgroundColor: '#f8fafc',
+      const fullCanvas = await toCanvas(element, {
+        backgroundColor: '#F0F5F4',
         pixelRatio: 2,
         filter: (node) => {
-          if (node instanceof HTMLElement && node.classList?.contains('print:hidden')) {
+          if (node instanceof HTMLElement && (node.classList?.contains('print:hidden') || node.getAttribute('data-print-hidden') === 'true')) {
             return false;
           }
           return true;
         }
       });
 
+      const canvasWidth = fullCanvas.width;
+      const canvasHeight = fullCanvas.height;
+
+      // Standard A4 portrait dimensions in mm
+      const pdfPageWidthMM = 210;
+      const pdfPageHeightMM = 297;
+      const marginMM = 10; // 10mm margin top, bottom, left, right
+
+      const printWidthMM = pdfPageWidthMM - (marginMM * 2); // 190 mm
+      const printHeightMM = pdfPageHeightMM - (marginMM * 2); // 277 mm
+
+      const scale = printWidthMM / canvasWidth;
+      const maxSliceHeightPx = Math.floor(printHeightMM / scale);
+
+      const fullCtx = fullCanvas.getContext('2d');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      let heightLeft = pdfHeight;
-      let position = 0;
-      const pageHeight = pdf.internal.pageSize.getHeight();
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
+      let startY = 0;
+      let pageIndex = 0;
 
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+      while (startY < canvasHeight) {
+        const remainingHeightPx = canvasHeight - startY;
+        let sliceHeightPx = Math.min(maxSliceHeightPx, remainingHeightPx);
+
+        // Search for clean split line if content overflows a single page
+        if (remainingHeightPx > maxSliceHeightPx && fullCtx) {
+          const searchDistance = Math.floor(maxSliceHeightPx * 0.25);
+          const minSearchY = Math.max(startY + 50, startY + maxSliceHeightPx - searchDistance);
+          const searchWindowHeight = (startY + maxSliceHeightPx) - minSearchY;
+
+          if (searchWindowHeight > 0) {
+            const imageData = fullCtx.getImageData(0, minSearchY, canvasWidth, searchWindowHeight);
+            const data = imageData.data;
+
+            for (let y = searchWindowHeight - 1; y >= 0; y--) {
+              let isBlankRow = true;
+              let nonBgCount = 0;
+              const rowOffset = y * canvasWidth * 4;
+              const step = 4;
+              let sampledCount = 0;
+
+              for (let x = 0; x < canvasWidth; x += step) {
+                sampledCount++;
+                const idx = rowOffset + x * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const a = data[idx + 3];
+
+                if (a > 10 && (r < 220 || g < 220 || b < 220)) {
+                  nonBgCount++;
+                  if (nonBgCount > sampledCount * 0.03) {
+                    isBlankRow = false;
+                    break;
+                  }
+                }
+              }
+
+              if (isBlankRow) {
+                sliceHeightPx = (minSearchY + y) - startY;
+                break;
+              }
+            }
+          }
+        }
+
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvasWidth;
+        pageCanvas.height = sliceHeightPx;
+        const pageCtx = pageCanvas.getContext('2d');
+
+        if (pageCtx) {
+          pageCtx.drawImage(
+            fullCanvas,
+            0, startY, canvasWidth, sliceHeightPx,
+            0, 0, canvasWidth, sliceHeightPx
+          );
+
+          const pageImgData = pageCanvas.toDataURL('image/png');
+          const sliceHeightMM = sliceHeightPx * scale;
+
+          if (pageIndex > 0) {
+            pdf.addPage();
+          }
+
+          pdf.addImage(pageImgData, 'PNG', marginMM, marginMM, printWidthMM, sliceHeightMM);
+        }
+
+        startY += sliceHeightPx;
+        pageIndex++;
       }
 
       pdf.save(`Bakery_${type}_${format(new Date(reportDate), 'yyyyMMdd')}.pdf`);
