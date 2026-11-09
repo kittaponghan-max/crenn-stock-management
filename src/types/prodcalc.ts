@@ -13,6 +13,7 @@ export interface ProdcalcIngredientPrice {
   ingredient_name: string;
   ingredient_brand: string;
   ingredient_unit: string;
+  size_per_unit?: string;
   image?: string;
   category?: string;
   yield_pct: number;
