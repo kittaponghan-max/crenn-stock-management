@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, Coffee, Sparkles, Check, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AppUser as TypesAppUser, AppPermissions, Branch } from '../types';
@@ -78,17 +78,21 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   // STEP 1 & 4 — State for selected app and dropdown visibility
   const [selectedApp, setSelectedApp] = useState<AppOption>('cafe');
   const [showAppDropdown, setShowAppDropdown] = useState<boolean>(false);
+  const appDropdownRef = useRef<HTMLDivElement>(null);
 
   // STEP 4 — Close dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (showAppDropdown) {
+    const handleOutside = (e: MouseEvent) => {
+      if (
+        appDropdownRef.current &&
+        !appDropdownRef.current.contains(e.target as Node)
+      ) {
         setShowAppDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showAppDropdown]);
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   // STEP 6 — Dynamic Login button label
   const getLoginButtonText = () => {
@@ -612,8 +616,10 @@ export function LoginForm({ onLogin }: LoginFormProps) {
               </div>
 
               {/* App Selector */}
-              <div style={{ marginBottom: '12px' }}>
-
+              <div
+                ref={appDropdownRef}
+                style={{ position: 'relative', marginBottom: '12px' }}
+              >
                 {/* Label */}
                 <label 
                   className="text-white md:text-[#4A7592]"
@@ -627,142 +633,142 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                   เลือก Application
                 </label>
 
-                {/* Custom dropdown trigger */}
+                {/* TRIGGER BAR */}
                 <div
-                  style={{
-                    position     : 'relative',
-                    cursor       : 'pointer',
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAppDropdown(prev => !prev);
                   }}
-                  onClick={() => setShowAppDropdown(!showAppDropdown)}
-                >
-                  {/* Selected display */}
-                  <div style={{
+                  style={{
                     display       : 'flex',
                     alignItems    : 'center',
                     gap           : '10px',
                     padding       : '10px 14px',
                     background    : '#F8FCFE',
-                    border        : showAppDropdown
-                                    ? '1.5px solid #5BA4C8'
-                                    : '1.5px solid #C8E3F0',
+                    border        : `1.5px solid ${showAppDropdown ? '#5BA4C8' : '#C8E3F0'}`,
                     borderRadius  : '10px',
-                    transition    : 'border 150ms',
+                    cursor        : 'pointer',
+                    userSelect    : 'none',
+                  }}
+                >
+                  {/* Icon */}
+                  <span style={{ fontSize: '16px' }}>
+                    {APP_OPTIONS.find(a => a.id === selectedApp)?.icon}
+                  </span>
+
+                  {/* Label */}
+                  <span style={{
+                    flex       : 1,
+                    fontSize   : '13px',
+                    fontWeight : 500,
+                    color      : '#1E3D52',
                   }}>
+                    {APP_OPTIONS.find(a => a.id === selectedApp)?.label}
+                  </span>
 
-                    {/* Icon */}
-                    <span style={{ fontSize: '16px' }}>
-                      {APP_OPTIONS.find(a => a.id === selectedApp)?.icon}
-                    </span>
+                  {/* Chevron */}
+                  <ChevronDown
+                    size={16}
+                    color="#4A7592"
+                    style={{
+                      transform  : showAppDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition : 'transform 200ms',
+                      flexShrink : 0,
+                    }}
+                  />
+                </div>
 
-                    {/* Label */}
-                    <span style={{
-                      flex       : 1,
-                      fontSize   : '13px',
-                      fontWeight : 500,
-                      color      : '#1E3D52',
-                    }}>
-                      {APP_OPTIONS.find(a => a.id === selectedApp)?.label}
-                    </span>
-
-                    {/* Chevron */}
-                    <ChevronDown
-                      size={16}
-                      color="#4A7592"
-                      style={{
-                        transform  : showAppDropdown
-                                     ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition : 'transform 200ms',
-                      }}
-                    />
-                  </div>
-
-                  {/* Dropdown panel */}
-                  {showAppDropdown && (
-                    <div style={{
+                {/* DROPDOWN PANEL */}
+                {showAppDropdown && (
+                  <div
+                    style={{
                       position     : 'absolute',
                       top          : 'calc(100% + 4px)',
                       left         : 0, right: 0,
                       background   : '#FFFFFF',
                       border       : '1px solid #C8E3F0',
                       borderRadius : '12px',
-                      boxShadow    : '0 8px 24px rgba(90,164,200,0.15)',
-                      zIndex       : 100,
+                      boxShadow    : '0 8px 24px rgba(0,0,0,0.12)',
+                      zIndex       : 9999,
                       overflow     : 'hidden',
-                    }}>
-                      {APP_OPTIONS.map((app, idx) => (
-                        <div
-                          key={app.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedApp(app.id as AppOption);
-                            setShowAppDropdown(false);
-                          }}
-                          style={{
-                            display      : 'flex',
-                            alignItems   : 'center',
-                            gap          : '12px',
-                            padding      : '12px 16px',
-                            cursor       : 'pointer',
-                            background   : selectedApp === app.id
-                                           ? '#EEF6FB' : '#FFFFFF',
-                            borderBottom : idx < APP_OPTIONS.length - 1
-                                           ? '1px solid #EEF6FB' : 'none',
-                            transition   : 'background 100ms',
-                          }}
-                          onMouseEnter={e => {
-                            if (selectedApp !== app.id)
-                              (e.currentTarget as HTMLDivElement)
-                                .style.background = '#F8FCFE';
-                          }}
-                          onMouseLeave={e => {
-                            if (selectedApp !== app.id)
-                              (e.currentTarget as HTMLDivElement)
-                                .style.background = '#FFFFFF';
-                          }}
-                        >
-                          {/* App icon */}
-                          <span style={{
-                            fontSize    : '20px',
-                            flexShrink  : 0,
-                          }}>
-                            {app.icon}
-                          </span>
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {APP_OPTIONS.map((app, idx) => (
+                      <div
+                        key={app.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedApp(app.id as AppOption);
+                          setShowAppDropdown(false);
+                        }}
+                        style={{
+                          display      : 'flex',
+                          alignItems   : 'center',
+                          gap          : '12px',
+                          padding      : '12px 16px',
+                          cursor       : 'pointer',
+                          background   : selectedApp === app.id
+                                         ? '#EEF6FB' : '#FFFFFF',
+                          borderBottom : idx < APP_OPTIONS.length - 1
+                                         ? '1px solid #EEF6FB' : 'none',
+                          pointerEvents: 'auto',
+                          transition   : 'background 100ms',
+                        }}
+                        onMouseEnter={e => {
+                          if (selectedApp !== app.id)
+                            (e.currentTarget as HTMLElement)
+                              .style.background = '#F8FCFE';
+                        }}
+                        onMouseLeave={e => {
+                          if (selectedApp !== app.id)
+                            (e.currentTarget as HTMLElement)
+                              .style.background = '#FFFFFF';
+                        }}
+                      >
+                        {/* App icon */}
+                        <span style={{
+                          fontSize    : '20px',
+                          flexShrink  : 0,
+                        }}>
+                          {app.icon}
+                        </span>
 
-                          {/* App info */}
-                          <div style={{ flex: 1 }}>
-                            <div style={{
-                              display    : 'flex',
-                              alignItems : 'center',
-                              gap        : '6px',
-                            }}>
-                              <span style={{
-                                fontSize   : '13px',
-                                fontWeight : selectedApp === app.id
-                                             ? 700 : 500,
-                                color      : '#1E3D52',
-                              }}>
-                                {app.label}
-                              </span>
-                            </div>
+                        {/* App info */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{
+                            display    : 'flex',
+                            alignItems : 'center',
+                            gap        : '6px',
+                          }}>
                             <span style={{
-                              fontSize : '10px',
-                              color    : '#4A7592',
-                              display  : 'block',
-                              marginTop: '1px',
+                              fontSize   : '13px',
+                              fontWeight : selectedApp === app.id
+                                           ? 700 : 500,
+                              color      : '#1E3D52',
                             }}>
-                              {app.description}
+                              {app.label}
                             </span>
                           </div>
-
-                          {/* Selected checkmark */}
-                          {selectedApp === app.id && (
-                            <Check size={14} color="#5BA4C8" />
-                          )}
+                          <span style={{
+                            fontSize : '10px',
+                            color    : '#4A7592',
+                            display  : 'block',
+                            marginTop: '1px',
+                          }}>
+                            {app.description}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+
+                        {/* Selected checkmark */}
+                        {selectedApp === app.id && (
+                          <Check size={14} color="#5BA4C8" style={{ flexShrink: 0 }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Row below fields: Remember me + Forgot password */}
