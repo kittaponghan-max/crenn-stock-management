@@ -2370,6 +2370,9 @@ export default function App() {
       <LoginForm 
         onLogin={(userData) => {
           setUser(userData);
+          if (userData.targetTab) {
+            setActiveTab(userData.targetTab);
+          }
           if (userData.app === 'prodcalc') {
             if (canAccessProdCalc(userData)) {
               setCurrentApp('prodcalc');
