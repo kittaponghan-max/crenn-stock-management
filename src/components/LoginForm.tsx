@@ -21,7 +21,6 @@ export const APP_OPTIONS = [
     icon        : '📋',
     color       : '#5BA4C8',
     isExisting  : false,
-    badge       : 'ใหม่',
   },
   {
     id          : 'prodcalc',
@@ -30,7 +29,6 @@ export const APP_OPTIONS = [
     icon        : '🧮',
     color       : '#D4A853',
     isExisting  : false,
-    badge       : 'ใหม่',
   },
 ];
 
@@ -408,15 +406,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           <div className="absolute -right-12 -top-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none blur-2xl"></div>
           <div className="absolute -left-12 -bottom-12 w-64 h-64 rounded-full bg-[#7A9E9C]/20 pointer-events-none blur-xl"></div>
 
-          {/* Top brand header */}
-          <div className="flex items-center gap-2 z-10">
-            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center backdrop-blur-sm border border-white/20">
-              <Coffee size={18} className="text-white" />
-            </div>
-            <span className="text-white/80 text-xs font-semibold tracking-wider uppercase">
-              CRENN Management
-            </span>
-          </div>
+
 
           {/* Center brand content */}
           <div className="flex flex-col items-center text-center my-auto py-8 z-10">
@@ -753,18 +743,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                               }}>
                                 {app.label}
                               </span>
-                              {app.badge && (
-                                <span style={{
-                                  fontSize     : '9px',
-                                  fontWeight   : 700,
-                                  color        : '#FFFFFF',
-                                  background   : '#5BA4C8',
-                                  borderRadius : '4px',
-                                  padding      : '1px 5px',
-                                }}>
-                                  {app.badge}
-                                </span>
-                              )}
                             </div>
                             <span style={{
                               fontSize : '10px',
