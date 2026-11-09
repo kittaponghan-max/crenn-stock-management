@@ -45,9 +45,44 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
 
   const storageKey = `prodcalc-ingredient-prices-${currentBranch}`;
 
+  // Helper to automatically select the sourcing option with the highest unit price as default
+  const autoSelectHighestPriceSourcing = (sourcingList: SourcingOption[]): SourcingOption[] => {
+    if (!sourcingList || sourcingList.length === 0) return sourcingList;
+
+    let highestIdx = -1;
+    let maxUnitPrice = -1;
+
+    sourcingList.forEach((source, idx) => {
+      const qty = source.qty > 0 ? source.qty : 1;
+      const unitPrice = source.price > 0 ? source.price / qty : 0;
+      if (unitPrice > maxUnitPrice && unitPrice > 0) {
+        maxUnitPrice = unitPrice;
+        highestIdx = idx;
+      }
+    });
+
+    if (highestIdx >= 0) {
+      return sourcingList.map((s, idx) => ({
+        ...s,
+        is_default: idx === highestIdx
+      }));
+    }
+
+    const hasDefault = sourcingList.some(s => s.is_default);
+    if (!hasDefault && sourcingList.length > 0) {
+      return sourcingList.map((s, idx) => ({
+        ...s,
+        is_default: idx === 0
+      }));
+    }
+
+    return sourcingList;
+  };
+
   // Helper to calculate effective cost
   const calculateEffectiveCost = (sourcing: SourcingOption[], yieldPct: number): number => {
-    const defaultSource = sourcing.find(s => s.is_default) || sourcing[0];
+    const autoSourcing = autoSelectHighestPriceSourcing(sourcing);
+    const defaultSource = autoSourcing.find(s => s.is_default) || autoSourcing[0];
     if (!defaultSource || !defaultSource.price || !defaultSource.qty || defaultSource.qty <= 0) {
       return 0;
     }
@@ -94,20 +129,25 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
           .eq('branch', currentBranch);
 
         if (!prodErr && prodData && prodData.length > 0) {
-          loadedItems = prodData.map((d: any) => ({
-            id: d.id,
-            ingredient_id: d.ingredient_id,
-            ingredient_name: d.ingredient_name,
-            ingredient_brand: d.ingredient_brand || '-',
-            ingredient_unit: d.ingredient_unit || 'หน่วย',
-            size_per_unit: d.size_per_unit || d.ingredient_size_per_unit || '',
-            yield_pct: Number(d.yield_pct) || 100,
-            sourcing: Array.isArray(d.sourcing) ? d.sourcing : [],
-            effective_cost_per_unit: Number(d.effective_cost_per_unit) || 0,
-            branch: d.branch || currentBranch,
-            category: d.category || '',
-            image: d.image || ''
-          }));
+          loadedItems = prodData.map((d: any) => {
+            const rawSourcing = Array.isArray(d.sourcing) ? d.sourcing : [];
+            const autoSourcing = autoSelectHighestPriceSourcing(rawSourcing);
+            const yieldPct = Number(d.yield_pct) || 100;
+            return {
+              id: d.id,
+              ingredient_id: d.ingredient_id,
+              ingredient_name: d.ingredient_name,
+              ingredient_brand: d.ingredient_brand || '-',
+              ingredient_unit: d.ingredient_unit || 'หน่วย',
+              size_per_unit: d.size_per_unit || d.ingredient_size_per_unit || '',
+              yield_pct: yieldPct,
+              sourcing: autoSourcing,
+              effective_cost_per_unit: calculateEffectiveCost(autoSourcing, yieldPct),
+              branch: d.branch || currentBranch,
+              category: d.category || '',
+              image: d.image || ''
+            };
+          });
         }
       } catch (err) {
         console.warn('prodcalc_ingredient_prices query notice:', err);
@@ -119,7 +159,15 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         try {
-          loadedItems = JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          loadedItems = parsed.map((item: any) => {
+            const autoSourcing = autoSelectHighestPriceSourcing(item.sourcing || []);
+            return {
+              ...item,
+              sourcing: autoSourcing,
+              effective_cost_per_unit: calculateEffectiveCost(autoSourcing, item.yield_pct || 100)
+            };
+          });
         } catch {}
       }
     }
@@ -230,6 +278,10 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
               });
             }
           });
+
+          // Auto select highest price sourcing option as default
+          existingItem.sourcing = autoSelectHighestPriceSourcing(existingItem.sourcing);
+          existingItem.effective_cost_per_unit = calculateEffectiveCost(existingItem.sourcing, existingItem.yield_pct);
         }
       }
 
@@ -281,9 +333,11 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
 
   // Update a single item's yield or sourcing
   const handleUpdateItem = (updated: ProdcalcIngredientPrice) => {
-    const effectiveCost = calculateEffectiveCost(updated.sourcing, updated.yield_pct);
+    const autoSourcing = autoSelectHighestPriceSourcing(updated.sourcing);
+    const effectiveCost = calculateEffectiveCost(autoSourcing, updated.yield_pct);
     const finalItem = {
       ...updated,
+      sourcing: autoSourcing,
       effective_cost_per_unit: effectiveCost
     };
 
@@ -663,36 +717,56 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                         <tr style={{ background: '#F8FCFE' }}>
                           <td colSpan={8} className="p-3 border-t border-b border-[#C8E3F0]">
                             <div className="bg-white p-3 rounded-xl border border-[#C8E3F0] space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-bold text-[#1E3D52] text-[11px]">
                                     🛒 แหล่งจัดซื้อ (Sourcing Options) สำหรับ: {item.ingredient_name}
                                   </span>
                                   <span className="text-[9.5px] text-[#4A7592] bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
-                                    คลิก ⭐ เพื่อเลือกใช้เป็นราคาหลักในการคำนวณต้นทุน
+                                    คลิก ⭐ เพื่อเลือกเป็นราคาหลัก (ระบบจะเลือกรายการราคาสูงสุดให้อัตโนมัติ)
                                   </span>
                                 </div>
-                                <button
-                                  onClick={() => {
-                                    const newSource: SourcingOption = {
-                                      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
-                                      source_name: '',
-                                      price: 0,
-                                      qty: 1,
-                                      unit: item.ingredient_unit,
-                                      is_default: item.sourcing.length === 0
-                                    };
-                                    handleUpdateItem({
-                                      ...item,
-                                      sourcing: [...item.sourcing, newSource]
-                                    });
-                                  }}
-                                  style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                                  className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
-                                >
-                                  <Plus size={11} />
-                                  <span>เพิ่มแหล่งซื้อ</span>
-                                </button>
+
+                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                  {/* ปุ่ม บันทึก (Save button) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateItem(item);
+                                      setExpandedId(null);
+                                    }}
+                                    style={{ background: '#5A8A88', color: '#FFFFFF' }}
+                                    className="px-3 py-1 rounded-xl text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-[#476E6C] active:scale-95 transition-all shadow-xs cursor-pointer"
+                                    title="บันทึกข้อมูลแหล่งจัดซื้อ"
+                                  >
+                                    <Check size={12} />
+                                    <span>บันทึก</span>
+                                  </button>
+
+                                  {/* ปุ่ม เพิ่มแหล่งซื้อ */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newSource: SourcingOption = {
+                                        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+                                        source_name: '',
+                                        price: 0,
+                                        qty: 1,
+                                        unit: item.ingredient_unit,
+                                        is_default: false
+                                      };
+                                      handleUpdateItem({
+                                        ...item,
+                                        sourcing: [...item.sourcing, newSource]
+                                      });
+                                    }}
+                                    style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
+                                    className="px-3 py-1 rounded-xl text-[10.5px] font-semibold flex items-center gap-1.5 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                                  >
+                                    <Plus size={12} />
+                                    <span>เพิ่มแหล่งซื้อ</span>
+                                  </button>
+                                </div>
                               </div>
 
                               <div className="overflow-x-auto">
