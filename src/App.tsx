@@ -2447,7 +2447,10 @@ export default function App() {
             needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
             dbStatus={dbStatus}
           />
-          <SupabaseStatusBar dbStatus={dbStatus} />
+          <SupabaseStatusBar 
+            dbStatus={dbStatus} 
+            onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
+          />
         </>
       )}
 
