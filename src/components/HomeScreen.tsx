@@ -1329,79 +1329,8 @@ export function HomeScreen({
             needPurchasingCount={stockData.outCount + stockData.lowCount}
           />
 
-          {/* Right Action Icons: Notification Bell + User Avatar */}
+          {/* Right Action Icons: User Avatar */}
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Notification Bell */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="w-9 h-9 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] text-[#5A8A88] flex items-center justify-center transition-colors relative focus:outline-none shadow-xs"
-                title="การแจ้งเตือน"
-              >
-                <Bell size={18} />
-                {stockData.outCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>
-                )}
-              </button>
-
-              {/* Notification Popup */}
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                    <span className="text-xs font-bold text-slate-800">การแจ้งเตือนสต็อก (Alerts)</span>
-                    <button 
-                      onClick={() => setShowNotifications(false)}
-                      className="text-slate-400 hover:text-slate-600"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="space-y-2 max-h-56 overflow-y-auto text-xs">
-                    {stockData.outCount > 0 ? (
-                      <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2">
-                        <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold">สินค้าหมดสต็อก {stockData.outCount} รายการ</p>
-                          <p className="text-[11px] text-rose-600 mt-0.5">กรุณาตรวจสอบและสั่งซื้อด่วน</p>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {stockData.lowCount > 0 ? (
-                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-2">
-                        <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold">สินค้าใกล้หมด {stockData.lowCount} รายการ</p>
-                          <p className="text-[11px] text-amber-600 mt-0.5">ต่ำกว่าเกณฑ์ขั้นต่ำที่กำหนด</p>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="p-2.5 rounded-xl bg-[#E8F3F2] border border-[#D4E4E3] text-[#476E6C] flex items-start gap-2">
-                      <Database size={15} className="text-[#5A8A88] shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold">ระบบออนไลน์ (Supabase)</p>
-                        <p className="text-[11px] text-[#5A8A88] mt-0.5">เชื่อมต่อฐานข้อมูลเรียบร้อยแล้ว</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Switch to ProdCalc */}
-            {onSwitchApp && canAccessProdCalc(user) && (
-              <button
-                type="button"
-                onClick={() => onSwitchApp('prodcalc')}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EEF6FB] hover:bg-[#DDF0F8] border border-[#5BA4C8] text-[#1E5A7A] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer"
-                title="สลับไปยังแอปพลิเคชัน ProdCalc (คำนวณต้นทุนการผลิต)"
-              >
-                <span className="text-sm">🧮</span>
-                <span className="hidden sm:inline">ProdCalc</span>
-              </button>
-            )}
-
             {/* Avatar Circle */}
             <button
               onClick={() => setShowProfileModal(true)}
@@ -1421,7 +1350,10 @@ export function HomeScreen({
       </header>
 
       {/* Supabase status bar */}
-      <SupabaseStatusBar dbStatus={dbStatus} />
+      <SupabaseStatusBar 
+        dbStatus={dbStatus}
+        onSwitchApp={onSwitchApp && canAccessProdCalc(user) ? () => onSwitchApp('prodcalc') : undefined}
+      />
 
       {/* Main Container */}
       <main className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto px-4 md:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
