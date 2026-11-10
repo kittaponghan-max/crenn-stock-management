@@ -1303,32 +1303,59 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     return gradients[(charCodeSum + index) % gradients.length];
   };
 
-  // Helper for role badge styling
+  // Helper for role badge styling with single-line whitespace discipline
   const renderRoleBadge = (role: string) => {
-    const r = role.toUpperCase();
-    if (r === 'ADMIN' || r === 'OWNER' || r === 'CO-FOUNDER') {
+    const r = (role || '').toUpperCase();
+    const badgeStyle = "whitespace-nowrap max-w-full truncate inline-flex items-center justify-center font-bold tracking-[0.04em] uppercase px-1.5 py-0.5 rounded-[5px] text-[9px] sm:text-[9.5px] leading-tight";
+    
+    if (r === 'ADMIN' || r === 'OWNER' || r === 'CO-FOUNDER' || r === 'COFOUNDER') {
       return (
-        <span className="bg-[#2D4A49] text-white text-[10px] font-bold tracking-[0.08em] uppercase px-2 py-0.5 rounded-[5px] shadow-2xs">
+        <span className={`bg-[#2D4A49] text-white shadow-2xs ${badgeStyle}`}>
           {role}
         </span>
       );
     }
     if (r === 'BRANCH MANAGER') {
       return (
-        <span className="bg-[#E8F3F2] text-[#5A8A88] border border-[#B8D4D2] text-[10px] font-bold tracking-[0.08em] uppercase px-2 py-0.5 rounded-[5px]">
+        <span className={`bg-[#E8F3F2] text-[#5A8A88] border border-[#B8D4D2] ${badgeStyle}`}>
           {role}
         </span>
       );
     }
     return (
-      <span className="bg-[#F0F5F4] text-[#6B8F8E] border border-[#D4E4E3] text-[10px] font-bold tracking-[0.08em] uppercase px-2 py-0.5 rounded-[5px]">
+      <span className={`bg-[#F0F5F4] text-[#6B8F8E] border border-[#D4E4E3] ${badgeStyle}`}>
         {role}
       </span>
     );
   };
 
+  // Helper for sorting users by official position hierarchy
+  const getRoleRank = (role: string): number => {
+    const r = (role || '').toUpperCase().trim();
+    if (r === 'CO-FOUNDER' || r === 'COFOUNDER') return 1;
+    if (r === 'OWNER') return 2;
+    if (r === 'ADMIN') return 3;
+    if (r === 'BRANCH MANAGER' || r === 'BRANCHMANAGER') return 4;
+    if (r === 'HEAD BAKER') return 5;
+    if (r === 'SENIOR BAKER') return 6;
+    if (r === 'JUNIOR BAKER' || r === 'BAKER') return 7;
+    if (r === 'BARISTA') return 8;
+    if (r === 'BARISTA ASSISTANCE' || r === 'BARISTA ASSISTANT') return 9;
+    if (r === 'CASHIER') return 10;
+    if (r === 'SERVER/RUNNER' || r === 'SERVER' || r === 'RUNNER') return 11;
+    if (r === 'DISHWASHER/CLEANER' || r === 'CLEANER' || r === 'DISHWASHER') return 12;
+    return 99;
+  };
+
+  const sortedUsers = [...users].sort((a, b) => {
+    const rankA = getRoleRank(a.role);
+    const rankB = getRoleRank(b.role);
+    if (rankA !== rankB) return rankA - rankB;
+    return a.name.localeCompare(b.name, 'th');
+  });
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-12">
+    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300 pb-12">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           PAGE HEADER CARD
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -1884,155 +1911,135 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           </span>
         </div>
 
-        {/* User cards list */}
-        <div className="space-y-2">
+        {/* User cards grid matching image_fc94ed14.png */}
+        <div>
           {isLoading ? (
-            <div className="text-center py-8 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] animate-pulse">
+            <div className="text-center py-12 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] animate-pulse">
               กำลังโหลดข้อมูล...
             </div>
           ) : users.length === 0 ? (
-            <div className="text-center py-8 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] border-dashed">
+            <div className="text-center py-12 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] border-dashed">
               ยังไม่มีข้อมูลผู้ใช้งาน
             </div>
-          ) : users.map((user, idx) => (
-            <div 
-              key={user.id} 
-              className="bg-white rounded-2xl border border-[#D4E4E3] p-3.5 sm:px-4 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-[0_2px_8px_rgba(90,138,136,0.06)] hover:shadow-[0_6px_16px_rgba(90,138,136,0.12)] hover:border-[#B8D4D2] transition-all duration-200 group"
-            >
-              {/* User Info Left */}
-              <div className="flex items-center gap-3.5">
-                {/* Hexagon Avatar Component matching reference image */}
-                <div className="relative shrink-0">
-                  <div 
-                    className="w-12 h-13 sm:w-14 sm:h-15 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 cursor-pointer"
-                    style={{
-                      filter: 'drop-shadow(0px 3px 6px rgba(45, 74, 73, 0.18))'
-                    }}
-                    onClick={() => openEditForm(user)}
-                    title={`คลิกเพื่อแก้ไขโปรไฟล์ ${user.name}`}
-                  >
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-3.5">
+              {sortedUsers.map((user, idx) => (
+                <div 
+                  key={user.id} 
+                  className="bg-white rounded-xl sm:rounded-2xl border border-[#D4E4E3] p-3.5 sm:p-4 flex flex-col items-center text-center shadow-[0_2px_8px_rgba(90,138,136,0.06)] hover:shadow-[0_6px_18px_rgba(90,138,136,0.12)] hover:border-[#B8D4D2] transition-all duration-200 group relative"
+                >
+                  {/* Top: Circular Member Photo Avatar */}
+                  <div className="relative mb-2.5 shrink-0">
                     <div 
-                      className="w-full h-full flex items-center justify-center p-[1.5px]"
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 sm:border-3 border-white shadow-[0_3px_12px_rgba(45,74,73,0.14)] flex items-center justify-center transition-transform duration-200 group-hover:scale-105 cursor-pointer"
                       style={{
-                        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                        background: 'linear-gradient(180deg, #FFFFFF 0%, #B8D4D2 100%)'
+                        background: (user.avatar || user.image) ? '#F0F5F4' : getAvatarGradient(user.name, idx)
                       }}
+                      onClick={() => openEditForm(user)}
+                      title={`คลิกเพื่อแก้ไขโปรไฟล์ ${user.name}`}
                     >
-                      <div 
-                        className="w-full h-full flex items-center justify-center overflow-hidden"
-                        style={{
-                          clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                          background: getAvatarGradient(user.name, idx)
-                        }}
-                      >
-                        {user.avatar || user.image ? (
-                          <img 
-                            src={user.avatar || user.image} 
-                            alt={user.name} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-[17px] sm:text-[18px] font-black text-white tracking-wider uppercase drop-shadow-md select-none font-sans">
-                            {user.name ? user.name.charAt(0) : 'U'}
-                          </span>
-                        )}
-                      </div>
+                      {user.avatar || user.image ? (
+                        <img 
+                          src={user.avatar || user.image} 
+                          alt={user.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl sm:text-2xl font-extrabold text-white tracking-wider uppercase drop-shadow-md select-none font-sans">
+                          {user.name ? user.name.charAt(0) : 'U'}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Active Status Dot */}
+                    <span 
+                      className="absolute bottom-0 right-0 w-3 h-3 bg-[#22C55E] border-2 border-white rounded-full z-10 shadow-2xs" 
+                      title="Active Member (Online)"
+                    />
                   </div>
 
-                  {/* Active Member Status Dot */}
-                  <span 
-                    className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#22C55E] border-2 border-white rounded-full z-10 shadow-2xs" 
-                    title="Active Member (Online)"
-                  />
-                </div>
+                  {/* 1. Account Name */}
+                  <h4 className="font-extrabold text-[13px] sm:text-[14px] text-[#2D4A49] leading-tight tracking-tight mb-0.5 truncate max-w-full">
+                    {user.name}
+                  </h4>
 
-                {/* Name, Role & Details */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-extrabold text-[14px] text-[#2D4A49] leading-tight tracking-tight">
-                      {user.name}
-                    </h4>
-                    {user.branch && (
-                      <span className="text-[9.5px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-md border border-[#D4E4E3]">
-                        📍 สาขา {user.branch === 'Rayong' ? 'ระยอง' : user.branch}
-                      </span>
+                  {user.branch && (
+                    <span className="text-[9px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3] mb-1.5">
+                      📍 สาขา {user.branch === 'Rayong' ? 'ระยอง' : user.branch}
+                    </span>
+                  )}
+
+                  {/* 2. Position / Role */}
+                  <div className="mb-2.5">
+                    {renderRoleBadge(user.role)}
+                  </div>
+
+                  {/* 3. Action Buttons (password, edit, delete) */}
+                  <div className="w-full pt-2 border-t border-[#E2EAE9] mt-auto">
+                    {isChangingPassword === user.id ? (
+                      <form onSubmit={(e) => handleSavePassword(e, user.id)} className="flex flex-col gap-1.5 w-full animate-in fade-in zoom-in-95 duration-150">
+                        <input
+                          type="text"
+                          placeholder="รหัสผ่านใหม่"
+                          required
+                          autoFocus
+                          className="w-full px-2 py-1 border border-[#D4E4E3] rounded-md focus:ring-2 focus:ring-[#5A8A88] outline-none text-[10px] text-[#2D4A49] bg-white font-mono text-center"
+                          value={passwordForm.password}
+                          onChange={(e) => setPasswordForm({ password: e.target.value })}
+                        />
+                        <div className="flex items-center justify-center gap-1">
+                          <button 
+                            type="submit" 
+                            className="flex-1 py-1 bg-[#5A8A88] hover:bg-[#4d7775] text-white rounded-md transition-colors cursor-pointer text-[10px] font-bold flex items-center justify-center gap-1"
+                          >
+                            <Save size={11} />
+                            <span>บันทึก</span>
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => setIsChangingPassword(null)} 
+                            className="px-2 py-1 text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-md transition-colors cursor-pointer text-[10px]" 
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1 bg-[#F0F5F4]/70 p-1 rounded-lg border border-[#D4E4E3]/70">
+                        {/* Password Key Button */}
+                        <button 
+                          onClick={() => setIsChangingPassword(user.id)}
+                          className="p-1.5 text-[#5A8A88] hover:bg-white hover:text-[#2D4A49] hover:shadow-2xs rounded-md transition-all cursor-pointer flex items-center justify-center" 
+                          title="แก้ไขรหัสผ่าน"
+                        >
+                          <Key size={13} />
+                        </button>
+
+                        {/* Edit Pencil Button */}
+                        <button 
+                          onClick={() => openEditForm(user)}
+                          className="p-1.5 text-[#5A8A88] hover:bg-white hover:text-[#2D4A49] hover:shadow-2xs rounded-md transition-all cursor-pointer flex items-center justify-center" 
+                          title="แก้ไขข้อมูลและสิทธิ์"
+                        >
+                          <Pencil size={13} />
+                        </button>
+
+                        {/* Delete Trash Button */}
+                        <button 
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          className="p-1.5 text-[#EF4444] hover:bg-rose-50 hover:text-rose-600 rounded-md transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center" 
+                          title="ลบผู้ใช้งาน"
+                          disabled={user.name === 'Admin'}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {renderRoleBadge(user.role)}
-                    <span className="text-[10px] font-medium text-[#6B8F8E] flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-                      Online
-                    </span>
-                  </div>
                 </div>
-              </div>
-              
-              {/* Action Buttons Right */}
-              {isChangingPassword === user.id ? (
-                <form onSubmit={(e) => handleSavePassword(e, user.id)} className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="flex items-center px-2.5 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[10px] text-[#6B8F8E] line-through shrink-0" title="รหัสผ่านเดิม">
-                    {user.password || 'ไม่มีรหัส'}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="รหัสผ่านใหม่"
-                    required
-                    className="flex-1 sm:w-32 px-2.5 py-1 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white font-mono"
-                    value={passwordForm.password}
-                    onChange={(e) => setPasswordForm({ password: e.target.value })}
-                  />
-                  <button 
-                    type="submit" 
-                    className="p-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white rounded-lg transition-colors cursor-pointer shadow-xs" 
-                    title="บันทึก"
-                  >
-                    <Save size={13} />
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsChangingPassword(null)} 
-                    className="p-1.5 text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg transition-colors cursor-pointer" 
-                    title="ยกเลิก"
-                  >
-                    <X size={13} />
-                  </button>
-                </form>
-              ) : (
-                <div className="flex items-center gap-1.5 self-end sm:self-auto bg-[#F0F5F4]/70 p-1 rounded-xl border border-[#D4E4E3]/70">
-                  {/* Key button */}
-                  <button 
-                    onClick={() => setIsChangingPassword(user.id)}
-                    className="p-1.5 text-[#5A8A88] hover:bg-white hover:shadow-2xs rounded-lg transition-all cursor-pointer" 
-                    title="แก้ไขรหัสผ่าน"
-                  >
-                    <Key size={14} />
-                  </button>
-
-                  {/* Edit button */}
-                  <button 
-                    onClick={() => openEditForm(user)}
-                    className="p-1.5 text-[#5A8A88] hover:bg-white hover:shadow-2xs rounded-lg transition-all cursor-pointer" 
-                    title="แก้ไขข้อมูล"
-                  >
-                    <Pencil size={14} />
-                  </button>
-
-                  {/* Delete button */}
-                  <button 
-                    onClick={() => handleDeleteUser(user.id, user.name)}
-                    className="p-1.5 text-[#EF4444] hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed" 
-                    title="ลบผู้ใช้งาน"
-                    disabled={user.name === 'Admin'}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
