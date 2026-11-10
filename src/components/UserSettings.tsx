@@ -576,11 +576,13 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     name: string;
     role: UserRole;
     password: string;
+    avatar: string;
     permissions: UserPermissions;
   }>({
     name: '',
     role: 'Barista' as UserRole,
     password: '',
+    avatar: '',
     permissions: applyRoleDefaults('Barista')
   });
   
@@ -1051,6 +1053,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       id: targetUserId,
       name: formData.name.trim(),
       role: formData.role,
+      avatar: formData.avatar ? formData.avatar.trim() : undefined,
+      image: formData.avatar ? formData.avatar.trim() : undefined,
       permissions: savePerms,
       branch: targetBranch
     };
@@ -1071,6 +1075,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             .update({
               name: payload.name,
               role: payload.role,
+              avatar: payload.avatar,
+              image: payload.image,
               permissions: payload.permissions,
               ...(payload.branch ? { branch: payload.branch } : {})
             })
@@ -1198,7 +1204,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       setActiveModalTab('general');
       setUserSaveStatus(null);
       const defaultPerms = applyRoleDefaults('Barista');
-      setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+      setFormData({ name: '', role: 'Barista', password: '', avatar: '', permissions: defaultPerms });
       fetchUsers();
     }, 1200);
   };
@@ -1269,6 +1275,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       name: user.name,
       role: user.role as UserRole,
       password: '',
+      avatar: user.avatar || user.image || '',
       permissions: normalized
     });
     setIsUserFormDirty(false);
@@ -1276,6 +1283,24 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     setUserSaveStatus(null);
     setActiveModalTab('general');
     setIsFormOpen(true);
+  };
+
+  // Helper for generating member avatar gradient backgrounds matching reference design
+  const getAvatarGradient = (name: string, index: number = 0) => {
+    const gradients = [
+      'linear-gradient(135deg, #1E3D52 0%, #2D4A49 100%)', // Crenn Teal
+      'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)', // Ocean Blue
+      'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', // Purple
+      'linear-gradient(135deg, #D97706 0%, #B45309 100%)', // Amber
+      'linear-gradient(135deg, #059669 0%, #047857 100%)', // Emerald
+      'linear-gradient(135deg, #E11D48 0%, #BE123C 100%)', // Rose
+      'linear-gradient(135deg, #4F46E5 0%, #4338CA 100%)', // Indigo
+    ];
+    let charCodeSum = 0;
+    for (let i = 0; i < (name || '').length; i++) {
+      charCodeSum += name.charCodeAt(i);
+    }
+    return gradients[(charCodeSum + index) % gradients.length];
   };
 
   // Helper for role badge styling
@@ -1355,7 +1380,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                 onClick={() => {
                   setEditingUser(null);
                   const defaultPerms = getRoleDefaults('Barista');
-                  setFormData({ name: '', role: 'Barista', password: '', permissions: defaultPerms });
+                  setFormData({ name: '', role: 'Barista', password: '', avatar: '', permissions: defaultPerms });
                   setIsUserFormDirty(false);
                   setJustSavedUser(false);
                   setUserSaveStatus(null);
@@ -1374,47 +1399,100 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
       {/* User Form Card (Add/Edit) */}
       {isFormOpen && (
-        <form onSubmit={handleSaveUser} className="bg-white border border-[#D4E4E3] rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_rgba(90,138,136,0.08)] animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#E2EAE9]">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-[14px] text-[#2D4A49]">
-                {editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
-              </h3>
-              {editingUser && renderRoleBadge(editingUser.role)}
-            </div>
+        <form onSubmit={handleSaveUser} className="bg-white border border-[#D4E4E3] rounded-2xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(45,74,73,0.1)] animate-in fade-in zoom-in-95 duration-200">
+          {/* Header Card with Centered Profile Avatar & Badge Icon matching image_e9eedba6.png */}
+          <div className="relative pt-2 pb-5 mb-5 border-b border-[#E2EAE9] flex flex-col items-center text-center">
             <button 
               type="button" 
               onClick={() => setIsFormOpen(false)} 
-              className="w-7 h-7 rounded-lg text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center justify-center transition-colors cursor-pointer"
+              className="absolute top-0 right-0 w-8 h-8 rounded-full text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center justify-center transition-colors cursor-pointer"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
+
+            {/* Avatar Circle Container with Yellow Badge Pencil Icon */}
+            <div className="relative mb-3 group">
+              <div 
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-4 border-white shadow-[0_4px_16px_rgba(45,74,73,0.18)] flex items-center justify-center transition-transform duration-200"
+                style={{
+                  background: (formData.avatar || editingUser?.avatar || editingUser?.image) ? '#F0F5F4' : getAvatarGradient(formData.name || 'User')
+                }}
+              >
+                {formData.avatar ? (
+                  <img 
+                    src={formData.avatar} 
+                    alt={formData.name} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (editingUser?.avatar || editingUser?.image) ? (
+                  <img 
+                    src={editingUser.avatar || editingUser.image} 
+                    alt={formData.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-2xl sm:text-3xl font-extrabold text-white uppercase tracking-wider font-sans select-none drop-shadow-sm">
+                    {formData.name ? formData.name.charAt(0) : 'U'}
+                  </span>
+                )}
+              </div>
+
+              {/* Edit Pencil Badge Icon */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveModalTab('general');
+                  setTimeout(() => {
+                    const avatarInput = document.getElementById('user-avatar-input');
+                    if (avatarInput) avatarInput.focus();
+                  }, 50);
+                }}
+                className="absolute bottom-0 right-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F59E0B] hover:bg-[#D97706] text-white border-2 border-white shadow-md flex items-center justify-center transition-all cursor-pointer hover:scale-110 z-10"
+                title="คลิกเพื่อตั้งค่า/วาง URL รูปภาพโปรไฟล์"
+              >
+                <Pencil size={13} />
+              </button>
+            </div>
+
+            {/* Large User Name & Role/Email Subtitle */}
+            <h3 className="font-extrabold text-[17px] sm:text-[19px] text-[#2D4A49] leading-tight tracking-tight">
+              {formData.name || (editingUser ? editingUser.name : 'เพิ่มผู้ใช้งานใหม่')}
+            </h3>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap justify-center">
+              {renderRoleBadge(formData.role)}
+              <span className="text-[11px] text-[#6B8F8E] font-medium">
+                {formData.name ? `${formData.name.toLowerCase().replace(/\s+/g, '')}@crenn.cafe` : 'member@crenn.cafe'}
+              </span>
+            </div>
           </div>
 
-          {/* Tab Navigation inside Edit/Add Modal */}
+          {/* Tab Navigation inside Edit Modal */}
           <div className="flex items-center gap-1.5 mb-4 p-1 bg-[#F0F5F4] rounded-xl border border-[#D4E4E3] w-fit">
             <button
               type="button"
               onClick={() => setActiveModalTab('general')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                 activeModalTab === 'general'
                   ? 'bg-[#5A8A88] text-white shadow-xs'
                   : 'text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2]'
               }`}
             >
-              <User size={12} />
+              <User size={13} />
               <span>ข้อมูลทั่วไป</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveModalTab('permissions')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                 activeModalTab === 'permissions'
                   ? 'bg-[#5A8A88] text-white shadow-xs'
                   : 'text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2]'
               }`}
             >
-              <Shield size={12} />
+              <Shield size={13} />
               <span>สิทธิ์การเข้าถึง</span>
             </button>
           </div>
@@ -1428,7 +1506,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   <input
                     type="text"
                     required
-                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all"
+                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium"
                     value={formData.name}
                     onChange={(e) => {
                       setIsUserFormDirty(true);
@@ -1465,6 +1543,20 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                     <option value="Server/Runner">Server/Runner</option>
                     <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
                   </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1">URL รูปภาพโปรไฟล์ (Avatar)</label>
+                  <input
+                    id="user-avatar-input"
+                    type="url"
+                    placeholder="https://example.com/avatar.png (ใส่ URL รูปภาพโปรไฟล์)"
+                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-mono"
+                    value={formData.avatar}
+                    onChange={(e) => {
+                      setIsUserFormDirty(true);
+                      setFormData(prev => ({ ...prev, avatar: e.target.value }));
+                    }}
+                  />
                 </div>
                 {!editingUser && (
                   <div className="md:col-span-2">
@@ -1802,31 +1894,78 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             <div className="text-center py-8 text-[11px] text-[#6B8F8E] bg-white rounded-2xl border border-[#D4E4E3] border-dashed">
               ยังไม่มีข้อมูลผู้ใช้งาน
             </div>
-          ) : users.map((user) => (
+          ) : users.map((user, idx) => (
             <div 
               key={user.id} 
-              className="bg-white rounded-xl border border-[#D4E4E3] p-3 sm:px-3.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_1px_4px_rgba(90,138,136,0.06)] hover:shadow-[0_4px_12px_rgba(90,138,136,0.12)] hover:border-[#B8D4D2] hover:bg-[#FAFCFC] transition-all duration-150 group"
+              className="bg-white rounded-2xl border border-[#D4E4E3] p-3.5 sm:px-4 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-[0_2px_8px_rgba(90,138,136,0.06)] hover:shadow-[0_6px_16px_rgba(90,138,136,0.12)] hover:border-[#B8D4D2] transition-all duration-200 group"
             >
               {/* User Info Left */}
-              <div className="flex items-center gap-3">
-                {/* Avatar circle */}
-                <div className="w-9 h-9 rounded-full bg-[#E8F3F2] border-[1.5px] border-[#D4E4E3] flex items-center justify-center shrink-0">
-                  {user.name ? (
-                    <span className="text-[14px] font-bold text-[#5A8A88] uppercase">
-                      {user.name.charAt(0)}
-                    </span>
-                  ) : (
-                    <User size={16} className="text-[#5A8A88]" />
-                  )}
+              <div className="flex items-center gap-3.5">
+                {/* Hexagon Avatar Component matching reference image */}
+                <div className="relative shrink-0">
+                  <div 
+                    className="w-12 h-13 sm:w-14 sm:h-15 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 cursor-pointer"
+                    style={{
+                      filter: 'drop-shadow(0px 3px 6px rgba(45, 74, 73, 0.18))'
+                    }}
+                    onClick={() => openEditForm(user)}
+                    title={`คลิกเพื่อแก้ไขโปรไฟล์ ${user.name}`}
+                  >
+                    <div 
+                      className="w-full h-full flex items-center justify-center p-[1.5px]"
+                      style={{
+                        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                        background: 'linear-gradient(180deg, #FFFFFF 0%, #B8D4D2 100%)'
+                      }}
+                    >
+                      <div 
+                        className="w-full h-full flex items-center justify-center overflow-hidden"
+                        style={{
+                          clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                          background: getAvatarGradient(user.name, idx)
+                        }}
+                      >
+                        {user.avatar || user.image ? (
+                          <img 
+                            src={user.avatar || user.image} 
+                            alt={user.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-[17px] sm:text-[18px] font-black text-white tracking-wider uppercase drop-shadow-md select-none font-sans">
+                            {user.name ? user.name.charAt(0) : 'U'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active Member Status Dot */}
+                  <span 
+                    className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#22C55E] border-2 border-white rounded-full z-10 shadow-2xs" 
+                    title="Active Member (Online)"
+                  />
                 </div>
 
-                {/* Name and Role */}
-                <div>
-                  <h4 className="font-bold text-[13px] text-[#2D4A49] leading-tight">
-                    {user.name}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-0.5">
+                {/* Name, Role & Details */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-extrabold text-[14px] text-[#2D4A49] leading-tight tracking-tight">
+                      {user.name}
+                    </h4>
+                    {user.branch && (
+                      <span className="text-[9.5px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-md border border-[#D4E4E3]">
+                        📍 สาขา {user.branch === 'Rayong' ? 'ระยอง' : user.branch}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
                     {renderRoleBadge(user.role)}
+                    <span className="text-[10px] font-medium text-[#6B8F8E] flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+                      Online
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1834,7 +1973,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
               {/* Action Buttons Right */}
               {isChangingPassword === user.id ? (
                 <form onSubmit={(e) => handleSavePassword(e, user.id)} className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="flex items-center px-2 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[10px] text-[#6B8F8E] line-through shrink-0" title="รหัสผ่านเดิม">
+                  <div className="flex items-center px-2.5 py-1 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg text-[10px] text-[#6B8F8E] line-through shrink-0" title="รหัสผ่านเดิม">
                     {user.password || 'ไม่มีรหัส'}
                   </div>
                   <input
@@ -1862,11 +2001,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   </button>
                 </form>
               ) : (
-                <div className="flex items-center gap-1 self-end sm:self-auto">
+                <div className="flex items-center gap-1.5 self-end sm:self-auto bg-[#F0F5F4]/70 p-1 rounded-xl border border-[#D4E4E3]/70">
                   {/* Key button */}
                   <button 
                     onClick={() => setIsChangingPassword(user.id)}
-                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-[7px] transition-all cursor-pointer" 
+                    className="p-1.5 text-[#5A8A88] hover:bg-white hover:shadow-2xs rounded-lg transition-all cursor-pointer" 
                     title="แก้ไขรหัสผ่าน"
                   >
                     <Key size={14} />
@@ -1875,7 +2014,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   {/* Edit button */}
                   <button 
                     onClick={() => openEditForm(user)}
-                    className="p-1.5 text-[#5A8A88] hover:bg-[#E8F3F2] rounded-[7px] transition-all cursor-pointer" 
+                    className="p-1.5 text-[#5A8A88] hover:bg-white hover:shadow-2xs rounded-lg transition-all cursor-pointer" 
                     title="แก้ไขข้อมูล"
                   >
                     <Pencil size={14} />
@@ -1884,7 +2023,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   {/* Delete button */}
                   <button 
                     onClick={() => handleDeleteUser(user.id, user.name)}
-                    className="p-1.5 text-[#EF4444] hover:bg-[#FEE2E2] rounded-[7px] transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed" 
+                    className="p-1.5 text-[#EF4444] hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed" 
                     title="ลบผู้ใช้งาน"
                     disabled={user.name === 'Admin'}
                   >
