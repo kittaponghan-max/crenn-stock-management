@@ -51,6 +51,7 @@ export interface UserPermissions {
   // รายงานรวม
   purchasing: PagePermission;
   rndReport: PagePermission;
+  maintenanceReport: PagePermission;
 
   // ประวัติ
   history_edit: PagePermission;
@@ -90,6 +91,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       bakeryPlan: 'edit',
       purchasing: 'edit',
       rndReport: 'edit',
+      maintenanceReport: 'edit',
       history_edit: 'edit',
       history_checkin: 'edit',
       history_stock: 'edit',
@@ -119,6 +121,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       bakeryPlan: 'edit',
       purchasing: 'edit',
       rndReport: 'edit',
+      maintenanceReport: 'edit',
       history_edit: 'edit',
       history_checkin: 'edit',
       history_stock: 'edit',
@@ -148,6 +151,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       bakeryPlan: 'edit',
       purchasing: 'read',
       rndReport: 'edit',
+      maintenanceReport: 'read',
       history_edit: 'read',
       history_checkin: 'read',
       history_stock: 'read',
@@ -177,6 +181,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       bakeryPlan: 'hidden',
       purchasing: 'read',
       rndReport: 'read',
+      maintenanceReport: 'read',
       history_edit: 'read',
       history_checkin: 'read',
       history_stock: 'read',
@@ -206,6 +211,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     bakeryPlan: 'read',
     purchasing: 'hidden',
     rndReport: 'hidden',
+    maintenanceReport: 'read',
     history_edit: 'read',
     history_checkin: 'read',
     history_stock: 'read',
@@ -258,6 +264,7 @@ export const normalizePermissions = (raw: any, role: string): UserPermissions =>
 
     purchasing: toLevel(parsed.purchasing !== undefined ? parsed.purchasing : parsed.purchasingReport, defaults.purchasing),
     rndReport: toLevel(parsed.rndReport, defaults.rndReport),
+    maintenanceReport: toLevel(parsed.maintenanceReport, defaults.maintenanceReport),
 
     history_edit: toLevel(parsed.history_edit !== undefined ? parsed.history_edit : parsed.historyLogs, defaults.history_edit),
     history_checkin: toLevel(parsed.history_checkin !== undefined ? parsed.history_checkin : parsed.historyChecklist, defaults.history_checkin),
@@ -293,6 +300,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     bakeryPlan: perms.bakeryPlan,
     purchasing: perms.purchasing,
     rndReport: perms.rndReport,
+    maintenanceReport: perms.maintenanceReport,
     history_edit: perms.history_edit,
     history_checkin: perms.history_checkin,
     history_stock: perms.history_stock,
@@ -350,50 +358,51 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'bar',
     name: 'GROUP 2: 🍹 วัตถุดิบบาร์ (Bar)',
     items: [
-      { key: 'bar_stock', name: 'Stock บาร์', icon: '📦' },
-      { key: 'bar_receiving', name: 'รับวัตถุดิบ (บาร์)', icon: '📦' },
-      { key: 'bar_stockcount', name: 'นับสต็อก (บาร์)', icon: '📋' },
-      { key: 'bar_waste', name: 'Waste/ของเสีย (บาร์)', icon: '🗑️' },
-      { key: 'bar_checkin', name: 'Check-in บาร์', icon: '✅' },
-      { key: 'bar_coffeeWaste', name: 'Waste เมล็ดกาแฟ', icon: '☕' },
+      { key: 'bar_stock', name: 'สรุป Stock บาร์', icon: '📦' },
+      { key: 'bar_receiving', name: 'รายงานตรวจรับวัตถุดิบ บาร์', icon: '📦' },
+      { key: 'bar_stockcount', name: 'รายงานตรวจนับสต็อก บาร์', icon: '📋' },
+      { key: 'bar_waste', name: 'รายงาน Waste/ของเสีย บาร์', icon: '🗑️' },
+      { key: 'bar_checkin', name: 'Check-in & Check-out บาร์', icon: '✅' },
+      { key: 'bar_coffeeWaste', name: 'รายงาน Waste เมล็ดกาแฟ', icon: '☕' },
     ]
   },
   {
     id: 'kitchen',
-    name: 'GROUP 3: 🍳 วัตถุดิบครัว (Kitchen)',
+    name: 'GROUP 3: 🍳 วัตถุดิบครัว (Kitchen / Bakery)',
     items: [
-      { key: 'kitchen_stock', name: 'Stock ครัว', icon: '📦' },
-      { key: 'kitchen_receiving', name: 'รับวัตถุดิบ (ครัว)', icon: '📦' },
-      { key: 'kitchen_stockcount', name: 'นับสต็อก (ครัว)', icon: '📋' },
-      { key: 'kitchen_waste', name: 'Waste/ของเสีย (ครัว)', icon: '🗑️' },
-      { key: 'kitchen_checkin', name: 'Check-in ครัว', icon: '✅' },
+      { key: 'kitchen_stock', name: 'สรุป Stock ครัว', icon: '📦' },
+      { key: 'kitchen_receiving', name: 'รายงานตรวจรับวัตถุดิบ ครัว', icon: '📦' },
+      { key: 'kitchen_stockcount', name: 'รายงานตรวจนับสต็อก ครัว', icon: '📋' },
+      { key: 'kitchen_waste', name: 'รายงาน Waste/ของเสีย ครัว', icon: '🗑️' },
+      { key: 'kitchen_checkin', name: 'Check-in & Check-out ครัว', icon: '✅' },
       { key: 'bakeryPlan', name: 'แผนงาน Bakery', icon: '🧁' },
     ]
   },
   {
     id: 'reports',
-    name: 'GROUP 4: 📊 รายงานรวม',
+    name: 'GROUP 4: 📊 รายงานรวม (Reports)',
     items: [
-      { key: 'purchasing', name: 'Purchasing (สั่งซื้อ)', icon: '🛒' },
-      { key: 'rndReport', name: 'R&D Report', icon: '🔬' },
+      { key: 'purchasing', name: 'Purchasing (สั่งซื้อวัตถุดิบ)', icon: '🛒' },
+      { key: 'rndReport', name: 'R&D Report (เทสเมนูใหม่)', icon: '🔬' },
+      { key: 'maintenanceReport', name: 'รายงานบำรุงรักษาเครื่องมือ (Maintenance)', icon: '🔧' },
     ]
   },
   {
     id: 'history',
-    name: 'GROUP 5: 🕐 ประวัติย้อนหลัง',
+    name: 'GROUP 5: 🕐 ประวัติย้อนหลัง (History)',
     items: [
-      { key: 'history_edit', name: 'ประวัติการแก้ไขข้อมูล', icon: '🕐' },
-      { key: 'history_checkin', name: 'ประวัติ Check-in', icon: '🕐' },
+      { key: 'history_edit', name: 'ประวัติการแก้ไขข้อมูล (Audit Logs)', icon: '🕐' },
+      { key: 'history_checkin', name: 'ประวัติ Check-in & Check-out', icon: '🕐' },
       { key: 'history_stock', name: 'ประวัตินับสต็อก', icon: '🕐' },
-      { key: 'history_receiving', name: 'ประวัติรับวัตถุดิบ', icon: '🕐' },
-      { key: 'history_bakery', name: 'ประวัติ Bakery', icon: '🕐' },
+      { key: 'history_receiving', name: 'ประวัติการรับวัตถุดิบ', icon: '🕐' },
+      { key: 'history_bakery', name: 'ประวัติแผนงาน Bakery', icon: '🕐' },
     ]
   },
   {
     id: 'admin',
     name: 'GROUP 6: ⚙️ Admin & Add-on Apps',
     items: [
-      { key: 'userSettings', name: 'User Settings', icon: '👤' },
+      { key: 'userSettings', name: 'User Security Settings (ตั้งค่าสิทธิ์และบัญชีผู้ใช้)', icon: '👤' },
       { key: 'prodcalc', name: 'คำนวณต้นทุนการผลิต (ProdCalc)', icon: '🧮' },
     ]
   }
@@ -616,7 +625,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       'dashboard', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
-      'purchasing', 'rndReport',
+      'purchasing', 'rndReport', 'maintenanceReport',
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
       'userSettings', 'prodcalc'
     ];
@@ -675,7 +684,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       'dashboard', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
-      'purchasing', 'rndReport',
+      'purchasing', 'rndReport', 'maintenanceReport',
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
       'userSettings', 'prodcalc'
     ];
