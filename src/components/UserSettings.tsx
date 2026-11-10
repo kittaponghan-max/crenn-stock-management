@@ -2275,13 +2275,6 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   <span className="text-[11px] font-bold text-[#2D4A49]">เลือกทั้งหมด:</span>
                   <button
                     type="button"
-                    onClick={() => handleTemplatePresetAll('hidden')}
-                    className="bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
-                  >
-                    Hidden ทั้งหมด
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => handleTemplatePresetAll('read')}
                     className="bg-white border border-[#D4E4E3] text-[#10B981] hover:text-emerald-700 text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
                   >
@@ -2293,6 +2286,13 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                     className="bg-white border border-[#D4E4E3] text-[#5A8A88] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
                   >
                     Edit ทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTemplatePresetAll('hidden')}
+                    className="bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] text-[11px] font-medium rounded-[6px] px-2.5 py-1 hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                  >
+                    Hidden ทั้งหมด
                   </button>
                   <button
                     type="button"
@@ -2407,9 +2407,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   <thead>
                     <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
                       <th className="p-2 font-bold w-full text-[11px]">ฟังก์ชันระบบ</th>
-                      <th className="p-2 font-bold text-center w-20 text-[11px]">Hidden</th>
                       <th className="p-2 font-bold text-center w-20 text-[11px]">Read</th>
                       <th className="p-2 font-bold text-center w-20 text-[11px]">Edit</th>
+                      <th className="p-2 font-bold text-center w-20 text-[11px]">Hidden</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0F5F4]">
@@ -2431,17 +2431,6 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                                 <input 
                                   type="radio" 
                                   name={`tpl_perm_${func.key}`} 
-                                  checked={templateForm[func.key] === 'hidden'}
-                                  onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'hidden' }))}
-                                  className="w-3.5 h-3.5 accent-[#6B8F8E] cursor-pointer"
-                                />
-                              </label>
-                            </td>
-                            <td className="p-2 text-center">
-                              <label className="inline-flex items-center justify-center cursor-pointer p-0.5">
-                                <input 
-                                  type="radio" 
-                                  name={`tpl_perm_${func.key}`} 
                                   checked={templateForm[func.key] === 'read'}
                                   onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'read' }))}
                                   className="w-3.5 h-3.5 accent-[#10B981] cursor-pointer"
@@ -2456,6 +2445,17 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                                   checked={templateForm[func.key] === 'edit'}
                                   onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'edit' }))}
                                   className="w-3.5 h-3.5 accent-[#5A8A88] cursor-pointer"
+                                />
+                              </label>
+                            </td>
+                            <td className="p-2 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer p-0.5">
+                                <input 
+                                  type="radio" 
+                                  name={`tpl_perm_${func.key}`} 
+                                  checked={templateForm[func.key] === 'hidden'}
+                                  onChange={() => setTemplateForm(prev => ({ ...prev, [func.key]: 'hidden' }))}
+                                  className="w-3.5 h-3.5 accent-[#6B8F8E] cursor-pointer"
                                 />
                               </label>
                             </td>
