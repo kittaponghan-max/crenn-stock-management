@@ -223,8 +223,8 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   };
 };
 
-export const normalizePermissions = (raw: any, role: string): UserPermissions => {
-  const defaults = applyRoleDefaults(role);
+export const normalizePermissions = (raw: any, role: string, customDefaults?: UserPermissions): UserPermissions => {
+  const defaults = customDefaults || applyRoleDefaults(role);
   if (!raw) return defaults;
   let parsed = raw;
   if (typeof raw === 'string') {
@@ -800,11 +800,26 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     }
   };
 
-  // Save role template with cross-branch synchronization
+  // Save role template with cross-branch synchronization and deployment to all matching accounts
   const handleSaveRoleTemplate = async () => {
     setIsSavingTemplate(true);
+    const newSavePerms = buildSavePermissions(templateForm);
     const updatedTemplates = { ...roleTemplates, [selectedTemplateRole]: templateForm };
     
+    const normalizedSelectedRole = (selectedTemplateRole || '').toLowerCase().trim();
+    
+    // Update local users state for all accounts with matching role
+    const updatedUsersList = users.map(u => {
+      const uRole = (u.role || '').toLowerCase().trim();
+      if (uRole === normalizedSelectedRole) {
+        return {
+          ...u,
+          permissions: newSavePerms
+        };
+      }
+      return u;
+    });
+
     if (supabase) {
       try {
         const branchesToUpdate = new Set<string>(['GLOBAL', 'Rayong', selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong']);
@@ -835,23 +850,95 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
         if (error) {
           console.warn('Error saving role template to supabase:', error.message);
         }
+
+        // Deploy template permissions directly to all matching user accounts in Supabase app_users table
+        try {
+          const { data: dbUsers } = await supabase.from('app_users').select('id, role');
+          if (dbUsers) {
+            const matchingDbUsers = dbUsers.filter(u => (u.role || '').toLowerCase().trim() === normalizedSelectedRole);
+            for (const tu of matchingDbUsers) {
+              await supabase
+                .from('app_users')
+                .update({ permissions: newSavePerms })
+                .eq('id', tu.id);
+            }
+          }
+        } catch (dbErr) {
+          console.warn('Error deploying role template to app_users table:', dbErr);
+        }
+
+        // Update cloud permissions map backup in app_settings
+        try {
+          const { data: existingSettings } = await supabase
+            .from('app_settings')
+            .select('setting_value')
+            .eq('setting_key', 'user_permissions_map')
+            .single();
+          
+          const currentMap = (existingSettings && existingSettings.setting_value) || {};
+          updatedUsersList.forEach(u => {
+            if ((u.role || '').toLowerCase().trim() === normalizedSelectedRole) {
+              currentMap[u.id] = newSavePerms;
+              currentMap[u.name] = newSavePerms;
+            }
+          });
+
+          const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+          await supabase
+            .from('app_settings')
+            .upsert({
+              branch: activeBr,
+              setting_key: 'user_permissions_map',
+              setting_value: currentMap
+            });
+        } catch (mapErr) {
+          console.warn('Cloud user_permissions_map update error:', mapErr);
+        }
       } catch (err: any) {
         console.warn('Supabase role template error:', err);
       }
     }
     
-    // Save to local storage backups
+    // Save to local storage backups for all matching users
+    updatedUsersList.forEach(u => {
+      if ((u.role || '').toLowerCase().trim() === normalizedSelectedRole) {
+        try {
+          localStorage.setItem(`cafe_user_permissions_${u.id}`, JSON.stringify(newSavePerms));
+          localStorage.setItem(`cafe_user_permissions_${u.name}`, JSON.stringify(newSavePerms));
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    });
+
     localStorage.setItem('role_permissions_templates', JSON.stringify(updatedTemplates));
     localStorage.setItem('role_permissions_templates_global', JSON.stringify(updatedTemplates));
     if (selectedBranchFilter !== 'ALL') {
       localStorage.setItem(`role_permissions_templates_${selectedBranchFilter}`, JSON.stringify(updatedTemplates));
     }
 
+    setUsers(updatedUsersList);
+    const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+    localStorage.setItem(`cafe-app-users-${activeBr}`, JSON.stringify(updatedUsersList));
+    localStorage.setItem('cafe-app-users', JSON.stringify(updatedUsersList));
+    localStorage.setItem('app_users', JSON.stringify(updatedUsersList));
+
+    // Update current active user if role matches
+    if (currentUser && (currentUser.role || '').toLowerCase().trim() === normalizedSelectedRole && onCurrentUserUpdated) {
+      onCurrentUserUpdated({
+        name: currentUser.name,
+        role: currentUser.role as UserRole,
+        permissions: newSavePerms as any
+      });
+    }
+
     setRoleTemplates(updatedTemplates);
     setIsSavingTemplate(false);
+
+    const affectedCount = updatedUsersList.filter(u => (u.role || '').toLowerCase().trim() === normalizedSelectedRole).length;
     setUserSaveStatus({
       type: 'success',
-      message: `บันทึก Default Authority สำหรับตำแหน่ง "${selectedTemplateRole}" สำเร็จและซิงค์ข้ามสาขาเรียบร้อย`
+      message: `บันทึก Default Authority สำหรับตำแหน่ง "${selectedTemplateRole}" และอัปเดตสิทธิ์ไปยังบัญชีผู้ใช้อย่างถูกต้องครบถ้วนแล้ว (${affectedCount} บัญชี)`
     });
     setIsTemplateModalOpen(false);
   };
@@ -914,9 +1001,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             }
 
             const perms = dbUser.permissions || cloudPermissionsMap[dbUser.id] || cloudPermissionsMap[dbUser.name] || userSpecificSaved || localUser?.permissions;
+            const normalizedPerms = normalizePermissions(perms, dbUser.role, getRoleDefaults(dbUser.role));
             return {
               ...dbUser,
-              permissions: perms
+              permissions: normalizedPerms
             };
           });
           setUsers(merged);
@@ -2485,7 +2573,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
             <div className="p-3.5 border-t border-[#E2EAE9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
               <span className="text-[10px] sm:text-[11px] text-[#6B8F8E]">
-                * เมื่อเลือกตำแหน่ง "{selectedTemplateRole}" ในการสร้างหรือแก้ไขผู้ใช้ สิทธิ์จะถูกนำไปใช้ตามเทมเพลตนี้อัตโนมัติ
+                * สิทธิ์จะถูกบันทึกเป็นค่า Default และอัปเดตไปยังทุกบัญชีตำแหน่ง "{selectedTemplateRole}" ในระบบทันที ({users.filter(u => (u.role || '').toLowerCase().trim() === (selectedTemplateRole || '').toLowerCase().trim()).length} บัญชี)
               </span>
               <div className="flex gap-2 self-end sm:self-auto">
                 <button 
@@ -2502,7 +2590,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   className="px-3.5 py-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-70 cursor-pointer"
                 >
                   {isSavingTemplate ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                  <span>{isSavingTemplate ? 'กำลังบันทึก...' : `บันทึก Default ของ ${selectedTemplateRole}`}</span>
+                  <span>{isSavingTemplate ? 'กำลังบันทึกและอัปเดตบัญชี...' : `บันทึก Default & ปรับใช้กับทุกบัญชี (${users.filter(u => (u.role || '').toLowerCase().trim() === (selectedTemplateRole || '').toLowerCase().trim()).length})`}</span>
                 </button>
               </div>
             </div>
