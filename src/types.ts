@@ -231,6 +231,8 @@ export interface AppUser {
   password?: string;
   permissions?: AppPermissions;
   branch?: Branch;
+  avatar?: string;
+  image?: string;
 }
 
 export const BAR_CATEGORIES = [
