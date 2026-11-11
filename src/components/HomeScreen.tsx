@@ -29,6 +29,7 @@ import {
 import { Ingredient, StockRecord, Branch, AppPermissions, canAccessProdCalc } from '../types';
 import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
+import { UserDropdownMenu } from './UserDropdownMenu';
 import { SupabaseStatusBar } from './SupabaseStatusBar';
 import { supabase } from '../lib/supabase';
 import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
@@ -1329,21 +1330,16 @@ export function HomeScreen({
             needPurchasingCount={stockData.outCount + stockData.lowCount}
           />
 
-          {/* Right Action Icons: User Avatar */}
+          {/* Right Action Icons: User Avatar Dropdown */}
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Avatar Circle */}
-            <button
-              onClick={() => setShowProfileModal(true)}
-              className="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#D4E4E3] transition-colors focus:outline-none"
-              title="โปรไฟล์ผู้ใช้"
-            >
-              <div className="w-7 h-7 rounded-full bg-[#5A8A88] text-white flex items-center justify-center font-bold text-xs uppercase shadow-xs">
-                {user.name.charAt(0)}
-              </div>
-              <span className="text-xs font-semibold text-[#476E6C] max-w-[70px] truncate hidden sm:inline-block">
-                {user.name}
-              </span>
-            </button>
+            <UserDropdownMenu
+              user={user}
+              userName={user.name}
+              userRole={user.role}
+              userBranch={user.branch}
+              onNavigate={onNavigate}
+              onLogout={onLogout}
+            />
           </div>
 
         </div>
@@ -2504,41 +2500,7 @@ export function HomeScreen({
         </div>
       )}
 
-      {/* Profile Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="w-16 h-16 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center font-bold text-2xl mx-auto shadow-xs border-2 border-[#D4E4E3]">
-              {user.name.charAt(0)}
-            </div>
-            <div className="text-center">
-              <h3 className="text-base font-bold text-slate-800">{user.name}</h3>
-              <p className="text-xs font-semibold text-[#5A8A88] mt-0.5">{user.role}</p>
-              <p className="text-[11px] text-slate-400 mt-1">สาขา: {user.branch === 'Rayong' ? 'ระยอง' : 'กรุงเทพฯ'}</p>
-            </div>
-            <div className="pt-2 space-y-2">
-              <button
-                onClick={() => { setShowProfileModal(false); onNavigate('userSettings'); }}
-                className="w-full py-2.5 rounded-full bg-[#E8F3F2] text-[#476E6C] font-semibold text-xs hover:bg-[#D8EAE8] transition-colors"
-              >
-                จัดการบัญชีและความปลอดภัย
-              </button>
-              <button
-                onClick={() => { setShowProfileModal(false); onLogout(); }}
-                className="w-full py-2.5 rounded-full bg-rose-50 text-rose-600 font-semibold text-xs hover:bg-rose-100 transition-colors"
-              >
-                ออกจากระบบ
-              </button>
-              <button
-                onClick={() => setShowProfileModal(false)}
-                className="w-full py-2 rounded-full text-slate-400 font-medium text-xs hover:text-slate-600 transition-colors"
-              >
-                ปิดหน้าต่าง
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Branch Info Modal */}
       {showBranchModal && (
