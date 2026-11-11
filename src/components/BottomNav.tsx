@@ -96,7 +96,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
   }, []);
 
   const isTabActive = (tabId: string) => {
-    if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard';
+    if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard' || activeTab === 'leaveDashboard';
     if (tabId === 'dailyrecord') {
       return activeTab === 'dailySales' || activeTab === 'dailyBakery';
     }
@@ -137,7 +137,17 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       id: 'home', 
       label: 'หน้าหลัก', 
       icon: Home, 
-      hasDropdown: false 
+      hasDropdown: true,
+      dropdownWidth: 'w-[250px]',
+      alignmentClass: 'left-0 sm:left-1/2 sm:-translate-x-1/2',
+      groups: [
+        {
+          items: [
+            { route: 'home', label: 'หน้าหลัก (Inventory)', emoji: '🏠' },
+            { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' },
+          ],
+        },
+      ],
     },
     {
       id: 'dailyrecord',
