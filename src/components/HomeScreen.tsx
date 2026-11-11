@@ -1339,6 +1339,7 @@ export function HomeScreen({
               userBranch={user.branch}
               onNavigate={onNavigate}
               onLogout={onLogout}
+              onOpenBranchModal={() => setShowBranchModal(true)}
             />
           </div>
 
