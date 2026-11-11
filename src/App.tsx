@@ -2439,8 +2439,11 @@ export default function App() {
             onNavigate={(tab) => handleTabNavigate(tab)}
             userName={user.name}
             userRole={user.role}
+            userBranch={user.branch}
+            user={user}
             onLogoClick={() => handleTabNavigate('home')}
             onAvatarClick={() => handleTabNavigate('userSettings')}
+            onLogout={handleLogout}
             onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
