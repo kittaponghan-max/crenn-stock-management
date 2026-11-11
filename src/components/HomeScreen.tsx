@@ -1502,9 +1502,9 @@ export function HomeScreen({
           </div>
         </section>
 
-        {/* 4. KPI ROW: 5 CARDS IN A SINGLE ROW */}
+        {/* 4. KPI ROW: 4 CARDS IN A SINGLE ROW */}
         <section className="w-full overflow-x-auto custom-scrollbar pb-0.5">
-          <div className="grid grid-cols-5 gap-2 sm:gap-2.5 md:gap-3 min-w-[560px] sm:min-w-0">
+          <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3 min-w-[480px] sm:min-w-0">
             {/* Card 1: หมดสต็อก */}
             <div 
               onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
@@ -1604,40 +1604,7 @@ export function HomeScreen({
               </div>
             </div>
 
-            {/* Card 4: สั่งซื้อ */}
-            <div 
-              onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
-              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none ${
-                activeKPI === 'purchasing'
-                  ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.01]'
-                  : 'bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] hover:shadow-xs'
-              }`}
-            >
-              <div className="absolute top-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-[#EAF2F1] rounded-bl-full -z-0 pointer-events-none"></div>
-              <div className="z-10 flex items-start justify-between gap-1">
-                <div className="min-w-0">
-                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">สั่งซื้อ</span>
-                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">รายการที่ต้องสั่ง</span>
-                </div>
-                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${
-                  activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#E8F3F2] text-[#7A9E9C]'
-                }`}>
-                  <ShoppingCart size={13} className="sm:w-3.5 sm:h-3.5" />
-                </span>
-              </div>
-              <div className="mt-1.5 sm:mt-2 z-10 flex items-baseline">
-                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#7A9E9C] leading-none">
-                  {stockData.purchasingCount}
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
-              </div>
-              <div className="mt-1 sm:mt-1.5 text-[8.5px] sm:text-[9.5px] text-[#7A9E9C] font-medium truncate z-10 flex items-center justify-between">
-                <span className="truncate">{locationLabel}</span>
-                {activeKPI === 'purchasing' && <span className="font-bold text-[#7A9E9C] underline shrink-0 ml-1">เลือก</span>}
-              </div>
-            </div>
-
-            {/* Card 5: รอส่งมอบ */}
+            {/* Card 4: รอส่งมอบ */}
             <div 
               onClick={() => setActiveKPI(prev => prev === 'pending_delivery' ? null : 'pending_delivery')}
               className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between relative overflow-hidden transition-all duration-200 ease-in-out cursor-pointer group select-none border-t-[3px] border-t-[#3B82F6] ${
