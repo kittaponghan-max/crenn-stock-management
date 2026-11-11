@@ -41,6 +41,7 @@ import { BottomNav } from './components/BottomNav';
 import { TopNav } from './components/TopNav';
 import { SupabaseStatusBar } from './components/SupabaseStatusBar';
 import { ProdCalcApp } from './components/prodcalc/ProdCalcApp';
+import { LeaveRequestModal } from './components/LeaveRequestModal';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -416,7 +417,7 @@ export default function App() {
   }, [stockViewMode, stockWeek, stockActiveChunkIdx]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings' | 'leaveRequest'>('home');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
@@ -3330,6 +3331,15 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Leave Request Modal / Screen for activeTab === 'leaveRequest' */}
+      <LeaveRequestModal
+        isOpen={activeTab === 'leaveRequest'}
+        onClose={() => setActiveTab('home')}
+        userName={user?.name || 'User'}
+        userRole={user?.role || 'Staff'}
+        userBranch={user?.branch || 'Rayong'}
+      />
 
       {/* Bottom Navigation */}
       <BottomNav
