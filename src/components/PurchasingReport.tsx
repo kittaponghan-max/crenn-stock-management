@@ -18,7 +18,9 @@ import {
   Save,
   Loader2,
   AlertTriangle,
-  Truck
+  Truck,
+  Pencil,
+  Undo2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
@@ -169,7 +171,73 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [changedItems, setChangedItems] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
-    // Reorder warning modal state
+  const [editingPendingIds, setEditingPendingIds] = useState<Set<string>>(new Set());
+
+  // Toggle edit mode for an item that is currently in "รอรับสินค้า" (pending delivery)
+  const handleStartEditPending = (item: any, pendingInfo: any, supplierName: string) => {
+    // 1. Mark this item ID as actively editing
+    setEditingPendingIds(prev => new Set(prev).add(item.id));
+
+    // 2. Populate orders state with current pending values
+    const existingOrder = orders[item.id];
+    const nowIso = new Date().toISOString();
+    setOrders(prev => ({
+      ...prev,
+      [item.id]: {
+        ingredient_id: item.id,
+        order_date: existingOrder?.order_date !== undefined ? existingOrder.order_date : (pendingInfo?.order_date || selectedDate),
+        order_qty: existingOrder?.order_qty !== undefined ? Number(existingOrder.order_qty) : (pendingInfo?.order_qty !== undefined ? Number(pendingInfo.order_qty) : 0),
+        order_unit: pendingInfo?.order_unit || item.unit,
+        ordered_by: currentUser || existingOrder?.ordered_by || pendingInfo?.ordered_by || 'Admin',
+        ordered_at: nowIso,
+        branch: branch || 'Rayong',
+        stock_date: pendingInfo?.stock_date || selectedDate
+      }
+    }));
+
+    // 3. Mark changedItems and supplier as dirty so "บันทึก" button turns teal and active
+    setChangedItems(prev => new Set(prev).add(item.id));
+    setHasUnsavedChanges(true);
+    if (supplierName) {
+      setSupplierSaveState(prev => ({
+        ...prev,
+        [supplierName]: 'dirty'
+      }));
+    }
+  };
+
+  const handleCancelEditPending = (itemId: string, supplierName: string) => {
+    setEditingPendingIds(prev => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+    setChangedItems(prev => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      if (next.size === 0) {
+        setHasUnsavedChanges(false);
+      }
+      return next;
+    });
+    setOrders(prev => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    // Check if supplier still has other changes
+    if (supplierName) {
+      const remainingChanges = Array.from(changedItems).filter(id => id !== itemId);
+      if (remainingChanges.length === 0) {
+        setSupplierSaveState(prev => ({
+          ...prev,
+          [supplierName]: 'idle'
+        }));
+      }
+    }
+  };
+
+  // Reorder warning modal state
   const [reorderWarning, setReorderWarning] = useState<{
     show: boolean;
     supplierId: string;
@@ -390,13 +458,14 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     }
 
     setOrders(prev => {
+      const pendingFallback = pendingOrderMap[ingredientId];
       const existing = prev[ingredientId] || {
         ingredient_id: ingredientId,
-        order_date: '',
-        order_qty: 0,
-        order_unit: unit,
-        ordered_by: '',
-        ordered_at: '',
+        order_date: pendingFallback?.order_date || '',
+        order_qty: pendingFallback?.order_qty !== undefined ? Number(pendingFallback.order_qty) : 0,
+        order_unit: pendingFallback?.order_unit || unit,
+        ordered_by: pendingFallback?.ordered_by || '',
+        ordered_at: pendingFallback?.ordered_at || '',
         branch: branch || 'Rayong',
         stock_date: selectedDate
       };
@@ -406,8 +475,8 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
       // Auto-populate when order_date OR order_qty is filled in
       const isFilled = Boolean(nextDate) || nextQty > 0;
-      const ordered_by = isFilled ? (existing.ordered_by || currentUser) : existing.ordered_by;
-      const ordered_at = isFilled ? (existing.ordered_at || new Date().toISOString()) : existing.ordered_at;
+      const ordered_by = isFilled ? (currentUser || existing.ordered_by || 'Admin') : existing.ordered_by;
+      const ordered_at = isFilled ? new Date().toISOString() : existing.ordered_at;
 
       return {
         ...prev,
@@ -427,6 +496,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     setOrders(savedOrders);
     setHasUnsavedChanges(false);
     setChangedItems(new Set());
+    setEditingPendingIds(new Set());
     setSupplierSaveState({});
   };
 
@@ -490,8 +560,10 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       const order = orders[item.id];
       const isPending = Boolean(pending && pending.order_qty > 0);
       const isOrdering = order && (Boolean(order.order_date) || Number(order.order_qty) > 0);
+      const isActivelyEditingThisPending = editingPendingIds.has(item.id);
 
-      if (isPending && isOrdering) {
+      // If user is explicitly editing an already pending item, do not flag as unexpected conflict
+      if (isPending && isOrdering && !isActivelyEditingThisPending) {
         pendingConflicts.push({
           ingredientId: item.id,
           name: item.name,
@@ -539,14 +611,16 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         const isChanged = changedItems.has(item.id);
         if (itemOrder && (Boolean(itemOrder.order_date) || Number(itemOrder.order_qty) > 0 || isChanged)) {
           const isFilled = Boolean(itemOrder.order_date) || Number(itemOrder.order_qty) > 0;
+          const wasPending = Boolean(pendingOrderMap[item.id]);
+          const isEditedPending = (wasPending || editingPendingIds.has(item.id)) && isChanged;
           const record: OrderRecord = {
             ...itemOrder,
             ingredient_id: item.id,
             order_date: itemOrder.order_date || '',
             order_qty: Number(itemOrder.order_qty) || 0,
             order_unit: item.unit,
-            ordered_by: isFilled ? (itemOrder.ordered_by || currentUser) : '',
-            ordered_at: isFilled ? (itemOrder.ordered_at || nowIso) : '',
+            ordered_by: isFilled ? (currentUser || itemOrder.ordered_by || 'Admin') : '',
+            ordered_at: isFilled ? (isEditedPending ? nowIso : (itemOrder.ordered_at || nowIso)) : '',
             branch: currentBranch,
             stock_date: selectedDate,
           };
@@ -726,6 +800,13 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         return next;
       });
 
+      // Clear editingPendingIds for the items saved
+      setEditingPendingIds(prev => {
+        const next = new Set(prev);
+        itemsToSave.forEach(it => next.delete(it.ingredient_id));
+        return next;
+      });
+
       // Success state → reset after 2 sec
       setSupplierSaveState(prev => ({
         ...prev,
@@ -763,13 +844,14 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       const itemOrder = updatedOrdersMap[ingredientId];
       if (itemOrder) {
         const isFilled = Boolean(itemOrder.order_date) || Number(itemOrder.order_qty) > 0;
+        const wasPending = Boolean(pendingOrderMap[ingredientId]);
         const record: OrderRecord = {
           ...itemOrder,
           ingredient_id: ingredientId,
           branch: currentBranch,
           stock_date: selectedDate,
-          ordered_by: isFilled ? (itemOrder.ordered_by || currentUser) : '',
-          ordered_at: isFilled ? (itemOrder.ordered_at || nowIso) : '',
+          ordered_by: isFilled ? (currentUser || itemOrder.ordered_by || 'Admin') : '',
+          ordered_at: isFilled ? (wasPending ? nowIso : (itemOrder.ordered_at || nowIso)) : '',
         };
         updatedOrdersMap[ingredientId] = record;
         itemsToPersist.push(record);
@@ -894,6 +976,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     setSavedOrders(updatedOrdersMap);
     setHasUnsavedChanges(false);
     setChangedItems(new Set());
+    setEditingPendingIds(new Set());
     setSupplierSaveState(prev => {
       const next = { ...prev };
       Object.keys(next).forEach(k => {
@@ -1585,15 +1668,30 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                               const isLow = item.currentStock < item.minStock;
                               const isEven = index % 2 === 1;
                               const isPending = isPendingDelivery(item.id);
+                              const isEditingThisPending = isPending && editingPendingIds.has(item.id);
                               const pendingInfo = pendingOrderMap[item.id];
                               const order = orders[item.id];
-                              const orderDate = isPending ? (pendingInfo?.order_date || '') : (order?.order_date || '');
-                              const orderQty = isPending ? (pendingInfo?.order_qty ?? '') : (order?.order_qty !== undefined ? order.order_qty : '');
+
+                              // When editing a pending item, allow user inputs (order state) to take effect
+                              const orderDate = isEditingThisPending
+                                ? (order?.order_date !== undefined ? order.order_date : (pendingInfo?.order_date || ''))
+                                : isPending
+                                  ? (pendingInfo?.order_date || '')
+                                  : (order?.order_date || '');
+
+                              const orderQty = isEditingThisPending
+                                ? (order?.order_qty !== undefined ? order.order_qty : (pendingInfo?.order_qty !== undefined ? pendingInfo.order_qty : ''))
+                                : isPending
+                                  ? (pendingInfo?.order_qty !== undefined ? pendingInfo.order_qty : '')
+                                  : (order?.order_qty !== undefined ? order.order_qty : '');
+
                               const isOrdered = Boolean(orderDate) && Number(orderQty) > 0;
                               const isChanged = changedItems.has(item.id);
 
                               const pendingTooltip = isPending
-                                ? `รายการนี้สั่งซื้อแล้ว เมื่อ ${formatDisplayDate(pendingInfo?.order_date) || pendingInfo?.order_date}\nจำนวน ${pendingInfo?.order_qty} ${pendingInfo?.order_unit || item.unit}\nอยู่ระหว่างรอรับสินค้า ไม่สามารถสั่งซ้ำได้`
+                                ? (isEditingThisPending
+                                    ? 'กำลังแก้ไขรายการนี้: แก้ไขวันที่สั่งซื้อหรือจำนวนที่สั่ง แล้วกด "บันทึก"'
+                                    : `รายการนี้สั่งซื้อแล้ว เมื่อ ${formatDisplayDate(pendingInfo?.order_date) || pendingInfo?.order_date}\nจำนวน ${pendingInfo?.order_qty} ${pendingInfo?.order_unit || item.unit}\nคลิก "แก้ไข" หรือคลิกที่ป้ายเพื่อแก้ไข`)
                                 : undefined;
 
                               return (
@@ -1601,15 +1699,17 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   key={item.id} 
                                   className={cn(
                                     "relative transition-colors border-b border-[#F0F5F4] text-[9.5px] font-normal",
-                                    isPending
-                                      ? "bg-[#FFF7ED] border-l-[3px] border-l-[#F59E0B] hover:bg-[#FEF3C7]"
-                                      : isChanged
-                                        ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
-                                        : isOrdered 
-                                          ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
-                                          : isEven 
-                                            ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
-                                            : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
+                                    isEditingThisPending
+                                      ? "bg-[#FFFBEB] border-l-[3px] border-l-[#F59E0B] shadow-2xs"
+                                      : isPending
+                                        ? "bg-[#FFF7ED] border-l-[3px] border-l-[#F59E0B] hover:bg-[#FEF3C7]"
+                                        : isChanged
+                                          ? "bg-[#FFFBEB]/80 border-l-[3px] border-l-[#F59E0B] hover:bg-[#FFFBEB]"
+                                          : isOrdered 
+                                            ? "bg-[#E8F3F2] border-l-[3px] border-l-[#5A8A88] hover:bg-[#DDF0EE]"
+                                            : isEven 
+                                              ? "bg-[#F8FAFA] hover:bg-[#E8F3F2]/60" 
+                                              : "bg-[#FFFFFF] hover:bg-[#E8F3F2]/60"
                                   )}
                                 >
                                   {/* Item Image */}
@@ -1668,23 +1768,51 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                     )}
                                     {isPending && (
                                       <div>
-                                        <span style={{
-                                          display       : 'inline-flex',
-                                          alignItems    : 'center',
-                                          gap           : '4px',
-                                          background    : '#FEF3C7',
-                                          color         : '#92400E',
-                                          border        : '1px solid #FDE68A',
-                                          fontSize      : '9px',
-                                          fontWeight    : 600,
-                                          borderRadius  : '4px',
-                                          padding       : '2px 6px',
-                                          marginTop     : '3px',
-                                          whiteSpace    : 'nowrap',
-                                        }}>
-                                          <Truck size={9} style={{ color: '#D97706' }} />
-                                          รอส่งมอบ
-                                        </span>
+                                        {isEditingThisPending ? (
+                                          <span style={{
+                                            display       : 'inline-flex',
+                                            alignItems    : 'center',
+                                            gap           : '4px',
+                                            background    : '#FFFBEB',
+                                            color         : '#B45309',
+                                            border        : '1px dashed #F59E0B',
+                                            fontSize      : '9px',
+                                            fontWeight    : 700,
+                                            borderRadius  : '4px',
+                                            padding       : '2px 6px',
+                                            marginTop     : '3px',
+                                            whiteSpace    : 'nowrap',
+                                          }}>
+                                            <Pencil size={8} style={{ color: '#D97706' }} />
+                                            กำลังแก้ไข
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                            style={{
+                                              display       : 'inline-flex',
+                                              alignItems    : 'center',
+                                              gap           : '4px',
+                                              background    : '#FEF3C7',
+                                              color         : '#92400E',
+                                              border        : '1px solid #FDE68A',
+                                              fontSize      : '9px',
+                                              fontWeight    : 600,
+                                              borderRadius  : '4px',
+                                              padding       : '2px 6px',
+                                              marginTop     : '3px',
+                                              whiteSpace    : 'nowrap',
+                                              cursor        : 'pointer',
+                                            }}
+                                            className="hover:bg-[#FDE68A] transition-all group"
+                                            title="คลิกเพื่อแก้ไขรายการนี้"
+                                          >
+                                            <Truck size={9} style={{ color: '#D97706' }} />
+                                            <span>รอส่งมอบ</span>
+                                            <Pencil size={7} className="opacity-60 group-hover:opacity-100 text-[#D97706]" />
+                                          </button>
+                                        )}
                                       </div>
                                     )}
                                   </td>
@@ -1730,8 +1858,12 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
                                   {/* COLUMN 1 — วันที่สั่งซื้อ */}
                                   <td className="px-0.5 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
-                                    {isPending ? (
-                                      <div className="flex items-center justify-center mx-auto" title={pendingTooltip}>
+                                    {isPending && !isEditingThisPending ? (
+                                      <div 
+                                        className="flex items-center justify-center mx-auto cursor-pointer group" 
+                                        title="คลิกเพื่อแก้ไขวันที่สั่งซื้อ" 
+                                        onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                      >
                                         <span 
                                           style={{
                                             background: '#FEF3C7',
@@ -1741,11 +1873,14 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                             fontWeight: 600,
                                             borderRadius: '5px',
                                             padding: '3px 7px',
-                                            display: 'inline-block',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
                                             whiteSpace: 'nowrap',
-                                            cursor: 'not-allowed',
                                           }}
+                                          className="group-hover:bg-[#FDE68A] transition-colors"
                                         >
+                                          <Pencil size={8} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#D97706]" />
                                           {formatDisplayDate(pendingInfo?.order_date) || pendingInfo?.order_date || 'รอส่งมอบ'}
                                         </span>
                                       </div>
@@ -1755,15 +1890,24 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                         value={orderDate}
                                         placeholder="เลือกวันที่"
                                         onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit, supplier)}
-                                        className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors cursor-pointer text-center mx-auto block"
+                                        className={cn(
+                                          "border rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none transition-colors cursor-pointer text-center mx-auto block",
+                                          isEditingThisPending
+                                            ? "bg-[#FFFBEB] border-[#F59E0B] focus:border-[#D97706] ring-1 ring-[#F59E0B]/30 font-medium text-[#92400E]"
+                                            : "bg-[#FFFFFF] border-[#D4E4E3] focus:border-[#5A8A88]"
+                                        )}
                                       />
                                     )}
                                   </td>
 
                                   {/* COLUMN 2 — จำนวนที่สั่ง */}
                                   <td className="px-0.5 py-1 text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
-                                    {isPending ? (
-                                      <div className="flex items-center justify-center gap-0.5 w-full" title={pendingTooltip}>
+                                    {isPending && !isEditingThisPending ? (
+                                      <div 
+                                        className="flex items-center justify-center gap-0.5 w-full cursor-pointer group" 
+                                        title="คลิกเพื่อแก้ไขจำนวนที่สั่ง" 
+                                        onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                      >
                                         <span
                                           style={{
                                             background: '#FEF3C7',
@@ -1773,11 +1917,14 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                             fontWeight: 600,
                                             borderRadius: '5px',
                                             padding: '3px 6px',
-                                            display: 'inline-block',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
                                             whiteSpace: 'nowrap',
-                                            cursor: 'not-allowed',
                                           }}
+                                          className="group-hover:bg-[#FDE68A] transition-colors"
                                         >
+                                          <Pencil size={8} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#D97706]" />
                                           {pendingInfo?.order_qty} {pendingInfo?.order_unit || item.unit}
                                         </span>
                                       </div>
@@ -1789,7 +1936,12 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                           value={orderQty === 0 && !orderDate ? '' : orderQty}
                                           placeholder="0"
                                           onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit, supplier)}
-                                          className="bg-[#FFFFFF] border border-[#D4E4E3] rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] transition-colors"
+                                          className={cn(
+                                            "border rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none transition-colors",
+                                            isEditingThisPending
+                                              ? "bg-[#FFFBEB] border-[#F59E0B] focus:border-[#D97706] ring-1 ring-[#F59E0B]/30 font-semibold text-[#92400E]"
+                                              : "bg-[#FFFFFF] border-[#D4E4E3] focus:border-[#5A8A88]"
+                                          )}
                                         />
                                         <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[22px]" title={item.unit}>
                                           {item.unit}
@@ -1802,33 +1954,74 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px]" style={{ width: '96px', maxWidth: '96px' }}>
                                     {isPending ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden" title={pendingTooltip}>
-                                        <span className="text-[10px] font-bold text-[#92400E] leading-tight truncate w-full" title={pendingInfo?.ordered_by}>
-                                          {pendingInfo?.ordered_by || '—'}
+                                        <span className="text-[10px] font-bold text-[#92400E] leading-tight truncate w-full" title={isEditingThisPending ? (orders[item.id]?.ordered_by || currentUser) : (pendingInfo?.ordered_by || "—")}>
+                                          {isEditingThisPending ? (orders[item.id]?.ordered_by || currentUser) : (pendingInfo?.ordered_by || '—')}
                                         </span>
-                                        {pendingInfo?.ordered_at && (
-                                          <span className="text-[9px] text-[#D97706] leading-tight truncate w-full" title={formatOrderDateTime(pendingInfo.ordered_at)}>
-                                            {formatOrderDateTime(pendingInfo.ordered_at)}
+                                        {(isEditingThisPending ? (orders[item.id]?.ordered_at || pendingInfo?.ordered_at) : pendingInfo?.ordered_at) && (
+                                          <span className="text-[9px] text-[#D97706] leading-tight truncate w-full" title={formatOrderDateTime(isEditingThisPending ? (orders[item.id]?.ordered_at || pendingInfo?.ordered_at) : pendingInfo?.ordered_at)}>
+                                            {formatOrderDateTime(isEditingThisPending ? (orders[item.id]?.ordered_at || pendingInfo?.ordered_at) : pendingInfo?.ordered_at)}
                                           </span>
                                         )}
-                                        <span 
-                                          style={{
-                                            background: '#FEF3C7',
-                                            color: '#92400E',
-                                            border: '1px solid #FDE68A',
-                                            fontSize: '9px',
-                                            fontWeight: 600,
-                                            borderRadius: '3px',
-                                            padding: '2px 5px',
-                                            marginTop: '2px',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '3px',
-                                            whiteSpace: 'nowrap',
-                                          }}
-                                        >
-                                          <Truck size={8} style={{ color: '#D97706' }} />
-                                          รอรับสินค้า
-                                        </span>
+                                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                          {/* Edit / Cancel / Save Toggle Buttons */}
+                                          {isEditingThisPending ? (
+                                            <div className="flex items-center gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => handleSaveSupplier(supplier, allSupplierItems)}
+                                                className="inline-flex items-center gap-0.5 text-[8.5px] font-bold text-white bg-[#5A8A88] hover:bg-[#436A68] rounded-[3px] px-1.5 py-0.5 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                                                title="บันทึกการแก้ไขรายการนี้ทันที"
+                                              >
+                                                <Save size={8} />
+                                                <span>บันทึก</span>
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleCancelEditPending(item.id, supplier)}
+                                                className="inline-flex items-center gap-0.5 text-[8.5px] font-semibold text-[#6B8F8E] hover:text-[#EF4444] bg-white border border-[#D4E4E3] hover:border-[#FCA5A5] rounded-[3px] px-1 py-0.5 transition-colors cursor-pointer"
+                                                title="ยกเลิกการแก้ไขรายการนี้"
+                                              >
+                                                <Undo2 size={8} />
+                                                <span>ยกเลิก</span>
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                                style={{
+                                                  background: '#FEF3C7',
+                                                  color: '#92400E',
+                                                  border: '1px solid #FDE68A',
+                                                  fontSize: '9px',
+                                                  fontWeight: 600,
+                                                  borderRadius: '3px',
+                                                  padding: '2px 5px',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '3px',
+                                                  whiteSpace: 'nowrap',
+                                                  cursor: 'pointer'
+                                                }}
+                                                className="hover:bg-[#FDE68A] transition-colors"
+                                                title="คลิกเพื่อแก้ไขรายการนี้"
+                                              >
+                                                <Truck size={8} style={{ color: '#D97706' }} />
+                                                รอรับสินค้า
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                                className="inline-flex items-center gap-0.5 text-[8.5px] font-bold text-[#D97706] hover:text-white bg-[#FEF3C7] hover:bg-[#F59E0B] border border-[#FCD34D] hover:border-[#F59E0B] rounded-[3px] px-1.5 py-0.5 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                                                title="คลิกเพื่อแก้ไขวันที่หรือจำนวนสั่งซื้อของรายการนี้"
+                                              >
+                                                <Pencil size={8} />
+                                                <span>แก้ไข</span>
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     ) : order?.ordered_by ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
