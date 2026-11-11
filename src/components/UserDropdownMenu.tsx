@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Building } from 'lucide-react';
+import { LeaveRequestModal } from './LeaveRequestModal';
 
 export interface UserDropdownMenuProps {
   user?: {
@@ -15,6 +16,7 @@ export interface UserDropdownMenuProps {
   onLogout?: () => void;
   onAvatarClick?: () => void;
   onOpenBranchModal?: () => void;
+  onOpenLeaveModal?: () => void;
 }
 
 export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
@@ -26,10 +28,12 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
   onLogout,
   onAvatarClick,
   onOpenBranchModal,
+  onOpenLeaveModal,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBranchInfoModal, setShowBranchInfoModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const displayName = user?.name || userName || 'User';
@@ -82,6 +86,18 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
       onOpenBranchModal();
     } else {
       setShowBranchInfoModal(true);
+    }
+  };
+
+  const handleSelectLeaveRequest = () => {
+    setIsOpen(false);
+    if (onOpenLeaveModal) {
+      onOpenLeaveModal();
+    } else {
+      setShowLeaveModal(true);
+    }
+    if (onNavigate) {
+      onNavigate('leaveRequest');
     }
   };
 
@@ -173,7 +189,20 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
                 <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
               </button>
 
-              {/* 4. ประวัติแก้ไขข้อมูล */}
+              {/* 4. ทำรายการลา */}
+              <button
+                type="button"
+                onClick={handleSelectLeaveRequest}
+                className="w-full flex items-center justify-between px-3 py-[9px] rounded-lg text-xs text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] font-normal transition-all duration-100 cursor-pointer text-left group select-none"
+              >
+                <div className="flex items-center gap-[10px] min-w-0">
+                  <span className="text-[14px] shrink-0 leading-none">🏖️</span>
+                  <span className="truncate text-[12px]">ทำรายการลา</span>
+                </div>
+                <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
+              </button>
+
+              {/* 5. ประวัติแก้ไขข้อมูล */}
               <button
                 type="button"
                 onClick={handleSelectLogs}
@@ -277,6 +306,15 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
           </div>
         </div>
       )}
+
+      {/* Internal Leave Request Modal */}
+      <LeaveRequestModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        userName={displayName}
+        userRole={displayRole}
+        userBranch={branchVal}
+      />
     </>
   );
 };
