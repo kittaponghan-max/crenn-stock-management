@@ -1380,10 +1380,10 @@ export const HomePage: React.FC<HomePageProps> = ({
         </header>
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* KPI ROW: 5 CARDS IN A SINGLE ROW */}
+        {/* KPI ROW: 4 CARDS IN A SINGLE ROW */}
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <section className="w-full overflow-x-auto custom-scrollbar pb-0.5 mb-6">
-          <div className="grid grid-cols-5 gap-2 sm:gap-2.5 md:gap-3 min-w-[560px] sm:min-w-0">
+          <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3 min-w-[480px] sm:min-w-0">
             {/* Card 1: หมดสต็อก */}
             <div
               onClick={() => setActiveKPI(prev => prev === 'out_of_stock' ? null : 'out_of_stock')}
@@ -1486,41 +1486,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             </div>
 
-            {/* Card 4: สั่งซื้อ */}
-            <div
-              onClick={() => setActiveKPI(prev => prev === 'purchasing' ? null : 'purchasing')}
-              className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none ${
-                activeKPI === 'purchasing'
-                  ? 'border-2 border-[#7A9E9C] bg-[#EAF2F1] shadow-md scale-[1.01]'
-                  : 'bg-white border-t-4 border-[#7A9E9C] border-x border-b border-[#D4E4E3] hover:shadow-xs hover:bg-[#F0F5F4]'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-1">
-                <div className="min-w-0">
-                  <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">
-                    สั่งซื้อ
-                  </span>
-                  <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
-                    รายการที่ต้องสั่ง
-                  </span>
-                </div>
-                <span className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                  activeKPI === 'purchasing' ? 'bg-[#7A9E9C] text-white' : 'bg-[#EAF2F1] text-[#7A9E9C]'
-                }`}>
-                  <ShoppingCart size={13} className="sm:w-3.5 sm:h-3.5" />
-                </span>
-              </div>
-              <div className="mt-1.5 sm:mt-2">
-                <div className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#7A9E9C] leading-none">
-                  {stats.out + stats.low}
-                </div>
-                <div className="text-[8.5px] sm:text-[9.5px] text-[#7A9E9C] font-medium mt-1 truncate">
-                  ต้องสั่งซื้อด่วน
-                </div>
-              </div>
-            </div>
-
-            {/* Card 5: รอส่งมอบ */}
+            {/* Card 4: รอส่งมอบ */}
             <div
               onClick={() => setActiveKPI(prev => prev === 'pending_delivery' ? null : 'pending_delivery')}
               className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs flex flex-col justify-between transition-all duration-200 cursor-pointer group select-none border-t-[3px] border-t-[#3B82F6] ${
