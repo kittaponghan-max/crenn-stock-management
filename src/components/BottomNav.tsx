@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Branch } from '../types';
 import { UserRole } from './LoginForm';
+import { LeaveRequestModal } from './LeaveRequestModal';
 
 export interface BottomNavProps {
   activeTab: string;
@@ -56,6 +57,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
   const [openTab, setOpenTab] = useState<string | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const bottomNavRef = useRef<HTMLElement>(null);
   const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -288,6 +290,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
             ] : []),
             { label: 'โปรไฟล์ผู้ใช้', emoji: '👤', action: () => { setOpenTab(null); setShowProfileModal(true); } },
             { label: 'ข้อมูลสาขา', emoji: '🏪', action: () => { setOpenTab(null); setShowBranchModal(true); } },
+            { label: 'ทำรายการลา', emoji: '🏖️', action: () => { setOpenTab(null); setShowLeaveModal(true); } },
             { route: 'logs', label: 'ประวัติแก้ไขข้อมูล', emoji: '🕐' },
           ],
         },
@@ -596,6 +599,15 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
           </div>
         </div>
       )}
+
+      {/* Leave Request Modal */}
+      <LeaveRequestModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        userName={user?.name || 'User'}
+        userRole={user?.role || 'Staff'}
+        userBranch={user?.branch || 'Rayong'}
+      />
     </>
   );
 }
