@@ -1857,20 +1857,6 @@ export function HomeScreen({
                   </h3>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {/* Admin Cleanup Button for Duplicates */}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={cleanupDuplicateOrders}
-                      disabled={isCleaningDuplicates}
-                      className="text-[10px] font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1 shadow-2xs disabled:opacity-50"
-                      title="ลบรายการสั่งซื้อซ้ำซ้อนในระบบฐานข้อมูล"
-                    >
-                      {isCleaningDuplicates ? <Loader2 size={10} className="animate-spin text-amber-700" /> : <span>🧹</span>}
-                      <span>{isCleaningDuplicates ? 'กำลังล้าง...' : 'ล้างข้อมูลซ้ำ'}</span>
-                    </button>
-                  )}
-
                   {/* Manual Clear Button for Pending Delivery */}
                   {activeKPI === 'pending_delivery' && pendingDeliveryList.length > 0 && (
                     <button
