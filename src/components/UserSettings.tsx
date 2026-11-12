@@ -813,8 +813,36 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       }
     }
 
-    if (resolvedTemplates) {
-      setRoleTemplates(resolvedTemplates);
+    const defaultTemplates: Record<string, UserPermissions> = {
+      'Admin': applyRoleDefaults('Admin'),
+      'Co-founder': applyRoleDefaults('Co-founder'),
+      'Owner': applyRoleDefaults('Owner'),
+      'Branch Manager': applyRoleDefaults('Branch Manager'),
+      'Senior Baker': applyRoleDefaults('Senior Baker'),
+      'Head Baker': applyRoleDefaults('Head Baker'),
+      'Barista': applyRoleDefaults('Barista'),
+      'Barista Assistance': applyRoleDefaults('Barista Assistance'),
+      'Cashier': applyRoleDefaults('Cashier'),
+      'Staff': applyRoleDefaults('Staff'),
+      'Cleaner': applyRoleDefaults('Cleaner'),
+    };
+
+    const finalTemplates = { ...defaultTemplates, ...(resolvedTemplates || {}) };
+    setRoleTemplates(finalTemplates);
+
+    // If Supabase app_settings didn't have template settings yet, save default templates
+    if (supabase && (!resolvedTemplates || Object.keys(resolvedTemplates).length === 0)) {
+      try {
+        const branches = ['GLOBAL', 'Rayong', 'Bangkok'];
+        const upsertPayload = branches.map(b => ({
+          branch: b,
+          setting_key: 'role_permissions_templates',
+          setting_value: finalTemplates
+        }));
+        await supabase.from('app_settings').upsert(upsertPayload);
+      } catch (e) {
+        console.warn('Auto-seed role_permissions_templates error:', e);
+      }
     }
   };
 
@@ -1020,6 +1048,15 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
             const perms = dbUser.permissions || cloudPermissionsMap[dbUser.id] || cloudPermissionsMap[dbUser.name] || userSpecificSaved || localUser?.permissions;
             const normalizedPerms = normalizePermissions(perms, dbUser.role, getRoleDefaults(dbUser.role));
+
+            // Auto-sync back to Supabase app_users table if permissions column is NULL or empty
+            if (!dbUser.permissions && supabase) {
+              const savePerms = buildSavePermissions(normalizedPerms);
+              supabase.from('app_users').update({ permissions: savePerms }).eq('id', dbUser.id).then(({ error }) => {
+                if (error) console.warn('Auto-repair null permissions in app_users error:', error);
+              });
+            }
+
             return {
               ...dbUser,
               permissions: normalizedPerms
