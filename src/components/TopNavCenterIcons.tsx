@@ -17,6 +17,7 @@ export interface TopNavCenterIconsProps {
   onNavigate?: (tab: string) => void;
   outOfStockCount?: number;
   needPurchasingCount?: number;
+  user?: any;
 }
 
 interface SubMenuItem {
@@ -47,6 +48,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   onNavigate,
   outOfStockCount = 0,
   needPurchasingCount = 0,
+  user,
 }) => {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -136,11 +138,13 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
               label: 'หน้าหลัก (Inventory Dashboard)',
               emoji: '🏠'
             },
-            {
-              route: 'leaveDashboard',
-              label: 'Leave Dashboard (ภาพรวมการลา)',
-              emoji: '📊'
-            },
+            ...(user?.permissions?.leaveDashboard !== 'hidden' && user?.permissions?.leaveDashboard !== 'Hidden' ? [
+              {
+                route: 'leaveDashboard',
+                label: 'Leave Dashboard (ภาพรวมการลา)',
+                emoji: '📊'
+              }
+            ] : []),
           ],
         },
       ],
