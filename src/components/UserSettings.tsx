@@ -30,6 +30,7 @@ export interface UserPermissions {
   // General
   dashboard: PagePermission;
   leaveDashboard: PagePermission;
+  personnelLeave: PagePermission;
   dailySales: PagePermission;
   dailyBakery: PagePermission;
 
@@ -77,6 +78,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     return {
       dashboard: 'edit',
       leaveDashboard: 'edit',
+      personnelLeave: 'edit',
       dailySales: 'edit',
       dailyBakery: 'edit',
       bar_stock: 'edit',
@@ -108,6 +110,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     return {
       dashboard: 'edit',
       leaveDashboard: 'edit',
+      personnelLeave: 'edit',
       dailySales: 'edit',
       dailyBakery: 'edit',
       bar_stock: 'edit',
@@ -139,6 +142,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     return {
       dashboard: 'read',
       leaveDashboard: 'read',
+      personnelLeave: 'edit',
       dailySales: 'hidden',
       dailyBakery: 'edit',
       bar_stock: 'hidden',
@@ -170,6 +174,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     return {
       dashboard: 'read',
       leaveDashboard: 'read',
+      personnelLeave: 'edit',
       dailySales: 'hidden',
       dailyBakery: 'read',
       bar_stock: 'edit',
@@ -201,6 +206,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
   return {
     dashboard: 'read',
     leaveDashboard: 'read',
+    personnelLeave: 'edit',
     dailySales: 'hidden',
     dailyBakery: 'read',
     bar_stock: 'hidden',
@@ -252,6 +258,7 @@ export const normalizePermissions = (raw: any, role: string, customDefaults?: Us
   return {
     dashboard: toLevel(parsed.dashboard !== undefined ? parsed.dashboard : (parsed.dashboardBar || parsed.dashboardBakery), defaults.dashboard),
     leaveDashboard: toLevel(parsed.leaveDashboard, defaults.leaveDashboard),
+    personnelLeave: toLevel(parsed.personnelLeave, defaults.personnelLeave),
     dailySales: toLevel(parsed.dailySales !== undefined ? parsed.dailySales : parsed.dailyRecord, defaults.dailySales),
     dailyBakery: toLevel(parsed.dailyBakery !== undefined ? parsed.dailyBakery : parsed.dailyRecord, defaults.dailyBakery),
 
@@ -292,6 +299,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     // Modern standard lowercase permissions
     dashboard: perms.dashboard,
     leaveDashboard: perms.leaveDashboard,
+    personnelLeave: perms.personnelLeave,
     dailySales: perms.dailySales,
     dailyBakery: perms.dailyBakery,
     bar_stock: perms.bar_stock,
@@ -359,6 +367,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { key: 'dashboard', name: 'หน้าหลัก / Dashboard', icon: '🏠' },
       { key: 'leaveDashboard', name: 'Leave Dashboard (ภาพรวมการลา)', icon: '📊' },
+      { key: 'personnelLeave', name: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', icon: '👤' },
       { key: 'dailySales', name: 'บันทึกยอดขายประจำวัน (Daily Sales)', icon: '📖' },
       { key: 'dailyBakery', name: 'บันทึกจำนวนขนมประจำวัน (Daily Bakery)', icon: '🧁' },
     ]
@@ -631,7 +640,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   const handlePresetAll = (level: PagePermission) => {
     setIsUserFormDirty(true);
     const allKeys: (keyof UserPermissions)[] = [
-      'dashboard', 'leaveDashboard', 'dailySales', 'dailyBakery',
+      'dashboard', 'leaveDashboard', 'personnelLeave', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'rndReport', 'maintenanceReport',
@@ -690,7 +699,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   // ━━━━ QUICK PRESET HANDLERS FOR ROLE TEMPLATE MODAL ━━━━
   const handleTemplatePresetAll = (level: PagePermission) => {
     const allKeys: (keyof UserPermissions)[] = [
-      'dashboard', 'leaveDashboard', 'dailySales', 'dailyBakery',
+      'dashboard', 'leaveDashboard', 'personnelLeave', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'rndReport', 'maintenanceReport',
