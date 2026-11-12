@@ -30,6 +30,7 @@ import { AppUser } from '../types';
 
 export interface LeaveDashboardProps {
   user?: any;
+  mode?: 'team' | 'personal';
   onNavigate?: (tab: string) => void;
   onOpenLeaveModal?: () => void;
 }
@@ -52,15 +53,26 @@ interface EmployeeQuotaSummary {
 
 export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   user,
+  mode = 'team',
   onNavigate,
   onOpenLeaveModal,
 }) => {
+  const isPersonalMode = mode === 'personal';
+  const [viewScope, setViewScope] = useState<'personal' | 'all'>(mode === 'personal' ? 'personal' : 'all');
+
+  // Helper to match logged-in user
+  const isCurrentUser = (name?: string) => {
+    if (!user?.name || !name) return false;
+    return name.trim().toLowerCase() === user.name.trim().toLowerCase();
+  };
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
   const [staffAccounts, setStaffAccounts] = useState<AppUser[]>([]);
   const [employeeQuotas, setEmployeeQuotas] = useState<EmployeeQuotaSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedBranch, setSelectedBranch] = useState<string>('all');
+
+  // 1. Fixed strictly to the logged-in account's branch (No branch dropdown selection)
+  const selectedBranch = user?.branch || 'Rayong';
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('2026');
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date(2026, 10, 1)); // Default Nov 2026
@@ -69,7 +81,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   // Helper date calculations
   const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // Fetch Real Staff Accounts, Leave Records & Quotas
+  // Fetch Real Staff Accounts, Real Leave Records & Quotas (No Mock-ups)
   const fetchAllLeaveData = async () => {
     setLoading(true);
 
@@ -78,7 +90,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     // ──────────────────────────────────────────────
     let loadedUsers: AppUser[] = [];
 
-    // 1.1 From Supabase app_users
+    // 1.1 From Supabase app_users table
     if (supabase) {
       try {
         const { data: dbUsers, error: userErr } = await supabase
@@ -144,7 +156,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       }
     }
 
-    // 1.4 Fallback default branch staff if empty (strictly matching system roles)
+    // 1.4 Fallback default branch staff if empty (strictly matching system accounts)
     if (loadedUsers.length === 0) {
       loadedUsers = [
         { id: 'usr-ry-1', name: 'Sun', role: 'Admin', branch: 'Rayong' },
@@ -159,11 +171,11 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     setStaffAccounts(loadedUsers);
 
     // ──────────────────────────────────────────────
-    // 2. Fetch Leave Records from Supabase & LocalStorage
+    // 2. Fetch Real Leave Records (Purge All Mock Data)
     // ──────────────────────────────────────────────
     let records: LeaveRecord[] = [];
 
-    // 2.1 Fetch from LocalStorage as base
+    // 2.1 Fetch from LocalStorage
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('crenn_leave_requests');
@@ -212,61 +224,33 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       }
     }
 
-    // 2.3 Filter out old mock names (Jane Bakery Manager, Bank Coffee Specialist, Somchai Jaidee)
-    const mockNamesToClean = ['jane bakery manager', 'bank coffee specialist', 'somchai jaidee', 'nattapong staff'];
+    // 2.3 Strictly PURGE all mock-up / synthetic records
     records = records.filter(r => {
-      const isMockSample = r.id.startsWith('LEAVE-SAMPLE-');
-      const isMockName = mockNamesToClean.includes((r.userName || '').toLowerCase().trim());
-      return !isMockSample && !isMockName;
+      if (!r || !r.id) return false;
+      const idUpper = String(r.id).toUpperCase();
+      if (idUpper.startsWith('LEAVE-SAMPLE-') || idUpper.startsWith('LEAVE-REAL-')) {
+        return false;
+      }
+      const lowerName = (r.userName || '').toLowerCase().trim();
+      const mockNames = ['jane bakery manager', 'bank coffee specialist', 'somchai jaidee', 'nattapong staff'];
+      if (mockNames.includes(lowerName)) {
+        return false;
+      }
+      return true;
     });
 
-    // 2.4 If records are empty, create realistic starter records for the ACTUAL accounts
-    if (records.length === 0 && loadedUsers.length > 0) {
-      const primaryStaff = loadedUsers[0];
-      const secondStaff = loadedUsers.find(u => u.branch === primaryStaff.branch && u.name !== primaryStaff.name) || loadedUsers[0];
-      
-      records = [
-        {
-          id: `LEAVE-REAL-1`,
-          leaveType: 'vacation',
-          leaveTypeName: 'ลาพักร้อน (Annual Leave)',
-          fromDate: '2026-11-20',
-          toDate: '2026-11-22',
-          totalDays: 3,
-          manager: 'ผู้จัดการสาขา',
-          status: 'Approved',
-          description: 'ลาพักผ่อนประจำปี',
-          submittedAt: '10 พ.ย. 69 10:30 น.',
-          userName: primaryStaff.name,
-          userBranch: primaryStaff.branch || 'Rayong',
-        },
-        {
-          id: `LEAVE-REAL-2`,
-          leaveType: 'personal',
-          leaveTypeName: 'ลากิจ (Personal Leave)',
-          fromDate: '2026-12-05',
-          toDate: '2026-12-06',
-          totalDays: 2,
-          manager: 'Admin',
-          status: 'Pending',
-          description: 'ติดต่อราชการทำเอกสารส่วนตัว',
-          submittedAt: '11 พ.ย. 69 14:15 น.',
-          userName: secondStaff.name,
-          userBranch: secondStaff.branch || primaryStaff.branch || 'Rayong',
-        }
-      ];
-
-      try {
-        localStorage.setItem('crenn_leave_requests', JSON.stringify(records));
-      } catch (e) {
-        console.warn(e);
-      }
+    // Write back cleaned real records to LocalStorage to permanently wipe old mock data
+    try {
+      localStorage.setItem('crenn_leave_requests', JSON.stringify(records));
+    } catch (e) {
+      console.warn(e);
     }
 
+    // Absolutely NO mock fallback records! If 0 real records, records remains []
     setLeaveRecords(records);
 
     // ──────────────────────────────────────────────
-    // 3. Compute Employee Leave Quotas from Real Accounts & Approved Leaves
+    // 3. Compute Employee Leave Quotas from Real Accounts & Actual Approved Leaves
     // ──────────────────────────────────────────────
     const computedQuotas: EmployeeQuotaSummary[] = loadedUsers.map((emp) => {
       const empName = emp.name || 'Staff';
@@ -420,9 +404,11 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
       const matchesDate = !selectedDateFilter || (r.fromDate <= selectedDateFilter && r.toDate >= selectedDateFilter);
 
-      return matchesSearch && matchesBranch && matchesStatus && matchesYear && matchesDate;
+      const matchesScope = (!isPersonalMode || viewScope === 'all') ? true : isCurrentUser(r.userName);
+
+      return matchesSearch && matchesBranch && matchesStatus && matchesYear && matchesDate && matchesScope;
     });
-  }, [leaveRecords, searchQuery, selectedBranch, selectedStatus, selectedYear, selectedDateFilter]);
+  }, [leaveRecords, searchQuery, selectedBranch, selectedStatus, selectedYear, selectedDateFilter, isPersonalMode, viewScope, user?.name]);
 
   // Statistics for KPI Cards
   const todayLeaves = useMemo(() => {
@@ -473,10 +459,49 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     ).length;
   }, [leaveRecords, selectedBranch, selectedYear]);
 
+  // Personal leaves statistics for logged-in user
+  const myTodayLeaves = useMemo(() => {
+    return todayLeaves.filter(r => isCurrentUser(r.userName));
+  }, [todayLeaves, user?.name]);
+
+  const myUpcomingLeaves = useMemo(() => {
+    return upcomingLeaves.filter(r => isCurrentUser(r.userName));
+  }, [upcomingLeaves, user?.name]);
+
+  const myPendingCount = useMemo(() => {
+    return leaveRecords.filter(r => 
+      r.status === 'Pending' && 
+      isCurrentUser(r.userName) &&
+      (selectedYear === 'all' || (r.fromDate && r.fromDate.startsWith(selectedYear)))
+    ).length;
+  }, [leaveRecords, user?.name, selectedYear]);
+
+  const myTotalRequestsCount = useMemo(() => {
+    return leaveRecords.filter(r => 
+      isCurrentUser(r.userName) &&
+      (selectedYear === 'all' || (r.fromDate && r.fromDate.startsWith(selectedYear)))
+    ).length;
+  }, [leaveRecords, user?.name, selectedYear]);
+
+  // Active view statistics
+  const isPersonalActive = isPersonalMode && viewScope === 'personal';
+  const displayTodayLeaves = isPersonalActive ? myTodayLeaves : todayLeaves;
+  const displayUpcomingLeaves = isPersonalActive ? myUpcomingLeaves : upcomingLeaves;
+  const displayPendingCount = isPersonalActive ? myPendingCount : pendingCount;
+  const displayTotalRequestsCount = isPersonalActive ? myTotalRequestsCount : totalRequestsCount;
+
   // Filtered employee quotas strictly for real accounts of the selected branch
   const filteredEmployeeQuotas = useMemo(() => {
-    return employeeQuotas.filter(emp => isBranchMatch(emp.branch, selectedBranch));
-  }, [employeeQuotas, selectedBranch]);
+    const list = employeeQuotas.filter(emp => isBranchMatch(emp.branch, selectedBranch));
+    if (isPersonalMode && user?.name) {
+      return [...list].sort((a, b) => {
+        if (isCurrentUser(a.name)) return -1;
+        if (isCurrentUser(b.name)) return 1;
+        return 0;
+      });
+    }
+    return list;
+  }, [employeeQuotas, selectedBranch, isPersonalMode, user?.name]);
 
   // Calendar matrix generator for current month
   const calendarDays = useMemo(() => {
@@ -511,74 +536,122 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     return days;
   }, [selectedMonth, leaveRecords, selectedBranch]);
 
+  // Check if current user is admin
+  const isAdmin = useMemo(() => {
+    const role = String(user?.role || '').toLowerCase();
+    return role === 'admin' || role === 'owner' || role === 'co-founder';
+  }, [user?.role]);
+
+  // Current branch display label
+  const currentBranchLabel = useMemo(() => {
+    if (selectedBranch === 'Rayong' || selectedBranch.includes('ระยอง')) return 'สาขาระยอง (Rayong)';
+    if (selectedBranch === 'Bangkok' || selectedBranch.includes('กรุงเทพ')) return 'สาขากรุงเทพฯ (Bangkok)';
+    return 'ทุกสาขา (All Branches)';
+  }, [selectedBranch]);
+
   const monthYearLabel = selectedMonth.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-20">
       
-      {/* ── HEADER BANNER & GLOBAL FILTERS ── */}
-      <div className="bg-white rounded-2xl p-5 md:p-6 shadow-xs border border-[#D4E4E3] border-t-4 border-t-[#5A8A88] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center text-xl font-bold border border-[#D4E4E3]">
-              📊
+      {/* ── HEADER BANNER CARD ── */}
+      <div className="bg-white rounded-2xl p-5 md:p-6 shadow-xs border border-[#D4E4E3] border-t-4 border-t-[#5A8A88]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          
+          {/* Left: Icon + Title + Badges + Subtitle */}
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center text-2xl font-bold border border-[#D4E4E3] shrink-0 shadow-2xs">
+              {isPersonalMode ? '👤' : '📊'}
             </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-black text-[#2D4A49] tracking-tight">
-                Leave Dashboard <span className="text-sm font-bold text-[#5A8A88]">(ภาพรวมการลาของทีม)</span>
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                ติดตามการลาล่วงหน้า สถิติวันลาคงเหลือของพนักงาน และปฏิทินการลาในทีม
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl md:text-2xl font-black text-[#2D4A49] tracking-tight whitespace-nowrap">
+                  {isPersonalMode ? 'Personnel Leave' : 'Leave Dashboard'}
+                </h1>
+                <span className="text-xs font-bold text-[#5A8A88] bg-[#E8F3F2] px-2.5 py-0.5 rounded-full border border-[#D4E4E3]/70 whitespace-nowrap">
+                  {isPersonalMode ? 'ภาพรวมการลาส่วนตัว' : 'ภาพรวมการลาของทีม'}
+                </span>
+                <span className="text-xs font-bold text-[#2D4A49] bg-[#E8F3F2] px-3 py-1 rounded-full border border-[#D4E4E3] whitespace-nowrap flex items-center gap-1.5 shadow-2xs">
+                  <span>📍</span>
+                  <span>{currentBranchLabel}</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 font-medium truncate sm:whitespace-normal">
+                {isPersonalMode 
+                  ? `ติดตามการลาล่วงหน้า สถิติวันลาคงเหลือ และประวัติการลาส่วนบุคคลของ ${user?.name || 'พนักงาน'} (${currentBranchLabel})`
+                  : `ติดตามการลาล่วงหน้า สถิติวันลาคงเหลือของพนักงาน และปฏิทินการลาใน${currentBranchLabel}`
+                }
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Global Controls: Branch Filter, Year Filter, Action Button */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          
-          {/* Branch Filter */}
-          <div className="flex items-center gap-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-2.5 py-1.5 shadow-2xs">
-            <Building size={14} className="text-[#5A8A88]" />
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="text-xs font-bold text-slate-700 bg-transparent focus:outline-none cursor-pointer"
-            >
-              <option value="all">ทุกสาขา</option>
-              <option value="Rayong">สาขาระยอง</option>
-              <option value="Bangkok">สาขากรุงเทพฯ</option>
-            </select>
+          {/* Right: Personal/All View Scope, Year Filter & Action Button */}
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-stretch sm:self-auto justify-end">
+            
+            {/* View Scope Toggle in Personal Mode */}
+            {isPersonalMode && (
+              <div className="flex items-center bg-[#F0F7F6] p-1 rounded-xl border border-[#D4E4E3]">
+                <button
+                  type="button"
+                  onClick={() => setViewScope('personal')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    viewScope === 'personal'
+                      ? 'bg-[#2D4A49] text-white shadow-xs'
+                      : 'text-[#2D4A49] hover:bg-white/60'
+                  }`}
+                  title="ดูเฉพาะข้อมูลของคุณ"
+                >
+                  <span>👤</span>
+                  <span>เฉพาะของฉัน ({user?.name || 'My Leave'})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewScope('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    viewScope === 'all'
+                      ? 'bg-[#2D4A49] text-white shadow-xs'
+                      : 'text-[#2D4A49] hover:bg-white/60'
+                  }`}
+                  title="ดูข้อมูลพนักงานทุกคนในสาขา"
+                >
+                  <span>👥</span>
+                  <span>ทั้งสาขา (All Team)</span>
+                </button>
+              </div>
+            )}
+
+            {/* Year Filter Tool */}
+            <div className="flex items-center gap-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3 py-2 shadow-2xs hover:border-[#5A8A88] transition-colors">
+              <CalendarIcon size={14} className="text-[#5A8A88] shrink-0" />
+              <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">ปี:</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => handleYearChange(e.target.value)}
+                className="text-xs font-bold text-[#2D4A49] bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="all">ทุกปี (All Years)</option>
+                {availableYears.map(yr => (
+                  <option key={yr} value={yr}>
+                    {yr} (พ.ศ. {parseInt(yr, 10) + 543})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Leave Request Action Button */}
+            {onOpenLeaveModal && (
+              <button
+                type="button"
+                onClick={onOpenLeaveModal}
+                className="px-4 py-2.5 rounded-xl bg-[#2D4A49] hover:bg-[#203635] text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98]"
+              >
+                <Plus size={16} className="shrink-0" />
+                <span>ทำรายการลาหยุด (Leave Request)</span>
+              </button>
+            )}
+
           </div>
 
-          {/* Year Filter */}
-          <div className="flex items-center gap-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-2.5 py-1.5 shadow-2xs">
-            <CalendarIcon size={14} className="text-[#5A8A88]" />
-            <span className="text-[11px] font-semibold text-slate-500">ปี:</span>
-            <select
-              value={selectedYear}
-              onChange={(e) => handleYearChange(e.target.value)}
-              className="text-xs font-bold text-[#2D4A49] bg-transparent focus:outline-none cursor-pointer"
-            >
-              <option value="all">ทุกปี (All)</option>
-              {availableYears.map(yr => (
-                <option key={yr} value={yr}>
-                  {yr} (พ.ศ. {parseInt(yr, 10) + 543})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {onOpenLeaveModal && (
-            <button
-              type="button"
-              onClick={onOpenLeaveModal}
-              className="px-4 py-2 rounded-xl bg-[#2D4A49] hover:bg-[#203635] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ml-1"
-            >
-              <Plus size={15} />
-              ทำรายการลาหยุด (Leave Request)
-            </button>
-          )}
         </div>
       </div>
 
@@ -586,27 +659,44 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       <div className="w-full overflow-x-auto pb-1">
         <div className="grid grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 min-w-[620px] lg:min-w-0">
           
-          {/* Card 1: On Leave Today */}
+          {/* Card 1: On Leave Today / Personal Status Today */}
           <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
-                  พนักงานที่ลาวันนี้
+                  {isPersonalActive ? 'สถานะการลาวันนี้' : 'พนักงานที่ลาวันนี้'}
                 </span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                  🤒
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm ${
+                  isPersonalActive 
+                    ? (displayTodayLeaves.length > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600')
+                    : 'bg-amber-50 text-amber-600'
+                }`}>
+                  {isPersonalActive ? (displayTodayLeaves.length > 0 ? '🤒' : '✨') : '🤒'}
                 </div>
               </div>
               <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-slate-800">{todayLeaves.length}</span>
-                <span className="text-xs text-slate-500 font-semibold">คน</span>
+                <span className="text-2xl sm:text-3xl font-black text-slate-800">
+                  {isPersonalActive 
+                    ? (displayTodayLeaves.length > 0 ? 'ลาหยุด' : 'ปกติ')
+                    : displayTodayLeaves.length
+                  }
+                </span>
+                <span className="text-xs text-slate-500 font-semibold">
+                  {isPersonalActive ? (displayTodayLeaves.length > 0 ? '' : '(ทำงาน)') : 'คน'}
+                </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {todayLeaves.length > 0 ? todayLeaves.map(l => l.userName).join(', ') : 'ไม่มีพนักงานลาในวันนี้'}
+                {isPersonalActive
+                  ? (displayTodayLeaves.length > 0 ? displayTodayLeaves[0].leaveTypeName : 'คุณปฏิบัติงานตามปกติ')
+                  : (displayTodayLeaves.length > 0 ? displayTodayLeaves.map(l => l.userName).join(', ') : 'ไม่มีพนักงานลาในวันนี้')
+                }
               </p>
             </div>
-            <div className="w-full bg-amber-100 h-1 rounded-full mt-3 overflow-hidden">
-              <div className="bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(100, todayLeaves.length * 25)}%` }} />
+            <div className="w-full bg-slate-100 h-1 rounded-full mt-3 overflow-hidden">
+              <div 
+                className={`h-full rounded-full ${isPersonalActive && displayTodayLeaves.length === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`} 
+                style={{ width: isPersonalActive ? '100%' : `${Math.min(100, displayTodayLeaves.length * 25)}%` }} 
+              />
             </div>
           </div>
 
@@ -615,22 +705,25 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <div>
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
-                  การลาล่วงหน้า
+                  {isPersonalActive ? 'การลาล่วงหน้าของคุณ' : 'การลาล่วงหน้า'}
                 </span>
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center shrink-0 font-bold text-sm">
                   🏖️
                 </div>
               </div>
               <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-[#5A8A88]">{upcomingLeaves.length}</span>
+                <span className="text-2xl sm:text-3xl font-black text-[#5A8A88]">{displayUpcomingLeaves.length}</span>
                 <span className="text-xs text-slate-500 font-semibold">รายการ</span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {upcomingLeaves.length > 0 ? `ลาล่วงหน้าตั้งแต่ ${upcomingLeaves[0].fromDate}` : 'ไม่มีรายการลาล่วงหน้า'}
+                {displayUpcomingLeaves.length > 0 
+                  ? `ลาล่วงหน้าตั้งแต่ ${displayUpcomingLeaves[0].fromDate}` 
+                  : (isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีรายการลาล่วงหน้า')
+                }
               </p>
             </div>
             <div className="w-full bg-[#E8F3F2] h-1 rounded-full mt-3 overflow-hidden">
-              <div className="bg-[#5A8A88] h-full rounded-full" style={{ width: `${Math.min(100, upcomingLeaves.length * 20)}%` }} />
+              <div className="bg-[#5A8A88] h-full rounded-full" style={{ width: `${Math.min(100, displayUpcomingLeaves.length * 20)}%` }} />
             </div>
           </div>
 
@@ -639,22 +732,25 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <div>
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
-                  คำขอรออนุมัติ
+                  {isPersonalActive ? 'คำขอรออนุมัติของคุณ' : 'คำขอรออนุมัติ'}
                 </span>
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 font-bold text-sm">
                   ⏳
                 </div>
               </div>
               <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-orange-600">{pendingCount}</span>
+                <span className="text-2xl sm:text-3xl font-black text-orange-600">{displayPendingCount}</span>
                 <span className="text-xs text-slate-500 font-semibold">คำขอ</span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {pendingCount > 0 ? 'รอผู้จัดการดำเนินการอนุมัติ' : 'พิจารณาครบทุกรายการแล้ว'}
+                {displayPendingCount > 0 
+                  ? (isPersonalActive ? 'รอผู้จัดการพิจารณาอนุมัติ' : 'รอผู้จัดการดำเนินการอนุมัติ') 
+                  : (isPersonalActive ? 'ไม่มีคำขอที่รออนุมัติ' : 'พิจารณาครบทุกรายการแล้ว')
+                }
               </p>
             </div>
             <div className="w-full bg-orange-100 h-1 rounded-full mt-3 overflow-hidden">
-              <div className="bg-orange-500 h-full rounded-full" style={{ width: `${Math.min(100, pendingCount * 33)}%` }} />
+              <div className="bg-orange-500 h-full rounded-full" style={{ width: `${Math.min(100, displayPendingCount * 33)}%` }} />
             </div>
           </div>
 
@@ -663,18 +759,21 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <div>
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
-                  คำขอทั้งหมดในระบบ
+                  {isPersonalActive ? 'คำขอทั้งหมดของคุณ' : 'คำขอทั้งหมดในระบบ'}
                 </span>
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 font-bold text-sm">
                   📋
                 </div>
               </div>
               <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-purple-700">{totalRequestsCount}</span>
+                <span className="text-2xl sm:text-3xl font-black text-purple-700">{displayTotalRequestsCount}</span>
                 <span className="text-xs text-slate-500 font-semibold">รายการ</span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {selectedYear === 'all' ? 'ครอบคลุมทุกปีในระบบ' : `ประจำปี ${selectedYear}`}
+                {selectedYear === 'all' 
+                  ? (isPersonalActive ? 'ประวัติคำขอทั้งหมดของคุณ' : 'ครอบคลุมทุกปีในระบบ') 
+                  : `ประจำปี ${selectedYear}`
+                }
               </p>
             </div>
             <div className="w-full bg-purple-100 h-1 rounded-full mt-3 overflow-hidden">
@@ -824,31 +923,42 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
         </div>
 
-        {/* RIGHT 5-COLUMNS: Upcoming & Advance Leaves (การลาล่วงหน้าของทีม - Real Employees) */}
+        {/* RIGHT 5-COLUMNS: Upcoming & Advance Leaves (การลาล่วงหน้า - Real Employees) */}
         <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-[#D4E4E3] shadow-xs space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-[#D4E4E3] pb-3 mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles size={18} className="text-amber-500" />
                 <h2 className="text-sm font-bold text-[#2D4A49]">
-                  การลาล่วงหน้าของทีม <span className="text-xs text-slate-500 font-normal">(Advance Leaves)</span>
+                  {isPersonalActive ? 'การลาล่วงหน้าของคุณ' : 'การลาล่วงหน้าของทีม'}{' '}
+                  <span className="text-xs text-slate-500 font-normal">
+                    {isPersonalActive ? '(Your Advance Leaves)' : '(Advance Leaves)'}
+                  </span>
                 </h2>
               </div>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F2] text-[#5A8A88]">
-                {upcomingLeaves.length} รายการ
+                {displayUpcomingLeaves.length} รายการ
               </span>
             </div>
 
             <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-              {upcomingLeaves.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <p className="text-xs font-bold text-slate-500">ไม่มีรายการลาล่วงหน้า</p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    พนักงานใน{selectedBranch === 'all' ? 'ทุกสาขา' : selectedBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ'}ปฏิบัติงานตามปกติ
+              {displayUpcomingLeaves.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-10 h-10 rounded-2xl bg-white text-slate-400 mx-auto flex items-center justify-center text-lg mb-2 shadow-2xs border border-slate-200">
+                    🏖️
+                  </div>
+                  <p className="text-xs font-bold text-slate-600">
+                    {isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีรายการลาล่วงหน้า'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                    {isPersonalActive 
+                      ? `คุณ (${user?.name || 'พนักงาน'}) ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ` 
+                      : `พนักงานใน${currentBranchLabel}ปฏิบัติงานตามปกติ ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ`
+                    }
                   </p>
                 </div>
               ) : (
-                upcomingLeaves.map((record) => (
+                displayUpcomingLeaves.map((record) => (
                   <div 
                     key={record.id}
                     className="p-3 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2 hover:border-[#5A8A88] transition-colors"
@@ -907,25 +1017,15 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <Users size={18} className="text-[#5A8A88]" />
             <div>
               <h2 className="text-sm md:text-base font-bold text-[#2D4A49]">
-                สิทธิ์วันลาคงเหลือของพนักงานรายบุคคล <span className="text-xs text-[#5A8A88] font-normal">(Employee Leave Quotas & Balances)</span>
+                {isPersonalActive ? 'สิทธิ์วันลาคงเหลือส่วนบุคคล' : 'สิทธิ์วันลาคงเหลือของพนักงานรายบุคคล'}{' '}
+                <span className="text-xs text-[#5A8A88] font-normal">
+                  {isPersonalActive ? '(Your Leave Quotas & Balances)' : '(Employee Leave Quotas & Balances)'}
+                </span>
               </h2>
               <p className="text-[11px] text-slate-400">
-                สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของพนักงานจริงในระบบ ({filteredEmployeeQuotas.length} คน)
+                สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของพนักงานจริงใน{currentBranchLabel} ({filteredEmployeeQuotas.length} คน)
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-xs font-semibold text-slate-500">กรองสาขา:</span>
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="px-2.5 py-1 bg-[#F8FCFC] border border-[#D4E4E3] rounded-lg text-xs font-bold text-slate-700 cursor-pointer focus:outline-none focus:border-[#5A8A88]"
-            >
-              <option value="all">ทุกสาขา</option>
-              <option value="Rayong">สาขาระยอง</option>
-              <option value="Bangkok">สาขากรุงเทพฯ</option>
-            </select>
           </div>
         </div>
 
@@ -937,61 +1037,80 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredEmployeeQuotas.map((emp) => (
-              <div key={emp.id} className="bg-[#F8FCFC] border border-[#D4E4E3] rounded-2xl p-4 space-y-3 hover:shadow-xs transition-shadow">
-                
-                {/* Staff Header */}
-                <div className="flex items-center gap-3 border-b border-[#D4E4E3]/60 pb-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-[#5A8A88] text-white flex items-center justify-center font-bold text-base shadow-xs shrink-0">
-                    {emp.avatar}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-xs font-bold text-slate-800 truncate">{emp.name}</h3>
-                    <p className="text-[10px] text-[#5A8A88] font-semibold truncate">{emp.role}</p>
-                    <p className="text-[9px] text-slate-400 font-medium">📍 สาขา {emp.branch}</p>
-                  </div>
-                </div>
-
-                {/* Leave Quota Progress Bars */}
-                <div className="space-y-2 text-xs">
+            {filteredEmployeeQuotas.map((emp) => {
+              const isOwnAccount = isCurrentUser(emp.name);
+              return (
+                <div 
+                  key={emp.id} 
+                  className={`rounded-2xl p-4 space-y-3 transition-shadow ${
+                    isOwnAccount 
+                      ? 'bg-[#F0F7F6] border-2 border-[#5A8A88] shadow-xs' 
+                      : 'bg-[#F8FCFC] border border-[#D4E4E3] hover:shadow-xs'
+                  }`}
+                >
                   
-                  {/* 1. ลาป่วย */}
-                  <div>
-                    <div className="flex justify-between text-[11px] mb-0.5">
-                      <span className="font-semibold text-slate-700">🤒 ลาป่วย (Sick Leave)</span>
-                      <span className="font-bold text-rose-600">{emp.sickRemaining} / {emp.sickTotal} วัน</span>
+                  {/* Staff Header */}
+                  <div className="flex items-center gap-3 border-b border-[#D4E4E3]/60 pb-2.5">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 ${
+                      isOwnAccount ? 'bg-[#2D4A49] text-white' : 'bg-[#5A8A88] text-white'
+                    }`}>
+                      {emp.avatar}
                     </div>
-                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-rose-500 h-full rounded-full" style={{ width: `${(emp.sickRemaining / emp.sickTotal) * 100}%` }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-xs font-bold text-slate-800 truncate">{emp.name}</h3>
+                        {isOwnAccount && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#5A8A88] text-white whitespace-nowrap">
+                            ⭐ บัญชีของคุณ
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[#5A8A88] font-semibold truncate">{emp.role}</p>
+                      <p className="text-[9px] text-slate-400 font-medium">📍 สาขา {emp.branch}</p>
                     </div>
                   </div>
 
-                  {/* 2. ลากิจ */}
-                  <div>
-                    <div className="flex justify-between text-[11px] mb-0.5">
-                      <span className="font-semibold text-slate-700">💼 ลากิจ (Personal Leave)</span>
-                      <span className="font-bold text-purple-700">{emp.personalRemaining} / {emp.personalTotal} วัน</span>
+                  {/* Leave Quota Progress Bars */}
+                  <div className="space-y-2 text-xs">
+                    
+                    {/* 1. ลาป่วย */}
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-semibold text-slate-700">🤒 ลาป่วย (Sick Leave)</span>
+                        <span className="font-bold text-rose-600">{emp.sickRemaining} / {emp.sickTotal} วัน</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-rose-500 h-full rounded-full" style={{ width: `${(emp.sickRemaining / emp.sickTotal) * 100}%` }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-purple-600 h-full rounded-full" style={{ width: `${(emp.personalRemaining / emp.personalTotal) * 100}%` }} />
-                    </div>
-                  </div>
 
-                  {/* 3. ลาพักร้อน */}
-                  <div>
-                    <div className="flex justify-between text-[11px] mb-0.5">
-                      <span className="font-semibold text-slate-700">🏖️ ลาพักร้อน (Vacation Leave)</span>
-                      <span className="font-bold text-emerald-700">{emp.vacationRemaining} / {emp.vacationTotal} วัน</span>
+                    {/* 2. ลากิจ */}
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-semibold text-slate-700">💼 ลากิจ (Personal Leave)</span>
+                        <span className="font-bold text-purple-700">{emp.personalRemaining} / {emp.personalTotal} วัน</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-purple-600 h-full rounded-full" style={{ width: `${(emp.personalRemaining / emp.personalTotal) * 100}%` }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${(emp.vacationRemaining / emp.vacationTotal) * 100}%` }} />
+
+                    {/* 3. ลาพักร้อน */}
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-semibold text-slate-700">🏖️ ลาพักร้อน (Vacation Leave)</span>
+                        <span className="font-bold text-emerald-700">{emp.vacationRemaining} / {emp.vacationTotal} วัน</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${(emp.vacationRemaining / emp.vacationTotal) * 100}%` }} />
+                      </div>
                     </div>
+
                   </div>
 
                 </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -1003,10 +1122,16 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#D4E4E3] pb-4">
           <div>
             <h2 className="text-base font-bold text-[#2D4A49]">
-              ประวัติการลาทั้งหมดของทีม <span className="text-xs text-slate-500 font-normal">(All Leave Requests History)</span>
+              {isPersonalActive ? 'ประวัติการลาของคุณ' : 'ประวัติการลาทั้งหมดของทีม'}{' '}
+              <span className="text-xs text-slate-500 font-normal">
+                {isPersonalActive ? '(Your Leave Requests History)' : '(All Leave Requests History)'}
+              </span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              แสดงรายการคำขอลาทั้งหมดในระบบ สามารถค้นหา กรองตามปี/สาขา/สถานะ และอนุมัติรายการได้
+              {isPersonalActive
+                ? 'แสดงรายการคำขอลาของคุณในระบบ สามารถค้นหา กรองตามปี และสถานะได้'
+                : 'แสดงรายการคำขอลาทั้งหมดในระบบ สามารถค้นหา กรองตามปี/สาขา/สถานะ และอนุมัติรายการได้'
+              }
             </p>
           </div>
 
@@ -1038,17 +1163,6 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                   ปี {yr} ({parseInt(yr, 10) + 543})
                 </option>
               ))}
-            </select>
-
-            {/* Branch Filter */}
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
-            >
-              <option value="all">ทุกสาขา</option>
-              <option value="Rayong">สาขาระยอง</option>
-              <option value="Bangkok">สาขากรุงเทพฯ</option>
             </select>
 
             {/* Status Filter */}
@@ -1084,7 +1198,20 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-400">
-                    ไม่พบรายการข้อมูลการลาที่ตรงตามเงื่อนไข (ปี {selectedYear === 'all' ? 'ทั้งหมด' : selectedYear})
+                    <div className="py-4 space-y-1">
+                      <p className="text-xs font-bold text-slate-600">
+                        {isPersonalActive 
+                          ? `คุณยังไม่มีประวัติการลาในระบบ (ปี ${selectedYear === 'all' ? 'ทั้งหมด' : selectedYear})`
+                          : `ยังไม่มีประวัติการลาในระบบ (ปี ${selectedYear === 'all' ? 'ทั้งหมด' : selectedYear})`
+                        }
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {isPersonalActive
+                          ? 'คุณยังไม่มีการยื่นคำขอลา สามารถกดปุ่ม "ทำรายการลาหยุด" เพื่อเริ่มสร้างคำขอจริงได้'
+                          : `พนักงานใน${currentBranchLabel}ยังไม่มีการยื่นคำขอลา สามารถกดปุ่ม "ทำรายการลาหยุด" เพื่อเริ่มสร้างคำขอจริงได้`
+                        }
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
