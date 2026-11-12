@@ -144,7 +144,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
         {
           items: [
             { route: 'home', label: 'หน้าหลัก (Inventory)', emoji: '🏠' },
-            { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' },
+            ...(user?.permissions?.leaveDashboard !== 'hidden' && user?.permissions?.leaveDashboard !== 'Hidden' ? [
+              { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' }
+            ] : []),
           ],
         },
       ],
