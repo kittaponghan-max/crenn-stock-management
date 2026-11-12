@@ -145,11 +145,13 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                 emoji: '📊'
               }
             ] : []),
-            {
-              route: 'personnelLeave',
-              label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)',
-              emoji: '👤'
-            },
+            ...(user?.permissions?.personnelLeave !== 'hidden' && user?.permissions?.personnelLeave !== 'Hidden' ? [
+              {
+                route: 'personnelLeave',
+                label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)',
+                emoji: '👤'
+              }
+            ] : []),
           ],
         },
       ],
