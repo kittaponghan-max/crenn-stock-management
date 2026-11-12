@@ -62,6 +62,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           })}
           outOfStockCount={outCount}
           needPurchasingCount={needPurchasing !== undefined ? needPurchasing : (outCount + lowCount)}
+          user={user}
         />
 
         {/* Right Action Icons: User Avatar Dropdown */}
