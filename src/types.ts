@@ -175,6 +175,7 @@ export interface AppPermissions {
   dashboardBar: PermissionLevel;
   dashboardBakery: PermissionLevel;
   leaveDashboard?: PermissionLevel;
+  personnelLeave?: PermissionLevel;
   // Stock Table
   stockTableBar: PermissionLevel;
   stockTableBakery: PermissionLevel;
@@ -234,6 +235,17 @@ export const canAccessLeaveDashboard = (
   const perms = user.permissions;
   if (perms && perms.leaveDashboard !== undefined) {
     return perms.leaveDashboard !== 'hidden' && perms.leaveDashboard !== 'Hidden';
+  }
+  return true;
+};
+
+export const canAccessPersonnelLeave = (
+  user: { name?: string; role?: any; permissions?: any } | null | undefined
+): boolean => {
+  if (!user) return false;
+  const perms = user.permissions;
+  if (perms && perms.personnelLeave !== undefined) {
+    return perms.personnelLeave !== 'hidden' && perms.personnelLeave !== 'Hidden';
   }
   return true;
 };
