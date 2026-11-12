@@ -418,7 +418,7 @@ export default function App() {
   }, [stockViewMode, stockWeek, stockActiveChunkIdx]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings' | 'leaveRequest' | 'leaveDashboard'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings' | 'leaveRequest' | 'leaveDashboard' | 'personnelLeave'>('home');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
@@ -2482,10 +2482,18 @@ export default function App() {
           ) : (
             <LeaveDashboard
               user={user}
+              mode="team"
               onNavigate={handleTabNavigate}
               onOpenLeaveModal={() => setActiveTab('leaveRequest')}
             />
           )
+        ) : activeTab === 'personnelLeave' ? (
+          <LeaveDashboard
+            user={user}
+            mode="personal"
+            onNavigate={handleTabNavigate}
+            onOpenLeaveModal={() => setActiveTab('leaveRequest')}
+          />
         ) : activeTab === 'dashboard' ? (
           <Dashboard 
             ingredients={ingredients} 
