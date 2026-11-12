@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc } from './types';
+import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessLeaveDashboard } from './types';
 import { IngredientForm } from './components/IngredientForm';
 import { StockTable } from './components/StockTable';
 import { LoginForm, UserRole } from './components/LoginForm';
@@ -2477,11 +2477,15 @@ export default function App() {
             hasPermission={hasPermission}
           />
         ) : activeTab === 'leaveDashboard' ? (
-          <LeaveDashboard
-            user={user}
-            onNavigate={handleTabNavigate}
-            onOpenLeaveModal={() => setActiveTab('leaveRequest')}
-          />
+          !canAccessLeaveDashboard(user) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} pageName="Leave Dashboard" />
+          ) : (
+            <LeaveDashboard
+              user={user}
+              onNavigate={handleTabNavigate}
+              onOpenLeaveModal={() => setActiveTab('leaveRequest')}
+            />
+          )
         ) : activeTab === 'dashboard' ? (
           <Dashboard 
             ingredients={ingredients} 
