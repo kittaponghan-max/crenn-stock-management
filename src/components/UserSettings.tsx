@@ -630,8 +630,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   const [roleActionModal, setRoleActionModal] = useState<{ mode: 'create' | 'rename' | null; initialName: string }>({ mode: null, initialName: '' });
   const [roleInputText, setRoleInputText] = useState('');
 
-  // Default standard roles list
-  const defaultStandardRoles = useMemo(() => [
+  // Standard roles list default
+  const DEFAULT_ROLES_LIST = useMemo(() => [
     'Admin',
     'Owner',
     'Co-founder',
@@ -646,14 +646,27 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     'Dishwasher/Cleaner'
   ], []);
 
-  // Compute all available dynamic roles across defaults, templates, custom, and users
+  // Configured roles state (allows editing, deleting standard or custom roles)
+  const [configuredRoles, setConfiguredRoles] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crenn_configured_roles');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_ROLES_LIST;
+  });
+
+  // Compute all available dynamic roles across configured roles, templates, custom, and users, sorted alphabetically
   const allAvailableRoles = useMemo(() => {
-    const roleSet = new Set<string>(defaultStandardRoles);
+    const roleSet = new Set<string>();
+    configuredRoles.forEach(r => { if (r && r.trim()) roleSet.add(r.trim()); });
     customRoles.forEach(r => { if (r && r.trim()) roleSet.add(r.trim()); });
     Object.keys(roleTemplates).forEach(r => { if (r && r.trim()) roleSet.add(r.trim()); });
     users.forEach(u => { if (u.role && u.role.trim()) roleSet.add(u.role.trim()); });
-    return Array.from(roleSet);
-  }, [defaultStandardRoles, customRoles, roleTemplates, users]);
+    return Array.from(roleSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [configuredRoles, customRoles, roleTemplates, users]);
 
   // Handle open modal for creating a new role
   const handleOpenCreateRole = () => {
@@ -677,6 +690,12 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       const defaultPerms = applyRoleDefaults(newName);
       const updatedTemplates = { ...roleTemplates, [newName]: defaultPerms };
       
+      const updatedRoles = Array.from(new Set([...configuredRoles, newName]));
+      setConfiguredRoles(updatedRoles);
+      try {
+        localStorage.setItem('crenn_configured_roles', JSON.stringify(updatedRoles));
+      } catch (e) {}
+
       setCustomRoles(prev => Array.from(new Set([...prev, newName])));
       setRoleTemplates(updatedTemplates);
       setSelectedTemplateRole(newName);
@@ -688,7 +707,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
           await supabase.from('app_settings').upsert([
             { branch: 'GLOBAL', setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
-            { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates }
+            { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
+            { branch: 'GLOBAL', setting_key: 'configured_roles_list', setting_value: updatedRoles },
+            { branch: activeBr, setting_key: 'configured_roles_list', setting_value: updatedRoles }
           ]);
         } catch (e) {
           console.warn('Supabase create role template error:', e);
@@ -713,6 +734,13 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       delete updatedTemplates[oldName];
       updatedTemplates[newName] = currentPerms;
 
+      const updatedRoles = configuredRoles.map(r => r === oldName ? newName : r);
+      if (!updatedRoles.includes(newName)) updatedRoles.push(newName);
+      setConfiguredRoles(updatedRoles);
+      try {
+        localStorage.setItem('crenn_configured_roles', JSON.stringify(updatedRoles));
+      } catch (e) {}
+
       setRoleTemplates(updatedTemplates);
       setSelectedTemplateRole(newName);
       setCustomRoles(prev => prev.map(r => r === oldName ? newName : r));
@@ -731,7 +759,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
           const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
           await supabase.from('app_settings').upsert([
             { branch: 'GLOBAL', setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
-            { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates }
+            { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
+            { branch: 'GLOBAL', setting_key: 'configured_roles_list', setting_value: updatedRoles },
+            { branch: activeBr, setting_key: 'configured_roles_list', setting_value: updatedRoles }
           ]);
 
           // Update app_users table roles
@@ -767,10 +797,16 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     const updatedTemplates = { ...roleTemplates };
     delete updatedTemplates[roleToDelete];
 
+    const updatedRoles = configuredRoles.filter(r => r !== roleToDelete);
+    setConfiguredRoles(updatedRoles);
+    try {
+      localStorage.setItem('crenn_configured_roles', JSON.stringify(updatedRoles));
+    } catch (e) {}
+
     setRoleTemplates(updatedTemplates);
     setCustomRoles(prev => prev.filter(r => r !== roleToDelete));
 
-    const remainingRoles = allAvailableRoles.filter(r => r !== roleToDelete);
+    const remainingRoles = updatedRoles.filter(r => r !== roleToDelete).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     const nextRole = remainingRoles.length > 0 ? remainingRoles[0] : 'Barista';
     setSelectedTemplateRole(nextRole);
     setTemplateForm({ ...(updatedTemplates[nextRole] || applyRoleDefaults(nextRole)) });
@@ -780,7 +816,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
         const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
         await supabase.from('app_settings').upsert([
           { branch: 'GLOBAL', setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
-          { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates }
+          { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
+          { branch: 'GLOBAL', setting_key: 'configured_roles_list', setting_value: updatedRoles },
+          { branch: activeBr, setting_key: 'configured_roles_list', setting_value: updatedRoles }
         ]);
       } catch (e) {
         console.warn('Supabase delete role template error:', e);
@@ -957,6 +995,23 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             if (anyMatch && typeof anyMatch.setting_value === 'object') {
               resolvedTemplates = anyMatch.setting_value;
             }
+          }
+        }
+
+        // Fetch configured_roles_list if saved in Supabase
+        const { data: rolesConfigData } = await supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'configured_roles_list')
+          .limit(1);
+
+        if (rolesConfigData && rolesConfigData.length > 0 && Array.isArray(rolesConfigData[0].setting_value)) {
+          const list = rolesConfigData[0].setting_value;
+          if (list.length > 0) {
+            setConfiguredRoles(list);
+            try {
+              localStorage.setItem('crenn_configured_roles', JSON.stringify(list));
+            } catch (e) {}
           }
         }
       } catch (e) {
@@ -2582,7 +2637,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                     title="สร้างตำแหน่งใหม่"
                   >
                     <Plus size={11} className="text-[#5A8A88]" />
-                    <span>+ สร้างใหม่</span>
+                    <span>สร้างใหม่</span>
                   </button>
 
                   {/* 3. Delete Role Button */}
