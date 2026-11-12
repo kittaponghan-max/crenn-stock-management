@@ -91,7 +91,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   }, []);
 
   const isItemActive = (id: string, currentTab: string) => {
-    if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard' || currentTab === 'leaveDashboard';
+    if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard' || currentTab === 'leaveDashboard' || currentTab === 'personnelLeave';
     if (id === 'dailyrecord') {
       return ['dailySales', 'dailyBakery'].includes(currentTab);
     }
@@ -128,7 +128,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       route: 'home',
       showBadge: false,
       hasDropdown: true,
-      dropdownWidth: 'min-w-[250px] w-auto',
+      dropdownWidth: 'min-w-[280px] w-auto',
       dropdownAlignment: 'left',
       groups: [
         {
@@ -145,6 +145,11 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
                 emoji: '📊'
               }
             ] : []),
+            {
+              route: 'personnelLeave',
+              label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)',
+              emoji: '👤'
+            },
           ],
         },
       ],
