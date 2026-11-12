@@ -96,7 +96,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
   }, []);
 
   const isTabActive = (tabId: string) => {
-    if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard' || activeTab === 'leaveDashboard';
+    if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard' || activeTab === 'leaveDashboard' || activeTab === 'personnelLeave';
     if (tabId === 'dailyrecord') {
       return activeTab === 'dailySales' || activeTab === 'dailyBakery';
     }
@@ -138,7 +138,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       label: 'หน้าหลัก', 
       icon: Home, 
       hasDropdown: true,
-      dropdownWidth: 'w-[250px]',
+      dropdownWidth: 'w-[280px]',
       alignmentClass: 'left-0 sm:left-1/2 sm:-translate-x-1/2',
       groups: [
         {
@@ -147,6 +147,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
             ...(user?.permissions?.leaveDashboard !== 'hidden' && user?.permissions?.leaveDashboard !== 'Hidden' ? [
               { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' }
             ] : []),
+            { route: 'personnelLeave', label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', emoji: '👤' },
           ],
         },
       ],
