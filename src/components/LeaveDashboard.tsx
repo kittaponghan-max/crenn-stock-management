@@ -58,7 +58,6 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   onOpenLeaveModal,
 }) => {
   const isPersonalMode = mode === 'personal';
-  const [viewScope, setViewScope] = useState<'personal' | 'all'>(mode === 'personal' ? 'personal' : 'all');
 
   // Helper to match logged-in user
   const isCurrentUser = (name?: string) => {
@@ -404,11 +403,11 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
       const matchesDate = !selectedDateFilter || (r.fromDate <= selectedDateFilter && r.toDate >= selectedDateFilter);
 
-      const matchesScope = (!isPersonalMode || viewScope === 'all') ? true : isCurrentUser(r.userName);
+      const matchesScope = !isPersonalMode || isCurrentUser(r.userName);
 
       return matchesSearch && matchesBranch && matchesStatus && matchesYear && matchesDate && matchesScope;
     });
-  }, [leaveRecords, searchQuery, selectedBranch, selectedStatus, selectedYear, selectedDateFilter, isPersonalMode, viewScope, user?.name]);
+  }, [leaveRecords, searchQuery, selectedBranch, selectedStatus, selectedYear, selectedDateFilter, isPersonalMode, user?.name]);
 
   // Statistics for KPI Cards
   const todayLeaves = useMemo(() => {
@@ -484,7 +483,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   }, [leaveRecords, user?.name, selectedYear]);
 
   // Active view statistics
-  const isPersonalActive = isPersonalMode && viewScope === 'personal';
+  const isPersonalActive = isPersonalMode;
   const displayTodayLeaves = isPersonalActive ? myTodayLeaves : todayLeaves;
   const displayUpcomingLeaves = isPersonalActive ? myUpcomingLeaves : upcomingLeaves;
   const displayPendingCount = isPersonalActive ? myPendingCount : pendingCount;
@@ -494,11 +493,8 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   const filteredEmployeeQuotas = useMemo(() => {
     const list = employeeQuotas.filter(emp => isBranchMatch(emp.branch, selectedBranch));
     if (isPersonalMode && user?.name) {
-      return [...list].sort((a, b) => {
-        if (isCurrentUser(a.name)) return -1;
-        if (isCurrentUser(b.name)) return 1;
-        return 0;
-      });
+      const mine = list.filter(emp => isCurrentUser(emp.name));
+      return mine.length > 0 ? mine : list.slice(0, 1);
     }
     return list;
   }, [employeeQuotas, selectedBranch, isPersonalMode, user?.name]);
@@ -585,41 +581,9 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             </div>
           </div>
 
-          {/* Right: Personal/All View Scope, Year Filter & Action Button */}
+          {/* Right: Year Filter & Action Button */}
           <div className="flex flex-wrap items-center gap-3 shrink-0 self-stretch sm:self-auto justify-end">
             
-            {/* View Scope Toggle in Personal Mode */}
-            {isPersonalMode && (
-              <div className="flex items-center bg-[#F0F7F6] p-1 rounded-xl border border-[#D4E4E3]">
-                <button
-                  type="button"
-                  onClick={() => setViewScope('personal')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    viewScope === 'personal'
-                      ? 'bg-[#2D4A49] text-white shadow-xs'
-                      : 'text-[#2D4A49] hover:bg-white/60'
-                  }`}
-                  title="ดูเฉพาะข้อมูลของคุณ"
-                >
-                  <span>👤</span>
-                  <span>เฉพาะของฉัน ({user?.name || 'My Leave'})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewScope('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    viewScope === 'all'
-                      ? 'bg-[#2D4A49] text-white shadow-xs'
-                      : 'text-[#2D4A49] hover:bg-white/60'
-                  }`}
-                  title="ดูข้อมูลพนักงานทุกคนในสาขา"
-                >
-                  <span>👥</span>
-                  <span>ทั้งสาขา (All Team)</span>
-                </button>
-              </div>
-            )}
-
             {/* Year Filter Tool */}
             <div className="flex items-center gap-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3 py-2 shadow-2xs hover:border-[#5A8A88] transition-colors">
               <CalendarIcon size={14} className="text-[#5A8A88] shrink-0" />
@@ -1023,7 +987,10 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 </span>
               </h2>
               <p className="text-[11px] text-slate-400">
-                สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของพนักงานจริงใน{currentBranchLabel} ({filteredEmployeeQuotas.length} คน)
+                {isPersonalActive 
+                  ? `สรุปสิทธิ์วันลาคงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของคุณ (${user?.name || 'พนักงาน'})`
+                  : `สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของพนักงานจริงใน${currentBranchLabel} (${filteredEmployeeQuotas.length} คน)`
+                }
               </p>
             </div>
           </div>
