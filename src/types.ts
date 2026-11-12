@@ -174,6 +174,7 @@ export type PermissionLevel = 'Hidden' | 'Review' | 'Edit';
 export interface AppPermissions {
   dashboardBar: PermissionLevel;
   dashboardBakery: PermissionLevel;
+  leaveDashboard?: PermissionLevel;
   // Stock Table
   stockTableBar: PermissionLevel;
   stockTableBakery: PermissionLevel;
@@ -222,6 +223,19 @@ export const canAccessProdCalc = (
   // 2. Default: Visible only to Admin / Co-founder / Owner
   const role = String(user.role || '').toUpperCase();
   return role === 'ADMIN' || role === 'CO-FOUNDER' || role === 'OWNER';
+};
+
+export const canAccessLeaveDashboard = (
+  user: { name?: string; role?: any; permissions?: any } | null | undefined
+): boolean => {
+  if (!user) return false;
+  const role = String(user.role || '').toUpperCase();
+  if (role === 'ADMIN' || role === 'CO-FOUNDER' || role === 'OWNER') return true;
+  const perms = user.permissions;
+  if (perms && perms.leaveDashboard !== undefined) {
+    return perms.leaveDashboard !== 'hidden' && perms.leaveDashboard !== 'Hidden';
+  }
+  return true;
 };
 
 export interface AppUser {
