@@ -1096,7 +1096,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               {isPersonalActive
-                ? 'แสดงรายการคำขอลาของคุณในระบบ สามารถค้นหา กรองตามปี และสถานะได้'
+                ? 'แสดงรายการคำขอลาของคุณในระบบ สามารถกรองตามปี และสถานะได้'
                 : 'แสดงรายการคำขอลาทั้งหมดในระบบ สามารถค้นหา กรองตามปี/สาขา/สถานะ และอนุมัติรายการได้'
               }
             </p>
@@ -1105,17 +1105,19 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           {/* Search & Comprehensive Filters */}
           <div className="flex flex-wrap items-center gap-2">
             
-            {/* Search Box */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหาชื่อพนักงาน, ชนิดการลา..."
-                className="pl-8 pr-3 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#5A8A88] w-44 sm:w-52"
-              />
-            </div>
+            {/* Search Box (Leave Dashboard Only) */}
+            {!isPersonalActive && (
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาชื่อพนักงาน, ชนิดการลา..."
+                  className="pl-8 pr-3 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#5A8A88] w-44 sm:w-52"
+                />
+              </div>
+            )}
 
             {/* Year Filter Tool */}
             <select
