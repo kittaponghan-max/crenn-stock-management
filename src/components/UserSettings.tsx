@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -621,9 +621,177 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   const [availableBranchTemplates, setAvailableBranchTemplates] = useState<{ branch: string; data: Record<string, UserPermissions> }[]>([]);
   const [syncAcrossAllBranches, setSyncAcrossAllBranches] = useState(true);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [selectedTemplateRole, setSelectedTemplateRole] = useState<UserRole>('Barista');
+  const [selectedTemplateRole, setSelectedTemplateRole] = useState<string>('Barista');
   const [templateForm, setTemplateForm] = useState<UserPermissions>(() => applyRoleDefaults('Barista'));
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  // Dynamic custom roles & Role action modal state (Create / Rename)
+  const [customRoles, setCustomRoles] = useState<string[]>([]);
+  const [roleActionModal, setRoleActionModal] = useState<{ mode: 'create' | 'rename' | null; initialName: string }>({ mode: null, initialName: '' });
+  const [roleInputText, setRoleInputText] = useState('');
+
+  // Default standard roles list
+  const defaultStandardRoles = useMemo(() => [
+    'Admin',
+    'Owner',
+    'Co-founder',
+    'Branch Manager',
+    'Head Baker',
+    'Senior Baker',
+    'Junior Baker',
+    'Barista',
+    'Barista Assistance',
+    'Cashier',
+    'Server/Runner',
+    'Dishwasher/Cleaner'
+  ], []);
+
+  // Compute all available dynamic roles across defaults, templates, custom, and users
+  const allAvailableRoles = useMemo(() => {
+    const roleSet = new Set<string>(defaultStandardRoles);
+    customRoles.forEach(r => { if (r && r.trim()) roleSet.add(r.trim()); });
+    Object.keys(roleTemplates).forEach(r => { if (r && r.trim()) roleSet.add(r.trim()); });
+    users.forEach(u => { if (u.role && u.role.trim()) roleSet.add(u.role.trim()); });
+    return Array.from(roleSet);
+  }, [defaultStandardRoles, customRoles, roleTemplates, users]);
+
+  // Handle open modal for creating a new role
+  const handleOpenCreateRole = () => {
+    setRoleInputText('');
+    setRoleActionModal({ mode: 'create', initialName: '' });
+  };
+
+  // Handle open modal for renaming current role
+  const handleOpenRenameRole = () => {
+    setRoleInputText(selectedTemplateRole);
+    setRoleActionModal({ mode: 'rename', initialName: selectedTemplateRole });
+  };
+
+  // Handle saving role create/rename action
+  const handleSaveRoleAction = async () => {
+    const newName = roleInputText.trim();
+    if (!newName) return;
+
+    if (roleActionModal.mode === 'create') {
+      const alreadyExists = allAvailableRoles.some(r => r.toLowerCase().trim() === newName.toLowerCase().trim());
+      const defaultPerms = applyRoleDefaults(newName);
+      const updatedTemplates = { ...roleTemplates, [newName]: defaultPerms };
+      
+      setCustomRoles(prev => Array.from(new Set([...prev, newName])));
+      setRoleTemplates(updatedTemplates);
+      setSelectedTemplateRole(newName);
+      setTemplateForm({ ...defaultPerms });
+
+      // Save to Supabase
+      if (supabase) {
+        try {
+          const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+          await supabase.from('app_settings').upsert([
+            { branch: 'GLOBAL', setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
+            { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates }
+          ]);
+        } catch (e) {
+          console.warn('Supabase create role template error:', e);
+        }
+      }
+
+      setUserSaveStatus({
+        type: 'success',
+        message: alreadyExists 
+          ? `เลือกตำแหน่ง "${newName}" และโหลดการตั้งค่าสิทธิ์เรียบร้อยแล้ว`
+          : `สร้างตำแหน่งใหม่ "${newName}" และกำหนดสิทธิ์เริ่มต้นเรียบร้อยแล้ว`
+      });
+    } else if (roleActionModal.mode === 'rename') {
+      const oldName = roleActionModal.initialName;
+      if (oldName.toLowerCase().trim() === newName.toLowerCase().trim()) {
+        setRoleActionModal({ mode: null, initialName: '' });
+        return;
+      }
+
+      const currentPerms = templateForm || roleTemplates[oldName] || applyRoleDefaults(oldName);
+      const updatedTemplates = { ...roleTemplates };
+      delete updatedTemplates[oldName];
+      updatedTemplates[newName] = currentPerms;
+
+      setRoleTemplates(updatedTemplates);
+      setSelectedTemplateRole(newName);
+      setCustomRoles(prev => prev.map(r => r === oldName ? newName : r));
+
+      // Rename role for matching users in local state and Supabase app_users
+      const updatedUsersList = users.map(u => {
+        if ((u.role || '').toLowerCase().trim() === oldName.toLowerCase().trim()) {
+          return { ...u, role: newName };
+        }
+        return u;
+      });
+      setUsers(updatedUsersList);
+
+      if (supabase) {
+        try {
+          const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+          await supabase.from('app_settings').upsert([
+            { branch: 'GLOBAL', setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
+            { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates }
+          ]);
+
+          // Update app_users table roles
+          const { data: dbUsers } = await supabase.from('app_users').select('id, role');
+          if (dbUsers) {
+            const matchingUsers = dbUsers.filter(u => (u.role || '').toLowerCase().trim() === oldName.toLowerCase().trim());
+            for (const tu of matchingUsers) {
+              await supabase.from('app_users').update({ role: newName }).eq('id', tu.id);
+            }
+          }
+        } catch (e) {
+          console.warn('Supabase rename role error:', e);
+        }
+      }
+
+      setUserSaveStatus({
+        type: 'success',
+        message: `เปลี่ยนชื่อตำแหน่งจาก "${oldName}" เป็น "${newName}" เรียบร้อยแล้ว`
+      });
+    }
+
+    setRoleActionModal({ mode: null, initialName: '' });
+  };
+
+  // Handle deleting current selected role template
+  const handleDeleteTemplateRole = async () => {
+    const roleToDelete = selectedTemplateRole;
+    if (!roleToDelete) return;
+
+    const confirmDelete = window.confirm(`คุณต้องการลบตำแหน่ง "${roleToDelete}" ออกจากรายการ Role Template ใช่หรือไม่?`);
+    if (!confirmDelete) return;
+
+    const updatedTemplates = { ...roleTemplates };
+    delete updatedTemplates[roleToDelete];
+
+    setRoleTemplates(updatedTemplates);
+    setCustomRoles(prev => prev.filter(r => r !== roleToDelete));
+
+    const remainingRoles = allAvailableRoles.filter(r => r !== roleToDelete);
+    const nextRole = remainingRoles.length > 0 ? remainingRoles[0] : 'Barista';
+    setSelectedTemplateRole(nextRole);
+    setTemplateForm({ ...(updatedTemplates[nextRole] || applyRoleDefaults(nextRole)) });
+
+    if (supabase) {
+      try {
+        const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
+        await supabase.from('app_settings').upsert([
+          { branch: 'GLOBAL', setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
+          { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates }
+        ]);
+      } catch (e) {
+        console.warn('Supabase delete role template error:', e);
+      }
+    }
+
+    setUserSaveStatus({
+      type: 'success',
+      message: `ลบตำแหน่ง "${roleToDelete}" ออกจากรายการเรียบร้อยแล้ว`
+    });
+  };
 
   const getRoleDefaults = useCallback((role: string): UserPermissions => {
     if (roleTemplates[role]) {
@@ -1700,7 +1868,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                     value={formData.role}
                     onChange={(e) => {
                       setIsUserFormDirty(true);
-                      const newRole = e.target.value as UserRole;
+                      const newRole = e.target.value as any;
                       const roleDefaults = getRoleDefaults(newRole);
                       setFormData(prev => ({ 
                         ...prev, 
@@ -1709,18 +1877,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                       }));
                     }}
                   >
-                    <option value="Admin">Admin</option>
-                    <option value="Owner">Owner</option>
-                    <option value="Co-founder">Co-founder</option>
-                    <option value="Branch Manager">Branch Manager</option>
-                    <option value="Head Baker">Head Baker</option>
-                    <option value="Senior Baker">Senior Baker</option>
-                    <option value="Junior Baker">Junior Baker</option>
-                    <option value="Barista">Barista</option>
-                    <option value="Barista Assistance">Barista Assistance</option>
-                    <option value="Cashier">Cashier</option>
-                    <option value="Server/Runner">Server/Runner</option>
-                    <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
+                    {allAvailableRoles.map(role => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="md:col-span-2">
@@ -2390,28 +2549,52 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                     เลือกตำแหน่ง (Role):
                   </label>
                   <select
-                    className="px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-[11px] font-semibold text-[#2D4A49] shadow-2xs cursor-pointer min-w-[160px]"
+                    className="px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-[11px] font-semibold text-[#2D4A49] shadow-2xs cursor-pointer min-w-[140px]"
                     value={selectedTemplateRole}
                     onChange={(e) => {
-                      const role = e.target.value as UserRole;
+                      const role = e.target.value;
                       setSelectedTemplateRole(role);
                       const cur = roleTemplates[role] || applyRoleDefaults(role);
                       setTemplateForm({ ...cur });
                     }}
                   >
-                    <option value="Admin">Admin</option>
-                    <option value="Owner">Owner</option>
-                    <option value="Co-founder">Co-founder</option>
-                    <option value="Branch Manager">Branch Manager</option>
-                    <option value="Head Baker">Head Baker</option>
-                    <option value="Senior Baker">Senior Baker</option>
-                    <option value="Junior Baker">Junior Baker</option>
-                    <option value="Barista">Barista</option>
-                    <option value="Barista Assistance">Barista Assistance</option>
-                    <option value="Cashier">Cashier</option>
-                    <option value="Server/Runner">Server/Runner</option>
-                    <option value="Dishwasher/Cleaner">Dishwasher/Cleaner</option>
+                    {allAvailableRoles.map(role => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
                   </select>
+
+                  {/* 1. Edit Role Name Button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenRenameRole}
+                    className="px-2 py-1 bg-white border border-[#D4E4E3] text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                    title={`แก้ไขชื่อตำแหน่ง "${selectedTemplateRole}"`}
+                  >
+                    <Pencil size={11} className="text-[#5A8A88]" />
+                    <span>แก้ไขชื่อ</span>
+                  </button>
+
+                  {/* 2. Create New Role Button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateRole}
+                    className="px-2 py-1 bg-[#E8F3F2] border border-[#B8D4D2] text-[#2D4A49] hover:bg-[#D4E4E3] rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                    title="สร้างตำแหน่งใหม่"
+                  >
+                    <Plus size={11} className="text-[#5A8A88]" />
+                    <span>+ สร้างใหม่</span>
+                  </button>
+
+                  {/* 3. Delete Role Button */}
+                  <button
+                    type="button"
+                    onClick={handleDeleteTemplateRole}
+                    className="px-2 py-1 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-lg text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                    title={`ลบตำแหน่ง "${selectedTemplateRole}"`}
+                  >
+                    <Trash2 size={11} className="text-rose-600" />
+                    <span>ลบ</span>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -2648,6 +2831,65 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   <span>{isSavingTemplate ? 'กำลังบันทึกและอัปเดตบัญชี...' : `บันทึก Default & ปรับใช้กับทุกบัญชี (${users.filter(u => (u.role || '').toLowerCase().trim() === (selectedTemplateRole || '').toLowerCase().trim()).length})`}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Action Modal Overlay (Create / Rename Role) */}
+      {roleActionModal.mode && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-2xs flex items-center justify-center z-[60] p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-[#D4E4E3] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E2EAE9] pb-3">
+              <h4 className="text-sm font-bold text-[#2D4A49] flex items-center gap-2">
+                {roleActionModal.mode === 'create' ? <Plus size={16} className="text-[#5A8A88]" /> : <Pencil size={16} className="text-[#5A8A88]" />}
+                <span>{roleActionModal.mode === 'create' ? 'สร้างตำแหน่งใหม่' : `แก้ไขชื่อตำแหน่ง "${roleActionModal.initialName}"`}</span>
+              </h4>
+              <button 
+                type="button"
+                onClick={() => setRoleActionModal({ mode: null, initialName: '' })}
+                className="w-6 h-6 rounded text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#2D4A49]">
+                {roleActionModal.mode === 'create' ? 'ระบุชื่อตำแหน่งใหม่:' : 'ระบุชื่อตำแหน่งใหม่ที่คุณต้องการ:'}
+              </label>
+              <input
+                type="text"
+                value={roleInputText}
+                onChange={(e) => setRoleInputText(e.target.value)}
+                placeholder="เช่น Assistant Manager, Bar Supervisor..."
+                className="w-full px-3 py-2 border border-[#D4E4E3] rounded-xl text-xs font-bold text-[#2D4A49] outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveRoleAction();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E2EAE9]">
+              <button
+                type="button"
+                onClick={() => setRoleActionModal({ mode: null, initialName: '' })}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRoleAction}
+                disabled={!roleInputText.trim()}
+                className="px-4 py-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                บันทึก
+              </button>
             </div>
           </div>
         </div>
