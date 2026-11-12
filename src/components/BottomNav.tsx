@@ -147,7 +147,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
             ...(user?.permissions?.leaveDashboard !== 'hidden' && user?.permissions?.leaveDashboard !== 'Hidden' ? [
               { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' }
             ] : []),
-            { route: 'personnelLeave', label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', emoji: '👤' },
+            ...(user?.permissions?.personnelLeave !== 'hidden' && user?.permissions?.personnelLeave !== 'Hidden' ? [
+              { route: 'personnelLeave', label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', emoji: '👤' }
+            ] : []),
           ],
         },
       ],
