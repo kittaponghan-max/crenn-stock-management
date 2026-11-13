@@ -18,6 +18,11 @@ import {
   Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import {
+  AnnualLeaveQuotasByYear,
+  fetchAnnualLeaveQuotas,
+  getEmployeeQuotaForYear,
+} from '../utils/leaveQuotas';
 
 export interface LeaveRequestModalProps {
   isOpen: boolean;
@@ -54,14 +59,24 @@ interface LeaveQuota {
 }
 
 const DEFAULT_QUOTAS: Record<string, LeaveQuota> = {
-  sick: {
-    id: 'sick',
-    nameTh: 'ลาป่วย (Sick Leave)',
-    nameEn: 'Sick Leave',
-    emoji: '🤒',
-    total: 30,
-    used: 2,
-    remaining: 28,
+  vacation: {
+    id: 'vacation',
+    nameTh: 'ลาพักร้อน (Annual Leave)',
+    nameEn: 'Annual Leave',
+    emoji: '🏖️',
+    total: 10,
+    used: 0,
+    remaining: 10,
+    unit: 'วัน',
+  },
+  birthday: {
+    id: 'birthday',
+    nameTh: 'ลาพักประจำวันเกิด (Birthday Leave)',
+    nameEn: 'Birthday Leave',
+    emoji: '🎂',
+    total: 1,
+    used: 0,
+    remaining: 1,
     unit: 'วัน',
   },
   personal: {
@@ -70,18 +85,18 @@ const DEFAULT_QUOTAS: Record<string, LeaveQuota> = {
     nameEn: 'Personal Leave',
     emoji: '💼',
     total: 6,
-    used: 1,
-    remaining: 5,
+    used: 0,
+    remaining: 6,
     unit: 'วัน',
   },
-  vacation: {
-    id: 'vacation',
-    nameTh: 'ลาพักร้อน (Annual Leave)',
-    nameEn: 'Annual Leave',
-    emoji: '🏖️',
-    total: 10,
-    used: 3,
-    remaining: 7,
+  sick: {
+    id: 'sick',
+    nameTh: 'ลาป่วย (Sick Leave)',
+    nameEn: 'Sick Leave',
+    emoji: '🤒',
+    total: 30,
+    used: 0,
+    remaining: 30,
     unit: 'วัน',
   },
   maternity: {
@@ -168,6 +183,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [historyList, setHistoryList] = useState<LeaveRecord[]>([]);
+  const [quotasByYear, setQuotasByYear] = useState<AnnualLeaveQuotasByYear>({});
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
 
   // Load records from Supabase (with LocalStorage fallback)
@@ -222,6 +238,14 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           console.warn('Supabase fetch notice (using local storage):', err);
         }
       }
+
+      // 3. Load configured annual leave quotas
+      try {
+        const loadedQuotas = await fetchAnnualLeaveQuotas();
+        if (isMounted) setQuotasByYear(loadedQuotas);
+      } catch (err) {
+        console.warn('Error fetching annual leave quotas:', err);
+      }
     };
 
     fetchRecords();
@@ -245,7 +269,46 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   };
 
   const totalRequestedDays = calculateDays(fromDate, toDate);
-  const currentQuota = DEFAULT_QUOTAS[leaveType] || DEFAULT_QUOTAS['vacation'];
+  const requestYear = fromDate && fromDate.length >= 4
+    ? fromDate.substring(0, 4)
+    : String(new Date().getFullYear());
+  const userAnnualQuota = getEmployeeQuotaForYear(quotasByYear, requestYear, {
+    name: userName,
+    branch: userBranch,
+  });
+
+  const baseQuota = DEFAULT_QUOTAS[leaveType] || DEFAULT_QUOTAS['vacation'];
+  const configuredTotal =
+    leaveType === 'vacation' ? userAnnualQuota.vacation :
+    leaveType === 'birthday' ? userAnnualQuota.birthday :
+    leaveType === 'personal' ? userAnnualQuota.personal :
+    leaveType === 'sick' ? userAnnualQuota.sick :
+    baseQuota.total;
+
+  const usedDays = historyList.reduce((acc, rec) => {
+    if (rec.status !== 'Approved') return acc;
+    if ((rec.userName || '').trim().toLowerCase() !== (userName || '').trim().toLowerCase()) return acc;
+    const recYear = rec.fromDate?.substring(0, 4) || rec.toDate?.substring(0, 4);
+    if (recYear && recYear !== requestYear) return acc;
+
+    const t = `${rec.leaveType || ''} ${rec.leaveTypeName || ''}`.toLowerCase();
+    const matchesType =
+      (leaveType === 'birthday' && (t.includes('birthday') || t.includes('วันเกิด'))) ||
+      (leaveType === 'sick' && (t.includes('sick') || t.includes('ป่วย'))) ||
+      (leaveType === 'personal' && (t.includes('personal') || t.includes('กิจ'))) ||
+      (leaveType === 'vacation' && (t.includes('vacation') || t.includes('พักร้อน') || t.includes('annual'))) ||
+      (leaveType === 'maternity' && (t.includes('maternity') || t.includes('คลอด'))) ||
+      (leaveType === 'other' && t.includes('other'));
+
+    return matchesType ? acc + Number(rec.totalDays || 1) : acc;
+  }, 0);
+
+  const currentQuota: LeaveQuota = {
+    ...baseQuota,
+    total: configuredTotal,
+    used: usedDays,
+    remaining: Math.max(0, configuredTotal - usedDays),
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -478,7 +541,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                   <div className="w-full bg-[#D4E4E3] h-1.5 rounded-full overflow-hidden">
                     <div 
                       className="bg-[#5A8A88] h-full rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, Math.max(0, (currentQuota.remaining / currentQuota.total) * 100))}%` }}
+                      style={{ width: `${currentQuota.total > 0 ? Math.min(100, Math.max(0, (currentQuota.remaining / currentQuota.total) * 100)) : 0}%` }}
                     />
                   </div>
                 </div>
