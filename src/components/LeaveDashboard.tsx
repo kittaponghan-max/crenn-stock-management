@@ -33,6 +33,7 @@ export interface LeaveDashboardProps {
   mode?: 'team' | 'personal';
   onNavigate?: (tab: string) => void;
   onOpenLeaveModal?: () => void;
+  isReadOnly?: boolean;
 }
 
 interface EmployeeQuotaSummary {
@@ -56,6 +57,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   mode = 'team',
   onNavigate,
   onOpenLeaveModal,
+  isReadOnly = false,
 }) => {
   const isPersonalMode = mode === 'personal';
 
@@ -303,6 +305,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
   // Update status (Approve / Reject)
   const handleUpdateStatus = async (id: string, newStatus: 'Approved' | 'Rejected') => {
+    if (isReadOnly) return;
     const updated = leaveRecords.map(r => r.id === id ? { ...r, status: newStatus } : r);
     setLeaveRecords(updated);
 
@@ -603,7 +606,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             </div>
 
             {/* Leave Request Action Button */}
-            {onOpenLeaveModal && (
+            {onOpenLeaveModal && !isReadOnly && (
               <button
                 type="button"
                 onClick={onOpenLeaveModal}
@@ -1216,7 +1219,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       </span>
                     </td>
                     <td className="p-3 text-center whitespace-nowrap">
-                      {item.status === 'Pending' ? (
+                      {item.status === 'Pending' && !isReadOnly ? (
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
@@ -1237,6 +1240,8 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                             ไม่อนุมัติ
                           </button>
                         </div>
+                      ) : item.status === 'Pending' ? (
+                        <span className="text-[10px] text-slate-400 font-medium">รออนุมัติ (ดูอย่างเดียว)</span>
                       ) : (
                         <span className="text-[10px] text-slate-400 font-medium">เสร็จสิ้น</span>
                       )}
