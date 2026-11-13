@@ -33,6 +33,7 @@ import { UserDropdownMenu } from './UserDropdownMenu';
 import { SupabaseStatusBar } from './SupabaseStatusBar';
 import { supabase } from '../lib/supabase';
 import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
+import { canAccessTab, canViewPage } from '../utils/permissions';
 
 export interface HomeScreenProps {
   user: {
@@ -67,8 +68,14 @@ export function HomeScreen({
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
   
+  const canViewBarStock = canViewPage(user, 'bar_stock');
+  const canViewKitchenStock = canViewPage(user, 'kitchen_stock');
+  const canViewMaintenance = canViewPage(user, 'maintenanceReport');
+
   // Location Filter State: "all" (ทั้งหมด) | "bar" (บาร์) | "kitchen" (ครัว)
   const [locationFilter, setLocationFilter] = useState<'all' | 'bar' | 'kitchen'>(() => {
+    if (!canViewBarStock && canViewKitchenStock) return 'kitchen';
+    if (canViewBarStock && !canViewKitchenStock) return 'bar';
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('crenn_location_filter');
@@ -82,6 +89,14 @@ export function HomeScreen({
     return 'all';
   });
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+
+  useEffect(() => {
+    if (!canViewBarStock && canViewKitchenStock && locationFilter !== 'kitchen') {
+      setLocationFilter('kitchen');
+    } else if (canViewBarStock && !canViewKitchenStock && locationFilter !== 'bar') {
+      setLocationFilter('bar');
+    }
+  }, [canViewBarStock, canViewKitchenStock, locationFilter]);
 
   // Active KPI Card Filter State: "out_of_stock" | "low_stock" | "normal" | "purchasing" | "pending_delivery" | null
   const [activeKPI, setActiveKPI] = useState<
@@ -978,10 +993,16 @@ export function HomeScreen({
   // Obsolete map synchronization
   const obsoleteMap = useObsoleteIngredients();
 
-  // Active (non-obsolete) ingredients
+  // Active (non-obsolete) ingredients filtered by permitted stock departments
   const activeIngredients = useMemo(() => {
-    return ingredients.filter(item => isIngredientActive(item, obsoleteMap));
-  }, [ingredients, obsoleteMap]);
+    return ingredients.filter(item => {
+      if (!isIngredientActive(item, obsoleteMap)) return false;
+      const dept = (item.department || '').toLowerCase().trim();
+      if (dept === 'bar') return canViewBarStock;
+      if (dept === 'bakery' || dept === 'kitchen' || dept === 'ครัว') return canViewKitchenStock;
+      return canViewBarStock || canViewKitchenStock;
+    });
+  }, [ingredients, obsoleteMap, canViewBarStock, canViewKitchenStock]);
 
   // Compute filtered list reactively (excluding obsolete items)
   const filteredIngredients = useMemo(
@@ -1328,6 +1349,7 @@ export function HomeScreen({
             onNavigate={onNavigate}
             outOfStockCount={stockData.outCount}
             needPurchasingCount={stockData.outCount + stockData.lowCount}
+            user={user}
           />
 
           {/* Right Action Icons: User Avatar Dropdown */}
@@ -1444,6 +1466,7 @@ export function HomeScreen({
                 <div className="px-3.5 py-1 text-[10px] font-bold text-[#6B8F8E] uppercase tracking-wider border-b border-slate-100 mb-1">
                   เลือกพื้นที่จัดเก็บสต็อก
                 </div>
+                {canViewBarStock && canViewKitchenStock && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1460,7 +1483,9 @@ export function HomeScreen({
                   </span>
                   {locationFilter === 'all' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
                 </button>
+                )}
 
+                {canViewBarStock && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1477,7 +1502,9 @@ export function HomeScreen({
                   </span>
                   {locationFilter === 'bar' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
                 </button>
+                )}
 
+                {canViewKitchenStock && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1494,6 +1521,7 @@ export function HomeScreen({
                   </span>
                   {locationFilter === 'kitchen' && <CheckCircle2 size={13} className="text-[#5A8A88]" />}
                 </button>
+                )}
               </div>
             )}
           </div>
@@ -1874,13 +1902,15 @@ export function HomeScreen({
                       ล้างตัวกรอง
                     </button>
                   )}
-                  <button
-                    onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing')}
-                    className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <span>สั่งซื้อ</span>
-                    <ChevronRight size={12} />
-                  </button>
+                  {canAccessTab(user, locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing') && (
+                    <button
+                      onClick={() => onNavigate(locationFilter === 'kitchen' ? 'bakeryPlan' : 'barPurchasing')}
+                      className="text-[11px] font-bold text-[#5A8A88] hover:text-[#476E6C] flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <span>สั่งซื้อ</span>
+                      <ChevronRight size={12} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1988,6 +2018,7 @@ export function HomeScreen({
         </div>
 
         {/* ── 7. EQUIPMENT MAINTENANCE MONITOR CARD (มอนิเตอร์รอบซ่อมบำรุงและนับถอยหลัง) ── */}
+        {canViewMaintenance && (
         <section className="bg-white rounded-2xl p-3.5 md:p-5 border border-[#D4E4E3] shadow-xs transition-all duration-200">
           {/* Card Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100">
@@ -2453,6 +2484,7 @@ export function HomeScreen({
             </div>
           )}
         </section>
+        )}
 
       </main>
 
