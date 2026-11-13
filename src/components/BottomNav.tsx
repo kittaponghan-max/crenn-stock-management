@@ -16,6 +16,7 @@ import {
 import { Branch } from '../types';
 import { UserRole } from './LoginForm';
 import { LeaveRequestModal } from './LeaveRequestModal';
+import { canAccessTab } from '../utils/permissions';
 
 export interface BottomNavProps {
   activeTab: string;
@@ -116,20 +117,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
   };
 
   const canSeeSettings = (u: any): boolean => {
-    if (!u) return false;
-    const role = (u.role || '').toUpperCase();
-    if (
-      role === 'ADMIN' ||
-      role === 'CO-FOUNDER' ||
-      role === 'OWNER'
-    ) return true;
-
-    if (
-      u.permissions?.userSettings === 'edit' ||
-      u.permissions?.adminTools === 'Edit'
-    ) return true;
-
-    return false;
+    return canAccessTab(u, 'userSettings');
   };
 
   const NAV_TABS: NavTabConfig[] = [
@@ -144,12 +132,8 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
         {
           items: [
             { route: 'home', label: 'หน้าหลัก (Inventory)', emoji: '🏠' },
-            ...(user?.permissions?.leaveDashboard !== 'hidden' && user?.permissions?.leaveDashboard !== 'Hidden' ? [
-              { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' }
-            ] : []),
-            ...(user?.permissions?.personnelLeave !== 'hidden' && user?.permissions?.personnelLeave !== 'Hidden' ? [
-              { route: 'personnelLeave', label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', emoji: '👤' }
-            ] : []),
+            { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' },
+            { route: 'personnelLeave', label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', emoji: '👤' },
           ],
         },
       ],
@@ -305,7 +289,9 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
             ] : []),
             { label: 'โปรไฟล์ผู้ใช้', emoji: '👤', action: () => { setOpenTab(null); setShowProfileModal(true); } },
             { label: 'ข้อมูลสาขา', emoji: '🏪', action: () => { setOpenTab(null); setShowBranchModal(true); } },
-            { label: 'ทำรายการลา', emoji: '🏖️', action: () => { setOpenTab(null); setShowLeaveModal(true); } },
+            ...(canAccessTab(user, 'leaveRequest') ? [
+              { label: 'ทำรายการลา', emoji: '🏖️', action: () => { setOpenTab(null); setShowLeaveModal(true); } }
+            ] : []),
             { route: 'logs', label: 'ประวัติแก้ไขข้อมูล', emoji: '🕐' },
           ],
         },
@@ -317,6 +303,24 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       ],
     },
   ];
+
+  const visibleNavTabs: NavTabConfig[] = NAV_TABS.map((tab) => {
+    if (!tab.hasDropdown) {
+      if (tab.id === 'rnd' && !canAccessTab(user, 'rndReport')) return null;
+      return tab;
+    }
+    const filteredGroups = (tab.groups || [])
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((sub) => !sub.route || canAccessTab(user, sub.route)),
+      }))
+      .filter((group) => group.items.length > 0);
+    if (filteredGroups.length === 0) return null;
+    return {
+      ...tab,
+      groups: filteredGroups,
+    };
+  }).filter(Boolean) as NavTabConfig[];
 
   const handleTabClick = (tab: NavTabConfig) => {
     if (tab.hasDropdown) {
@@ -367,7 +371,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
         className="w-full bg-white border-t border-[#D4E4E3] shadow-lg select-none overflow-visible pb-[env(safe-area-inset-bottom)] h-[56px] md:h-[64px] flex items-center shrink-0 flex-shrink-0 z-[100]"
       >
         <div className="w-full max-w-xl mx-auto flex items-center justify-between px-1 md:px-2 relative overflow-visible h-full">
-          {NAV_TABS.map(tab => {
+          {visibleNavTabs.map(tab => {
             const Icon = tab.icon;
             const active = isTabActive(tab.id);
             const isOpen = openTab === tab.id;
@@ -566,12 +570,14 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
               <p className="text-[11px] text-slate-400 mt-1">สาขา: {user.branch === 'Rayong' ? 'ระยอง' : 'กรุงเทพฯ'}</p>
             </div>
             <div className="pt-2 space-y-2">
-              <button
-                onClick={() => { setShowProfileModal(false); onNavigate('userSettings'); }}
-                className="w-full py-2.5 rounded-full bg-[#E8F3F2] text-[#476E6C] font-semibold text-xs hover:bg-[#D8EAE8] transition-colors"
-              >
-                จัดการบัญชีและความปลอดภัย
-              </button>
+              {canSeeSettings(user) && (
+                <button
+                  onClick={() => { setShowProfileModal(false); onNavigate('userSettings'); }}
+                  className="w-full py-2.5 rounded-full bg-[#E8F3F2] text-[#476E6C] font-semibold text-xs hover:bg-[#D8EAE8] transition-colors"
+                >
+                  จัดการบัญชีและความปลอดภัย
+                </button>
+              )}
               <button
                 onClick={() => { setShowProfileModal(false); onLogout(); }}
                 className="w-full py-2.5 rounded-full bg-rose-50 text-rose-600 font-semibold text-xs hover:bg-rose-100 transition-colors"
