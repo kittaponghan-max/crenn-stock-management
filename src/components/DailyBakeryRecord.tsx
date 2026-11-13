@@ -46,6 +46,7 @@ export interface DailyBakeryRecordProps {
     handleSave: () => Promise<boolean>;
     handleDiscard: () => void;
   }) => void;
+  isReadOnly?: boolean;
 }
 
 export interface BakeryItemDef {
@@ -91,7 +92,8 @@ export function DailyBakeryRecord({
   branch = 'Rayong', 
   onNavigate,
   onDirtyChange,
-  registerSaveHandler 
+  registerSaveHandler,
+  isReadOnly = false,
 }: DailyBakeryRecordProps) {
   const currentBranch = branch || user?.branch || 'Rayong';
   const recorderName = user?.name || 'Admin';
@@ -337,6 +339,7 @@ export function DailyBakeryRecord({
 
   // Handle cell value change
   const handleChange = (itemName: string, dateStr: string, field: keyof BakeryDayRecord, value: string) => {
+    if (isReadOnly) return;
     setRecords(prev => {
       const itemMap = { ...(prev[itemName] || {}) };
       const currentDayRec = { ...(itemMap[dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' }) };
@@ -373,6 +376,7 @@ export function DailyBakeryRecord({
 
   // Add note to cell
   const handleAddCellNote = (itemName: string, dateStr: string, noteText: string) => {
+    if (isReadOnly) return;
     const text = noteText.trim();
     if (!text) {
       setActiveNoteCell(null);
@@ -400,6 +404,7 @@ export function DailyBakeryRecord({
 
   // Delete note from cell
   const handleDeleteCellNote = (itemName: string, dateStr: string, noteIndex: number) => {
+    if (isReadOnly) return;
     if (editingNoteCell && editingNoteCell.itemName === itemName && editingNoteCell.dateStr === dateStr && editingNoteCell.noteIndex === noteIndex) {
       setEditingNoteCell(null);
     }
@@ -422,6 +427,7 @@ export function DailyBakeryRecord({
 
   // Start editing a cell note
   const startEditCellNote = (itemName: string, dateStr: string, noteIndex: number, currentText: string) => {
+    if (isReadOnly) return;
     setActiveNoteCell(null);
     setNewCellNoteText('');
     setEditingNoteCell({
@@ -434,7 +440,7 @@ export function DailyBakeryRecord({
 
   // Save edited cell note
   const saveEditCellNote = () => {
-    if (!editingNoteCell) return;
+    if (isReadOnly || !editingNoteCell) return;
     const trimmed = editingNoteCell.text.trim();
     const { itemName, dateStr, noteIndex } = editingNoteCell;
 
@@ -471,12 +477,14 @@ export function DailyBakeryRecord({
 
   // Add Item
   const handleAddItem = (categoryName?: string) => {
+    if (isReadOnly) return;
     setNewItemCat(categoryName || (categories[0]?.name || 'ครัวซอง & เดนิส'));
     setNewItemName('');
     setShowAddItemModal(true);
   };
 
   const confirmAddItem = () => {
+    if (isReadOnly) return;
     const trimmed = newItemName.trim();
     if (!trimmed) return;
     const cat = newItemCat.trim() || 'เบเกอรี่ทั่วไป';
@@ -490,11 +498,12 @@ export function DailyBakeryRecord({
 
   // Edit Item Name / Category
   const startEditItem = (item: BakeryItemDef) => {
+    if (isReadOnly) return;
     setEditingItem({ id: item.id, name: item.name, category: item.category });
   };
 
   const saveEditItem = () => {
-    if (!editingItem) return;
+    if (isReadOnly || !editingItem) return;
     const trimmed = editingItem.name.trim();
     if (!trimmed) return;
 
@@ -520,22 +529,25 @@ export function DailyBakeryRecord({
 
   // Delete Item (replaces window.confirm with Custom React Modal)
   const handleDeleteItem = (itemId: string, itemName: string) => {
+    if (isReadOnly) return;
     setDeletingItem({ id: itemId, name: itemName });
   };
 
   const confirmDeleteItem = () => {
-    if (!deletingItem) return;
+    if (isReadOnly || !deletingItem) return;
     setBakeryItems(prev => prev.filter(i => i.id !== deletingItem.id));
     setDeletingItem(null);
   };
 
   // Add Category
   const handleAddCategory = () => {
+    if (isReadOnly) return;
     setNewCatName('');
     setShowAddCatModal(true);
   };
 
   const confirmAddCategory = () => {
+    if (isReadOnly) return;
     const trimmed = newCatName.trim();
     if (!trimmed) return;
     const newId = `cat-item-${Date.now()}`;
@@ -548,11 +560,12 @@ export function DailyBakeryRecord({
 
   // Edit Category Name
   const startEditCategory = (catName: string) => {
+    if (isReadOnly) return;
     setEditingCat({ oldName: catName, newName: catName });
   };
 
   const saveEditCategory = () => {
-    if (!editingCat) return;
+    if (isReadOnly || !editingCat) return;
     const oldN = editingCat.oldName;
     const newN = editingCat.newName.trim();
     if (!newN || oldN === newN) {
@@ -572,18 +585,20 @@ export function DailyBakeryRecord({
 
   // Delete Category (replaces window.confirm with Custom React Modal)
   const handleDeleteCategory = (catName: string) => {
+    if (isReadOnly) return;
     const count = bakeryItems.filter(i => i.category === catName).length;
     setDeletingCategory({ name: catName, count });
   };
 
   const confirmDeleteCategory = () => {
-    if (!deletingCategory) return;
+    if (isReadOnly || !deletingCategory) return;
     setBakeryItems(prev => prev.filter(i => i.category !== deletingCategory.name));
     setDeletingCategory(null);
   };
 
   // Save to Supabase and LocalStorage
   const handleSave = async () => {
+    if (isReadOnly) return false;
     setIsSaving(true);
     setSaveStatus(null);
 
@@ -994,6 +1009,7 @@ export function DailyBakeryRecord({
   // ━━━━ EXCEL IMPORT HANDLERS ━━━━
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isReadOnly) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1097,7 +1113,7 @@ export function DailyBakeryRecord({
   };
 
   const confirmImportExcel = () => {
-    if (!importPreview) return;
+    if (isReadOnly || !importPreview) return;
 
     const { items, importMode } = importPreview;
 
@@ -1439,61 +1455,64 @@ export function DailyBakeryRecord({
 
           {/* RIGHT: Action Buttons (Import + Save + Export Dropdown - On SAME ROW) */}
           <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
-            
-            {/* Import Button & Hidden File Input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-              title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
-            >
-              <Upload size={13} className="text-[#5A8A88]" />
-              <span>นำเข้า</span>
-            </button>
+            {!isReadOnly && (
+              <>
+                {/* Import Button & Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                  title="นำเข้ารายการขนมจากไฟล์ Excel (.xlsx, .xls, .csv)"
+                >
+                  <Upload size={13} className="text-[#5A8A88]" />
+                  <span>นำเข้า</span>
+                </button>
 
-            {/* Save Button */}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
-                justSaved
-                  ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
-                  : isDirty 
-                    ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
-                    : 'bg-[#2D4A49] hover:bg-[#203635]'
-              }`}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>กำลังบันทึก...</span>
-                </>
-              ) : justSaved ? (
-                <>
-                  <CheckCircle2 size={13} className="text-white" />
-                  <span>บันทึกสำเร็จ</span>
-                </>
-              ) : (
-                <>
-                  <Save size={13} />
-                  <span>บันทึกข้อมูล</span>
-                  {isDirty && (
-                    <span 
-                      className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
-                      title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
-                    />
+                {/* Save Button */}
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                    justSaved
+                      ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                      : isDirty 
+                        ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                        : 'bg-[#2D4A49] hover:bg-[#203635]'
+                  }`}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : justSaved ? (
+                    <>
+                      <CheckCircle2 size={13} className="text-white" />
+                      <span>บันทึกสำเร็จ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={13} />
+                      <span>บันทึกข้อมูล</span>
+                      {isDirty && (
+                        <span 
+                          className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                          title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                        />
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </button>
+                </button>
+              </>
+            )}
 
             {/* Export Dropdown */}
             <div className="relative" ref={exportMenuRef}>
@@ -1553,15 +1572,17 @@ export function DailyBakeryRecord({
                 <th className="py-2.5 px-2 sm:px-3 w-[22%] sm:w-[20%] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69]">
                   <div className="flex items-center justify-between">
                     <span className="truncate">รายการขนม</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddItem()}
-                      className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5 cursor-pointer shrink-0"
-                      title="เพิ่มรายการขนม"
-                    >
-                      <Plus size={10} />
-                      <span className="hidden sm:inline">เพิ่ม</span>
-                    </button>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleAddItem()}
+                        className="text-[10px] bg-[#3D6B69] hover:bg-[#5A8A88] text-white px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5 cursor-pointer shrink-0"
+                        title="เพิ่มรายการขนม"
+                      >
+                        <Plus size={10} />
+                        <span className="hidden sm:inline">เพิ่ม</span>
+                      </button>
+                    )}
                   </div>
                 </th>
                 {displayedDays.map(day => (
@@ -1611,33 +1632,37 @@ export function DailyBakeryRecord({
                           </span>
                           
                           {/* Category Edit & Delete buttons */}
-                          <div className="flex items-center gap-1 opacity-70 group-hover/cat:opacity-100 transition-opacity ml-1">
-                            <button
-                              type="button"
-                              onClick={() => startEditCategory(category.name)}
-                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
-                              title="แก้ไขชื่อหมวดหมู่"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCategory(category.name)}
-                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
-                              title="ลบหมวดหมู่นี้"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          {!isReadOnly && (
+                            <div className="flex items-center gap-1 opacity-70 group-hover/cat:opacity-100 transition-opacity ml-1">
+                              <button
+                                type="button"
+                                onClick={() => startEditCategory(category.name)}
+                                className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
+                                title="แก้ไขชื่อหมวดหมู่"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(category.name)}
+                                className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
+                                title="ลบหมวดหมู่นี้"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleAddItem(category.name)}
-                          className="text-[10px] font-semibold bg-white/80 hover:bg-white text-[#5A8A88] px-2 py-0.5 rounded border border-[#D4E4E3] transition-colors cursor-pointer"
-                        >
-                          + เพิ่มรายการในหมวดนี้
-                        </button>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={() => handleAddItem(category.name)}
+                            className="text-[10px] font-semibold bg-white/80 hover:bg-white text-[#5A8A88] px-2 py-0.5 rounded border border-[#D4E4E3] transition-colors cursor-pointer"
+                          >
+                            + เพิ่มรายการในหมวดนี้
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1658,24 +1683,26 @@ export function DailyBakeryRecord({
                           </span>
 
                           {/* Item Edit & Delete Action Buttons */}
-                          <div className="flex items-center gap-0.5 opacity-60 group-hover/item:opacity-100 transition-opacity shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => startEditItem(item)}
-                              className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
-                              title="แก้ไขชื่อรายการ"
-                            >
-                              <Pencil size={11} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteItem(item.id, item.name)}
-                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
-                              title="ลบรายการนี้"
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                          </div>
+                          {!isReadOnly && (
+                            <div className="flex items-center gap-0.5 opacity-60 group-hover/item:opacity-100 transition-opacity shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => startEditItem(item)}
+                                className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
+                                title="แก้ไขชื่อรายการ"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteItem(item.id, item.name)}
+                                className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
+                                title="ลบรายการนี้"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -1694,10 +1721,11 @@ export function DailyBakeryRecord({
                             <td className="py-1 px-1 text-center align-top">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 value={rec.totalQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'totalQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-center px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-center px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                               />
                             </td>
 
@@ -1705,10 +1733,11 @@ export function DailyBakeryRecord({
                             <td className="py-1 px-1 text-center align-top">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 value={rec.lineQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'lineQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-center px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                className="w-full bg-white border border-[#D4E4E3] rounded text-[11px] font-mono text-center px-1.5 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                               />
                             </td>
 
@@ -1716,10 +1745,11 @@ export function DailyBakeryRecord({
                             <td className="py-1 px-1 text-center bg-[#F9FBFA] align-top">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 value={rec.storeQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'storeQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-white border border-[#B8D4D2] rounded text-[11px] font-mono font-semibold text-center px-1.5 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2]"
+                                className="w-full bg-white border border-[#B8D4D2] rounded text-[11px] font-mono font-semibold text-center px-1.5 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                                 title="ขายหน้าร้าน (คำนวณจาก ทั้งหมด - Line)"
                               />
                             </td>
@@ -1728,10 +1758,11 @@ export function DailyBakeryRecord({
                             <td className={`py-1 px-1 text-center align-top ${isUnderTarget ? 'bg-amber-50' : ''}`}>
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 value={rec.soldQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'soldQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full border rounded text-[11px] font-mono font-bold text-center px-1.5 py-1 focus:outline-none ${
+                                className={`w-full border rounded text-[11px] font-mono font-bold text-center px-1.5 py-1 focus:outline-none disabled:opacity-80 disabled:cursor-not-allowed ${
                                   isUnderTarget
                                     ? 'bg-[#FEF3C7] border-amber-400 text-amber-900 focus:border-amber-600'
                                     : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
@@ -1813,30 +1844,32 @@ export function DailyBakeryRecord({
                                         >
                                           <span className="text-[#5A8A88] shrink-0">•</span>
                                           <span 
-                                            onClick={() => startEditCellNote(item.name, day.dateStr, nIdx, noteItem)}
-                                            title="คลิกเพื่อแก้ไขหมายเหตุ"
-                                            className="flex-1 break-words whitespace-pre-wrap cursor-pointer rounded-[3px] px-0.5 py-[1px] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors"
+                                            onClick={!isReadOnly ? () => startEditCellNote(item.name, day.dateStr, nIdx, noteItem) : undefined}
+                                            title={!isReadOnly ? "คลิกเพื่อแก้ไขหมายเหตุ" : undefined}
+                                            className={`flex-1 break-words whitespace-pre-wrap rounded-[3px] px-0.5 py-[1px] transition-colors ${!isReadOnly ? 'cursor-pointer hover:bg-[#E8F3F2] hover:text-[#5A8A88]' : ''}`}
                                           >
                                             {noteItem}
                                           </span>
-                                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                              type="button"
-                                              onClick={() => startEditCellNote(item.name, day.dateStr, nIdx, noteItem)}
-                                              className="text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#E8F3F2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
-                                              title="แก้ไขหมายเหตุ"
-                                            >
-                                              <Pencil size={10} />
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleDeleteCellNote(item.name, day.dateStr, nIdx)}
-                                              className="text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
-                                              title="ลบหมายเหตุนี้"
-                                            >
-                                              <X size={10} />
-                                            </button>
-                                          </div>
+                                          {!isReadOnly && (
+                                            <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <button
+                                                type="button"
+                                                onClick={() => startEditCellNote(item.name, day.dateStr, nIdx, noteItem)}
+                                                className="text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#E8F3F2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                                title="แก้ไขหมายเหตุ"
+                                              >
+                                                <Pencil size={10} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleDeleteCellNote(item.name, day.dateStr, nIdx)}
+                                                className="text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                                title="ลบหมายเหตุนี้"
+                                              >
+                                                <X size={10} />
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -1844,7 +1877,7 @@ export function DailyBakeryRecord({
                                 )}
 
                                 {/* Adding Note Textarea or "+ เพิ่มหมายเหตุ" button */}
-                                {isAddingNoteToThisCell ? (
+                                {!isReadOnly && (isAddingNoteToThisCell ? (
                                   <div className="mt-0.5">
                                     <textarea
                                       autoFocus
@@ -1893,7 +1926,7 @@ export function DailyBakeryRecord({
                                     <Plus size={10} className="text-[#5A8A88]" />
                                     <span>เพิ่มหมายเหตุ</span>
                                   </button>
-                                )}
+                                ))}
 
                               </div>
                             </td>
