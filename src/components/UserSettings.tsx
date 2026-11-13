@@ -23,332 +23,18 @@ import {
 import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
 import { AppUser, AppPermissions } from '../types';
+import {
+  PagePermission,
+  UserPermissions,
+  applyRoleDefaults,
+  normalizePermissions,
+  buildSavePermissions,
+  canViewPage,
+  isReadOnlyPage,
+} from '../utils/permissions';
 
-export type PagePermission = 'read' | 'edit' | 'hidden';
-
-export interface UserPermissions {
-  // General
-  dashboard: PagePermission;
-  leaveDashboard: PagePermission;
-  personnelLeave: PagePermission;
-  dailySales: PagePermission;
-  dailyBakery: PagePermission;
-
-  // บาร์ (Bar)
-  bar_stock: PagePermission;
-  bar_receiving: PagePermission;
-  bar_stockcount: PagePermission;
-  bar_waste: PagePermission;
-  bar_checkin: PagePermission;
-  bar_coffeeWaste: PagePermission;
-
-  // ครัว (Kitchen/Bakery)
-  kitchen_stock: PagePermission;
-  kitchen_receiving: PagePermission;
-  kitchen_stockcount: PagePermission;
-  kitchen_waste: PagePermission;
-  kitchen_checkin: PagePermission;
-  bakeryPlan: PagePermission;
-
-  // รายงานรวม
-  purchasing: PagePermission;
-  rndReport: PagePermission;
-  maintenanceReport: PagePermission;
-
-  // ประวัติ
-  history_edit: PagePermission;
-  history_checkin: PagePermission;
-  history_stock: PagePermission;
-  history_receiving: PagePermission;
-  history_bakery: PagePermission;
-
-  // Admin
-  userSettings: PagePermission;
-  canEditDateRange: boolean;
-
-  // Add-ons / Applications
-  prodcalc: PagePermission;
-
-  [key: string]: any;
-}
-
-export const applyRoleDefaults = (role: string): UserPermissions => {
-  const r = (role || '').toUpperCase();
-  if (r === 'CO-FOUNDER' || r === 'ADMIN' || r === 'OWNER') {
-    return {
-      dashboard: 'edit',
-      leaveDashboard: 'edit',
-      personnelLeave: 'edit',
-      dailySales: 'edit',
-      dailyBakery: 'edit',
-      bar_stock: 'edit',
-      bar_receiving: 'edit',
-      bar_stockcount: 'edit',
-      bar_waste: 'edit',
-      bar_checkin: 'edit',
-      bar_coffeeWaste: 'edit',
-      kitchen_stock: 'edit',
-      kitchen_receiving: 'edit',
-      kitchen_stockcount: 'edit',
-      kitchen_waste: 'edit',
-      kitchen_checkin: 'edit',
-      bakeryPlan: 'edit',
-      purchasing: 'edit',
-      rndReport: 'edit',
-      maintenanceReport: 'edit',
-      history_edit: 'edit',
-      history_checkin: 'edit',
-      history_stock: 'edit',
-      history_receiving: 'edit',
-      history_bakery: 'edit',
-      userSettings: 'edit',
-      canEditDateRange: true,
-      prodcalc: 'edit'
-    };
-  }
-  if (r === 'BRANCH MANAGER') {
-    return {
-      dashboard: 'edit',
-      leaveDashboard: 'edit',
-      personnelLeave: 'edit',
-      dailySales: 'edit',
-      dailyBakery: 'edit',
-      bar_stock: 'edit',
-      bar_receiving: 'edit',
-      bar_stockcount: 'edit',
-      bar_waste: 'edit',
-      bar_checkin: 'edit',
-      bar_coffeeWaste: 'edit',
-      kitchen_stock: 'edit',
-      kitchen_receiving: 'edit',
-      kitchen_stockcount: 'edit',
-      kitchen_waste: 'edit',
-      kitchen_checkin: 'edit',
-      bakeryPlan: 'edit',
-      purchasing: 'edit',
-      rndReport: 'edit',
-      maintenanceReport: 'edit',
-      history_edit: 'edit',
-      history_checkin: 'edit',
-      history_stock: 'edit',
-      history_receiving: 'edit',
-      history_bakery: 'edit',
-      userSettings: 'hidden',
-      canEditDateRange: false,
-      prodcalc: 'hidden'
-    };
-  }
-  if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
-    return {
-      dashboard: 'read',
-      leaveDashboard: 'read',
-      personnelLeave: 'edit',
-      dailySales: 'hidden',
-      dailyBakery: 'edit',
-      bar_stock: 'hidden',
-      bar_receiving: 'hidden',
-      bar_stockcount: 'hidden',
-      bar_waste: 'hidden',
-      bar_checkin: 'hidden',
-      bar_coffeeWaste: 'hidden',
-      kitchen_stock: 'edit',
-      kitchen_receiving: 'edit',
-      kitchen_stockcount: 'edit',
-      kitchen_waste: 'edit',
-      kitchen_checkin: 'edit',
-      bakeryPlan: 'edit',
-      purchasing: 'read',
-      rndReport: 'edit',
-      maintenanceReport: 'read',
-      history_edit: 'read',
-      history_checkin: 'read',
-      history_stock: 'read',
-      history_receiving: 'read',
-      history_bakery: 'read',
-      userSettings: 'hidden',
-      canEditDateRange: false,
-      prodcalc: 'hidden'
-    };
-  }
-  if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE') {
-    return {
-      dashboard: 'read',
-      leaveDashboard: 'read',
-      personnelLeave: 'edit',
-      dailySales: 'hidden',
-      dailyBakery: 'read',
-      bar_stock: 'edit',
-      bar_receiving: 'edit',
-      bar_stockcount: 'edit',
-      bar_waste: 'edit',
-      bar_checkin: 'edit',
-      bar_coffeeWaste: 'edit',
-      kitchen_stock: 'hidden',
-      kitchen_receiving: 'hidden',
-      kitchen_stockcount: 'hidden',
-      kitchen_waste: 'hidden',
-      kitchen_checkin: 'hidden',
-      bakeryPlan: 'hidden',
-      purchasing: 'read',
-      rndReport: 'read',
-      maintenanceReport: 'read',
-      history_edit: 'read',
-      history_checkin: 'read',
-      history_stock: 'read',
-      history_receiving: 'read',
-      history_bakery: 'hidden',
-      userSettings: 'hidden',
-      canEditDateRange: false,
-      prodcalc: 'hidden'
-    };
-  }
-  // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER:
-  return {
-    dashboard: 'read',
-    leaveDashboard: 'read',
-    personnelLeave: 'edit',
-    dailySales: 'hidden',
-    dailyBakery: 'read',
-    bar_stock: 'hidden',
-    bar_receiving: 'hidden',
-    bar_stockcount: 'hidden',
-    bar_waste: 'hidden',
-    bar_checkin: 'hidden',
-    bar_coffeeWaste: 'hidden',
-    kitchen_stock: 'read',
-    kitchen_receiving: 'read',
-    kitchen_stockcount: 'read',
-    kitchen_waste: 'read',
-    kitchen_checkin: 'read',
-    bakeryPlan: 'read',
-    purchasing: 'hidden',
-    rndReport: 'hidden',
-    maintenanceReport: 'read',
-    history_edit: 'read',
-    history_checkin: 'read',
-    history_stock: 'read',
-    history_receiving: 'read',
-    history_bakery: 'read',
-    userSettings: 'hidden',
-    canEditDateRange: false,
-    prodcalc: 'hidden'
-  };
-};
-
-export const normalizePermissions = (raw: any, role: string, customDefaults?: UserPermissions): UserPermissions => {
-  const defaults = customDefaults || applyRoleDefaults(role);
-  if (!raw) return defaults;
-  let parsed = raw;
-  if (typeof raw === 'string') {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return defaults;
-    }
-  }
-  if (typeof parsed !== 'object' || parsed === null) return defaults;
-  
-  const toLevel = (val: any, fallback: PagePermission): PagePermission => {
-    if (val === 'edit' || val === 'Edit') return 'edit';
-    if (val === 'read' || val === 'Read' || val === 'Review') return 'read';
-    if (val === 'hidden' || val === 'Hidden') return 'hidden';
-    return fallback;
-  };
-
-  return {
-    dashboard: toLevel(parsed.dashboard !== undefined ? parsed.dashboard : (parsed.dashboardBar || parsed.dashboardBakery), defaults.dashboard),
-    leaveDashboard: toLevel(parsed.leaveDashboard, defaults.leaveDashboard),
-    personnelLeave: toLevel(parsed.personnelLeave, defaults.personnelLeave),
-    dailySales: toLevel(parsed.dailySales !== undefined ? parsed.dailySales : parsed.dailyRecord, defaults.dailySales),
-    dailyBakery: toLevel(parsed.dailyBakery !== undefined ? parsed.dailyBakery : parsed.dailyRecord, defaults.dailyBakery),
-
-    bar_stock: toLevel(parsed.bar_stock !== undefined ? parsed.bar_stock : parsed.stockTableBar, defaults.bar_stock),
-    bar_receiving: toLevel(parsed.bar_receiving !== undefined ? parsed.bar_receiving : parsed.barReceiving, defaults.bar_receiving),
-    bar_stockcount: toLevel(parsed.bar_stockcount !== undefined ? parsed.bar_stockcount : parsed.dailyStockCountBar, defaults.bar_stockcount),
-    bar_waste: toLevel(parsed.bar_waste !== undefined ? parsed.bar_waste : (parsed.historyWaste || parsed.wasteReport), defaults.bar_waste),
-    bar_checkin: toLevel(parsed.bar_checkin !== undefined ? parsed.bar_checkin : parsed.checklistsBar, defaults.bar_checkin),
-    bar_coffeeWaste: toLevel(parsed.bar_coffeeWaste !== undefined ? parsed.bar_coffeeWaste : parsed.historyWaste, defaults.bar_coffeeWaste),
-
-    kitchen_stock: toLevel(parsed.kitchen_stock !== undefined ? parsed.kitchen_stock : parsed.stockTableBakery, defaults.kitchen_stock),
-    kitchen_receiving: toLevel(parsed.kitchen_receiving !== undefined ? parsed.kitchen_receiving : parsed.bakeryReceiving, defaults.kitchen_receiving),
-    kitchen_stockcount: toLevel(parsed.kitchen_stockcount !== undefined ? parsed.kitchen_stockcount : parsed.dailyStockCountBakery, defaults.kitchen_stockcount),
-    kitchen_waste: toLevel(parsed.kitchen_waste !== undefined ? parsed.kitchen_waste : parsed.wasteReport, defaults.kitchen_waste),
-    kitchen_checkin: toLevel(parsed.kitchen_checkin !== undefined ? parsed.kitchen_checkin : parsed.checklistsBakery, defaults.kitchen_checkin),
-    bakeryPlan: toLevel(parsed.bakeryPlan, defaults.bakeryPlan),
-
-    purchasing: toLevel(parsed.purchasing !== undefined ? parsed.purchasing : parsed.purchasingReport, defaults.purchasing),
-    rndReport: toLevel(parsed.rndReport, defaults.rndReport),
-    maintenanceReport: toLevel(parsed.maintenanceReport, defaults.maintenanceReport),
-
-    history_edit: toLevel(parsed.history_edit !== undefined ? parsed.history_edit : parsed.historyLogs, defaults.history_edit),
-    history_checkin: toLevel(parsed.history_checkin !== undefined ? parsed.history_checkin : parsed.historyChecklist, defaults.history_checkin),
-    history_stock: toLevel(parsed.history_stock !== undefined ? parsed.history_stock : parsed.historyLogs, defaults.history_stock),
-    history_receiving: toLevel(parsed.history_receiving !== undefined ? parsed.history_receiving : parsed.historyReceiving, defaults.history_receiving),
-    history_bakery: toLevel(parsed.history_bakery !== undefined ? parsed.history_bakery : parsed.historyBakery, defaults.history_bakery),
-
-    userSettings: toLevel(parsed.userSettings !== undefined ? parsed.userSettings : parsed.adminTools, defaults.userSettings),
-    canEditDateRange: typeof parsed.canEditDateRange === 'boolean' ? parsed.canEditDateRange : defaults.canEditDateRange,
-    prodcalc: toLevel(parsed.prodcalc !== undefined ? parsed.prodcalc : (parsed.ProdCalc || parsed.prodCalc), defaults.prodcalc || 'hidden')
-  };
-};
-
-export const buildSavePermissions = (perms: UserPermissions) => {
-  const toLegacy = (lvl: PagePermission) => lvl === 'edit' ? 'Edit' : lvl === 'read' ? 'Review' : 'Hidden';
-  return {
-    ...perms,
-    // Modern standard lowercase permissions
-    dashboard: perms.dashboard,
-    leaveDashboard: perms.leaveDashboard,
-    personnelLeave: perms.personnelLeave,
-    dailySales: perms.dailySales,
-    dailyBakery: perms.dailyBakery,
-    bar_stock: perms.bar_stock,
-    bar_receiving: perms.bar_receiving,
-    bar_stockcount: perms.bar_stockcount,
-    bar_waste: perms.bar_waste,
-    bar_checkin: perms.bar_checkin,
-    bar_coffeeWaste: perms.bar_coffeeWaste,
-    kitchen_stock: perms.kitchen_stock,
-    kitchen_receiving: perms.kitchen_receiving,
-    kitchen_stockcount: perms.kitchen_stockcount,
-    kitchen_waste: perms.kitchen_waste,
-    kitchen_checkin: perms.kitchen_checkin,
-    bakeryPlan: perms.bakeryPlan,
-    purchasing: perms.purchasing,
-    rndReport: perms.rndReport,
-    maintenanceReport: perms.maintenanceReport,
-    history_edit: perms.history_edit,
-    history_checkin: perms.history_checkin,
-    history_stock: perms.history_stock,
-    history_receiving: perms.history_receiving,
-    history_bakery: perms.history_bakery,
-    userSettings: perms.userSettings,
-    canEditDateRange: !!perms.canEditDateRange,
-    prodcalc: perms.prodcalc || 'hidden',
-
-    // Legacy fields for backward compatibility
-    dailyRecord: perms.dailySales,
-    dashboardBar: toLegacy(perms.dashboard),
-    dashboardBakery: toLegacy(perms.dashboard),
-    stockTableBar: toLegacy(perms.bar_stock),
-    stockTableBakery: toLegacy(perms.kitchen_stock),
-    barReceiving: toLegacy(perms.bar_receiving),
-    bakeryReceiving: toLegacy(perms.kitchen_receiving),
-    dailyStockCountBar: toLegacy(perms.bar_stockcount),
-    dailyStockCountBakery: toLegacy(perms.kitchen_stockcount),
-    checklistsBar: toLegacy(perms.bar_checkin),
-    checklistsBakery: toLegacy(perms.kitchen_checkin),
-    purchasingReport: toLegacy(perms.purchasing),
-    historyLogs: toLegacy(perms.history_edit),
-    historyChecklist: toLegacy(perms.history_checkin),
-    historyWaste: toLegacy(perms.bar_coffeeWaste || perms.bar_waste),
-    historyReceiving: toLegacy(perms.history_receiving),
-    historyBakery: toLegacy(perms.history_bakery),
-    manageIngredients: (perms.bar_stock === 'edit' || perms.kitchen_stock === 'edit') ? 'Edit' : 'Hidden',
-    adminTools: toLegacy(perms.userSettings),
-    ProdCalc: toLegacy(perms.prodcalc || 'hidden')
-  };
-};
+export type { PagePermission, UserPermissions };
+export { applyRoleDefaults, normalizePermissions, buildSavePermissions };
 
 interface PermissionGroup {
   id: string;
@@ -476,36 +162,17 @@ interface UserSettingsProps {
   branch?: string;
   currentUser?: { name: string; role: UserRole | string; permissions?: AppPermissions | any; branch?: string };
   user?: { name: string; role: UserRole | string; permissions?: AppPermissions | any; branch?: string };
+  isReadOnly?: boolean;
   onCurrentUserUpdated?: (user: { name: string; role: UserRole; permissions?: AppPermissions }) => void;
+  onRoleTemplatesUpdated?: (templates: Record<string, UserPermissions>) => void;
   onNavigate?: (tab: any) => void;
 }
 
 export function UserSettings(props: UserSettingsProps) {
   const isAuthorized = (): boolean => {
-    if (!props.user && !props.currentUser) return false;
     const u = props.currentUser || props.user;
     if (!u) return false;
-
-    // Roles that can always access
-    const adminRoles = [
-      'ADMIN',
-      'CO-FOUNDER',
-      'OWNER',
-    ];
-    const userRole = (u.role || '').toUpperCase();
-    if (adminRoles.includes(userRole)) {
-      return true;
-    }
-
-    // Explicit permission granted
-    if (
-      (u.permissions as any)?.userSettings === 'edit' ||
-      (u.permissions as any)?.adminTools === 'Edit'
-    ) {
-      return true;
-    }
-
-    return false;
+    return canViewPage(u, 'userSettings');
   };
 
   if (!isAuthorized()) {
@@ -574,7 +241,7 @@ export function UserSettings(props: UserSettingsProps) {
   return <UserSettingsContent {...props} />;
 }
 
-function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavigate, user }: UserSettingsProps) {
+function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplatesUpdated, branch, onNavigate, user, isReadOnly }: UserSettingsProps) {
   const initialBranch = branch || user?.branch || currentUser?.branch || 'Rayong';
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>(initialBranch);
 
@@ -698,6 +365,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
       setCustomRoles(prev => Array.from(new Set([...prev, newName])));
       setRoleTemplates(updatedTemplates);
+      onRoleTemplatesUpdated?.(updatedTemplates);
       setSelectedTemplateRole(newName);
       setTemplateForm({ ...defaultPerms });
 
@@ -742,6 +410,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       } catch (e) {}
 
       setRoleTemplates(updatedTemplates);
+      onRoleTemplatesUpdated?.(updatedTemplates);
       setSelectedTemplateRole(newName);
       setCustomRoles(prev => prev.map(r => r === oldName ? newName : r));
 
@@ -804,6 +473,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     } catch (e) {}
 
     setRoleTemplates(updatedTemplates);
+    onRoleTemplatesUpdated?.(updatedTemplates);
     setCustomRoles(prev => prev.filter(r => r !== roleToDelete));
 
     const remainingRoles = updatedRoles.filter(r => r !== roleToDelete).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
@@ -1052,6 +722,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
     const finalTemplates = { ...defaultTemplates, ...(resolvedTemplates || {}) };
     setRoleTemplates(finalTemplates);
+    onRoleTemplatesUpdated?.(finalTemplates);
 
     // If Supabase app_settings didn't have template settings yet, save default templates
     if (supabase && (!resolvedTemplates || Object.keys(resolvedTemplates).length === 0)) {
@@ -1069,8 +740,13 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     }
   };
 
+  const effectiveReadOnly = typeof isReadOnly === 'boolean'
+    ? isReadOnly
+    : isReadOnlyPage(currentUser || user, 'userSettings', roleTemplates);
+
   // Save role template with cross-branch synchronization and deployment to all matching accounts
   const handleSaveRoleTemplate = async () => {
+    if (effectiveReadOnly) return;
     setIsSavingTemplate(true);
     const newSavePerms = buildSavePermissions(templateForm);
     const updatedTemplates = { ...roleTemplates, [selectedTemplateRole]: templateForm };
@@ -1202,6 +878,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
     }
 
     setRoleTemplates(updatedTemplates);
+    onRoleTemplatesUpdated?.(updatedTemplates);
     setIsSavingTemplate(false);
 
     const affectedCount = updatedUsersList.filter(u => (u.role || '').toLowerCase().trim() === normalizedSelectedRole).length;
@@ -1349,6 +1026,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   }, []);
 
   const handleSaveDiscordSettings = async () => {
+    if (effectiveReadOnly) return;
     setIsSavingDiscord(true);
     setDiscordTestResult(null);
     try {
@@ -1405,6 +1083,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (effectiveReadOnly) return;
     if (!formData.name.trim() || (!editingUser && !formData.password.trim())) {
       setUserSaveStatus({
         type: 'error',
@@ -1586,6 +1265,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
   const handleSavePassword = async (e: React.FormEvent, userId: string) => {
     e.preventDefault();
+    if (effectiveReadOnly) return;
     if (!passwordForm.password.trim()) {
       alert('Password cannot be empty');
       return;
@@ -1606,6 +1286,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   };
 
   const handleDeleteUser = async (id: string, name: string) => {
+    if (effectiveReadOnly) return;
     if (name === 'Admin') {
       return;
     }
@@ -1613,6 +1294,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   };
   
   const confirmDeleteUser = async () => {
+    if (effectiveReadOnly) return;
     if (!userToDelete) return;
     const { id } = userToDelete;
     
@@ -1634,6 +1316,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
   };
 
   const openEditForm = (user: AppUser) => {
+    if (effectiveReadOnly) return;
     setEditingUser(user);
     // Retrieve existing permissions from user object or local backup
     let existingPermissions = user.permissions;
@@ -1645,7 +1328,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
         console.warn(e);
       }
     }
-    const normalized = normalizePermissions(existingPermissions, user.role);
+    const normalized = normalizePermissions(existingPermissions, user.role, getRoleDefaults(user.role));
     setFormData({
       name: user.name,
       role: user.role as UserRole,
@@ -1749,16 +1432,23 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
 
             {/* Title & Subtitle */}
             <div>
-              <h2 className="text-[17px] font-bold text-white tracking-[0.01em] leading-tight">
-                User Security Settings
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-[17px] font-bold text-white tracking-[0.01em] leading-tight">
+                  User Security Settings
+                </h2>
+                {effectiveReadOnly && (
+                  <span className="px-2 py-0.5 rounded-md bg-white/15 border border-white/25 text-[10px] font-semibold text-amber-200">
+                    Read-Only (ดูอย่างเดียว)
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-white/70 leading-relaxed mt-1 max-w-xl">
-                จัดการบัญชีผู้ใช้งาน เพิ่ม แก้ไข หรือลบบัญชี รวมถึงกำหนดสิทธิ์การใช้งานแอปพลิเคชัน (Admin Only)
+                จัดการบัญชีผู้ใช้งาน เพิ่ม แก้ไข หรือลบบัญชี รวมถึงกำหนดสิทธิ์การใช้งานแอปพลิเคชัน
               </p>
             </div>
           </div>
 
-          {!isFormOpen && (
+          {!isFormOpen && !effectiveReadOnly && (
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 w-full sm:w-auto">
               {/* ปุ่ม Setting สำหรับ ตั้งค่า Default ของ Authority ตามตำแหน่ง */}
               <button 
@@ -1800,7 +1490,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
       </div>
 
       {/* User Form Card (Add/Edit) */}
-      {isFormOpen && (
+      {isFormOpen && !effectiveReadOnly && (
         <form onSubmit={handleSaveUser} className="bg-white border border-[#D4E4E3] rounded-2xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(45,74,73,0.1)] animate-in fade-in zoom-in-95 duration-200">
           {/* Header Card with Centered Profile Avatar & Badge Icon matching image_e9eedba6.png */}
           <div className="relative pt-2 pb-5 mb-5 border-b border-[#E2EAE9] flex flex-col items-center text-center">
@@ -2297,12 +1987,12 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   {/* Top: Circular Member Photo Avatar */}
                   <div className="relative mb-2.5 shrink-0">
                     <div 
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 sm:border-3 border-white shadow-[0_3px_12px_rgba(45,74,73,0.14)] flex items-center justify-center transition-transform duration-200 group-hover:scale-105 cursor-pointer"
+                      className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 sm:border-3 border-white shadow-[0_3px_12px_rgba(45,74,73,0.14)] flex items-center justify-center transition-transform duration-200 ${effectiveReadOnly ? '' : 'group-hover:scale-105 cursor-pointer'}`}
                       style={{
                         background: (user.avatar || user.image) ? '#F0F5F4' : getAvatarGradient(user.name, idx)
                       }}
-                      onClick={() => openEditForm(user)}
-                      title={`คลิกเพื่อแก้ไขโปรไฟล์ ${user.name}`}
+                      onClick={() => { if (!effectiveReadOnly) openEditForm(user); }}
+                      title={effectiveReadOnly ? user.name : `คลิกเพื่อแก้ไขโปรไฟล์ ${user.name}`}
                     >
                       {user.avatar || user.image ? (
                         <img 
@@ -2341,6 +2031,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   </div>
 
                   {/* 3. Action Buttons (password, edit, delete) */}
+                  {!effectiveReadOnly && (
                   <div className="w-full pt-2 border-t border-[#E2EAE9] mt-auto">
                     {isChangingPassword === user.id ? (
                       <form onSubmit={(e) => handleSavePassword(e, user.id)} className="flex flex-col gap-1.5 w-full animate-in fade-in zoom-in-95 duration-150">
@@ -2402,6 +2093,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -2449,8 +2141,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                 </label>
                 <input
                   type="password"
+                  disabled={effectiveReadOnly}
                   placeholder="กรอก Discord Webhook URL (https://discord.com/api/webhooks/...)"
-                  className="w-full px-3 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none font-mono text-[11px] text-[#2D4A49] bg-white"
+                  className="w-full px-3 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none font-mono text-[11px] text-[#2D4A49] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                   value={discordSettings.webhookUrl}
                   onChange={(e) => setDiscordSettings({ ...discordSettings, webhookUrl: e.target.value })}
                 />
@@ -2462,9 +2155,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                   <h4 className="font-bold text-[11px] text-[#2D4A49]">เปิดใช้งาน Discord Notify</h4>
                   <p className="text-[#6B8F8E] text-[10px] mt-0.5">เปิดหรือปิดการแจ้งเตือนทั้งหมดของแอปพลิเคชัน</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className={`relative inline-flex items-center ${effectiveReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                   <input 
                     type="checkbox" 
+                    disabled={effectiveReadOnly}
                     className="sr-only peer"
                     checked={discordSettings.enabled}
                     onChange={(e) => setDiscordSettings({ ...discordSettings, enabled: e.target.checked })}
@@ -2505,10 +2199,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
                 { id: 'notifyOnRnD', title: 'การเทสสูตรและรายงานเมนูใหม่ (R&D Reports)', desc: 'แชร์สูตรพัฒนา รสชาติ การประเมิน และแผนจำหน่ายเมนู R&D' },
                 { id: 'notifyOnBakeryPlan', title: 'แผนการผลิตและยอดจัดจำหน่ายเบเกอรี่ (Bakery Plan)', desc: 'ส่งสรุปการวางแผนเป้าหมายสัปดาห์ใหม่และยอดขายจริงท้ายสัปดาห์' },
               ].map(sub => (
-                <label key={sub.id} className="flex items-start gap-2.5 p-2.5 bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] rounded-xl cursor-pointer transition-colors shadow-2xs">
+                <label key={sub.id} className={`flex items-start gap-2.5 p-2.5 bg-white border border-[#D4E4E3] rounded-xl transition-colors shadow-2xs ${effectiveReadOnly ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F0F5F4] cursor-pointer'}`}>
                   <input 
                     type="checkbox" 
-                    className="mt-0.5 rounded text-[#5A8A88] focus:ring-[#5A8A88] w-3.5 h-3.5 cursor-pointer accent-[#5A8A88]"
+                    disabled={effectiveReadOnly}
+                    className="mt-0.5 rounded text-[#5A8A88] focus:ring-[#5A8A88] w-3.5 h-3.5 cursor-pointer accent-[#5A8A88] disabled:cursor-not-allowed"
                     checked={(discordSettings as any)[sub.id]}
                     onChange={(e) => setDiscordSettings({ ...discordSettings, [sub.id]: e.target.checked })}
                   />
@@ -2521,6 +2216,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
             </div>
           </div>
 
+          {!effectiveReadOnly && (
           <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 border-t border-[#E2EAE9] pt-3.5">
             <div className="flex items-center gap-2">
               <button
@@ -2550,6 +2246,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, branch, onNavi
               <span>{isSavingDiscord ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า Discord Notify'}</span>
             </button>
           </div>
+          )}
         </div>
       </div>
 
