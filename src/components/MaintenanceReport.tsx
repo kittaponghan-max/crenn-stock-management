@@ -554,7 +554,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     if (supabase) {
       try {
         // Equipment master fetch
-        const { data: equipData } = await supabase.from('maintenance_equipment').select('*');
+        const { data: equipData } = await supabase.from('maintenance_equipment').select('*').eq('branch', currentBranch);
         if (equipData && equipData.length > 0) {
           localEquip = equipData.map((e: any) => ({
             id: e.id,
@@ -569,14 +569,15 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
             .from('app_settings')
             .select('setting_value')
             .eq('setting_key', `maint_equip_${currentBranch}`)
-            .single();
+            .limit(1)
+            .maybeSingle();
           if (settingEquip?.setting_value && Array.isArray(settingEquip.setting_value)) {
             localEquip = settingEquip.setting_value;
           }
         }
 
         // Category master fetch
-        const { data: catData } = await supabase.from('maintenance_categories').select('*');
+        const { data: catData } = await supabase.from('maintenance_categories').select('*').eq('branch', currentBranch);
         if (catData && catData.length > 0) {
           localCat = catData.map((c: any) => ({
             id: c.id,
@@ -588,14 +589,15 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
             .from('app_settings')
             .select('setting_value')
             .eq('setting_key', `maint_cat_${currentBranch}`)
-            .single();
+            .limit(1)
+            .maybeSingle();
           if (settingCat?.setting_value && Array.isArray(settingCat.setting_value)) {
             localCat = settingCat.setting_value;
           }
         }
 
         // Vendor master fetch
-        const { data: venData } = await supabase.from('maintenance_vendors').select('*');
+        const { data: venData } = await supabase.from('maintenance_vendors').select('*').eq('branch', currentBranch);
         if (venData && venData.length > 0) {
           localVen = venData.map((v: any) => ({
             id: v.id,
@@ -609,7 +611,8 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
             .from('app_settings')
             .select('setting_value')
             .eq('setting_key', `maint_vendor_${currentBranch}`)
-            .single();
+            .limit(1)
+            .maybeSingle();
           if (settingVen?.setting_value && Array.isArray(settingVen.setting_value)) {
             localVen = settingVen.setting_value;
           }
@@ -656,10 +659,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           department: newItem.department
         });
         await supabase.from('app_settings').upsert({
+          branch: targetBranch,
           setting_key: `maint_equip_${targetBranch}`,
           setting_value: updated.filter(x => x.branch === targetBranch),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'branch,setting_key' });
       } catch (err) {
         console.warn('Save equipment master to Supabase error:', err);
       }
@@ -694,10 +698,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       try {
         await supabase.from('maintenance_equipment').delete().eq('id', id);
         await supabase.from('app_settings').upsert({
+          branch: targetBranch,
           setting_key: `maint_equip_${targetBranch}`,
           setting_value: updated.filter(x => x.branch === targetBranch),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'branch,setting_key' });
       } catch (err) {
         console.warn('Delete equipment master error:', err);
       }
@@ -727,10 +732,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           department: editingEquipmentMaster.department
         });
         await supabase.from('app_settings').upsert({
+          branch: targetBranch,
           setting_key: `maint_equip_${targetBranch}`,
           setting_value: updated.filter(x => x.branch === targetBranch),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'branch,setting_key' });
       } catch (err) {
         console.warn('Update equipment master error:', err);
       }
@@ -780,10 +786,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           name: newItem.name
         });
         await supabase.from('app_settings').upsert({
+          branch: targetBranch,
           setting_key: `maint_cat_${targetBranch}`,
           setting_value: updated.filter(x => x.branch === targetBranch),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'branch,setting_key' });
       } catch (err) {
         console.warn('Save category master to Supabase error:', err);
       }
@@ -832,10 +839,11 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           phone: newItem.phone
         });
         await supabase.from('app_settings').upsert({
+          branch: targetBranch,
           setting_key: `maint_vendor_${targetBranch}`,
           setting_value: updated.filter(x => x.branch === targetBranch),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'branch,setting_key' });
       } catch (err) {
         console.warn('Save vendor master to Supabase error:', err);
       }
