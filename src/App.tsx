@@ -967,7 +967,9 @@ export default function App() {
         }
         
         if (settingsInserts.length > 0 && supabase) {
-          await supabase.from('app_settings').upsert(settingsInserts.map(s => ({ ...s, branch: user?.branch })));
+          await supabase
+            .from('app_settings')
+            .upsert(settingsInserts.map(s => ({ ...s, branch })), { onConflict: 'branch,setting_key' });
         }
       } catch (error) {
         console.warn('Error loading data:', error);
@@ -1881,7 +1883,9 @@ export default function App() {
         setImportError('เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล');
       } else {
         if (defaultStockDb.length > 0) {
-          const { error: stockError } = await supabase.from('stock_records').insert(defaultStockDb);
+          const { error: stockError } = await supabase
+            .from('stock_records')
+            .upsert(defaultStockDb, { onConflict: 'record_date,ingredient_id,branch' });
           if (stockError) {
             console.error('Error saving default stock records:', stockError);
           }
