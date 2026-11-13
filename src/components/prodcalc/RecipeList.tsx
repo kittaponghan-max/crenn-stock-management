@@ -25,9 +25,10 @@ interface RecipeListProps {
   onEditRecipe: (recipe: Recipe) => void;
   onDeleteRecipe: (recipeId: string) => void;
   currentBranch: string;
+  isReadOnly?: boolean;
 }
 
-export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe, currentBranch }: RecipeListProps) {
+export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe, currentBranch, isReadOnly = false }: RecipeListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
@@ -74,17 +75,19 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
           </p>
         </div>
 
-        <button
-          onClick={onNewRecipe}
-          style={{
-            background: '#5BA4C8',
-            color: '#FFFFFF'
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer shrink-0"
-        >
-          <Plus size={14} />
-          <span>สร้างสูตรใหม่</span>
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={onNewRecipe}
+            style={{
+              background: '#5BA4C8',
+              color: '#FFFFFF'
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer shrink-0"
+          >
+            <Plus size={14} />
+            <span>สร้างสูตรใหม่</span>
+          </button>
+        )}
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -149,17 +152,21 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
         >
           <div className="text-[12px]">🍰</div>
           <div className="font-bold text-[#1E3D52] text-[12px]">ยังไม่มีสูตรอาหารในระบบ</div>
-          <p className="text-[10px] text-[#4A7592] max-w-sm mx-auto">
-            กดปุ่ม "สร้างสูตรใหม่" เพื่อเริ่มรวมต้นทุนจากวัตถุดิบ ค่าแรง และค่าใช้จ่ายอื่นๆ
-          </p>
-          <button
-            onClick={onNewRecipe}
-            style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
-          >
-            <Plus size={13} />
-            <span>สร้างสูตรแรกของคุณ</span>
-          </button>
+          {!isReadOnly && (
+            <>
+              <p className="text-[10px] text-[#4A7592] max-w-sm mx-auto">
+                กดปุ่ม "สร้างสูตรใหม่" เพื่อเริ่มรวมต้นทุนจากวัตถุดิบ ค่าแรง และค่าใช้จ่ายอื่นๆ
+              </p>
+              <button
+                onClick={onNewRecipe}
+                style={{ background: '#5BA4C8', color: '#FFFFFF' }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>สร้างสูตรแรกของคุณ</span>
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -266,21 +273,25 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
                       <Eye size={12} />
                       <span>ดูสรุป</span>
                     </button>
-                    <button
-                      onClick={() => onEditRecipe(recipe)}
-                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                      className="px-2 py-1 rounded-lg text-[10.5px] font-semibold hover:bg-[#5BA4C8] hover:text-white transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit3 size={12} />
-                      <span>แก้ไข</span>
-                    </button>
-                    <button
-                      onClick={() => onDeleteRecipe(recipe.id)}
-                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="ลบสูตร"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {!isReadOnly && (
+                      <>
+                        <button
+                          onClick={() => onEditRecipe(recipe)}
+                          style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
+                          className="px-2 py-1 rounded-lg text-[10.5px] font-semibold hover:bg-[#5BA4C8] hover:text-white transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 size={12} />
+                          <span>แก้ไข</span>
+                        </button>
+                        <button
+                          onClick={() => onDeleteRecipe(recipe.id)}
+                          className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="ลบสูตร"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
