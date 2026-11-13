@@ -22,6 +22,7 @@ import { format, eachDayOfInterval, parseISO, isAfter, addMonths, subMonths } fr
 import { th } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { AppPermissions } from '../types';
+import { canEditDateRangePerm } from '../utils/permissions';
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '../utils/safeStorage';
 
 export interface DailySalesRecordProps {
@@ -39,6 +40,7 @@ export interface DailySalesRecordProps {
     handleSave: () => Promise<boolean>;
     handleDiscard: () => void;
   }) => void;
+  isReadOnly?: boolean;
 }
 
 export interface DailySalesRow {
@@ -117,20 +119,15 @@ export function DailySalesRecord({
   branch = 'Rayong', 
   onNavigate,
   onDirtyChange,
-  registerSaveHandler 
+  registerSaveHandler,
+  isReadOnly = false,
 }: DailySalesRecordProps) {
   const currentBranch = branch || user?.branch || 'Rayong';
   const recorderName = user?.name || 'Admin';
 
   // Admin / Authorized check for custom date range editing
   const canEditDate = useMemo(() => {
-    const role = (user?.role || '').toUpperCase();
-    return (
-      role === 'ADMIN' || 
-      role === 'CO-FOUNDER' || 
-      role === 'OWNER' || 
-      user?.permissions?.canEditDateRange === true
-    );
+    return canEditDateRangePerm(user);
   }, [user]);
 
   // Initial date range based on branch
@@ -332,6 +329,7 @@ export function DailySalesRecord({
 
   // Handle cell value change
   const handleChange = (index: number, field: keyof DailySalesRow, rawValue: string) => {
+    if (isReadOnly) return;
     setRows(prev => {
       const updated = [...prev];
       const row = { ...updated[index] };
@@ -367,6 +365,7 @@ export function DailySalesRecord({
 
   // Add a note to a row
   const handleAddNote = (rowIndex: number, noteText: string) => {
+    if (isReadOnly) return;
     const text = noteText.trim();
     if (!text) {
       setActiveNoteInputIdx(null);
@@ -390,6 +389,7 @@ export function DailySalesRecord({
 
   // Delete a note from a row
   const handleDeleteNote = (rowIndex: number, noteIndex: number) => {
+    if (isReadOnly) return;
     if (editingNote && editingNote.rowIndex === rowIndex && editingNote.noteIndex === noteIndex) {
       setEditingNote(null);
     }
@@ -407,6 +407,7 @@ export function DailySalesRecord({
 
   // Start editing a note
   const startEditNote = (rowIndex: number, noteIndex: number, currentText: string) => {
+    if (isReadOnly) return;
     setActiveNoteInputIdx(null);
     setNewNoteText('');
     setEditingNote({
@@ -418,7 +419,7 @@ export function DailySalesRecord({
 
   // Save edited note
   const saveEditNote = () => {
-    if (!editingNote) return;
+    if (isReadOnly || !editingNote) return;
     const trimmed = editingNote.text.trim();
     const { rowIndex, noteIndex } = editingNote;
 
@@ -477,6 +478,7 @@ export function DailySalesRecord({
 
   // Save to Supabase and LocalStorage
   const handleSave = async () => {
+    if (isReadOnly) return false;
     setIsSaving(true);
     setSaveStatus(null);
 
@@ -1004,41 +1006,43 @@ export function DailySalesRecord({
 
           {/* RIGHT: Action Buttons (Save + Export Dropdown) */}
           <div className="flex items-center gap-1.5 ml-auto relative">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
-                justSaved
-                  ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
-                  : isDirty 
-                    ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
-                    : 'bg-[#2D4A49] hover:bg-[#203635]'
-              }`}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>กำลังบันทึก...</span>
-                </>
-              ) : justSaved ? (
-                <>
-                  <CheckCircle2 size={13} className="text-white" />
-                  <span>บันทึกสำเร็จ</span>
-                </>
-              ) : (
-                <>
-                  <Save size={13} />
-                  <span>บันทึกข้อมูล</span>
-                  {isDirty && (
-                    <span 
-                      className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
-                      title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
-                    />
-                  )}
-                </>
-              )}
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                  justSaved
+                    ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                    : isDirty 
+                      ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
+                      : 'bg-[#2D4A49] hover:bg-[#203635]'
+                }`}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : justSaved ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-white" />
+                    <span>บันทึกสำเร็จ</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={13} />
+                    <span>บันทึกข้อมูล</span>
+                    {isDirty && (
+                      <span 
+                        className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
+                        title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
+                      />
+                    )}
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Export Dropdown (Excel + PDF) */}
             <div className="relative" ref={exportMenuRef}>
@@ -1189,11 +1193,12 @@ export function DailySalesRecord({
                       type="number"
                       step="1"
                       min="0"
+                      disabled={isReadOnly}
                       value={row.openingCash === '' ? '' : row.openingCash}
                       onChange={(e) => handleChange(index, 'openingCash', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1203,11 +1208,12 @@ export function DailySalesRecord({
                       type="number"
                       step="1"
                       min="0"
+                      disabled={isReadOnly}
                       value={row.transfer === '' ? '' : row.transfer}
                       onChange={(e) => handleChange(index, 'transfer', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1217,11 +1223,12 @@ export function DailySalesRecord({
                       type="number"
                       step="1"
                       min="0"
+                      disabled={isReadOnly}
                       value={row.cash === '' ? '' : row.cash}
                       onChange={(e) => handleChange(index, 'cash', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1231,11 +1238,12 @@ export function DailySalesRecord({
                       type="number"
                       step="0.01"
                       min="0"
+                      disabled={isReadOnly}
                       value={row.creditCard === '' ? '' : row.creditCard}
                       onChange={(e) => handleChange(index, 'creditCard', e.target.value)}
                       placeholder="0.00"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1245,11 +1253,12 @@ export function DailySalesRecord({
                       type="number"
                       step="1"
                       min="0"
+                      disabled={isReadOnly}
                       value={row.totalRevenue === '' ? '' : row.totalRevenue}
                       onChange={(e) => handleChange(index, 'totalRevenue', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className={`w-full border rounded-[4px] font-[400] font-mono text-right placeholder-[#A8BCBB] transition-colors focus:outline-none focus:border-[#5A8A88] ${
+                      className={`w-full border rounded-[4px] font-[400] font-mono text-right placeholder-[#A8BCBB] transition-colors focus:outline-none focus:border-[#5A8A88] disabled:opacity-80 disabled:cursor-not-allowed ${
                         row.isAutoCalculated && row.totalRevenue !== ''
                           ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#5A8A88] font-[600]'
                           : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:bg-[#E8F3F2]'
@@ -1264,11 +1273,12 @@ export function DailySalesRecord({
                       type="number"
                       step="1"
                       min="0"
+                      disabled={isReadOnly}
                       value={row.closingCash === '' ? '' : row.closingCash}
                       onChange={(e) => handleChange(index, 'closingCash', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1354,30 +1364,32 @@ export function DailySalesRecord({
                               >
                                 <span className="text-[#5A8A88] shrink-0">•</span>
                                 <span 
-                                  onClick={() => startEditNote(index, nIdx, noteItem)}
-                                  title="คลิกเพื่อแก้ไขหมายเหตุ"
-                                  className="flex-1 break-words whitespace-pre-wrap cursor-pointer rounded-[3px] px-0.5 py-[1px] hover:bg-[#E8F3F2] hover:text-[#5A8A88] transition-colors"
+                                  onClick={!isReadOnly ? () => startEditNote(index, nIdx, noteItem) : undefined}
+                                  title={!isReadOnly ? "คลิกเพื่อแก้ไขหมายเหตุ" : undefined}
+                                  className={`flex-1 break-words whitespace-pre-wrap rounded-[3px] px-0.5 py-[1px] transition-colors ${!isReadOnly ? 'cursor-pointer hover:bg-[#E8F3F2] hover:text-[#5A8A88]' : ''}`}
                                 >
                                   {noteItem}
                                 </span>
-                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    type="button"
-                                    onClick={() => startEditNote(index, nIdx, noteItem)}
-                                    className="text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#E8F3F2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
-                                    title="แก้ไขหมายเหตุ"
-                                  >
-                                    <Pencil size={10} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteNote(index, nIdx)}
-                                    className="text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
-                                    title="ลบหมายเหตุนี้"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
+                                {!isReadOnly && (
+                                  <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditNote(index, nIdx, noteItem)}
+                                      className="text-[#A8BCBB] hover:text-[#5A8A88] hover:bg-[#E8F3F2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                      title="แก้ไขหมายเหตุ"
+                                    >
+                                      <Pencil size={10} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteNote(index, nIdx)}
+                                      className="text-[#A8BCBB] hover:text-[#EF4444] hover:bg-[#FEE2E2] p-0.5 rounded-[3px] cursor-pointer transition-colors"
+                                      title="ลบหมายเหตุนี้"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -1385,7 +1397,7 @@ export function DailySalesRecord({
                       )}
 
                       {/* Adding Note Textarea or "+ เพิ่มหมายเหตุ" button */}
-                      {activeNoteInputIdx === index ? (
+                      {!isReadOnly && (activeNoteInputIdx === index ? (
                         <div className="mt-1">
                           <textarea
                             autoFocus
@@ -1436,7 +1448,7 @@ export function DailySalesRecord({
                           <Plus size={10} className="text-[#5A8A88]" />
                           <span>เพิ่มหมายเหตุ</span>
                         </button>
-                      )}
+                      ))}
                     </div>
                   </td>
                 </tr>
