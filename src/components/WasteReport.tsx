@@ -14,6 +14,7 @@ interface WasteReportProps {
   onUpdate?: (id: string, updates: Partial<WasteLogEntry>) => Promise<void> | void;
   onBack: () => void;
   branch?: 'Rayong' | 'Bangkok';
+  isReadOnly?: boolean;
 }
 
 export interface WasteFormItem {
@@ -34,7 +35,7 @@ const createNewItem = (): WasteFormItem => ({
   imageUrl: ''
 });
 
-export function WasteReport({ department, ingredients, wasteLogs, currentUser, onSave, onUpdate, onBack, branch }: WasteReportProps) {
+export function WasteReport({ department, ingredients, wasteLogs, currentUser, onSave, onUpdate, onBack, branch, isReadOnly = false }: WasteReportProps) {
   const currentBranch = branch || (() => {
     try {
       const savedUser = localStorage.getItem('cafe-user');
@@ -66,6 +67,12 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
   const fetchData = useCallback(async () => {
     if (!supabase) {
+      try {
+        const saved = localStorage.getItem(`cafe-waste-logs-${currentBranch}`);
+        setRecords(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setRecords([]);
+      }
       setLoading(false);
       return;
     }
@@ -84,6 +91,12 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
       if (fetchErr) {
         console.error('Error fetching waste_logs from Supabase:', fetchErr);
         setError(fetchErr.message);
+        try {
+          const saved = localStorage.getItem(`cafe-waste-logs-${currentBranch}`);
+          setRecords(saved ? JSON.parse(saved) : []);
+        } catch (e) {
+          setRecords([]);
+        }
       } else if (data) {
         const mapped: WasteLogEntry[] = data.map((w: any) => ({
           id: w.id,
@@ -100,10 +113,18 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
           recorderName: w.recorder_name
         }));
         setRecords(mapped);
+      } else {
+        setRecords([]);
       }
     } catch (err: any) {
       console.error('Fetch exception in waste_logs:', err);
       setError(err?.message || 'Error fetching data');
+      try {
+        const saved = localStorage.getItem(`cafe-waste-logs-${currentBranch}`);
+        setRecords(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setRecords([]);
+      }
     } finally {
       setLoading(false);
       setLastFetch(new Date());
@@ -159,13 +180,10 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
     };
   }, [fetchData]);
 
-  // Blend fetched records with props fallback
+  // Use only records belonging to the current branch
   const effectiveWasteLogs = useMemo(() => {
-    if (!loading) {
-      return records;
-    }
-    return records.length > 0 ? records : wasteLogs;
-  }, [records, wasteLogs, loading]);
+    return records;
+  }, [records]);
 
   // Always resolve the freshest log from wasteLogs state
   const activeSelectedLog = useMemo(() => {
@@ -201,6 +219,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   };
 
   const handleStartEdit = () => {
+    if (isReadOnly) return;
     const current = activeSelectedLog || selectedLog;
     if (!current) return;
     setEditFormData({
@@ -222,6 +241,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   };
 
   const handleSaveEdit = async () => {
+    if (isReadOnly) return;
     const current = activeSelectedLog || selectedLog;
     if (!current) return;
     const trimmedCause = editFormData.cause.trim();
@@ -425,6 +445,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   };
 
   const handleOpenForm = () => {
+    if (isReadOnly) return;
     setFormError(null);
     if (wasteItems.length === 0) {
       setWasteItems([createNewItem()]);
@@ -440,6 +461,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     setFormError(null);
 
     const entriesToSave: Omit<WasteLogEntry, 'id' | 'timestamp'>[] = [];
@@ -517,20 +539,22 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
         </div>
         
         {/* Right — "+ เพิ่มรายการของเสีย" button */}
-        <button
-          type="button"
-          onClick={handleOpenForm}
-          className="flex items-center gap-2 px-[18px] py-[10px] rounded-[10px] text-white text-[12px] font-semibold bg-[#2D4A49] hover:bg-[#1D3A39] shadow-xs hover:shadow transition-all cursor-pointer"
-        >
-          <Plus size={18} className="text-white" />
-          <span>เพิ่มรายการของเสีย</span>
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={handleOpenForm}
+            className="flex items-center gap-2 px-[18px] py-[10px] rounded-[10px] text-white text-[12px] font-semibold bg-[#2D4A49] hover:bg-[#1D3A39] shadow-xs hover:shadow transition-all cursor-pointer"
+          >
+            <Plus size={18} className="text-white" />
+            <span>เพิ่มรายการของเสีย</span>
+          </button>
+        )}
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           NEW WASTE ENTRY FORM (MODAL / INLINE)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {isFormOpen && (
+      {isFormOpen && !isReadOnly && (
         <div className="bg-white rounded-2xl shadow-xl border border-[#D4E4E3] overflow-hidden mb-6 max-w-4xl mx-auto animate-in zoom-in-95 duration-200">
           <div className="bg-[#F0F5F4] px-5 py-3.5 border-b border-[#D4E4E3] flex justify-between items-center">
             <div className="flex items-center gap-2">
@@ -1132,7 +1156,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                 </>
               ) : (
                 <>
-                  {onUpdate && (
+                  {onUpdate && !isReadOnly && (
                     <button 
                       type="button"
                       onClick={handleStartEdit}
