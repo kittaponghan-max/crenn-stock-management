@@ -1,3 +1,5 @@
+import { canViewPage } from './utils/permissions';
+
 export type Branch = 'Bangkok' | 'Rayong';
 
 export interface Ingredient {
@@ -206,48 +208,21 @@ export interface AppPermissions {
 }
 
 export const canAccessProdCalc = (
-  user: { name?: string; role?: any; permissions?: any } | null | undefined
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
 ): boolean => {
-  if (!user) return false;
-
-  // 1. Check user-specific explicit permissions
-  const perms = user.permissions;
-  if (perms) {
-    if (perms.prodcalc !== undefined) {
-      return perms.prodcalc === 'edit' || perms.prodcalc === 'read' || perms.prodcalc === 'Edit' || perms.prodcalc === 'Review';
-    }
-    if (perms.ProdCalc !== undefined) {
-      return perms.ProdCalc === 'Edit' || perms.ProdCalc === 'Review' || perms.ProdCalc === 'edit' || perms.ProdCalc === 'read';
-    }
-  }
-
-  // 2. Default: Visible only to Admin / Co-founder / Owner
-  const role = String(user.role || '').toUpperCase();
-  return role === 'ADMIN' || role === 'CO-FOUNDER' || role === 'OWNER';
+  return canViewPage(user, 'prodcalc');
 };
 
 export const canAccessLeaveDashboard = (
-  user: { name?: string; role?: any; permissions?: any } | null | undefined
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
 ): boolean => {
-  if (!user) return false;
-  const role = String(user.role || '').toUpperCase();
-  if (role === 'ADMIN' || role === 'CO-FOUNDER' || role === 'OWNER') return true;
-  const perms = user.permissions;
-  if (perms && perms.leaveDashboard !== undefined) {
-    return perms.leaveDashboard !== 'hidden' && perms.leaveDashboard !== 'Hidden';
-  }
-  return true;
+  return canViewPage(user, 'leaveDashboard');
 };
 
 export const canAccessPersonnelLeave = (
-  user: { name?: string; role?: any; permissions?: any } | null | undefined
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
 ): boolean => {
-  if (!user) return false;
-  const perms = user.permissions;
-  if (perms && perms.personnelLeave !== undefined) {
-    return perms.personnelLeave !== 'hidden' && perms.personnelLeave !== 'Hidden';
-  }
-  return true;
+  return canViewPage(user, 'personnelLeave');
 };
 
 export interface AppUser {
