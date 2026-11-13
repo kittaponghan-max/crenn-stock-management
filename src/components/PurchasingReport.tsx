@@ -50,6 +50,7 @@ interface PurchasingReportProps {
   allowedDepartments?: ('Bar' | 'Bakery')[];
   branch?: string;
   user?: { name: string; role?: string };
+  isReadOnly?: boolean;
 }
 
 type DepartmentFilter = 'All' | 'Bar' | 'Bakery';
@@ -62,6 +63,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   allowedDepartments = ['Bar', 'Bakery'],
   branch,
   user,
+  isReadOnly = false,
 }) => {
   const currentBranch = branch || 'Rayong';
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -175,6 +177,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
   // Toggle edit mode for an item that is currently in "รอรับสินค้า" (pending delivery)
   const handleStartEditPending = (item: any, pendingInfo: any, supplierName: string) => {
+    if (isReadOnly) return;
     // 1. Mark this item ID as actively editing
     setEditingPendingIds(prev => new Set(prev).add(item.id));
 
@@ -207,6 +210,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   };
 
   const handleCancelEditPending = (itemId: string, supplierName: string) => {
+    if (isReadOnly) return;
     setEditingPendingIds(prev => {
       const next = new Set(prev);
       next.delete(itemId);
@@ -447,6 +451,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     unit: string,
     supplierName?: string
   ) => {
+    if (isReadOnly) return;
     setHasUnsavedChanges(true);
     setChangedItems(prev => new Set(prev).add(ingredientId));
 
@@ -544,6 +549,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     supplierId: string,
     supplierItems: (typeof purchasesToMake)
   ) => {
+    if (isReadOnly) return;
     const pendingConflicts: Array<{
       ingredientId: string;
       name: string;
@@ -593,6 +599,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     supplierId: string,
     supplierItems: (typeof purchasesToMake)
   ) => {
+    if (isReadOnly) return;
     try {
       // Set saving state
       setSupplierSaveState(prev => ({
@@ -833,6 +840,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
   // Save all changed order items to localStorage & Supabase
   const handleSaveAllChanges = async () => {
+    if (isReadOnly) return;
     setIsSaving(true);
     const currentBranch = branch || 'Rayong';
     const nowIso = new Date().toISOString();
@@ -996,6 +1004,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
   // Retain existing function to satisfy "❌ FORBIDDEN: Remove any existing function"
   const handleOrderSave = async (ingredientId: string, unit: string) => {
+    if (isReadOnly) return;
     const currentBranch = branch || 'Rayong';
     const itemOrder = orders[ingredientId];
     if (!itemOrder) return;
@@ -1558,45 +1567,47 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                     
                     <div className="flex items-center gap-2">
                       {/* Save button per supplier (matches DailyBakeryRecord behavior) */}
-                      <button
-                        type="button"
-                        onClick={() => handleSaveWithCheck(supplier, allSupplierItems)}
-                        disabled={supState === 'idle' || supState === 'saving' || supState === 'saved'}
-                        title={supState === 'dirty' ? "คลิกเพื่อบันทึกรายการของผู้จัดจำหน่ายนี้" : undefined}
-                        className={cn(
-                          "flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[11px] transition-all duration-200 select-none",
-                          supState === 'idle' && "bg-[#F0F5F4] border border-[#D4E4E3] text-[#A8BCBB] cursor-not-allowed opacity-80",
-                          supState === 'dirty' && "bg-[#5A8A88] hover:bg-[#4A7A78] text-white font-[600] border-none shadow-xs cursor-pointer animate-pulse hover:animate-none hover:scale-[1.03] active:scale-[0.98]",
-                          supState === 'saving' && "bg-[#5A8A88] text-white font-[600] opacity-80 cursor-wait border-none",
-                          supState === 'saved' && "bg-[#22C55E] text-white font-[600] border-none shadow-xs"
-                        )}
-                        style={
-                          supState === 'idle'
-                            ? { backgroundColor: '#F0F5F4', border: '1px solid #D4E4E3', color: '#A8BCBB', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', cursor: 'not-allowed' }
-                            : supState === 'dirty'
-                            ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none' }
-                            : supState === 'saving'
-                            ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, opacity: 0.8, cursor: 'wait', border: 'none' }
-                            : { backgroundColor: '#22C55E', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, border: 'none' }
-                        }
-                      >
-                        {supState === 'saving' ? (
-                          <>
-                            <Loader2 size={12} className="animate-spin text-white" />
-                            <span>กำลังบันทึก...</span>
-                          </>
-                        ) : supState === 'saved' ? (
-                          <>
-                            <Check size={12} className="text-white" />
-                            <span>บันทึกแล้ว!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Save size={12} className={supState === 'dirty' ? "text-white" : "text-[#A8BCBB]"} />
-                            <span>บันทึก</span>
-                          </>
-                        )}
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          type="button"
+                          onClick={() => handleSaveWithCheck(supplier, allSupplierItems)}
+                          disabled={supState === 'idle' || supState === 'saving' || supState === 'saved'}
+                          title={supState === 'dirty' ? "คลิกเพื่อบันทึกรายการของผู้จัดจำหน่ายนี้" : undefined}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[11px] transition-all duration-200 select-none",
+                            supState === 'idle' && "bg-[#F0F5F4] border border-[#D4E4E3] text-[#A8BCBB] cursor-not-allowed opacity-80",
+                            supState === 'dirty' && "bg-[#5A8A88] hover:bg-[#4A7A78] text-white font-[600] border-none shadow-xs cursor-pointer animate-pulse hover:animate-none hover:scale-[1.03] active:scale-[0.98]",
+                            supState === 'saving' && "bg-[#5A8A88] text-white font-[600] opacity-80 cursor-wait border-none",
+                            supState === 'saved' && "bg-[#22C55E] text-white font-[600] border-none shadow-xs"
+                          )}
+                          style={
+                            supState === 'idle'
+                              ? { backgroundColor: '#F0F5F4', border: '1px solid #D4E4E3', color: '#A8BCBB', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', cursor: 'not-allowed' }
+                              : supState === 'dirty'
+                              ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none' }
+                              : supState === 'saving'
+                              ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, opacity: 0.8, cursor: 'wait', border: 'none' }
+                              : { backgroundColor: '#22C55E', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, border: 'none' }
+                          }
+                        >
+                          {supState === 'saving' ? (
+                            <>
+                              <Loader2 size={12} className="animate-spin text-white" />
+                              <span>กำลังบันทึก...</span>
+                            </>
+                          ) : supState === 'saved' ? (
+                            <>
+                              <Check size={12} className="text-white" />
+                              <span>บันทึกแล้ว!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save size={12} className={supState === 'dirty' ? "text-white" : "text-[#A8BCBB]"} />
+                              <span>บันทึก</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       {allSupplierItems.filter(item => isPendingDelivery(item.id)).length > 0 && (
                         <span 
@@ -1768,7 +1779,25 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                     )}
                                     {isPending && (
                                       <div>
-                                        {isEditingThisPending ? (
+                                        {isReadOnly ? (
+                                          <span style={{
+                                            display       : 'inline-flex',
+                                            alignItems    : 'center',
+                                            gap           : '4px',
+                                            background    : '#FEF3C7',
+                                            color         : '#92400E',
+                                            border        : '1px solid #FDE68A',
+                                            fontSize      : '9px',
+                                            fontWeight    : 600,
+                                            borderRadius  : '4px',
+                                            padding       : '2px 6px',
+                                            marginTop     : '3px',
+                                            whiteSpace    : 'nowrap',
+                                          }}>
+                                            <Truck size={9} style={{ color: '#D97706' }} />
+                                            <span>รอส่งมอบ</span>
+                                          </span>
+                                        ) : isEditingThisPending ? (
                                           <span style={{
                                             display       : 'inline-flex',
                                             alignItems    : 'center',
@@ -1860,9 +1889,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   <td className="px-0.5 py-1 text-center w-[100px] max-w-[100px] border-r border-[#F0F5F4]" style={{ width: '100px', maxWidth: '100px' }}>
                                     {isPending && !isEditingThisPending ? (
                                       <div 
-                                        className="flex items-center justify-center mx-auto cursor-pointer group" 
-                                        title="คลิกเพื่อแก้ไขวันที่สั่งซื้อ" 
-                                        onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                        className={cn("flex items-center justify-center mx-auto group", !isReadOnly && "cursor-pointer")}
+                                        title={isReadOnly ? undefined : "คลิกเพื่อแก้ไขวันที่สั่งซื้อ"}
+                                        onClick={() => { if (!isReadOnly) handleStartEditPending(item, pendingInfo, supplier); }}
                                       >
                                         <span 
                                           style={{
@@ -1878,23 +1907,25 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                             gap: '3px',
                                             whiteSpace: 'nowrap',
                                           }}
-                                          className="group-hover:bg-[#FDE68A] transition-colors"
+                                          className={cn(!isReadOnly && "group-hover:bg-[#FDE68A] transition-colors")}
                                         >
-                                          <Pencil size={8} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#D97706]" />
+                                          {!isReadOnly && <Pencil size={8} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#D97706]" />}
                                           {formatDisplayDate(pendingInfo?.order_date) || pendingInfo?.order_date || 'รอส่งมอบ'}
                                         </span>
                                       </div>
                                     ) : (
                                       <input 
                                         type="date"
+                                        disabled={isReadOnly}
                                         value={orderDate}
                                         placeholder="เลือกวันที่"
                                         onChange={(e) => handleOrderFieldChange(item.id, 'order_date', e.target.value, item.unit, supplier)}
                                         className={cn(
-                                          "border rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none transition-colors cursor-pointer text-center mx-auto block",
-                                          isEditingThisPending
+                                          "border rounded-[4px] px-1 py-0.5 h-[26px] w-full max-w-[94px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] focus:outline-none transition-colors text-center mx-auto block",
+                                          isReadOnly ? "bg-slate-50 border-[#D4E4E3] text-[#6B8F8E] cursor-not-allowed" : "cursor-pointer",
+                                          !isReadOnly && isEditingThisPending
                                             ? "bg-[#FFFBEB] border-[#F59E0B] focus:border-[#D97706] ring-1 ring-[#F59E0B]/30 font-medium text-[#92400E]"
-                                            : "bg-[#FFFFFF] border-[#D4E4E3] focus:border-[#5A8A88]"
+                                            : !isReadOnly ? "bg-[#FFFFFF] border-[#D4E4E3] focus:border-[#5A8A88]" : ""
                                         )}
                                       />
                                     )}
@@ -1904,9 +1935,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                   <td className="px-0.5 py-1 text-center w-[68px] max-w-[68px] border-r border-[#F0F5F4]" style={{ width: '68px', maxWidth: '68px' }}>
                                     {isPending && !isEditingThisPending ? (
                                       <div 
-                                        className="flex items-center justify-center gap-0.5 w-full cursor-pointer group" 
-                                        title="คลิกเพื่อแก้ไขจำนวนที่สั่ง" 
-                                        onClick={() => handleStartEditPending(item, pendingInfo, supplier)}
+                                        className={cn("flex items-center justify-center gap-0.5 w-full group", !isReadOnly && "cursor-pointer")}
+                                        title={isReadOnly ? undefined : "คลิกเพื่อแก้ไขจำนวนที่สั่ง"}
+                                        onClick={() => { if (!isReadOnly) handleStartEditPending(item, pendingInfo, supplier); }}
                                       >
                                         <span
                                           style={{
@@ -1922,9 +1953,9 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                             gap: '3px',
                                             whiteSpace: 'nowrap',
                                           }}
-                                          className="group-hover:bg-[#FDE68A] transition-colors"
+                                          className={cn(!isReadOnly && "group-hover:bg-[#FDE68A] transition-colors")}
                                         >
-                                          <Pencil size={8} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#D97706]" />
+                                          {!isReadOnly && <Pencil size={8} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#D97706]" />}
                                           {pendingInfo?.order_qty} {pendingInfo?.order_unit || item.unit}
                                         </span>
                                       </div>
@@ -1932,15 +1963,17 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                       <div className="flex items-center justify-center gap-0.5 w-full">
                                         <input 
                                           type="number"
+                                          disabled={isReadOnly}
                                           min={0}
                                           value={orderQty === 0 && !orderDate ? '' : orderQty}
                                           placeholder="0"
                                           onChange={(e) => handleOrderFieldChange(item.id, 'order_qty', e.target.value === '' ? '' : Number(e.target.value), item.unit, supplier)}
                                           className={cn(
                                             "border rounded-[4px] px-1 py-0.5 h-[26px] w-[40px] text-[9.5px] placeholder:text-[9px] text-[#2D4A49] text-center focus:outline-none transition-colors",
-                                            isEditingThisPending
+                                            isReadOnly ? "bg-slate-50 border-[#D4E4E3] text-[#6B8F8E] cursor-not-allowed" : "",
+                                            !isReadOnly && isEditingThisPending
                                               ? "bg-[#FFFBEB] border-[#F59E0B] focus:border-[#D97706] ring-1 ring-[#F59E0B]/30 font-semibold text-[#92400E]"
-                                              : "bg-[#FFFFFF] border-[#D4E4E3] focus:border-[#5A8A88]"
+                                              : !isReadOnly ? "bg-[#FFFFFF] border-[#D4E4E3] focus:border-[#5A8A88]" : ""
                                           )}
                                         />
                                         <span className="text-[9px] text-[#6B8F8E] whitespace-nowrap truncate max-w-[22px]" title={item.unit}>
@@ -1964,7 +1997,26 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                                         )}
                                         <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                           {/* Edit / Cancel / Save Toggle Buttons */}
-                                          {isEditingThisPending ? (
+                                          {isReadOnly ? (
+                                            <span
+                                              style={{
+                                                background: '#FEF3C7',
+                                                color: '#92400E',
+                                                border: '1px solid #FDE68A',
+                                                fontSize: '9px',
+                                                fontWeight: 600,
+                                                borderRadius: '3px',
+                                                padding: '2px 5px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                whiteSpace: 'nowrap',
+                                              }}
+                                            >
+                                              <Truck size={8} style={{ color: '#D97706' }} />
+                                              รอรับสินค้า
+                                            </span>
+                                          ) : isEditingThisPending ? (
                                             <div className="flex items-center gap-1">
                                               <button
                                                 type="button"
