@@ -12,9 +12,10 @@ interface RnDReportProps {
   onUpdate?: (id: string, log: Omit<RnDReportEntry, 'id' | 'timestamp'>) => void;
   onBack: () => void;
   branch?: 'Rayong' | 'Bangkok';
+  isReadOnly?: boolean;
 }
 
-export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, branch }: RnDReportProps) {
+export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, branch, isReadOnly = false }: RnDReportProps) {
   const currentBranch = branch || (() => {
     try {
       const savedUser = localStorage.getItem('cafe-user');
@@ -63,6 +64,12 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
 
   const fetchData = useCallback(async () => {
     if (!supabase) {
+      try {
+        const saved = localStorage.getItem(`cafe-rnd-reports-${currentBranch}`);
+        setRecords(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setRecords([]);
+      }
       setLoading(false);
       return;
     }
@@ -81,6 +88,12 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
       if (fetchErr) {
         console.error('Error fetching rnd_reports from Supabase:', fetchErr);
         setError(fetchErr.message);
+        try {
+          const saved = localStorage.getItem(`cafe-rnd-reports-${currentBranch}`);
+          setRecords(saved ? JSON.parse(saved) : []);
+        } catch (e) {
+          setRecords([]);
+        }
       } else if (data) {
         const safeParseJson = (val: any) => {
           if (!val) return [];
@@ -117,6 +130,12 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
     } catch (err: any) {
       console.error('Fetch exception in rnd_reports:', err);
       setError(err?.message || 'Error fetching data');
+      try {
+        const saved = localStorage.getItem(`cafe-rnd-reports-${currentBranch}`);
+        setRecords(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setRecords([]);
+      }
     } finally {
       setLoading(false);
       setLastFetch(new Date());
@@ -172,10 +191,8 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
     };
   }, [fetchData]);
 
-  const effectiveReports = useMemo(() => {
-    if (!loading) return records;
-    return records.length > 0 ? records : reports;
-  }, [records, reports, loading]);
+  // Use only reports strictly belonging to the active branch
+  const effectiveReports = records;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,6 +267,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
   };
 
   const openEditForm = (report: RnDReportEntry) => {
+    if (isReadOnly) return;
     setFormData({
       date: report.date,
       menuNameTH: report.menuNameTH,
@@ -268,6 +286,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
   };
 
   const handleAddNew = () => {
+    if (isReadOnly) return;
     setFormData({
       date: format(new Date(), 'yyyy-MM-dd'),
       menuNameTH: '',
@@ -287,6 +306,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     const payload = {
       date: formData.date,
       menuNameTH: formData.menuNameTH,
@@ -384,19 +404,21 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
             </button>
 
             {/* Add New Button */}
-            <button
-              onClick={handleAddNew}
-              className="flex items-center gap-1.5 px-4 h-[38px] bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[13px] font-bold transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
-            >
-              <Plus size={16} />
-              <span>+ สร้างรายงาน R&D</span>
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={handleAddNew}
+                className="flex items-center gap-1.5 px-4 h-[38px] bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[13px] font-bold transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+              >
+                <Plus size={16} />
+                <span>+ สร้างรายงาน R&D</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* R&D Form Modal */}
-      {isFormOpen && (
+      {isFormOpen && !isReadOnly && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full border border-[#D4E4E3] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
@@ -725,13 +747,15 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
                         ผู้บันทึก: {report.recorderName}
                       </span>
                     )}
-                    <button
-                      onClick={() => openEditForm(report)}
-                      className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-xs"
-                      title="แก้ไขรายงาน"
-                    >
-                      <Edit size={14} />
-                    </button>
+                    {!isReadOnly && (
+                      <button
+                        onClick={() => openEditForm(report)}
+                        className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                        title="แก้ไขรายงาน"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
