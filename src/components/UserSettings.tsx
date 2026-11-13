@@ -1850,41 +1850,41 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         }}
         className="rounded-2xl p-6 text-white shadow-[0_4px_16px_rgba(45,74,73,0.15)] border border-[#2D4A49]"
       >
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex items-start gap-3.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
             {/* Icon badge */}
             <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-[#E8F3F2] shrink-0">
               <Shield size={22} className="text-[#C5D5D3]" />
             </div>
 
             {/* Title & Subtitle */}
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-[17px] font-bold text-white tracking-[0.01em] leading-tight">
+                <h2 className="text-[17px] font-bold text-white tracking-[0.01em] leading-tight whitespace-nowrap">
                   User Security Settings
                 </h2>
                 {effectiveReadOnly && (
-                  <span className="px-2 py-0.5 rounded-md bg-white/15 border border-white/25 text-[10px] font-semibold text-amber-200">
+                  <span className="px-2 py-0.5 rounded-md bg-white/15 border border-white/25 text-[10px] font-semibold text-amber-200 whitespace-nowrap">
                     Read-Only (ดูอย่างเดียว)
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-white/70 leading-relaxed mt-1 max-w-xl">
+              <p className="text-[11px] text-white/75 leading-relaxed mt-1">
                 จัดการบัญชีผู้ใช้งาน เพิ่ม แก้ไข หรือลบบัญชี รวมถึงกำหนดสิทธิ์การใช้งานแอปพลิเคชัน
               </p>
             </div>
           </div>
 
           {!isFormOpen && !effectiveReadOnly && (
-            <div className="flex items-center gap-2 flex-wrap justify-end shrink-0 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-start lg:justify-end gap-2 sm:pl-[58px] lg:pl-0 shrink-0">
               {/* ปุ่มตั้งค่าจำนวนวันลาประจำปีของพนักงาน */}
               <button
                 type="button"
                 onClick={handleOpenLeaveQuotaModal}
-                className="flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+                className="flex items-center justify-center gap-1.5 bg-white/12 hover:bg-white/22 border border-white/30 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs whitespace-nowrap"
                 title="ตั้งค่าจำนวนวันลาประจำปีของพนักงานแต่ละคน"
               >
-                <Calendar size={14} className="text-white" />
+                <Calendar size={14} className="text-white/90 shrink-0" />
                 <span>ตั้งค่าวันลาประจำปี</span>
               </button>
 
@@ -1898,10 +1898,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   setTemplateForm({ ...cur });
                   setIsTemplateModalOpen(true);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+                className="flex items-center justify-center gap-1.5 bg-white/12 hover:bg-white/22 border border-white/30 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs whitespace-nowrap"
                 title="ตั้งค่า Default ของ Authority ตามตำแหน่ง"
               >
-                <Settings size={14} className="text-white" />
+                <Settings size={14} className="text-white/90 shrink-0" />
                 <span>ตั้งค่า Default ตามตำแหน่ง</span>
               </button>
 
@@ -1924,9 +1924,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   setActiveModalTab('general');
                   setIsFormOpen(true);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 border-[1.5px] border-white/40 text-white text-[11px] font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer shadow-xs shrink-0 w-full sm:w-auto"
+                className="flex items-center justify-center gap-1.5 bg-white text-[#2D4A49] hover:bg-[#E8F3F2] border border-white text-[11px] font-bold px-3.5 py-2 rounded-lg transition-all cursor-pointer shadow-sm whitespace-nowrap"
               >
-                <Plus size={14} className="text-white" />
+                <Plus size={14} className="text-[#2D4A49] shrink-0" />
                 <span>เพิ่มผู้ใช้งานใหม่</span>
               </button>
             </div>
