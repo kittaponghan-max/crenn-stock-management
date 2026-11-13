@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Lock, Eye, EyeOff, MapPin, ChevronDown, Database, Loader2, AlertTriangle, Coffee, Sparkles, Check, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AppUser as TypesAppUser, AppPermissions, Branch } from '../types';
+import {
+  buildSavePermissions,
+  canViewPage,
+  findRoleTemplate,
+  getCachedRoleTemplates,
+  normalizePermissions,
+} from '../utils/permissions';
 
 export type AppOption = 'cafe' | 'sop' | 'prodcalc';
 
@@ -74,6 +81,8 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const [infoModal, setInfoModal] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showUserDropdown, setShowUserDropdown] = useState<boolean>(false);
+  const [roleTemplates, setRoleTemplates] = useState<Record<string, any>>({});
+  const [userPermissionsMap, setUserPermissionsMap] = useState<Record<string, any>>({});
 
   // STEP 1 & 4 — State for selected app and dropdown visibility
   const [selectedApp, setSelectedApp] = useState<AppOption>('cafe');
@@ -159,13 +168,51 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     const fetchUsers = async () => {
       if (supabase) {
         try {
-          const { data, error: queryError } = await supabase
-            .from('app_users')
-            .select('*')
-            .eq('branch', selectedBranch);
+          const [usersRes, tplRes, mapRes] = await Promise.all([
+            supabase.from('app_users').select('*').eq('branch', selectedBranch),
+            supabase
+              .from('app_settings')
+              .select('branch, setting_value')
+              .eq('setting_key', 'role_permissions_templates')
+              .in('branch', [selectedBranch, 'GLOBAL']),
+            supabase
+              .from('app_settings')
+              .select('branch, setting_value')
+              .eq('setting_key', 'user_permissions_map'),
+          ]);
 
           if (!isMounted) return;
 
+          if (tplRes.data && tplRes.data.length > 0) {
+            const branchTpl =
+              tplRes.data.find((r: any) => r.branch === selectedBranch)?.setting_value ||
+              tplRes.data.find((r: any) => r.branch === 'GLOBAL')?.setting_value ||
+              tplRes.data[0]?.setting_value ||
+              {};
+            setRoleTemplates(branchTpl);
+            try {
+              localStorage.setItem(`role_permissions_templates_${selectedBranch}`, JSON.stringify(branchTpl));
+              localStorage.setItem('role_permissions_templates', JSON.stringify(branchTpl));
+            } catch {}
+          } else {
+            setRoleTemplates(getCachedRoleTemplates(selectedBranch));
+          }
+
+          if (mapRes.data && mapRes.data.length > 0) {
+            const mergedMap: Record<string, any> = {};
+            const branchRow = mapRes.data.find((r: any) => r.branch === selectedBranch);
+            mapRes.data.forEach((r: any) => {
+              if (r.setting_value && typeof r.setting_value === 'object') {
+                Object.assign(mergedMap, r.setting_value);
+              }
+            });
+            if (branchRow?.setting_value && typeof branchRow.setting_value === 'object') {
+              Object.assign(mergedMap, branchRow.setting_value);
+            }
+            setUserPermissionsMap(mergedMap);
+          }
+
+          const { data, error: queryError } = usersRes;
           if (queryError) {
             console.warn('Supabase fetch users error:', queryError);
             loadFallbackUsers();
@@ -196,6 +243,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           if (isMounted) loadFallbackUsers();
         }
       } else {
+        setRoleTemplates(getCachedRoleTemplates(selectedBranch));
         loadFallbackUsers();
       }
     };
@@ -281,6 +329,28 @@ export function LoginForm({ onLogin }: LoginFormProps) {
       return;
     }
 
+    const resolveLoginPermissions = (u: AppUser): AppPermissions => {
+      let rawPerms: any = u.permissions;
+      if (!rawPerms) {
+        rawPerms = userPermissionsMap[u.id] || userPermissionsMap[u.name];
+      }
+      if (!rawPerms) {
+        try {
+          const localRaw =
+            localStorage.getItem(`cafe_user_permissions_${u.id}`) ||
+            localStorage.getItem(`cafe_user_permissions_${u.name}`);
+          if (localRaw) rawPerms = JSON.parse(localRaw);
+        } catch {}
+      }
+      const effectiveTemplates =
+        Object.keys(roleTemplates).length > 0
+          ? roleTemplates
+          : getCachedRoleTemplates(selectedBranch);
+      const roleTpl = findRoleTemplate(effectiveTemplates, u.role);
+      const normalized = normalizePermissions(rawPerms, u.role, roleTpl);
+      return buildSavePermissions(normalized) as unknown as AppPermissions;
+    };
+
     if (matchedUser.password === password) {
       if (rememberMe) {
         localStorage.setItem('crenn-last-branch', selectedBranch);
@@ -288,13 +358,15 @@ export function LoginForm({ onLogin }: LoginFormProps) {
       }
       setIsSubmitting(false);
 
+      const resolvedPerms = resolveLoginPermissions(matchedUser);
+
       // STEP 5 — Route based on selected app
       switch (selectedApp) {
         case 'cafe':
           onLogin({
             name: matchedUser.name,
             role: matchedUser.role,
-            permissions: matchedUser.permissions,
+            permissions: resolvedPerms,
             branch: selectedBranch
           });
           break;
@@ -311,7 +383,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           onLogin({
             name: matchedUser.name,
             role: matchedUser.role,
-            permissions: matchedUser.permissions,
+            permissions: resolvedPerms,
             branch: selectedBranch,
             app: 'prodcalc'
           });
@@ -321,7 +393,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           onLogin({
             name: matchedUser.name,
             role: matchedUser.role,
-            permissions: matchedUser.permissions,
+            permissions: resolvedPerms,
             branch: selectedBranch
           });
       }
@@ -340,12 +412,12 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     }
 
     if (!username.trim()) {
-      setError('กรุณากรอก Username ของบัญชี Admin ก่อนเข้าสู่ Account Setting');
+      setError('กรุณากรอก Username ของบัญชีที่มีสิทธิ์ก่อนเข้าสู่ Account Setting');
       return;
     }
 
     if (!password) {
-      setError('กรุณากรอก Password ของบัญชี Admin ก่อนเข้าสู่ Account Setting');
+      setError('กรุณากรอก Password ของบัญชีที่มีสิทธิ์ก่อนเข้าสู่ Account Setting');
       return;
     }
 
@@ -368,16 +440,32 @@ export function LoginForm({ onLogin }: LoginFormProps) {
       return;
     }
 
-    const roleUpper = (matchedUser.role || '').toUpperCase();
-    const isAdmin =
-      roleUpper === 'ADMIN' ||
-      roleUpper === 'OWNER' ||
-      roleUpper === 'CO-FOUNDER' ||
-      matchedUser.permissions?.userSettings === 'edit' ||
-      matchedUser.permissions?.adminTools === 'Edit';
+    let rawPerms: any = matchedUser.permissions || userPermissionsMap[matchedUser.id] || userPermissionsMap[matchedUser.name];
+    if (!rawPerms) {
+      try {
+        const localRaw =
+          localStorage.getItem(`cafe_user_permissions_${matchedUser.id}`) ||
+          localStorage.getItem(`cafe_user_permissions_${matchedUser.name}`);
+        if (localRaw) rawPerms = JSON.parse(localRaw);
+      } catch {}
+    }
+    const effectiveTemplates =
+      Object.keys(roleTemplates).length > 0
+        ? roleTemplates
+        : getCachedRoleTemplates(selectedBranch);
+    const roleTpl = findRoleTemplate(effectiveTemplates, matchedUser.role);
+    const resolvedPerms = buildSavePermissions(
+      normalizePermissions(rawPerms, matchedUser.role, roleTpl)
+    ) as unknown as AppPermissions;
 
-    if (!isAdmin) {
-      setError('ไม่มีสิทธิ์เข้าถึง: Account Setting สำหรับผู้ดูแลระบบ (Admin) เท่านั้น');
+    const canOpenSettings = canViewPage(
+      { ...matchedUser, permissions: resolvedPerms, branch: selectedBranch },
+      'userSettings',
+      effectiveTemplates
+    );
+
+    if (!canOpenSettings) {
+      setError('ไม่มีสิทธิ์เข้าถึง: Account Setting ตามการตั้งค่า User Security Settings');
       return;
     }
 
@@ -389,7 +477,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     onLogin({
       name: matchedUser.name,
       role: matchedUser.role,
-      permissions: matchedUser.permissions,
+      permissions: resolvedPerms,
       branch: selectedBranch,
       app: selectedApp,
       targetTab: 'userSettings'
