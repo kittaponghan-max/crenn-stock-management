@@ -27,6 +27,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { canViewPage, isReadOnlyPage, PagePermKey, RoleTemplateMap } from '../utils/permissions';
 
 interface AuditLogProps {
   logs: LogEntry[];
@@ -37,6 +38,8 @@ interface AuditLogProps {
   onDeleteReceivingRecord?: (id: string) => void;
   isReadOnly?: boolean;
   branch?: 'Rayong' | 'Bangkok';
+  user?: any;
+  roleTemplates?: RoleTemplateMap;
 }
 
 export function AuditLog({ 
@@ -47,7 +50,9 @@ export function AuditLog({
   initialTab = 'logs', 
   onDeleteReceivingRecord, 
   isReadOnly = false,
-  branch
+  branch,
+  user,
+  roleTemplates = {}
 }: AuditLogProps) {
   const currentBranch = branch || (() => {
     try {
@@ -60,8 +65,29 @@ export function AuditLog({
     return 'Rayong';
   })();
 
+  const TAB_PERM_MAP: Record<'logs' | 'stockSubmit' | 'checklist' | 'receiving', PagePermKey> = {
+    logs: 'history_edit',
+    stockSubmit: 'history_stock',
+    checklist: 'history_checkin',
+    receiving: 'history_receiving',
+  };
+
+  const visibleTabs = React.useMemo(() => {
+    const allTabs: Array<'logs' | 'stockSubmit' | 'checklist' | 'receiving'> = ['logs', 'stockSubmit', 'checklist', 'receiving'];
+    if (!user) return allTabs;
+    return allTabs.filter(tab => canViewPage(user, TAB_PERM_MAP[tab], roleTemplates));
+  }, [user, roleTemplates]);
+
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeTab, setActiveTab] = React.useState<'logs' | 'checklist' | 'receiving' | 'stockSubmit'>(initialTab);
+
+  React.useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [visibleTabs, activeTab]);
+
+  const effectiveReadOnly = isReadOnly || (user ? isReadOnlyPage(user, TAB_PERM_MAP[activeTab], roleTemplates) : false);
   const [expandedLogIds, setExpandedLogIds] = React.useState<Record<string, boolean>>({});
   const [selectedRecord, setSelectedRecord] = React.useState<any | null>(null);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = React.useState(false);
@@ -75,6 +101,18 @@ export function AuditLog({
 
   const fetchData = React.useCallback(async () => {
     if (!supabase) {
+      try {
+        const savedLogs = localStorage.getItem(`cafe-audit-logs-${currentBranch}`);
+        setLiveLogs(savedLogs ? JSON.parse(savedLogs) : []);
+        const savedCheck = localStorage.getItem(`cafe-checklist-records-${currentBranch}`);
+        setLiveChecklists(savedCheck ? JSON.parse(savedCheck) : []);
+        const savedRec = localStorage.getItem(`cafe-receiving-records-${currentBranch}`);
+        setLiveReceiving(savedRec ? JSON.parse(savedRec) : []);
+      } catch (e) {
+        setLiveLogs([]);
+        setLiveChecklists([]);
+        setLiveReceiving([]);
+      }
       setLoading(false);
       return;
     }
@@ -132,6 +170,18 @@ export function AuditLog({
       }
     } catch (err: any) {
       console.error('Fetch exception in AuditLog:', err);
+      try {
+        const savedLogs = localStorage.getItem(`cafe-audit-logs-${currentBranch}`);
+        setLiveLogs(savedLogs ? JSON.parse(savedLogs) : []);
+        const savedCheck = localStorage.getItem(`cafe-checklist-records-${currentBranch}`);
+        setLiveChecklists(savedCheck ? JSON.parse(savedCheck) : []);
+        const savedRec = localStorage.getItem(`cafe-receiving-records-${currentBranch}`);
+        setLiveReceiving(savedRec ? JSON.parse(savedRec) : []);
+      } catch (e) {
+        setLiveLogs([]);
+        setLiveChecklists([]);
+        setLiveReceiving([]);
+      }
     } finally {
       setLoading(false);
       setLastFetch(new Date());
@@ -181,9 +231,10 @@ export function AuditLog({
     };
   }, [fetchData]);
 
-  const effectiveLogs = !loading ? liveLogs : (liveLogs.length > 0 ? liveLogs : logs);
-  const effectiveChecklists = !loading ? liveChecklists : (liveChecklists.length > 0 ? liveChecklists : checklistRecords);
-  const effectiveReceiving = !loading ? liveReceiving : (liveReceiving.length > 0 ? liveReceiving : receivingRecords);
+  // Use only records strictly fetched for the active branch
+  const effectiveLogs = liveLogs;
+  const effectiveChecklists = liveChecklists;
+  const effectiveReceiving = liveReceiving;
 
   // Reset active tab when initialTab changes
   React.useEffect(() => {
@@ -612,57 +663,65 @@ export function AuditLog({
           TAB FILTERS (Teal-themed)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="flex gap-2 my-4 flex-wrap border-b border-[#D4E4E3] pb-0">
-        <button
-          type="button"
-          onClick={() => setActiveTab('logs')}
-          className={cn(
-            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
-            activeTab === 'logs'
-              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
-              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
-          )}
-        >
-          ประวัติการแก้ไขข้อมูล
-        </button>
+        {visibleTabs.includes('logs') && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('logs')}
+            className={cn(
+              "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+              activeTab === 'logs'
+                ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+                : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+            )}
+          >
+            ประวัติการแก้ไขข้อมูล
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('stockSubmit')}
-          className={cn(
-            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
-            activeTab === 'stockSubmit'
-              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
-              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
-          )}
-        >
-          ประวัติส่งนับสต็อก
-        </button>
+        {visibleTabs.includes('stockSubmit') && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('stockSubmit')}
+            className={cn(
+              "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+              activeTab === 'stockSubmit'
+                ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+                : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+            )}
+          >
+            ประวัติส่งนับสต็อก
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('checklist')}
-          className={cn(
-            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
-            activeTab === 'checklist'
-              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
-              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
-          )}
-        >
-          ประวัติ Check-in & Check-out
-        </button>
+        {visibleTabs.includes('checklist') && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('checklist')}
+            className={cn(
+              "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+              activeTab === 'checklist'
+                ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+                : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+            )}
+          >
+            ประวัติ Check-in & Check-out
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('receiving')}
-          className={cn(
-            "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
-            activeTab === 'receiving'
-              ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
-              : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
-          )}
-        >
-          ประวัติการรับวัตถุดิบ
-        </button>
+        {visibleTabs.includes('receiving') && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('receiving')}
+            className={cn(
+              "text-[11px] px-3.5 py-2 transition-all cursor-pointer",
+              activeTab === 'receiving'
+                ? "bg-transparent border-b-2 border-[#5A8A88] text-[#5A8A88] font-semibold -mb-[1px]"
+                : "bg-transparent border-b-2 border-transparent text-[#6B8F8E] font-normal hover:text-[#2D4A49] hover:border-[#D4E4E3]"
+            )}
+          >
+            ประวัติการรับวัตถุดิบ
+          </button>
+        )}
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1044,10 +1103,11 @@ export function AuditLog({
                   <span className="text-[10px] font-normal text-[#A8BCBB] whitespace-nowrap">
                     {format(new Date(record.date), 'dd/MM/yyyy')}
                   </span>
-                  {!isReadOnly && onDeleteReceivingRecord && (
+                  {!effectiveReadOnly && onDeleteReceivingRecord && (
                     <button
                       type="button"
                       onClick={() => {
+                        if (effectiveReadOnly) return;
                         if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบรายการรับวัตถุดิบนี้?')) {
                           onDeleteReceivingRecord(record.id);
                         }
