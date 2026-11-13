@@ -778,9 +778,10 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                   const allList: OrderRecord[] = rawAll ? JSON.parse(rawAll) : [];
                   const currentDayOrders = allList.filter(o => o.branch === currentBranch && o.stock_date === selectedDate);
                   await supabase.from('app_settings').upsert({
+                    branch: currentBranch,
                     setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
                     setting_value: currentDayOrders
-                  });
+                  }, { onConflict: 'branch,setting_key' });
                 } catch (backupErr) {
                   console.warn('app_settings backup error:', backupErr);
                 }
@@ -954,9 +955,10 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
               try {
                 await supabase.from('app_settings').upsert({
+                  branch: currentBranch,
                   setting_key: `purchasing_orders_${currentBranch}_${selectedDate}`,
                   setting_value: itemsToPersist
-                });
+                }, { onConflict: 'branch,setting_key' });
               } catch {}
             } else {
               console.warn('Supabase purchasing_orders upsert error:', error.message);
