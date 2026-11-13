@@ -76,6 +76,17 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     if (!user?.name || !name) return false;
     return name.trim().toLowerCase() === user.name.trim().toLowerCase();
   };
+
+  // Branch matching helper (declared before all useMemo hooks to avoid TDZ ReferenceError)
+  const isBranchMatch = (itemBranch?: string, targetBranch?: string) => {
+    if (!targetBranch || targetBranch === 'all' || targetBranch === 'ALL') return true;
+    if (!itemBranch) return false;
+    const b = itemBranch.toLowerCase();
+    const t = targetBranch.toLowerCase();
+    if (t === 'rayong' || t.includes('ระยอง')) return b.includes('rayong') || b.includes('ระยอง');
+    if (t === 'bangkok' || t.includes('กรุงเทพ')) return b.includes('bangkok') || b.includes('กรุงเทพ');
+    return b === t;
+  };
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
   const [staffAccounts, setStaffAccounts] = useState<AppUser[]>([]);
   const [quotasByYear, setQuotasByYear] = useState<AnnualLeaveQuotasByYear>({});
@@ -417,24 +428,14 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     }
   };
 
-  // Branch matching helper
-  const isBranchMatch = (itemBranch?: string, targetBranch?: string) => {
-    if (!targetBranch || targetBranch === 'all' || targetBranch === 'ALL') return true;
-    if (!itemBranch) return false;
-    const b = itemBranch.toLowerCase();
-    const t = targetBranch.toLowerCase();
-    if (t === 'rayong' || t.includes('ระยอง')) return b.includes('rayong') || b.includes('ระยอง');
-    if (t === 'bangkok' || t.includes('กรุงเทพ')) return b.includes('bangkok') || b.includes('กรุงเทพ');
-    return b === t;
-  };
-
   // Filtered leave records for table and history
   const filteredRecords = useMemo(() => {
+    const q = searchQuery.toLowerCase();
     return leaveRecords.filter(r => {
-      const matchesSearch = 
-        r.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.leaveTypeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch =
+        (r.userName || '').toLowerCase().includes(q) ||
+        (r.leaveTypeName || '').toLowerCase().includes(q) ||
+        (r.description || '').toLowerCase().includes(q);
 
       const matchesBranch = isBranchMatch(r.userBranch, selectedBranch);
       const matchesStatus = selectedStatus === 'all' || r.status === selectedStatus;
