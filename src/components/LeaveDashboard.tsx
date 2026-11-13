@@ -1201,9 +1201,9 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               <div className="flex items-center gap-2">
                 <Sparkles size={18} className="text-amber-500" />
                 <h2 className="text-sm font-bold text-[#2D4A49]">
-                  {isPersonalActive ? 'การลาล่วงหน้าของคุณ' : 'คำขออนุมัติวันลา'}{' '}
+                  คำขออนุมัติวันลา{' '}
                   <span className="text-xs text-slate-500 font-normal">
-                    {isPersonalActive ? '(Your Advance Leaves)' : '(Leave Request Approval)'}
+                    (Leave Request Approval)
                   </span>
                 </h2>
               </div>
