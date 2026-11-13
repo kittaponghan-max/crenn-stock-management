@@ -6,6 +6,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessLeaveDashboard, canAccessPersonnelLeave } from './types';
+import {
+  RoleTemplateMap,
+  getCachedRoleTemplates,
+  canViewPage,
+  canEditPage,
+  isReadOnlyPage,
+  canAccessTab,
+  getFirstAccessibleRoute,
+} from './utils/permissions';
 import { IngredientForm } from './components/IngredientForm';
 import { StockTable } from './components/StockTable';
 import { LoginForm, UserRole } from './components/LoginForm';
@@ -282,29 +291,17 @@ const INITIAL_INGREDIENTS: Ingredient[] = [
   { id: 'b-edde83', name: 'ไม้จิ้มฟัน', brand: '-', sizePerUnit: 'N/A', department: 'Bakery', category: 'บรรจุภัณฑ์/อุปกรณ์ (Packaging & Tools)', minStock: 0, minOrder: 0, unit: 'ชิ้น', supplier: '-', image: 'https://picsum.photos/seed/bakery/200/200' },
 ];
 
-const canAccessUserSettings = (
-  user: { name: string; role: any; permissions?: any } | null
-): boolean => {
-  if (!user) return false;
-
-  // Allow admin roles always
-  const role = (user.role || '').toUpperCase();
-  if (
-    role === 'ADMIN' ||
-    role === 'CO-FOUNDER' ||
-    role === 'OWNER'
-  ) return true;
-
-  // Allow if explicitly granted permission
-  if (
-    (user.permissions as any)?.userSettings === 'edit' ||
-    (user.permissions as any)?.adminTools === 'Edit'
-  ) return true;
-
-  return false;
-};
-
-function AccessDeniedPage({ onNavigate, pageName = 'User Security Settings' }: { onNavigate: (tab: any) => void; pageName?: string }) {
+function AccessDeniedPage({
+  onNavigate,
+  pageName = 'หน้านี้',
+  fallbackRoute = 'home',
+  onLogout,
+}: {
+  onNavigate: (tab: any) => void;
+  pageName?: string;
+  fallbackRoute?: string;
+  onLogout?: () => void;
+}) {
   return (
     <div className="py-12 px-6 text-center bg-[#FAF8F5] min-h-[60vh] flex flex-col items-center justify-center rounded-2xl border border-[#D4E4E3] m-4">
       <div className="w-14 h-14 rounded-full bg-[#FEE2E2] flex items-center justify-center mb-4 text-2xl shadow-xs">
@@ -314,21 +311,35 @@ function AccessDeniedPage({ onNavigate, pageName = 'User Security Settings' }: {
         ไม่มีสิทธิ์เข้าถึงหน้านี้
       </h2>
       <p className="text-xs text-[#6B8F8E] max-w-sm leading-relaxed mb-6">
-        หน้านี้ ({pageName}) สำหรับผู้ดูแลระบบเท่านั้น กรุณาติดต่อ Admin หรือ Co-founder หากต้องการเข้าถึง
+        คุณไม่มีสิทธิ์เข้าถึงหน้านี้ ({pageName}) ตามที่กำหนดใน User Security Settings กรุณาติดต่อ Admin หรือผู้จัดการหากต้องการสิทธิ์เข้าถึง
       </p>
-      <button
-        type="button"
-        onClick={() => onNavigate('home')}
-        className="bg-[#5A8A88] hover:bg-[#476E6C] text-white border-0 rounded-lg px-6 py-2.5 text-xs font-semibold cursor-pointer shadow-xs transition-colors"
-      >
-        กลับหน้าหลัก
-      </button>
+      <div className="flex items-center gap-2">
+        {fallbackRoute && (
+          <button
+            type="button"
+            onClick={() => onNavigate(fallbackRoute)}
+            className="bg-[#5A8A88] hover:bg-[#476E6C] text-white border-0 rounded-lg px-6 py-2.5 text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+          >
+            {fallbackRoute === 'home' ? 'กลับหน้าหลัก' : 'ไปยังหน้าที่เข้าถึงได้'}
+          </button>
+        )}
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="bg-white hover:bg-[#F0F5F4] text-[#2D4A49] border border-[#D4E4E3] rounded-lg px-5 py-2.5 text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+          >
+            ออกจากระบบ
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function App() {
   const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok'; app?: string } | null>(null);
+  const [roleTemplates, setRoleTemplates] = useState<RoleTemplateMap>(() => getCachedRoleTemplates());
   const [currentApp, setCurrentApp] = useState<'cafe' | 'prodcalc'>('cafe');
 
   // Sync user object to cafe-user in localStorage so all components share the active branch
@@ -501,17 +512,12 @@ export default function App() {
   
 
   // Permission Helpers
-  const hasPermission = (funcId: keyof AppPermissions) => {
-    if (!user?.permissions) {
-      if (funcId === 'adminTools' && user?.role !== 'Admin') return false;
-      return true;
-    }
-    return user.permissions[funcId] !== 'Hidden';
+  const hasPermission = (funcId: keyof AppPermissions | string) => {
+    return canViewPage(user, funcId as string, roleTemplates);
   };
 
-  const isReadOnly = (funcId: keyof AppPermissions) => {
-    if (!user?.permissions) return false;
-    return user.permissions[funcId] === 'Review';
+  const isReadOnly = (funcId: keyof AppPermissions | string) => {
+    return isReadOnlyPage(user, funcId as string, roleTemplates);
   };
 
   useEffect(() => {
@@ -619,7 +625,7 @@ export default function App() {
           supabase.from('rnd_reports').select('id, timestamp, date, menu_name_th, menu_name_en, product_looks, component, taste, flavor, taste_result, improvements, commenter_name, image_url, image_urls, recorder_name').eq('branch', branch).order('timestamp', { ascending: false }).limit(50),
           supabase.from('waste_logs').select('id, timestamp, date, department, ingredient_id, ingredient_name, quantity, unit, cause, solution, image_url, recorder_name').eq('branch', branch).order('timestamp', { ascending: false }).limit(100),
           supabase.from('bakery_plan_records').select('*').eq('branch', branch).order('week_key', { ascending: false }),
-          supabase.from('app_settings').select('*').eq('branch', branch)
+          supabase.from('app_settings').select('*').in('branch', [branch, 'GLOBAL'])
         ]);
 
         if (ingError) {
@@ -879,11 +885,26 @@ export default function App() {
            }
         }
 
-        // Sync & Load app_settings (Bakery formulas & loss settings)
+        // Sync & Load app_settings (Bakery formulas, notify settings, & Role Templates)
         let hasLineSettings = false;
         let hasDiscordSettings = false;
-        if (settingsData && settingsData.length > 0) {
-          settingsData.forEach((setting: any) => {
+        const branchSettingsData = (settingsData || []).filter((s: any) => s.branch === branch || !s.branch);
+        const branchRoleTplRow = (settingsData || []).find((s: any) => s.setting_key === 'role_permissions_templates' && s.branch === branch);
+        const globalRoleTplRow = (settingsData || []).find((s: any) => s.setting_key === 'role_permissions_templates' && s.branch === 'GLOBAL');
+        const effectiveRoleTpl = branchRoleTplRow?.setting_value || globalRoleTplRow?.setting_value;
+        if (effectiveRoleTpl && typeof effectiveRoleTpl === 'object') {
+          setRoleTemplates(effectiveRoleTpl);
+          try {
+            localStorage.setItem(`role_permissions_templates_${branch}`, JSON.stringify(effectiveRoleTpl));
+            localStorage.setItem('role_permissions_templates_GLOBAL', JSON.stringify(effectiveRoleTpl));
+            localStorage.setItem('role_permissions_templates', JSON.stringify(effectiveRoleTpl));
+          } catch (e) {}
+        } else {
+          setRoleTemplates(getCachedRoleTemplates(branch));
+        }
+
+        if (branchSettingsData.length > 0) {
+          branchSettingsData.forEach((setting: any) => {
             if (setting.setting_key === 'bakery_mixing_settings') {
               try { localStorage.setItem('bakeryMixingSettings', JSON.stringify(setting.setting_value)); } catch (e) { console.warn('localStorage error', e); }
             } else if (setting.setting_key === 'bakery_cutting_settings') {
@@ -905,7 +926,7 @@ export default function App() {
         const savedItem = localStorage.getItem('bakeryItemSettings');
         
         const settingsInserts = [];
-        if (settingsData && settingsData.length > 0) {
+        if (branchSettingsData.length > 0) {
           if (!hasLineSettings) {
              const savedLine = localStorage.getItem('lineNotifySettings');
              if (savedLine) {
@@ -1473,6 +1494,8 @@ export default function App() {
   };
 
   const handleAddIngredient = async (ingredient: Ingredient) => {
+    const stockPermKey = ingredient.department === 'Bakery' ? 'kitchen_stock' : 'bar_stock';
+    if (!canEditPage(user, stockPermKey, roleTemplates)) return;
     setIngredients(prev => [...prev, ingredient]);
     addLog('เพิ่มวัตถุดิบใหม่', `เพิ่ม ${ingredient.name} (${ingredient.category})`);
     setIsFormOpen(false);
@@ -1511,6 +1534,8 @@ export default function App() {
   };
 
   const handleEditIngredient = async (updatedIngredient: Ingredient) => {
+    const stockPermKey = updatedIngredient.department === 'Bakery' ? 'kitchen_stock' : 'bar_stock';
+    if (!canEditPage(user, stockPermKey, roleTemplates)) return;
     setIngredients(prev => prev.map(ing => ing.id === updatedIngredient.id ? updatedIngredient : ing));
     addLog('แก้ไขข้อมูลวัตถุดิบ', `แก้ไขข้อมูล ${updatedIngredient.name}`);
     setEditingIngredient(null);
@@ -1548,6 +1573,8 @@ export default function App() {
 
   const handleDeleteIngredient = async (id: string) => {
     const ingredient = ingredients.find(i => i.id === id);
+    const stockPermKey = ingredient?.department === 'Bakery' ? 'kitchen_stock' : 'bar_stock';
+    if (!canEditPage(user, stockPermKey, roleTemplates)) return;
     addLog('ลบวัตถุดิบ', `ลบ ${ingredient?.name || 'ไม่ทราบชื่อ'}`);
     setIngredients(prev => prev.filter(i => i.id !== id));
     
@@ -1868,6 +1895,8 @@ export default function App() {
   };
 
   const handleUpdateStock = async (ingredientId: string, date: Date, field: 'in' | 'out' | 'remaining', value: number | undefined) => {
+    const stockPermKey = activeTab === 'bakeryStock' ? 'kitchen_stock' : 'bar_stock';
+    if (!canEditPage(user, stockPermKey, roleTemplates)) return;
     setIsStockDirty(true);
     const dateKey = format(date, 'yyyy-MM-dd');
     const ingredient = ingredients.find(i => i.id === ingredientId);
@@ -1931,6 +1960,8 @@ export default function App() {
   };
 
   const handleClearDay = async (dateKey: string) => {
+    const stockPermKey = activeTab === 'bakeryStock' ? 'kitchen_stock' : 'bar_stock';
+    if (!canEditPage(user, stockPermKey, roleTemplates)) return;
     setIsStockDirty(true);
     const dept = activeTab === 'barStock' ? 'Bar' : 'Bakery';
     const deptIngredients = ingredients.filter(item => item.department === dept);
@@ -1963,6 +1994,8 @@ export default function App() {
   };
 
   const handleClearIngredientWeek = async (ingredientId: string) => {
+    const stockPermKey = activeTab === 'bakeryStock' ? 'kitchen_stock' : 'bar_stock';
+    if (!canEditPage(user, stockPermKey, roleTemplates)) return;
     setIsStockDirty(true);
     const daysCount = Math.max(1, Math.min(7, differenceInDays(dateRange.end, dateRange.start) + 1));
     const weekDays = Array.from({ length: daysCount }).map((_, i) => format(addDays(dateRange.start, i), 'yyyy-MM-dd'));
@@ -2318,8 +2351,8 @@ export default function App() {
     
     const dates = Object.keys(stockRecord).sort();
     
-    const canViewBar = hasPermission('dashboardBar');
-    const canViewBakery = hasPermission('dashboardBakery');
+    const canViewBar = canViewPage(user, 'bar_stock', roleTemplates);
+    const canViewBakery = canViewPage(user, 'kitchen_stock', roleTemplates);
 
     const filteredIngredients = ingredients.filter(ing => {
       if (ing.department === 'Bar' && !canViewBar) return false;
@@ -2365,21 +2398,27 @@ export default function App() {
     });
     
     return { lowStock, outOfStock };
-  }, [ingredients, stockRecord]);
+  }, [ingredients, stockRecord, user, roleTemplates]);
 
   if (!user) {
     return (
       <LoginForm 
         onLogin={(userData) => {
+          const latestTemplates = getCachedRoleTemplates(userData.branch);
+          setRoleTemplates(latestTemplates);
           setUser(userData);
-          if (userData.targetTab) {
+          if (userData.targetTab && canAccessTab(userData, userData.targetTab, latestTemplates)) {
             setActiveTab(userData.targetTab);
+          } else if (!canAccessTab(userData, 'home', latestTemplates)) {
+            setActiveTab(getFirstAccessibleRoute(userData, latestTemplates) as any);
+          } else {
+            setActiveTab('home');
           }
           if (userData.app === 'prodcalc') {
-            if (canAccessProdCalc(userData)) {
+            if (canViewPage(userData, 'prodcalc', latestTemplates)) {
               setCurrentApp('prodcalc');
             } else {
-              alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน ProdCalc (Admin Only หรือต้องได้รับสิทธิ์ใน User Security Settings)');
+              alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน ProdCalc (ต้องได้รับสิทธิ์ใน User Security Settings)');
               setCurrentApp('cafe');
             }
           } else {
@@ -2390,15 +2429,26 @@ export default function App() {
     );
   }
 
+  const fallbackRoute = getFirstAccessibleRoute(user, roleTemplates);
+  const canViewBarStock = canViewPage(user, 'bar_stock', roleTemplates);
+  const canViewKitchenStock = canViewPage(user, 'kitchen_stock', roleTemplates);
+  const allowedStockDepartments: ('Bar' | 'Bakery')[] =
+    canViewBarStock || canViewKitchenStock
+      ? [
+          ...(canViewBarStock ? ['Bar' as const] : []),
+          ...(canViewKitchenStock ? ['Bakery' as const] : []),
+        ]
+      : ['Bar', 'Bakery'];
+
   // ProdCalc Standalone App Mode
   if (currentApp === 'prodcalc') {
-    if (!canAccessProdCalc(user)) {
+    if (!canViewPage(user, 'prodcalc', roleTemplates)) {
       return (
         <div className="min-h-screen bg-[#FDFAF5] flex flex-col items-center justify-center p-4">
           <div className="bg-white p-6 rounded-2xl shadow-md border border-[#E2EAE9] max-w-md w-full text-center space-y-4">
             <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl">⚠️</div>
             <h2 className="text-base font-bold text-gray-800">ไม่มีสิทธิ์เข้าถึง ProdCalc</h2>
-            <p className="text-xs text-gray-500">ฟังก์ชันนี้สงวนไว้สำหรับผู้ดูแลระบบ (Admin) หรือผู้ใช้ที่ได้รับอนุญาตใน User Security Settings เท่านั้น</p>
+            <p className="text-xs text-gray-500">ฟังก์ชันนี้สงวนไว้สำหรับผู้ที่ได้รับอนุญาตใน User Security Settings เท่านั้น</p>
             <button
               onClick={() => setCurrentApp('cafe')}
               className="w-full py-2.5 px-4 bg-[#5BA4C8] hover:bg-[#3D7FA3] text-white rounded-xl font-bold text-xs transition cursor-pointer"
@@ -2416,6 +2466,7 @@ export default function App() {
           role: user.role,
           branch: user.branch || 'Rayong'
         }}
+        isReadOnly={isReadOnlyPage(user, 'prodcalc', roleTemplates)}
         onSwitchToCafe={() => setCurrentApp('cafe')}
         onLogout={() => {
           setUser(null);
@@ -2446,7 +2497,7 @@ export default function App() {
             onLogoClick={() => handleTabNavigate('home')}
             onAvatarClick={() => handleTabNavigate('userSettings')}
             onLogout={handleLogout}
-            onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
+            onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
             needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
@@ -2454,7 +2505,7 @@ export default function App() {
           />
           <SupabaseStatusBar 
             dbStatus={dbStatus} 
-            onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
+            onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
           />
         </>
       )}
@@ -2463,165 +2514,274 @@ export default function App() {
       <main className={activeTab === 'home' ? "w-full pb-10" : "max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 pb-24"}>
 
         {activeTab === 'home' ? (
-          <HomeScreen
-            user={user}
-            ingredients={ingredients}
-            stockRecord={stockRecord}
-            onNavigate={(tab) => setActiveTab(tab)}
-            onLogout={() => setUser(null)}
-            onSwitchApp={canAccessProdCalc(user) ? () => setCurrentApp('prodcalc') : undefined}
-            dbStatus={dbStatus === 'offline' ? 'offline' : dbStatus === 'connected' ? 'connected' : 'checking'}
-            onChangeBranch={(newBranch) => {
-              setUser(prev => prev ? { ...prev, branch: newBranch } : null);
-            }}
-            hasPermission={hasPermission}
-          />
+          !canAccessTab(user, 'home', roleTemplates) ? (
+            <AccessDeniedPage
+              onNavigate={handleTabNavigate}
+              fallbackRoute={fallbackRoute !== 'home' ? fallbackRoute : ''}
+              onLogout={handleLogout}
+              pageName="หน้าหลัก / Dashboard"
+            />
+          ) : (
+            <HomeScreen
+              user={user}
+              ingredients={ingredients}
+              stockRecord={stockRecord}
+              onNavigate={(tab) => setActiveTab(tab)}
+              onLogout={() => setUser(null)}
+              onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+              dbStatus={dbStatus === 'offline' ? 'offline' : dbStatus === 'connected' ? 'connected' : 'checking'}
+              onChangeBranch={(newBranch) => {
+                setUser(prev => prev ? { ...prev, branch: newBranch } : null);
+              }}
+              hasPermission={hasPermission}
+            />
+          )
         ) : activeTab === 'leaveDashboard' ? (
-          !canAccessLeaveDashboard(user) ? (
-            <AccessDeniedPage onNavigate={handleTabNavigate} pageName="Leave Dashboard" />
+          !canViewPage(user, 'leaveDashboard', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Leave Dashboard" />
           ) : (
             <LeaveDashboard
               user={user}
               mode="team"
               onNavigate={handleTabNavigate}
               onOpenLeaveModal={() => setActiveTab('leaveRequest')}
+              isReadOnly={isReadOnlyPage(user, 'leaveDashboard', roleTemplates)}
             />
           )
         ) : activeTab === 'personnelLeave' ? (
-          !canAccessPersonnelLeave(user) ? (
-            <AccessDeniedPage onNavigate={handleTabNavigate} pageName="Personnel Leave" />
+          !canViewPage(user, 'personnelLeave', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Personnel Leave" />
           ) : (
             <LeaveDashboard
               user={user}
               mode="personal"
               onNavigate={handleTabNavigate}
               onOpenLeaveModal={() => setActiveTab('leaveRequest')}
+              isReadOnly={isReadOnlyPage(user, 'personnelLeave', roleTemplates)}
             />
           )
         ) : activeTab === 'dashboard' ? (
-          <Dashboard 
-            ingredients={ingredients} 
-            stockRecord={stockRecord} 
-            allowedDepartments={[
-              ...(hasPermission('dashboardBar') ? ['Bar' as const] : []),
-              ...(hasPermission('dashboardBakery') ? ['Bakery' as const] : [])
-            ]}
-          />
-        ) : activeTab === 'bakeryPlan' ? (
-          <BakeryPlan 
-            isReadOnly={isReadOnly('bakeryPlan')} branch={user?.branch} 
-            onSave={(weekLabel) => addLog('บันทึกแผนงาน Bakery', 'บันทึกแผนงาน Bakery สัปดาห์ที่ ' + weekLabel)}
-          />
-        ) : activeTab === 'barReceiving' ? (
-          <BarReceiving 
-            ingredients={ingredients} 
-            receivingRecords={receivingRecords} 
-            onAddRecord={handleAddReceivingRecord} 
-            onDeleteRecord={handleDeleteReceivingRecord} 
-            isReadOnly={isReadOnly('barReceiving')}
-          />
-        ) : activeTab === 'bakeryReceiving' ? (
-          <BarReceiving 
-            ingredients={ingredients} 
-            receivingRecords={receivingRecords} 
-            onAddRecord={handleAddReceivingRecord} 
-            onDeleteRecord={handleDeleteReceivingRecord} 
-            isReadOnly={isReadOnly('bakeryReceiving')}
-            department="Bakery"
-          />
-        ) : activeTab === 'barDailyCount' ? (
-          <DailyStockCount 
-            ingredients={ingredients.filter(ing => ing.department === 'Bar')}
-            stockRecord={stockRecord}
-            onSubmit={(date, counts) => handleSubmitDailyCount(date, counts, 'Bar')}
-            isReadOnly={isReadOnly('dailyStockCountBar')}
-          />
-        ) : activeTab === 'bakeryDailyCount' ? (
-          <DailyStockCount 
-            ingredients={ingredients.filter(ing => ing.department === 'Bakery')}
-            stockRecord={stockRecord}
-            onSubmit={(date, counts) => handleSubmitDailyCount(date, counts, 'Bakery')}
-            isReadOnly={isReadOnly('dailyStockCountBakery')}
-          />
-        ) : activeTab === 'logs' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="logs" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyLogs')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'stockSubmitHistory' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="stockSubmit" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyLogs')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'checklistHistory' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="checklist" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyChecklist')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'receivingHistory' ? (
-          <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="receiving" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnly('historyReceiving')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'bakeryPlanHistory' ? (
-          <BakeryPlanHistory onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'barChecklist' ? (
-          <BarChecklist ingredients={ingredients} onSave={handleSaveChecklist} user={user} checklistRecords={checklistRecords} isReadOnly={isReadOnly('checklistsBar')} />
-        ) : activeTab === 'bakeryChecklist' ? (
-          <BakeryChecklist onSave={handleSaveChecklist} user={user} checklistRecords={checklistRecords} isReadOnly={isReadOnly('checklistsBakery')} />
-        ) : activeTab === 'barWaste' ? (
-          <BarWasteReport ingredients={ingredients} checklistRecords={checklistRecords} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'barWasteLog' ? (
-          <WasteReport department="Bar" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'bakeryWasteLog' ? (
-          <WasteReport department="Bakery" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'rndReport' ? (
-          <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
-        ) : activeTab === 'maintenanceReport' ? (
-          <MaintenanceReport 
-            currentUser={user?.name || 'Admin'} 
-            onBack={() => handleTabNavigate('home')} 
-            branch={user?.branch || 'Rayong'} 
-            isReadOnly={isReadOnly('maintenanceReport')}
-          />
-        ) : activeTab === 'orderedItems' ? (
-          <OrderedItemsReport
-            user={user}
-            branch={user?.branch || 'Rayong'}
-            onNavigate={(tab) => handleTabNavigate(tab)}
-            onBack={() => handleTabNavigate('home')}
-            ingredients={ingredients}
-            stockRecord={stockRecord}
-            allowedDepartments={[
-              ...(hasPermission('dashboardBar') ? ['Bar' as const] : []),
-              ...(hasPermission('dashboardBakery') ? ['Bakery' as const] : [])
-            ]}
-          />
-        ) : activeTab === 'barPurchasing' ? (
-          <PurchasingReport 
-            ingredients={ingredients} 
-            stockRecord={stockRecord} 
-            onBack={() => setActiveTab('home')} 
-            branch={user?.branch || 'Rayong'}
-            allowedDepartments={[
-              ...(hasPermission('dashboardBar') ? ['Bar' as const] : []),
-              ...(hasPermission('dashboardBakery') ? ['Bakery' as const] : [])
-            ]}
-          />
-        ) : activeTab === 'dailySales' ? (
-          <DailySalesRecord
-            user={user}
-            branch={user?.branch}
-            onNavigate={(tab) => handleTabNavigate(tab)}
-            onDirtyChange={setIsDailySalesDirty}
-            registerSaveHandler={(handler) => {
-              dailySalesHandlerRef.current = handler;
-            }}
-          />
-        ) : activeTab === 'dailyBakery' ? (
-          <DailyBakeryRecord
-            user={user}
-            branch={user?.branch}
-            onNavigate={(tab) => handleTabNavigate(tab)}
-            onDirtyChange={setIsDailyBakeryDirty}
-            registerSaveHandler={(handler) => {
-              dailyBakeryHandlerRef.current = handler;
-            }}
-          />
-        ) : activeTab === 'userSettings' ? (
-          !canAccessUserSettings(user) ? (
-            <AccessDeniedPage onNavigate={handleTabNavigate} pageName="User Security Settings" />
+          !canViewPage(user, 'dashboard', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Dashboard" />
           ) : (
-            <UserSettings currentUser={user} user={user} onCurrentUserUpdated={setUser} branch={user?.branch || 'Rayong'} onNavigate={handleTabNavigate} />
+            <Dashboard 
+              ingredients={ingredients} 
+              stockRecord={stockRecord} 
+              allowedDepartments={allowedStockDepartments}
+            />
           )
+        ) : activeTab === 'bakeryPlan' ? (
+          !canViewPage(user, 'bakeryPlan', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="แผนงาน Bakery" />
+          ) : (
+            <BakeryPlan 
+              isReadOnly={isReadOnlyPage(user, 'bakeryPlan', roleTemplates)} branch={user?.branch} 
+              onSave={(weekLabel) => addLog('บันทึกแผนงาน Bakery', 'บันทึกแผนงาน Bakery สัปดาห์ที่ ' + weekLabel)}
+            />
+          )
+        ) : activeTab === 'barReceiving' ? (
+          !canViewPage(user, 'bar_receiving', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงานตรวจรับวัตถุดิบ บาร์" />
+          ) : (
+            <BarReceiving 
+              ingredients={ingredients} 
+              receivingRecords={receivingRecords} 
+              onAddRecord={handleAddReceivingRecord} 
+              onDeleteRecord={handleDeleteReceivingRecord} 
+              isReadOnly={isReadOnlyPage(user, 'bar_receiving', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'bakeryReceiving' ? (
+          !canViewPage(user, 'kitchen_receiving', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงานตรวจรับวัตถุดิบ ครัว" />
+          ) : (
+            <BarReceiving 
+              ingredients={ingredients} 
+              receivingRecords={receivingRecords} 
+              onAddRecord={handleAddReceivingRecord} 
+              onDeleteRecord={handleDeleteReceivingRecord} 
+              isReadOnly={isReadOnlyPage(user, 'kitchen_receiving', roleTemplates)}
+              department="Bakery"
+            />
+          )
+        ) : activeTab === 'barDailyCount' ? (
+          !canViewPage(user, 'bar_stockcount', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงานตรวจนับสต็อก บาร์" />
+          ) : (
+            <DailyStockCount 
+              ingredients={ingredients.filter(ing => ing.department === 'Bar')}
+              stockRecord={stockRecord}
+              onSubmit={(date, counts) => handleSubmitDailyCount(date, counts, 'Bar')}
+              isReadOnly={isReadOnlyPage(user, 'bar_stockcount', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'bakeryDailyCount' ? (
+          !canViewPage(user, 'kitchen_stockcount', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงานตรวจนับสต็อก ครัว" />
+          ) : (
+            <DailyStockCount 
+              ingredients={ingredients.filter(ing => ing.department === 'Bakery')}
+              stockRecord={stockRecord}
+              onSubmit={(date, counts) => handleSubmitDailyCount(date, counts, 'Bakery')}
+              isReadOnly={isReadOnlyPage(user, 'kitchen_stockcount', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'logs' ? (
+          !canViewPage(user, 'history_edit', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="ประวัติการแก้ไขข้อมูล" />
+          ) : (
+            <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="logs" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnlyPage(user, 'history_edit', roleTemplates)} branch={user?.branch || 'Rayong'} user={user} roleTemplates={roleTemplates} />
+          )
+        ) : activeTab === 'stockSubmitHistory' ? (
+          !canViewPage(user, 'history_stock', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="ประวัติการส่งยอดสต็อก" />
+          ) : (
+            <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="stockSubmit" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnlyPage(user, 'history_stock', roleTemplates)} branch={user?.branch || 'Rayong'} user={user} roleTemplates={roleTemplates} />
+          )
+        ) : activeTab === 'checklistHistory' ? (
+          !canViewPage(user, 'history_checkin', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="ประวัติ Check-in & Out" />
+          ) : (
+            <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="checklist" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnlyPage(user, 'history_checkin', roleTemplates)} branch={user?.branch || 'Rayong'} user={user} roleTemplates={roleTemplates} />
+          )
+        ) : activeTab === 'receivingHistory' ? (
+          !canViewPage(user, 'history_receiving', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="ประวัติการตรวจรับวัตถุดิบ" />
+          ) : (
+            <AuditLog logs={logs} checklistRecords={checklistRecords} receivingRecords={receivingRecords} ingredients={ingredients} initialTab="receiving" onDeleteReceivingRecord={handleDeleteReceivingRecord} isReadOnly={isReadOnlyPage(user, 'history_receiving', roleTemplates)} branch={user?.branch || 'Rayong'} user={user} roleTemplates={roleTemplates} />
+          )
+        ) : activeTab === 'bakeryPlanHistory' ? (
+          !canViewPage(user, 'history_bakery', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="ประวัติแผนงาน Bakery" />
+          ) : (
+            <BakeryPlanHistory onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} />
+          )
+        ) : activeTab === 'barChecklist' ? (
+          !canViewPage(user, 'bar_checkin', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Check-in & Out บาร์" />
+          ) : (
+            <BarChecklist ingredients={ingredients} onSave={handleSaveChecklist} user={user} checklistRecords={checklistRecords} isReadOnly={isReadOnlyPage(user, 'bar_checkin', roleTemplates)} />
+          )
+        ) : activeTab === 'bakeryChecklist' ? (
+          !canViewPage(user, 'kitchen_checkin', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Check-in & Out ครัว" />
+          ) : (
+            <BakeryChecklist onSave={handleSaveChecklist} user={user} checklistRecords={checklistRecords} isReadOnly={isReadOnlyPage(user, 'kitchen_checkin', roleTemplates)} />
+          )
+        ) : activeTab === 'barWaste' ? (
+          !canViewPage(user, 'bar_coffeeWaste', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงาน Waste เมล็ดกาแฟ" />
+          ) : (
+            <BarWasteReport ingredients={ingredients} checklistRecords={checklistRecords} branch={user?.branch || 'Rayong'} />
+          )
+        ) : activeTab === 'barWasteLog' ? (
+          !canViewPage(user, 'bar_waste', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงาน Waste บาร์" />
+          ) : (
+            <WasteReport department="Bar" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} isReadOnly={isReadOnlyPage(user, 'bar_waste', roleTemplates)} />
+          )
+        ) : activeTab === 'bakeryWasteLog' ? (
+          !canViewPage(user, 'kitchen_waste', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงาน Waste ครัว" />
+          ) : (
+            <WasteReport department="Bakery" ingredients={ingredients} wasteLogs={wasteLogs} currentUser={user?.name || 'Unknown'} onSave={addWasteLog} onUpdate={updateWasteLog} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} isReadOnly={isReadOnlyPage(user, 'kitchen_waste', roleTemplates)} />
+          )
+        ) : activeTab === 'rndReport' ? (
+          !canViewPage(user, 'rndReport', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายงาน R&D" />
+          ) : (
+            <RnDReport reports={rndReports} currentUser={user?.name || 'Unknown'} onSave={addRnDReport} onUpdate={updateRnDReport} onBack={() => setActiveTab('home')} branch={user?.branch || 'Rayong'} isReadOnly={isReadOnlyPage(user, 'rndReport', roleTemplates)} />
+          )
+        ) : activeTab === 'maintenanceReport' ? (
+          !canViewPage(user, 'maintenanceReport', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="แจ้งซ่อม / บำรุงรักษา" />
+          ) : (
+            <MaintenanceReport 
+              currentUser={user?.name || 'Admin'} 
+              onBack={() => handleTabNavigate('home')} 
+              branch={user?.branch || 'Rayong'} 
+              isReadOnly={isReadOnlyPage(user, 'maintenanceReport', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'orderedItems' ? (
+          !canViewPage(user, 'purchasing', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายการที่สั่งซื้อแล้ว" />
+          ) : (
+            <OrderedItemsReport
+              user={user}
+              branch={user?.branch || 'Rayong'}
+              onNavigate={(tab) => handleTabNavigate(tab)}
+              onBack={() => handleTabNavigate('home')}
+              ingredients={ingredients}
+              stockRecord={stockRecord}
+              allowedDepartments={allowedStockDepartments}
+              isReadOnly={isReadOnlyPage(user, 'purchasing', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'barPurchasing' ? (
+          !canViewPage(user, 'purchasing', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Purchasing (สั่งซื้อ)" />
+          ) : (
+            <PurchasingReport 
+              ingredients={ingredients} 
+              stockRecord={stockRecord} 
+              onBack={() => setActiveTab('home')} 
+              branch={user?.branch || 'Rayong'}
+              allowedDepartments={allowedStockDepartments}
+              user={user}
+              isReadOnly={isReadOnlyPage(user, 'purchasing', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'dailySales' ? (
+          !canViewPage(user, 'dailySales', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="บันทึกยอดขายประจำวัน (Daily Sales)" />
+          ) : (
+            <DailySalesRecord
+              user={user}
+              branch={user?.branch}
+              onNavigate={(tab) => handleTabNavigate(tab)}
+              onDirtyChange={setIsDailySalesDirty}
+              registerSaveHandler={(handler) => {
+                dailySalesHandlerRef.current = handler;
+              }}
+              isReadOnly={isReadOnlyPage(user, 'dailySales', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'dailyBakery' ? (
+          !canViewPage(user, 'dailyBakery', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="บันทึกจำนวนขนมประจำวัน (Daily Bakery)" />
+          ) : (
+            <DailyBakeryRecord
+              user={user}
+              branch={user?.branch}
+              onNavigate={(tab) => handleTabNavigate(tab)}
+              onDirtyChange={setIsDailyBakeryDirty}
+              registerSaveHandler={(handler) => {
+                dailyBakeryHandlerRef.current = handler;
+              }}
+              isReadOnly={isReadOnlyPage(user, 'dailyBakery', roleTemplates)}
+            />
+          )
+        ) : activeTab === 'userSettings' ? (
+          !canViewPage(user, 'userSettings', roleTemplates) ? (
+            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="User Security Settings" />
+          ) : (
+            <UserSettings
+              currentUser={user}
+              user={user}
+              onCurrentUserUpdated={setUser}
+              branch={user?.branch || 'Rayong'}
+              onNavigate={handleTabNavigate}
+              isReadOnly={isReadOnlyPage(user, 'userSettings', roleTemplates)}
+              onRoleTemplatesUpdated={setRoleTemplates}
+            />
+          )
+        ) : !(activeTab === 'barStock' ? canViewPage(user, 'bar_stock', roleTemplates) : canViewPage(user, 'kitchen_stock', roleTemplates)) ? (
+          <AccessDeniedPage
+            onNavigate={handleTabNavigate}
+            fallbackRoute={fallbackRoute}
+            pageName={activeTab === 'barStock' ? 'สรุป Stock บาร์' : 'สรุป Stock ครัว'}
+          />
         ) : (
           <>
             {/* ── HEADER CARD (Matches DailyBakeryRecord Layout & Style) ── */}
@@ -2802,7 +2962,7 @@ export default function App() {
 
                 {/* RIGHT: Action Buttons */}
                 <div className="flex items-center gap-1.5 ml-auto relative shrink-0 flex-wrap sm:flex-nowrap">
-                  {hasPermission('manageIngredients') && (
+                  {canEditPage(user, activeTab === 'barStock' ? 'bar_stock' : 'kitchen_stock', roleTemplates) && (
                     <>
                       <input 
                         type="file" 
@@ -2862,51 +3022,55 @@ export default function App() {
                         <Upload size={13} className="text-[#5A8A88]" />
                         <span>นำเข้า</span>
                       </button>
+                    </>
+                  )}
 
-                      {/* 3. ส่งออก Dropdown */}
-                      <div className="relative">
+                  {/* 3. ส่งออก Dropdown (Available for both Read and Edit) */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsExportDropdownOpen(!isExportDropdownOpen);
+                      }}
+                      className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                      title="ส่งออกข้อมูล (Excel, PDF)"
+                    >
+                      <Download size={13} className="text-[#5A8A88]" />
+                      <span>ส่งออก</span>
+                      <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportDropdownOpen && "rotate-180")} />
+                    </button>
+                    
+                    {isExportDropdownOpen && (
+                      <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsExportDropdownOpen(!isExportDropdownOpen);
+                          onClick={() => {
+                            exportExcel();
+                            setIsExportDropdownOpen(false);
                           }}
-                          className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                          title="ส่งออกข้อมูล (Excel, PDF)"
+                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                         >
                           <Download size={13} className="text-[#5A8A88]" />
-                          <span>ส่งออก</span>
-                          <ChevronDown size={11} className={cn("text-[#5A8A88] transition-transform duration-150", isExportDropdownOpen && "rotate-180")} />
+                          <span>Excel (.xlsx)</span>
                         </button>
-                        
-                        {isExportDropdownOpen && (
-                          <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                exportExcel();
-                                setIsExportDropdownOpen(false);
-                              }}
-                              className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
-                            >
-                              <Download size={13} className="text-[#5A8A88]" />
-                              <span>Excel (.xlsx)</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handlePrint();
-                                setIsExportDropdownOpen(false);
-                              }}
-                              className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
-                            >
-                              <Printer size={13} className="text-[#5A8A88]" />
-                              <span>PDF / พิมพ์</span>
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handlePrint();
+                            setIsExportDropdownOpen(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <Printer size={13} className="text-[#5A8A88]" />
+                          <span>PDF / พิมพ์</span>
+                        </button>
                       </div>
+                    )}
+                  </div>
 
+                  {canEditPage(user, activeTab === 'barStock' ? 'bar_stock' : 'kitchen_stock', roleTemplates) && (
+                    <>
                       {/* 4. บันทึกข้อมูล */}
                       <button
                         type="button"
@@ -2944,17 +3108,15 @@ export default function App() {
                           </>
                         )}
                       </button>
-                    </>
-                  )}
 
-                  {hasPermission('manageIngredients') && (
-                    <button
-                      onClick={() => setIsFormOpen(true)}
-                      className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 h-[32px] rounded-[8px] text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs ml-auto sm:ml-0 cursor-pointer"
-                    >
-                      <Plus size={14} strokeWidth={2.5} />
-                      เพิ่มรายการวัตถุดิบ
-                    </button>
+                      <button
+                        onClick={() => setIsFormOpen(true)}
+                        className="flex items-center gap-1.5 bg-[#2D4A49] text-white px-3.5 h-[32px] rounded-[8px] text-[11px] font-semibold hover:bg-[#1D3A39] transition-all shadow-xs ml-auto sm:ml-0 cursor-pointer"
+                      >
+                        <Plus size={14} strokeWidth={2.5} />
+                        เพิ่มรายการวัตถุดิบ
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -2971,7 +3133,7 @@ export default function App() {
               onDeleteIngredient={handleDeleteIngredient}
               onEditIngredient={setEditingIngredient}
               userRole={user.role}
-              isReadOnly={isReadOnly(activeTab === 'barStock' ? 'stockTableBar' : 'stockTableBakery')}
+              isReadOnly={isReadOnlyPage(user, activeTab === 'barStock' ? 'bar_stock' : 'kitchen_stock', roleTemplates)}
               
             />
           </>
@@ -2991,7 +3153,7 @@ export default function App() {
 
       </main>
 
-      {isFormOpen && (
+      {isFormOpen && canEditPage(user, activeTab === 'bakeryStock' ? 'kitchen_stock' : 'bar_stock', roleTemplates) && (
         <IngredientForm 
           defaultDepartment={activeTab === 'bakeryStock' ? 'Bakery' : 'Bar'}
           onSubmit={handleAddIngredient} 
@@ -2999,7 +3161,7 @@ export default function App() {
         />
       )}
 
-      {editingIngredient && (
+      {editingIngredient && canEditPage(user, editingIngredient.department === 'Bakery' ? 'kitchen_stock' : 'bar_stock', roleTemplates) && (
         <IngredientForm
           initialData={editingIngredient}
           defaultDepartment={activeTab === 'bakeryStock' ? 'Bakery' : 'Bar'}
@@ -3357,8 +3519,8 @@ export default function App() {
 
       {/* Leave Request Modal / Screen for activeTab === 'leaveRequest' */}
       <LeaveRequestModal
-        isOpen={activeTab === 'leaveRequest'}
-        onClose={() => setActiveTab('home')}
+        isOpen={activeTab === 'leaveRequest' && canAccessTab(user, 'leaveRequest', roleTemplates)}
+        onClose={() => setActiveTab((canAccessTab(user, 'home', roleTemplates) ? 'home' : fallbackRoute) as any)}
         userName={user?.name || 'User'}
         userRole={user?.role || 'Staff'}
         userBranch={user?.branch || 'Rayong'}
