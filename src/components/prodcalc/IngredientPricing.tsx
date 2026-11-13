@@ -322,7 +322,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
 
         await supabase
           .from('prodcalc_ingredient_prices')
-          .upsert(payload, { onConflict: 'ingredient_id, branch' });
+          .upsert(payload, { onConflict: 'ingredient_id,branch' });
       }
     } catch (err) {
       console.warn('prodcalc_ingredient_prices save note:', err);
