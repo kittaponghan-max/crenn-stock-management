@@ -37,6 +37,7 @@ import {
 } from '../utils/permissions';
 import {
   AnnualLeaveQuotasByYear,
+  YearLeaveQuotasMap,
   EmployeeAnnualLeaveQuota,
   DEFAULT_ANNUAL_LEAVE_QUOTA,
   STANDARD_LEAVE_QUOTA_YEARS,
@@ -1290,13 +1291,38 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     setIsSavingLeaveQuotas(true);
     setLeaveQuotaSaveStatus(null);
 
+    const allKnownUsers = allUsersForQuotas.length > 0 ? allUsersForQuotas : users;
     const sanitizedToSave: AnnualLeaveQuotasByYear = {};
     Object.entries(leaveQuotaDraft).forEach(([yr, yearMap]) => {
       sanitizedToSave[yr] = {};
       Object.entries(yearMap || {}).forEach(([empKey, q]) => {
-        sanitizedToSave[yr][empKey] = sanitizeQuotaNumbers(q);
+        const matchedEmp = allKnownUsers.find(
+          (u) => u.id === empKey || `${(u.name || '').trim().toLowerCase()}__${normalizeBranchKey(u.branch)}` === empKey
+        );
+        sanitizedToSave[yr][empKey] = sanitizeQuotaNumbers({
+          ...q,
+          userName: q?.userName || matchedEmp?.name,
+          branch: q?.branch || matchedEmp?.branch || loggedInBranch,
+        });
       });
     });
+
+    // Ensure every employee visible in the selected branch/year is saved explicitly (not only modified rows)
+    const activeYearMap: YearLeaveQuotasMap = { ...(sanitizedToSave[leaveQuotaYear] || {}) };
+    filteredQuotaUsers.forEach((emp) => {
+      const empKey = emp.id || `${emp.name.trim().toLowerCase()}__${normalizeBranchKey(emp.branch)}`;
+      const currentQ = getEmployeeQuotaForYear(sanitizedToSave, leaveQuotaYear, {
+        id: emp.id,
+        name: emp.name,
+        branch: emp.branch,
+      });
+      activeYearMap[empKey] = sanitizeQuotaNumbers({
+        ...currentQ,
+        userName: emp.name,
+        branch: emp.branch || loggedInBranch,
+      });
+    });
+    sanitizedToSave[leaveQuotaYear] = activeYearMap;
 
     const res = await saveAnnualLeaveQuotas(sanitizedToSave);
 
