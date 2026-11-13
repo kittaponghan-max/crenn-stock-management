@@ -46,7 +46,7 @@ interface StockTableProps {
 }
 
 export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock, onClearIngredientWeek, onClearDay, onDeleteIngredient, onEditIngredient, userRole, isReadOnly = false, }: StockTableProps) {
-  const isAdmin = !isReadOnly && ['Admin', 'Branch Manager'].includes(userRole);
+  const isAdmin = !isReadOnly;
 
   const [visibleCols, setVisibleCols] = React.useState({
     manage: true,
@@ -453,16 +453,18 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                   isSingleDay ? "w-[135px] min-w-[125px] max-w-[145px]" : "w-[160px] min-w-[160px] max-w-[160px]",
                   isToday ? "ring-2 ring-inset ring-white/40 shadow-inner font-bold" : ""
                 )}>
-                  <button
-                    onClick={() => setDayToClear({ 
-                      dateKey: format(day, 'yyyy-MM-dd'), 
-                      label: `${format(day, 'EEE')} ${format(day, 'd/M')}` 
-                    })}
-                    className="absolute top-1 right-1 w-4 h-4 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
-                    title="ล้างข้อมูลของวันนี้"
-                  >
-                    <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform text-white" />
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => setDayToClear({ 
+                        dateKey: format(day, 'yyyy-MM-dd'), 
+                        label: `${format(day, 'EEE')} ${format(day, 'd/M')}` 
+                      })}
+                      className="absolute top-1 right-1 w-4 h-4 bg-black/20 hover:bg-[#EF4444] rounded border border-white/20 transition-all flex flex-col items-center justify-center group"
+                      title="ล้างข้อมูลของวันนี้"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5 group-hover:rotate-[-45deg] transition-transform text-white" />
+                    </button>
+                  )}
 
                   <div className="text-[10px] uppercase font-semibold text-white">{format(day, 'EEE')}</div>
                   <div className="text-[10px] font-normal text-white/90 mb-1">{format(day, 'd/M')}</div>
@@ -830,15 +832,17 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setItemToRestore(item)}
-                        className="shrink-0 px-2 py-1 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#B45309] font-medium text-[11px] rounded-md transition-colors flex items-center gap-1 shadow-2xs"
-                        title="คืนสถานะวัตถุดิบนี้"
-                      >
-                        <Eye size={12} />
-                        คืนสถานะ
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          type="button"
+                          onClick={() => setItemToRestore(item)}
+                          className="shrink-0 px-2 py-1 bg-[#FEF3C7] hover:bg-[#FDE68A] text-[#B45309] font-medium text-[11px] rounded-md transition-colors flex items-center gap-1 shadow-2xs"
+                          title="คืนสถานะวัตถุดิบนี้"
+                        >
+                          <Eye size={12} />
+                          คืนสถานะ
+                        </button>
+                      )}
                     </div>
                   );
                 })}
