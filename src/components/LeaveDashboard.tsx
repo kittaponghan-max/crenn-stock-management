@@ -27,6 +27,11 @@ import {
 import { supabase } from '../lib/supabase';
 import { LeaveRecord } from './LeaveRequestModal';
 import { AppUser } from '../types';
+import {
+  AnnualLeaveQuotasByYear,
+  fetchAnnualLeaveQuotas,
+  getEmployeeQuotaForYear,
+} from '../utils/leaveQuotas';
 
 export interface LeaveDashboardProps {
   user?: any;
@@ -48,6 +53,8 @@ interface EmployeeQuotaSummary {
   personalTotal: number;
   vacationRemaining: number;
   vacationTotal: number;
+  birthdayRemaining: number;
+  birthdayTotal: number;
   maternityRemaining: number;
   maternityTotal: number;
 }
@@ -68,7 +75,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   };
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
   const [staffAccounts, setStaffAccounts] = useState<AppUser[]>([]);
-  const [employeeQuotas, setEmployeeQuotas] = useState<EmployeeQuotaSummary[]>([]);
+  const [quotasByYear, setQuotasByYear] = useState<AnnualLeaveQuotasByYear>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -251,27 +258,65 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     setLeaveRecords(records);
 
     // ──────────────────────────────────────────────
-    // 3. Compute Employee Leave Quotas from Real Accounts & Actual Approved Leaves
+    // 3. Fetch Configured Employee Annual Leave Quotas
     // ──────────────────────────────────────────────
-    const computedQuotas: EmployeeQuotaSummary[] = loadedUsers.map((emp) => {
+    try {
+      const loadedQuotas = await fetchAnnualLeaveQuotas();
+      setQuotasByYear(loadedQuotas);
+    } catch (e) {
+      console.warn('Error loading employee annual leave quotas:', e);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAllLeaveData();
+  }, [user]);
+
+  const activeQuotaYear = useMemo(() => {
+    if (selectedYear && selectedYear !== 'all') return selectedYear;
+    return String(new Date().getFullYear());
+  }, [selectedYear]);
+
+  // Compute Employee Leave Quotas reactively from configured annual quotas & approved leaves
+  const employeeQuotas = useMemo<EmployeeQuotaSummary[]>(() => {
+    return staffAccounts.map((emp) => {
       const empName = emp.name || 'Staff';
       const empRole = emp.role || 'Staff';
       const empBranch = emp.branch || 'Rayong';
       const empId = emp.id || `emp-${empName}-${empBranch}`;
 
+      const configured = getEmployeeQuotaForYear(quotasByYear, activeQuotaYear, {
+        id: emp.id,
+        name: empName,
+        branch: empBranch,
+      });
+
+      const sickTotal = configured.sick;
+      const personalTotal = configured.personal;
+      const vacationTotal = configured.vacation;
+      const birthdayTotal = configured.birthday;
+      const maternityTotal = 90;
+
       let sickUsed = 0;
       let personalUsed = 0;
       let vacationUsed = 0;
+      let birthdayUsed = 0;
       let maternityUsed = 0;
 
-      records.forEach(r => {
-        if (
-          r.userName?.toLowerCase().trim() === empName.toLowerCase().trim() &&
-          r.status === 'Approved'
-        ) {
-          const type = (r.leaveType || '').toLowerCase();
+      leaveRecords.forEach(r => {
+        const matchesEmployee = r.userName?.toLowerCase().trim() === empName.toLowerCase().trim();
+        const matchesYear =
+          selectedYear === 'all' ||
+          (r.fromDate && r.fromDate.startsWith(selectedYear)) ||
+          (r.toDate && r.toDate.startsWith(selectedYear));
+
+        if (matchesEmployee && matchesYear && r.status === 'Approved') {
+          const type = `${r.leaveType || ''} ${r.leaveTypeName || ''}`.toLowerCase();
           const days = Number(r.totalDays || 1);
-          if (type.includes('sick') || type.includes('ป่วย')) sickUsed += days;
+          if (type.includes('birthday') || type.includes('วันเกิด')) birthdayUsed += days;
+          else if (type.includes('sick') || type.includes('ป่วย')) sickUsed += days;
           else if (type.includes('personal') || type.includes('กิจ')) personalUsed += days;
           else if (type.includes('vacation') || type.includes('พักร้อน') || type.includes('annual')) vacationUsed += days;
           else if (type.includes('maternity') || type.includes('คลอด')) maternityUsed += days;
@@ -284,60 +329,25 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         role: empRole,
         branch: empBranch,
         avatar: (empName.charAt(0) || 'S').toUpperCase(),
-        sickRemaining: Math.max(0, 30 - sickUsed),
-        sickTotal: 30,
-        personalRemaining: Math.max(0, 6 - personalUsed),
-        personalTotal: 6,
-        vacationRemaining: Math.max(0, 10 - vacationUsed),
-        vacationTotal: 10,
-        maternityRemaining: Math.max(0, 90 - maternityUsed),
-        maternityTotal: 90,
+        sickRemaining: Math.max(0, sickTotal - sickUsed),
+        sickTotal,
+        personalRemaining: Math.max(0, personalTotal - personalUsed),
+        personalTotal,
+        vacationRemaining: Math.max(0, vacationTotal - vacationUsed),
+        vacationTotal,
+        birthdayRemaining: Math.max(0, birthdayTotal - birthdayUsed),
+        birthdayTotal,
+        maternityRemaining: Math.max(0, maternityTotal - maternityUsed),
+        maternityTotal,
       };
     });
-
-    setEmployeeQuotas(computedQuotas);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAllLeaveData();
-  }, [user]);
+  }, [staffAccounts, leaveRecords, quotasByYear, activeQuotaYear, selectedYear]);
 
   // Update status (Approve / Reject)
   const handleUpdateStatus = async (id: string, newStatus: 'Approved' | 'Rejected') => {
     if (isReadOnly) return;
     const updated = leaveRecords.map(r => r.id === id ? { ...r, status: newStatus } : r);
     setLeaveRecords(updated);
-
-    // Recalculate employee quotas with new status
-    setEmployeeQuotas(prev => prev.map(emp => {
-      let sickUsed = 0;
-      let personalUsed = 0;
-      let vacationUsed = 0;
-      let maternityUsed = 0;
-
-      updated.forEach(r => {
-        if (
-          r.userName?.toLowerCase().trim() === emp.name.toLowerCase().trim() &&
-          r.status === 'Approved'
-        ) {
-          const type = (r.leaveType || '').toLowerCase();
-          const days = Number(r.totalDays || 1);
-          if (type.includes('sick') || type.includes('ป่วย')) sickUsed += days;
-          else if (type.includes('personal') || type.includes('กิจ')) personalUsed += days;
-          else if (type.includes('vacation') || type.includes('พักร้อน') || type.includes('annual')) vacationUsed += days;
-          else if (type.includes('maternity') || type.includes('คลอด')) maternityUsed += days;
-        }
-      });
-
-      return {
-        ...emp,
-        sickRemaining: Math.max(0, emp.sickTotal - sickUsed),
-        personalRemaining: Math.max(0, emp.personalTotal - personalUsed),
-        vacationRemaining: Math.max(0, emp.vacationTotal - vacationUsed),
-        maternityRemaining: Math.max(0, emp.maternityTotal - maternityUsed),
-      };
-    }));
 
     // Save to LocalStorage
     try {
@@ -852,12 +862,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                         <div 
                           key={lIdx}
                           className={`text-[9px] px-1 py-0.2 rounded truncate font-medium flex items-center gap-0.5 ${
-                            isSelected 
-                              ? 'bg-white/20 text-white' 
-                              : item.leaveType === 'sick' ? 'bg-rose-100 text-rose-800' :
-                                item.leaveType === 'vacation' ? 'bg-emerald-100 text-emerald-800' :
-                                'bg-purple-100 text-purple-800'
-                          }`}
+                              isSelected 
+                                ? 'bg-white/20 text-white' 
+                                : item.leaveType === 'sick' ? 'bg-rose-100 text-rose-800' :
+                                  item.leaveType === 'vacation' ? 'bg-emerald-100 text-emerald-800' :
+                                  item.leaveType === 'birthday' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-purple-100 text-purple-800'
+                            }`}
                           title={`${item.userName}: ${item.leaveTypeName}`}
                         >
                           <span className="truncate">{item.userName.split(' ')[0]}</span>
@@ -991,12 +1002,15 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               </h2>
               <p className="text-[11px] text-slate-400">
                 {isPersonalActive 
-                  ? `สรุปสิทธิ์วันลาคงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของคุณ (${user?.name || 'พนักงาน'})`
-                  : `สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาป่วย, ลากิจ, ลาพักร้อน) ของพนักงานจริงใน${currentBranchLabel} (${filteredEmployeeQuotas.length} คน)`
+                  ? `สรุปสิทธิ์วันลาคงเหลือแยกตามประเภท (ลาพักร้อน, ลาพักประจำวันเกิด, ลากิจ, ลาป่วย) ประจำปี ${activeQuotaYear} ของคุณ (${user?.name || 'พนักงาน'})`
+                  : `สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาพักร้อน, ลาพักประจำวันเกิด, ลากิจ, ลาป่วย) ประจำปี ${activeQuotaYear} ของพนักงานจริงใน${currentBranchLabel} (${filteredEmployeeQuotas.length} คน)`
                 }
               </p>
             </div>
           </div>
+          <span className="px-2.5 py-1 rounded-lg bg-[#E8F3F2] border border-[#D4E4E3] text-[11px] font-bold text-[#2D4A49] shrink-0">
+            ปี {activeQuotaYear} (พ.ศ. {parseInt(activeQuotaYear, 10) + 543})
+          </span>
         </div>
 
         {/* Real Staff Cards Grid */}
@@ -1043,36 +1057,47 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                   {/* Leave Quota Progress Bars */}
                   <div className="space-y-2 text-xs">
                     
-                    {/* 1. ลาป่วย */}
-                    <div>
-                      <div className="flex justify-between text-[11px] mb-0.5">
-                        <span className="font-semibold text-slate-700">🤒 ลาป่วย (Sick Leave)</span>
-                        <span className="font-bold text-rose-600">{emp.sickRemaining} / {emp.sickTotal} วัน</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-rose-500 h-full rounded-full" style={{ width: `${(emp.sickRemaining / emp.sickTotal) * 100}%` }} />
-                      </div>
-                    </div>
-
-                    {/* 2. ลากิจ */}
-                    <div>
-                      <div className="flex justify-between text-[11px] mb-0.5">
-                        <span className="font-semibold text-slate-700">💼 ลากิจ (Personal Leave)</span>
-                        <span className="font-bold text-purple-700">{emp.personalRemaining} / {emp.personalTotal} วัน</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-purple-600 h-full rounded-full" style={{ width: `${(emp.personalRemaining / emp.personalTotal) * 100}%` }} />
-                      </div>
-                    </div>
-
-                    {/* 3. ลาพักร้อน */}
+                    {/* 1. ลาพักร้อน */}
                     <div>
                       <div className="flex justify-between text-[11px] mb-0.5">
                         <span className="font-semibold text-slate-700">🏖️ ลาพักร้อน (Vacation Leave)</span>
                         <span className="font-bold text-emerald-700">{emp.vacationRemaining} / {emp.vacationTotal} วัน</span>
                       </div>
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${(emp.vacationRemaining / emp.vacationTotal) * 100}%` }} />
+                        <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${emp.vacationTotal > 0 ? Math.min(100, (emp.vacationRemaining / emp.vacationTotal) * 100) : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* 2. ลาพักประจำวันเกิด */}
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-semibold text-slate-700">🎂 ลาพักประจำวันเกิด (Birthday Leave)</span>
+                        <span className="font-bold text-amber-600">{emp.birthdayRemaining} / {emp.birthdayTotal} วัน</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-amber-500 h-full rounded-full" style={{ width: `${emp.birthdayTotal > 0 ? Math.min(100, (emp.birthdayRemaining / emp.birthdayTotal) * 100) : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* 3. ลากิจ */}
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-semibold text-slate-700">💼 ลากิจ (Personal Leave)</span>
+                        <span className="font-bold text-purple-700">{emp.personalRemaining} / {emp.personalTotal} วัน</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-purple-600 h-full rounded-full" style={{ width: `${emp.personalTotal > 0 ? Math.min(100, (emp.personalRemaining / emp.personalTotal) * 100) : 0}%` }} />
+                      </div>
+                    </div>
+
+                    {/* 4. ลาป่วย */}
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-semibold text-slate-700">🤒 ลาป่วย (Sick Leave)</span>
+                        <span className="font-bold text-rose-600">{emp.sickRemaining} / {emp.sickTotal} วัน</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-rose-500 h-full rounded-full" style={{ width: `${emp.sickTotal > 0 ? Math.min(100, (emp.sickRemaining / emp.sickTotal) * 100) : 0}%` }} />
                       </div>
                     </div>
 
