@@ -24,9 +24,10 @@ import {
 
 interface IngredientPricingProps {
   currentBranch: string;
+  isReadOnly?: boolean;
 }
 
-export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
+export function IngredientPricing({ currentBranch, isReadOnly = false }: IngredientPricingProps) {
   const [items, setItems] = useState<ProdcalcIngredientPrice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -301,6 +302,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
 
   // Save to ProdCalc table and LocalStorage (NEVER touching CMS table)
   const saveItems = async (updatedList: ProdcalcIngredientPrice[]) => {
+    if (isReadOnly) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(updatedList));
       if (supabase) {
@@ -333,6 +335,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
 
   // Update a single item's yield or sourcing
   const handleUpdateItem = (updated: ProdcalcIngredientPrice) => {
+    if (isReadOnly) return;
     const autoSourcing = autoSelectHighestPriceSourcing(updated.sourcing);
     const effectiveCost = calculateEffectiveCost(autoSourcing, updated.yield_pct);
     const finalItem = {
@@ -348,6 +351,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
 
   // Reset an item's pricing (does NOT affect CMS data)
   const handleResetPricing = (item: ProdcalcIngredientPrice) => {
+    if (isReadOnly) return;
     if (window.confirm(`ต้องการล้างข้อมูลราคาของ "${item.ingredient_name}" ใน ProdCalc หรือไม่? (ข้อมูลสต็อกใน CMS จะไม่ได้รับผลกระทบ)`)) {
       const resetItem: ProdcalcIngredientPrice = {
         ...item,
@@ -430,18 +434,20 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
             <span>📍 สาขา: {currentBranch}</span>
           </span>
 
-          <button
-            onClick={() => syncWithCMS(items)}
-            disabled={isSyncing}
-            style={{
-              background: '#5BA4C8',
-              color: '#FFFFFF'
-            }}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
-            <span>{isSyncing ? 'กำลัง Sync...' : 'Sync จาก CMS'}</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => syncWithCMS(items)}
+              disabled={isSyncing}
+              style={{
+                background: '#5BA4C8',
+                color: '#FFFFFF'
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+              <span>{isSyncing ? 'กำลัง Sync...' : 'Sync จาก CMS'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -543,13 +549,13 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                 <th className="py-2.5 px-3 min-w-[240px]">Sourcing (แหล่งราคา)</th>
                 <th className="py-2.5 px-3 min-w-[80px] text-center">Yield %</th>
                 <th className="py-2.5 px-3 min-w-[120px] text-right">ต้นทุนจริง/หน่วย</th>
-                <th className="py-2.5 px-3 w-20 text-center">จัดการ</th>
+                {!isReadOnly && <th className="py-2.5 px-3 w-20 text-center">จัดการ</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E4F1F8]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-[#4A7592]">
+                  <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#4A7592]">
                     <div className="flex flex-col items-center gap-2">
                       <RefreshCw size={20} className="animate-spin text-[#5BA4C8]" />
                       <span className="text-[11px]">กำลังโหลดข้อมูลวัตถุดิบ...</span>
@@ -558,10 +564,12 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-[#4A7592]">
+                  <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#4A7592]">
                     <Package size={28} className="mx-auto mb-1.5 text-[#90C4DC]" />
                     <p className="font-medium text-[11px]">ไม่พบรายการวัตถุดิบ</p>
-                    <p className="text-[9.5px] text-[#90C4DC] mt-0.5">กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก</p>
+                    {!isReadOnly && (
+                      <p className="text-[9.5px] text-[#90C4DC] mt-0.5">กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก</p>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -638,7 +646,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                               style={{ border: '1px solid #C8E3F0' }}
                               className="px-2 py-0.5 rounded-md text-[10px] font-medium text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E5A7A] transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                             >
-                              <span>{isExpanded ? 'ซ่อน' : 'จัดการแหล่ง'}</span>
+                              <span>{isExpanded ? 'ซ่อน' : (isReadOnly ? 'ดูแหล่งราคา' : 'จัดการแหล่ง')}</span>
                               {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                             </button>
                           </div>
@@ -649,10 +657,12 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                           <div className="inline-flex items-center justify-center gap-1">
                             <input
                               type="number"
+                              disabled={isReadOnly}
                               min="1"
                               max="100"
                               value={item.yield_pct}
                               onChange={(e) => {
+                                if (isReadOnly) return;
                                 const val = Math.min(100, Math.max(1, Number(e.target.value) || 100));
                                 handleUpdateItem({ ...item, yield_pct: val });
                               }}
@@ -660,7 +670,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                 border: '1px solid #C8E3F0',
                                 color: item.yield_pct === 100 ? '#22C55E' : item.yield_pct >= 70 ? '#1E3D52' : '#F59E0B'
                               }}
-                              className="w-12 text-center py-0.5 rounded-md text-[11px] font-bold font-mono outline-none focus:border-[#5BA4C8]"
+                              className="w-12 text-center py-0.5 rounded-md text-[11px] font-bold font-mono outline-none focus:border-[#5BA4C8] disabled:bg-slate-50 disabled:cursor-not-allowed"
                             />
                             <span className="text-[10px] text-[#4A7592] font-semibold">%</span>
                           </div>
@@ -690,24 +700,26 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                         </td>
 
                         {/* Actions */}
-                        <td className="py-2 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => setEditingItem(item)}
-                              title="แก้ไขราคาและแหล่งซื้อ"
-                              className="p-1 rounded-lg text-[#3D7FA3] hover:bg-[#EEF6FB] transition-colors cursor-pointer"
-                            >
-                              <Edit3 size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleResetPricing(item)}
-                              title="ล้างข้อมูลราคาใน ProdCalc"
-                              className="p-1 rounded-lg text-[#EF4444] hover:bg-rose-50 transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
+                        {!isReadOnly && (
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setEditingItem(item)}
+                                title="แก้ไขราคาและแหล่งซื้อ"
+                                className="p-1 rounded-lg text-[#3D7FA3] hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleResetPricing(item)}
+                                title="ล้างข้อมูลราคาใน ProdCalc"
+                                className="p-1 rounded-lg text-[#EF4444] hover:bg-rose-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
 
                       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -715,58 +727,62 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                       {isExpanded && (
                         <tr style={{ background: '#F8FCFE' }}>
-                          <td colSpan={8} className="p-3 border-t border-b border-[#C8E3F0]">
+                          <td colSpan={isReadOnly ? 7 : 8} className="p-3 border-t border-b border-[#C8E3F0]">
                             <div className="bg-white p-3 rounded-xl border border-[#C8E3F0] space-y-2.5">
                               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-bold text-[#1E3D52] text-[11px]">
                                     🛒 แหล่งจัดซื้อ (Sourcing Options) สำหรับ: {item.ingredient_name}
                                   </span>
-                                  <span className="text-[9.5px] text-[#4A7592] bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
-                                    คลิก ⭐ เพื่อเลือกเป็นราคาหลัก (ระบบจะเลือกรายการราคาสูงสุดให้อัตโนมัติ)
-                                  </span>
+                                  {!isReadOnly && (
+                                    <span className="text-[9.5px] text-[#4A7592] bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
+                                      คลิก ⭐ เพื่อเลือกเป็นราคาหลัก (ระบบจะเลือกรายการราคาสูงสุดให้อัตโนมัติ)
+                                    </span>
+                                  )}
                                 </div>
 
-                                <div className="flex items-center gap-2 self-end sm:self-center">
-                                  {/* ปุ่ม บันทึก (Save button) */}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleUpdateItem(item);
-                                      setExpandedId(null);
-                                    }}
-                                    style={{ background: '#5A8A88', color: '#FFFFFF' }}
-                                    className="px-3 py-1 rounded-xl text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-[#476E6C] active:scale-95 transition-all shadow-xs cursor-pointer"
-                                    title="บันทึกข้อมูลแหล่งจัดซื้อ"
-                                  >
-                                    <Check size={12} />
-                                    <span>บันทึก</span>
-                                  </button>
+                                {!isReadOnly && (
+                                  <div className="flex items-center gap-2 self-end sm:self-center">
+                                    {/* ปุ่ม บันทึก (Save button) */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleUpdateItem(item);
+                                        setExpandedId(null);
+                                      }}
+                                      style={{ background: '#5A8A88', color: '#FFFFFF' }}
+                                      className="px-3 py-1 rounded-xl text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-[#476E6C] active:scale-95 transition-all shadow-xs cursor-pointer"
+                                      title="บันทึกข้อมูลแหล่งจัดซื้อ"
+                                    >
+                                      <Check size={12} />
+                                      <span>บันทึก</span>
+                                    </button>
 
-                                  {/* ปุ่ม เพิ่มแหล่งซื้อ */}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newSource: SourcingOption = {
-                                        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
-                                        source_name: '',
-                                        price: 0,
-                                        qty: 1,
-                                        unit: item.ingredient_unit,
-                                        is_default: false
-                                      };
-                                      handleUpdateItem({
-                                        ...item,
-                                        sourcing: [...item.sourcing, newSource]
-                                      });
-                                    }}
-                                    style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                                    className="px-3 py-1 rounded-xl text-[10.5px] font-semibold flex items-center gap-1.5 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
-                                  >
-                                    <Plus size={12} />
-                                    <span>เพิ่มแหล่งซื้อ</span>
-                                  </button>
-                                </div>
+                                    {/* ปุ่ม เพิ่มแหล่งซื้อ */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newSource: SourcingOption = {
+                                          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+                                          source_name: '',
+                                          price: 0,
+                                          qty: 1,
+                                          unit: item.ingredient_unit,
+                                          is_default: false
+                                        };
+                                        handleUpdateItem({
+                                          ...item,
+                                          sourcing: [...item.sourcing, newSource]
+                                        });
+                                      }}
+                                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
+                                      className="px-3 py-1 rounded-xl text-[10.5px] font-semibold flex items-center gap-1.5 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                                    >
+                                      <Plus size={12} />
+                                      <span>เพิ่มแหล่งซื้อ</span>
+                                    </button>
+                                  </div>
+                                )}
                               </div>
 
                               <div className="overflow-x-auto">
@@ -791,15 +807,17 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                           <td className="py-1.5 px-2 text-center">
                                             <button
                                               type="button"
+                                              disabled={isReadOnly}
                                               onClick={() => {
+                                                if (isReadOnly) return;
                                                 const updatedSourcing = item.sourcing.map((s, i) => ({
                                                   ...s,
                                                   is_default: i === sIdx
                                                 }));
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
-                                              title={source.is_default ? 'ราคานี้ถูกตั้งเป็นค่าเริ่มต้น' : 'คลิกเพื่อตั้งเป็นราคาเริ่มต้น'}
-                                              className="p-0.5 text-amber-500 hover:scale-110 transition-transform cursor-pointer"
+                                              title={isReadOnly ? undefined : (source.is_default ? 'ราคานี้ถูกตั้งเป็นค่าเริ่มต้น' : 'คลิกเพื่อตั้งเป็นราคาเริ่มต้น')}
+                                              className="p-0.5 text-amber-500 hover:scale-110 transition-transform cursor-pointer disabled:cursor-default disabled:hover:scale-100"
                                             >
                                               <Star 
                                                 size={13} 
@@ -812,15 +830,17 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                           <td className="py-1.5 px-2">
                                             <input
                                               type="text"
+                                              disabled={isReadOnly}
                                               placeholder="เช่น Makro, Shopee, Tops"
                                               value={source.source_name}
                                               onChange={(e) => {
+                                                if (isReadOnly) return;
                                                 const updatedSourcing = [...item.sourcing];
                                                 updatedSourcing[sIdx].source_name = e.target.value;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-2 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white"
+                                              className="w-full px-2 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                                             />
                                           </td>
 
@@ -830,17 +850,19 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                               <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
                                               <input
                                                 type="number"
+                                                disabled={isReadOnly}
                                                 step="any"
                                                 min="0"
                                                 placeholder="0.00"
                                                 value={source.price || ''}
                                                 onChange={(e) => {
+                                                  if (isReadOnly) return;
                                                   const updatedSourcing = [...item.sourcing];
                                                   updatedSourcing[sIdx].price = Number(e.target.value) || 0;
                                                   handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                                 }}
                                                 style={{ border: '1px solid #C8E3F0' }}
-                                                className="w-full pl-5 pr-1.5 py-0.5 rounded text-[10.5px] font-mono font-bold outline-none focus:border-[#5BA4C8] bg-white text-right"
+                                                className="w-full pl-5 pr-1.5 py-0.5 rounded text-[10.5px] font-mono font-bold outline-none focus:border-[#5BA4C8] bg-white text-right disabled:bg-slate-50 disabled:cursor-not-allowed"
                                               />
                                             </div>
                                           </td>
@@ -849,16 +871,18 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                           <td className="py-1.5 px-2">
                                             <input
                                               type="number"
+                                              disabled={isReadOnly}
                                               step="any"
                                               min="0.001"
                                               value={source.qty || 1}
                                               onChange={(e) => {
+                                                if (isReadOnly) return;
                                                 const updatedSourcing = [...item.sourcing];
                                                 updatedSourcing[sIdx].qty = Number(e.target.value) || 1;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-1.5 py-0.5 rounded text-[10px] font-mono outline-none focus:border-[#5BA4C8] bg-white text-center"
+                                              className="w-full px-1.5 py-0.5 rounded text-[10px] font-mono outline-none focus:border-[#5BA4C8] bg-white text-center disabled:bg-slate-50 disabled:cursor-not-allowed"
                                             />
                                           </td>
 
@@ -866,14 +890,16 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
                                           <td className="py-1.5 px-2">
                                             <input
                                               type="text"
+                                              disabled={isReadOnly}
                                               value={source.unit}
                                               onChange={(e) => {
+                                                if (isReadOnly) return;
                                                 const updatedSourcing = [...item.sourcing];
                                                 updatedSourcing[sIdx].unit = e.target.value;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
                                               style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-1.5 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white text-center"
+                                              className="w-full px-1.5 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white text-center disabled:bg-slate-50 disabled:cursor-not-allowed"
                                             />
                                           </td>
 
@@ -884,7 +910,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
 
                                           {/* Delete Source */}
                                           <td className="py-1.5 px-2 text-center">
-                                            {item.sourcing.length > 1 && (
+                                            {!isReadOnly && item.sourcing.length > 1 && (
                                               <button
                                                 type="button"
                                                 onClick={() => {
@@ -922,7 +948,7 @@ export function IngredientPricing({ currentBranch }: IngredientPricingProps) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* EDIT MODAL */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {editingItem && (
+      {!isReadOnly && editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div 
             style={{ border: '1.5px solid #C8E3F0' }}
