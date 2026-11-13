@@ -47,6 +47,7 @@ export interface OrderedItemsReportProps {
   ingredients?: Ingredient[];
   stockRecord?: Record<string, Record<string, number | { in?: number; out?: number; remaining?: number; waste?: number; usageInfo?: string }>>;
   allowedDepartments?: ('Bar' | 'Bakery')[];
+  isReadOnly?: boolean;
 }
 
 type DepartmentFilter = 'All' | 'Bar' | 'Bakery';
@@ -60,6 +61,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   ingredients = [],
   stockRecord = {},
   allowedDepartments = ['Bar', 'Bakery'],
+  isReadOnly = false,
 }) => {
   const [dateRangeMode, setDateRangeMode] = useState<DateRangeMode>('7days');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -90,6 +92,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   };
 
   const openEditModal = (order: OrderRecord, item?: any) => {
+    if (isReadOnly) return;
     setEditingOrder({
       ...order,
       order_unit: order.order_unit || item?.unit || "",
@@ -103,6 +106,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   };
 
   const openDeleteConfirm = (order: OrderRecord, item?: any) => {
+    if (isReadOnly) return;
     setDeletingOrder({
       ...order,
       ingredients: order.ingredients || { name: item?.name, brand: item?.brand, unit: item?.unit }
@@ -110,7 +114,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   };
 
   const handleEditSave = async () => {
-    if (!editingOrder) return;
+    if (isReadOnly || !editingOrder) return;
     setIsSaving(true);
     try {
       const currentBranch = branch || editingOrder.branch || "Rayong";
@@ -166,7 +170,7 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
   };
 
   const handleDelete = async () => {
-    if (!deletingOrder) return;
+    if (isReadOnly || !deletingOrder) return;
     setIsSaving(true);
     try {
       const currentBranch = branch || deletingOrder.branch || "Rayong";
@@ -1066,7 +1070,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
 
                   {/* Table with Horizontal Scroll */}
                   <div className="overflow-x-auto overflow-y-visible w-full custom-scrollbar">
-                    <table className="w-full text-left border-collapse table-fixed min-w-[774px]" style={{ tableLayout: 'fixed', width: '100%', minWidth: '774px' }}>
+                    <table className="w-full text-left border-collapse table-fixed min-w-[702px]" style={{ tableLayout: 'fixed', width: '100%', minWidth: isReadOnly ? '702px' : '774px' }}>
                       <colgroup>
                         <col style={{ width: '36px' }} />
                         <col style={{ width: '146px' }} />
@@ -1077,7 +1081,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                         <col style={{ width: '92px' }} />
                         <col style={{ width: '68px' }} />
                         <col style={{ width: '96px' }} />
-                        <col style={{ width: '72px' }} />
+                        {!isReadOnly && <col style={{ width: '72px' }} />}
                       </colgroup>
                       <thead>
                         <tr className="bg-[#2D4A49] text-white text-[9.5px] font-semibold border-b border-[#2D4A49] leading-tight">
@@ -1089,20 +1093,22 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                           <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
                           <th className="py-2 px-1 text-center w-[92px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
                           <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
-                          <th className="py-2 px-1.5 text-left w-[96px] border-r border-[#3d605f] whitespace-nowrap">ผู้สั่งซื้อ</th>
-                          <th 
-                            className="py-2 px-1 text-center w-[72px] whitespace-nowrap"
-                            style={{
-                              width: "72px",
-                              textAlign: "center",
-                              backgroundColor: "#1E5A7A",
-                              color: "#FFFFFF",
-                              fontSize: "10px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            จัดการ
-                          </th>
+                          <th className={cn("py-2 px-1.5 text-left w-[96px] whitespace-nowrap", !isReadOnly && "border-r border-[#3d605f]")}>ผู้สั่งซื้อ</th>
+                          {!isReadOnly && (
+                            <th 
+                              className="py-2 px-1 text-center w-[72px] whitespace-nowrap"
+                              style={{
+                                width: "72px",
+                                textAlign: "center",
+                                backgroundColor: "#1E5A7A",
+                                color: "#FFFFFF",
+                                fontSize: "10px",
+                                fontWeight: 600,
+                              }}
+                            >
+                              จัดการ
+                            </th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -1110,7 +1116,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                           <React.Fragment key={category}>
                             {/* Category Row */}
                             <tr className="bg-[#F8FAFA] border-y border-[#F0F5F4]">
-                              <td colSpan={10} className="px-2.5 py-1">
+                              <td colSpan={isReadOnly ? 9 : 10} className="px-2.5 py-1">
                                 <div className="flex items-center gap-1.5 text-[9.5px] font-semibold text-[#5A8A88]">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0"></span>
                                   <span>{category}</span>
@@ -1233,7 +1239,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                                   </td>
 
                                   {/* COLUMN 3 — ผู้สั่งซื้อ (READ-ONLY) */}
-                                  <td className="px-1.5 py-1 text-left w-[96px] max-w-[96px] border-r border-[#F0F5F4]" style={{ width: '96px', maxWidth: '96px' }}>
+                                  <td className={cn("px-1.5 py-1 text-left w-[96px] max-w-[96px]", !isReadOnly && "border-r border-[#F0F5F4]")} style={{ width: '96px', maxWidth: '96px' }}>
                                     {order?.ordered_by ? (
                                       <div className="flex flex-col items-start justify-center gap-0.5 w-full overflow-hidden">
                                         <span className="text-[10px] font-bold text-[#2D4A49] leading-tight truncate w-full" title={order.ordered_by}>
@@ -1255,61 +1261,63 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                                     )}
                                   </td>
                                   {/* COLUMN 4 — จัดการ (Edit & Delete) */}
-                                  <td className="px-1 py-1 text-center w-[72px]" style={{ width: "72px" }}>
-                                    <div 
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: "4px",
-                                        padding: "6px 4px",
-                                      }}
-                                    >
-                                      {/* Edit button */}
-                                      <button
-                                        type="button"
-                                        onClick={() => openEditModal(order, item)}
-                                        title="แก้ไขคำสั่งซื้อ"
+                                  {!isReadOnly && (
+                                    <td className="px-1 py-1 text-center w-[72px]" style={{ width: "72px" }}>
+                                      <div 
                                         style={{
-                                          background: "transparent",
-                                          borderRadius: "6px",
-                                          padding: "5px",
-                                          cursor: "pointer",
-                                          border: "none",
                                           display: "flex",
                                           alignItems: "center",
                                           justifyContent: "center",
-                                          transition: "background-color 0.15s ease",
+                                          gap: "4px",
+                                          padding: "6px 4px",
                                         }}
-                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#EEF6FB")}
-                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
                                       >
-                                        <Pencil size={13} color="#5BA4C8" />
-                                      </button>
+                                        {/* Edit button */}
+                                        <button
+                                          type="button"
+                                          onClick={() => openEditModal(order, item)}
+                                          title="แก้ไขคำสั่งซื้อ"
+                                          style={{
+                                            background: "transparent",
+                                            borderRadius: "6px",
+                                            padding: "5px",
+                                            cursor: "pointer",
+                                            border: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            transition: "background-color 0.15s ease",
+                                          }}
+                                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#EEF6FB")}
+                                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                                        >
+                                          <Pencil size={13} color="#5BA4C8" />
+                                        </button>
 
-                                      {/* Delete button */}
-                                      <button
-                                        type="button"
-                                        onClick={() => openDeleteConfirm(order, item)}
-                                        title="ลบคำสั่งซื้อ"
-                                        style={{
-                                          background: "transparent",
-                                          borderRadius: "6px",
-                                          padding: "5px",
-                                          cursor: "pointer",
-                                          border: "none",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          transition: "background-color 0.15s ease",
-                                        }}
-                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#FEE2E2")}
-                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
-                                      >
-                                        <Trash2 size={13} color="#EF4444" />
-                                      </button>
-                                    </div>
-                                  </td>
+                                        {/* Delete button */}
+                                        <button
+                                          type="button"
+                                          onClick={() => openDeleteConfirm(order, item)}
+                                          title="ลบคำสั่งซื้อ"
+                                          style={{
+                                            background: "transparent",
+                                            borderRadius: "6px",
+                                            padding: "5px",
+                                            cursor: "pointer",
+                                            border: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            transition: "background-color 0.15s ease",
+                                          }}
+                                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#FEE2E2")}
+                                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                                        >
+                                          <Trash2 size={13} color="#EF4444" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  )}
                                 </tr>
                               );
                             })}
@@ -1406,7 +1414,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
       )}
 
       {/* Edit Modal */}
-      {editingOrder && (
+      {!isReadOnly && editingOrder && (
         <div style={{
           position: "fixed", inset: 0,
           background: "rgba(0,0,0,0.45)",
@@ -1572,7 +1580,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingOrder && (
+      {!isReadOnly && deletingOrder && (
         <div style={{
           position: "fixed", inset: 0,
           background: "rgba(0,0,0,0.45)",
