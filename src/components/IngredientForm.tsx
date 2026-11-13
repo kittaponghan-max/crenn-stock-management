@@ -186,7 +186,12 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
     if (!supabase) return;
     const fetchUnits = async () => {
       try {
-        const { data } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'ingredient_units').single();
+        const { data } = await supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'ingredient_units')
+          .limit(1)
+          .maybeSingle();
         if (data?.setting_value && Array.isArray(data.setting_value)) {
           setAvailableUnits(prev => Array.from(new Set([...DEFAULT_UNITS, ...data.setting_value, ...prev])));
         }
@@ -211,7 +216,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
           setting_key: 'ingredient_units',
           setting_value: updated,
           branch: 'Rayong'
-        }).then(() => {}, () => {});
+        }, { onConflict: 'branch,setting_key' }).then(() => {}, () => {});
       }
     } catch {}
   };
