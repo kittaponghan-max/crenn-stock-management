@@ -378,7 +378,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
             { branch: 'GLOBAL', setting_key: 'configured_roles_list', setting_value: updatedRoles },
             { branch: activeBr, setting_key: 'configured_roles_list', setting_value: updatedRoles }
-          ]);
+          ], { onConflict: 'branch,setting_key' });
         } catch (e) {
           console.warn('Supabase create role template error:', e);
         }
@@ -431,7 +431,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
             { branch: 'GLOBAL', setting_key: 'configured_roles_list', setting_value: updatedRoles },
             { branch: activeBr, setting_key: 'configured_roles_list', setting_value: updatedRoles }
-          ]);
+          ], { onConflict: 'branch,setting_key' });
 
           // Update app_users table roles
           const { data: dbUsers } = await supabase.from('app_users').select('id, role');
@@ -489,7 +489,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
           { branch: activeBr, setting_key: 'role_permissions_templates', setting_value: updatedTemplates },
           { branch: 'GLOBAL', setting_key: 'configured_roles_list', setting_value: updatedRoles },
           { branch: activeBr, setting_key: 'configured_roles_list', setting_value: updatedRoles }
-        ]);
+        ], { onConflict: 'branch,setting_key' });
       } catch (e) {
         console.warn('Supabase delete role template error:', e);
       }
@@ -733,7 +733,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
           setting_key: 'role_permissions_templates',
           setting_value: finalTemplates
         }));
-        await supabase.from('app_settings').upsert(upsertPayload);
+        await supabase.from('app_settings').upsert(upsertPayload, { onConflict: 'branch,setting_key' });
       } catch (e) {
         console.warn('Auto-seed role_permissions_templates error:', e);
       }
@@ -791,7 +791,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
           setting_value: updatedTemplates
         }));
 
-        const { error } = await supabase.from('app_settings').upsert(upsertPayload);
+        const { error } = await supabase.from('app_settings').upsert(upsertPayload, { onConflict: 'branch,setting_key' });
         if (error) {
           console.warn('Error saving role template to supabase:', error.message);
         }
@@ -814,13 +814,16 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
 
         // Update cloud permissions map backup in app_settings
         try {
-          const { data: existingSettings } = await supabase
+          const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : (branch || 'Rayong');
+          const { data: existingRows } = await supabase
             .from('app_settings')
-            .select('setting_value')
-            .eq('setting_key', 'user_permissions_map')
-            .single();
-          
-          const currentMap = (existingSettings && existingSettings.setting_value) || {};
+            .select('branch, setting_value')
+            .eq('setting_key', 'user_permissions_map');
+
+          const branchRow = (existingRows || []).find((r: any) => r.branch === activeBr);
+          const currentMap: Record<string, any> = (branchRow?.setting_value && typeof branchRow.setting_value === 'object')
+            ? { ...branchRow.setting_value }
+            : {};
           updatedUsersList.forEach(u => {
             if ((u.role || '').toLowerCase().trim() === normalizedSelectedRole) {
               currentMap[u.id] = newSavePerms;
@@ -828,14 +831,13 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             }
           });
 
-          const activeBr = selectedBranchFilter !== 'ALL' ? selectedBranchFilter : 'Rayong';
           await supabase
             .from('app_settings')
             .upsert({
               branch: activeBr,
               setting_key: 'user_permissions_map',
               setting_value: currentMap
-            });
+            }, { onConflict: 'branch,setting_key' });
         } catch (mapErr) {
           console.warn('Cloud user_permissions_map update error:', mapErr);
         }
@@ -923,13 +925,22 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         // Fetch cloud backup from app_settings if available
         let cloudPermissionsMap: Record<string, any> = {};
         try {
-          const { data: settingsData } = await supabase
+          const { data: settingsRows } = await supabase
             .from('app_settings')
-            .select('setting_value')
-            .eq('setting_key', 'user_permissions_map')
-            .single();
-          if (settingsData && settingsData.setting_value) {
-            cloudPermissionsMap = settingsData.setting_value;
+            .select('branch, setting_value')
+            .eq('setting_key', 'user_permissions_map');
+          if (settingsRows && settingsRows.length > 0) {
+            settingsRows.forEach((r: any) => {
+              if (r.setting_value && typeof r.setting_value === 'object') {
+                Object.assign(cloudPermissionsMap, r.setting_value);
+              }
+            });
+            if (activeBranch && activeBranch !== 'ALL') {
+              const branchRow = settingsRows.find((r: any) => r.branch === activeBranch);
+              if (branchRow?.setting_value && typeof branchRow.setting_value === 'object') {
+                Object.assign(cloudPermissionsMap, branchRow.setting_value);
+              }
+            }
           }
         } catch (settingsErr) {
           console.warn('Could not fetch cloud user_permissions_map:', settingsErr);
@@ -1023,7 +1034,22 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         console.warn(e);
       }
     }
-  }, []);
+    if (supabase) {
+      const targetBr = branch || 'Rayong';
+      supabase
+        .from('app_settings')
+        .select('setting_value')
+        .eq('setting_key', 'discord_notify_settings')
+        .eq('branch', targetBr)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.setting_value && typeof data.setting_value === 'object') {
+            setDiscordSettings(data.setting_value);
+            try { localStorage.setItem('discordNotifySettings', JSON.stringify(data.setting_value)); } catch {}
+          }
+        }, () => {});
+    }
+  }, [branch]);
 
   const handleSaveDiscordSettings = async () => {
     if (effectiveReadOnly) return;
@@ -1034,10 +1060,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
       
       // Save to Supabase if available
       if (supabase) {
-        const { error } = await supabase.from('app_settings').upsert({ branch,
+        const { error } = await supabase.from('app_settings').upsert({
+          branch: branch || 'Rayong',
           setting_key: 'discord_notify_settings',
           setting_value: discordSettings
-        });
+        }, { onConflict: 'branch,setting_key' });
         if (error) {
           throw new Error(error.message);
         }
@@ -1124,18 +1151,30 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     if (supabase) {
       try {
         if (editingUser) {
-          const { error: updateError } = await supabase
+          const updatePayload: Record<string, any> = {
+            name: payload.name,
+            role: payload.role,
+            avatar: payload.avatar,
+            image: payload.image,
+            permissions: payload.permissions,
+            ...(payload.branch ? { branch: payload.branch } : {})
+          };
+          let { error: updateError } = await supabase
             .from('app_users')
-            .update({
+            .update(updatePayload)
+            .eq('id', editingUser.id);
+
+          if (updateError && (updateError.code === '42703' || updateError.code === 'PGRST204' || updateError.message?.includes('column'))) {
+            const coreUpdate: Record<string, any> = {
               name: payload.name,
               role: payload.role,
-              avatar: payload.avatar,
-              image: payload.image,
               permissions: payload.permissions,
               ...(payload.branch ? { branch: payload.branch } : {})
-            })
-            .eq('id', editingUser.id);
-          
+            };
+            const retryRes = await supabase.from('app_users').update(coreUpdate).eq('id', editingUser.id);
+            updateError = retryRes.error;
+          }
+
           if (updateError) {
             console.warn('Supabase update app_users error:', updateError);
             errorMessage = updateError.message;
@@ -1143,11 +1182,25 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             isSuccess = true;
           }
         } else {
-          const { data: insertData, error: insertError } = await supabase
+          let { data: insertData, error: insertError } = await supabase
             .from('app_users')
             .insert(payload)
             .select();
-          
+
+          if (insertError && (insertError.code === '42703' || insertError.code === 'PGRST204' || insertError.message?.includes('column'))) {
+            const corePayload: Record<string, any> = {
+              id: payload.id,
+              name: payload.name,
+              role: payload.role,
+              password: payload.password,
+              permissions: payload.permissions,
+              branch: payload.branch
+            };
+            const retryRes = await supabase.from('app_users').insert(corePayload).select();
+            insertData = retryRes.data;
+            insertError = retryRes.error;
+          }
+
           if (insertError) {
             console.warn('Supabase insert user error:', insertError);
             errorMessage = insertError.message;
@@ -1161,13 +1214,15 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
 
         // 2. Cloud Backup of permissions in app_settings (ensures permissions persist even if app_users column missing)
         try {
-          const { data: existingSettings } = await supabase
+          const { data: existingRows } = await supabase
             .from('app_settings')
-            .select('setting_value')
-            .eq('setting_key', 'user_permissions_map')
-            .single();
-          
-          const currentMap = (existingSettings && existingSettings.setting_value) || {};
+            .select('branch, setting_value')
+            .eq('setting_key', 'user_permissions_map');
+
+          const branchRow = (existingRows || []).find((r: any) => r.branch === targetBranch);
+          const currentMap: Record<string, any> = (branchRow?.setting_value && typeof branchRow.setting_value === 'object')
+            ? { ...branchRow.setting_value }
+            : {};
           currentMap[payload.id] = savePerms;
           currentMap[payload.name] = savePerms;
 
@@ -1177,7 +1232,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
               branch: targetBranch,
               setting_key: 'user_permissions_map',
               setting_value: currentMap
-            });
+            }, { onConflict: 'branch,setting_key' });
         } catch (cloudBackupErr) {
           console.warn('Cloud permissions map backup notice:', cloudBackupErr);
         }
