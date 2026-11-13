@@ -294,7 +294,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
           setting_value: newTemplates,
           updated_at: new Date().toISOString() 
         }
-      ], { onConflict: 'setting_key,branch' });
+      ], { onConflict: 'branch,setting_key' });
     }
   };
 
@@ -570,7 +570,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
             setting_value: tempItemSettings,
             updated_at: new Date().toISOString() 
           }
-        ]);
+        ], { onConflict: 'branch,setting_key' });
         
         if (error) {
           console.warn("Failed to save settings to Supabase, but saved locally:", error);
@@ -578,6 +578,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
           try {
             await supabase.from('audit_logs').insert({
               id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
+              branch,
               timestamp: new Date().toISOString(),
               user_email: 'Admin',
               user_role: 'Admin',
