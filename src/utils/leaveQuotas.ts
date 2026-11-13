@@ -21,6 +21,7 @@ export const DEFAULT_ANNUAL_LEAVE_QUOTA: EmployeeAnnualLeaveQuota = {
 
 export const LEAVE_QUOTAS_STORAGE_KEY = 'crenn_employee_leave_quotas';
 export const LEAVE_QUOTAS_SETTING_KEY = 'employee_leave_quotas';
+export const LEAVE_QUOTAS_TABLE = 'employee_leave_quotas';
 
 export const STANDARD_LEAVE_QUOTA_YEARS = ['2024', '2025', '2026', '2027'];
 
@@ -140,6 +141,7 @@ export async function fetchAnnualLeaveQuotas(): Promise<AnnualLeaveQuotasByYear>
   }
 
   if (supabase) {
+    // 1. Fetch from app_settings (cloud JSON backup)
     try {
       const { data, error } = await supabase
         .from('app_settings')
@@ -148,7 +150,6 @@ export async function fetchAnnualLeaveQuotas(): Promise<AnnualLeaveQuotasByYear>
 
       if (!error && data && data.length > 0) {
         let cloudMerged: AnnualLeaveQuotasByYear = {};
-        // Merge non-GLOBAL first, then GLOBAL takes precedence
         data
           .filter((r: any) => r.branch !== 'GLOBAL' && r.setting_value && typeof r.setting_value === 'object')
           .forEach((r: any) => {
@@ -163,17 +164,49 @@ export async function fetchAnnualLeaveQuotas(): Promise<AnnualLeaveQuotasByYear>
 
         if (Object.keys(cloudMerged).length > 0) {
           result = mergeQuotasByYear(result, cloudMerged);
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem(LEAVE_QUOTAS_STORAGE_KEY, JSON.stringify(result));
-            } catch (e) {
-              console.warn(e);
-            }
-          }
         }
       }
     } catch (e) {
-      console.warn('Supabase fetch employee_leave_quotas error:', e);
+      console.warn('Supabase fetch app_settings employee_leave_quotas error:', e);
+    }
+
+    // 2. Fetch directly from normalized employee_leave_quotas table (authoritative relational records)
+    try {
+      const { data: tableRows, error: tableErr } = await supabase
+        .from(LEAVE_QUOTAS_TABLE)
+        .select('id, year, user_id, user_name, branch, vacation_days, birthday_days, personal_days, sick_days');
+
+      if (!tableErr && Array.isArray(tableRows) && tableRows.length > 0) {
+        const fromTable: AnnualLeaveQuotasByYear = {};
+        tableRows.forEach((row: any) => {
+          if (!row?.year || !row?.user_id) return;
+          const yr = String(row.year);
+          const empKey = String(row.user_id);
+          if (!fromTable[yr]) fromTable[yr] = {};
+          fromTable[yr][empKey] = sanitizeQuotaNumbers({
+            vacation: row.vacation_days,
+            birthday: row.birthday_days,
+            personal: row.personal_days,
+            sick: row.sick_days,
+            userName: row.user_name || undefined,
+            branch: row.branch || undefined,
+          });
+        });
+
+        if (Object.keys(fromTable).length > 0) {
+          result = mergeQuotasByYear(result, fromTable);
+        }
+      }
+    } catch (e) {
+      console.warn('Supabase fetch employee_leave_quotas table notice:', e);
+    }
+
+    if (typeof window !== 'undefined' && Object.keys(result).length > 0) {
+      try {
+        localStorage.setItem(LEAVE_QUOTAS_STORAGE_KEY, JSON.stringify(result));
+      } catch (e) {
+        console.warn(e);
+      }
     }
   }
 
@@ -192,6 +225,10 @@ export async function saveAnnualLeaveQuotas(
   }
 
   if (supabase) {
+    let settingsErrorMsg = '';
+    let tableErrorMsg = '';
+
+    // 1. Save JSON snapshot to app_settings
     try {
       const { error } = await supabase.from('app_settings').upsert(
         {
@@ -202,12 +239,69 @@ export async function saveAnnualLeaveQuotas(
         { onConflict: 'branch,setting_key' }
       );
       if (error) {
-        return { success: false, error: error.message };
+        settingsErrorMsg = error.message;
       }
-      return { success: true };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'Supabase save failed' };
+      settingsErrorMsg = err?.message || 'app_settings save failed';
     }
+
+    // 2. Save normalized rows to employee_leave_quotas table
+    try {
+      const nowIso = new Date().toISOString();
+      const rows: Array<{
+        id: string;
+        year: string;
+        user_id: string;
+        user_name: string;
+        branch: string;
+        vacation_days: number;
+        birthday_days: number;
+        personal_days: number;
+        sick_days: number;
+        updated_at: string;
+      }> = [];
+
+      Object.entries(quotasByYear || {}).forEach(([yr, yearMap]) => {
+        if (!yearMap || typeof yearMap !== 'object') return;
+        Object.entries(yearMap).forEach(([empKey, rawQ]) => {
+          const q = sanitizeQuotaNumbers(rawQ);
+          rows.push({
+            id: `${yr}__${empKey}`,
+            year: yr,
+            user_id: empKey,
+            user_name: q.userName || '',
+            branch: q.branch || 'Rayong',
+            vacation_days: q.vacation,
+            birthday_days: q.birthday,
+            personal_days: q.personal,
+            sick_days: q.sick,
+            updated_at: nowIso,
+          });
+        });
+      });
+
+      if (rows.length > 0) {
+        const { error: tableErr } = await supabase
+          .from(LEAVE_QUOTAS_TABLE)
+          .upsert(rows, { onConflict: 'year,user_id' });
+        if (tableErr) {
+          tableErrorMsg = tableErr.message;
+        }
+      }
+    } catch (err: any) {
+      tableErrorMsg = err?.message || 'employee_leave_quotas table save failed';
+    }
+
+    if (tableErrorMsg && settingsErrorMsg) {
+      return { success: false, error: tableErrorMsg || settingsErrorMsg };
+    }
+    if (tableErrorMsg) {
+      return {
+        success: false,
+        error: `กรุณา Run SQL setup_employee_leave_quotas.sql บน Supabase (${tableErrorMsg})`,
+      };
+    }
+    return { success: true };
   }
 
   return { success: true };
