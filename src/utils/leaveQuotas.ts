@@ -65,6 +65,15 @@ export function parseBirthMonthDay(birthDate?: string | null): { month: number; 
 }
 
 /**
+ * Normalize YYYY-MM-DD or MM-DD string into canonical 'MM-DD' (day & month only, applies across all years).
+ */
+export function normalizeBirthMonthDay(birthDate?: string | null): string {
+  const md = parseBirthMonthDay(birthDate);
+  if (!md) return '';
+  return `${String(md.month).padStart(2, '0')}-${String(md.day).padStart(2, '0')}`;
+}
+
+/**
  * Returns true if the current date has strictly passed the employee's birthday
  * for the specified quota calendar year (e.g., today > YYYY-MM-DD in that year).
  * On the birthday itself, returns false so birthday leave remains usable that day.
@@ -105,10 +114,7 @@ export function sanitizeQuotaNumbers(
     return num;
   };
 
-  const cleanBirthDate =
-    typeof quota?.birthDate === 'string' && quota.birthDate.trim()
-      ? quota.birthDate.trim()
-      : undefined;
+  const cleanBirthDate = normalizeBirthMonthDay(quota?.birthDate) || undefined;
 
   return {
     vacation: parseNum(quota?.vacation, DEFAULT_ANNUAL_LEAVE_QUOTA.vacation),
@@ -134,13 +140,13 @@ export function getEmployeeQuotaKey(emp: {
 }
 
 /**
- * Find the employee's configured birthDate across explicit emp prop or any year entry in quotasByYear.
+ * Find the employee's configured birthDate (MM-DD) across explicit emp prop or any year entry in quotasByYear.
  */
 export function getEmployeeBirthDate(
   quotasByYear: AnnualLeaveQuotasByYear,
   emp: { id?: string; name?: string; branch?: string; birthDate?: string; birth_date?: string }
 ): string {
-  const direct = (emp.birthDate || emp.birth_date || '').trim();
+  const direct = normalizeBirthMonthDay(emp.birthDate || emp.birth_date);
   if (direct) return direct;
 
   const targetName = (emp.name || '').trim().toLowerCase();
@@ -153,13 +159,16 @@ export function getEmployeeBirthDate(
     if (!yearMap || typeof yearMap !== 'object') continue;
 
     if (emp.id && yearMap[emp.id]?.birthDate) {
-      return yearMap[emp.id].birthDate!.trim();
+      const normalized = normalizeBirthMonthDay(yearMap[emp.id].birthDate);
+      if (normalized) return normalized;
     }
     if (yearMap[compositeKey]?.birthDate) {
-      return yearMap[compositeKey].birthDate!.trim();
+      const normalized = normalizeBirthMonthDay(yearMap[compositeKey].birthDate);
+      if (normalized) return normalized;
     }
     if (targetName && yearMap[targetName]?.birthDate) {
-      return yearMap[targetName].birthDate!.trim();
+      const normalized = normalizeBirthMonthDay(yearMap[targetName].birthDate);
+      if (normalized) return normalized;
     }
     if (targetName) {
       const matched = Object.values(yearMap).find((entry) => {
@@ -168,7 +177,10 @@ export function getEmployeeBirthDate(
         if (!targetBranch || !entry.branch) return true;
         return normalizeBranchKey(entry.branch) === targetBranch;
       });
-      if (matched?.birthDate) return matched.birthDate.trim();
+      if (matched?.birthDate) {
+        const normalized = normalizeBirthMonthDay(matched.birthDate);
+        if (normalized) return normalized;
+      }
     }
   }
 
