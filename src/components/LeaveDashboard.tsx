@@ -57,6 +57,7 @@ interface EmployeeQuotaSummary {
   birthdayTotal: number;
   maternityRemaining: number;
   maternityTotal: number;
+  ignored: boolean;
 }
 
 export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
@@ -339,6 +340,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         birthdayTotal,
         maternityRemaining: Math.max(0, maternityTotal - maternityUsed),
         maternityTotal,
+        ignored: Boolean(configured.ignored),
       };
     });
   }, [staffAccounts, leaveRecords, quotasByYear, activeQuotaYear, selectedYear]);
@@ -502,15 +504,24 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   const displayPendingCount = isPersonalActive ? myPendingCount : pendingCount;
   const displayTotalRequestsCount = isPersonalActive ? myTotalRequestsCount : totalRequestsCount;
 
-  // Filtered employee quotas strictly for real accounts of the selected branch
+  // Check if current logged-in user is marked as Ignore for this year
+  const isCurrentUserIgnored = useMemo(() => {
+    if (!user?.name) return false;
+    return employeeQuotas.some(
+      emp => isBranchMatch(emp.branch, selectedBranch) && isCurrentUser(emp.name) && emp.ignored
+    );
+  }, [employeeQuotas, selectedBranch, user?.name]);
+
+  // Filtered employee quotas strictly for tracked (non-ignored) real accounts of the selected branch
   const filteredEmployeeQuotas = useMemo(() => {
-    const list = employeeQuotas.filter(emp => isBranchMatch(emp.branch, selectedBranch));
+    const list = employeeQuotas.filter(emp => !emp.ignored && isBranchMatch(emp.branch, selectedBranch));
     if (isPersonalMode && user?.name) {
+      if (isCurrentUserIgnored) return [];
       const mine = list.filter(emp => isCurrentUser(emp.name));
       return mine.length > 0 ? mine : list.slice(0, 1);
     }
     return list;
-  }, [employeeQuotas, selectedBranch, isPersonalMode, user?.name]);
+  }, [employeeQuotas, selectedBranch, isPersonalMode, user?.name, isCurrentUserIgnored]);
 
   // Calendar matrix generator for current month
   const calendarDays = useMemo(() => {
@@ -1016,8 +1027,16 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         {/* Real Staff Cards Grid */}
         {filteredEmployeeQuotas.length === 0 ? (
           <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-            <p className="text-sm font-bold text-slate-600">ไม่พบบัญชีพนักงานในสาขานี้</p>
-            <p className="text-xs text-slate-400 mt-1">สามารถเพิ่มบัญชีพนักงานได้ที่เมนู "จัดการบัญชีและความปลอดภัย (User Settings)"</p>
+            <p className="text-sm font-bold text-slate-600">
+              {isPersonalMode && isCurrentUserIgnored
+                ? 'บัญชีของคุณถูกตั้งค่าเป็น Ignore (ไม่ต้องติดตามวันลาประจำปี)'
+                : 'ไม่พบบัญชีพนักงานที่ติดตามวันลาในสาขานี้'}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {isPersonalMode && isCurrentUserIgnored
+                ? `สำหรับปี ${activeQuotaYear} บัญชีนี้ไม่ต้องติดตามโควต้าวันลา (สามารถปรับแก้ได้ที่ User Security Settings)`
+                : 'สามารถตรวจสอบรายชื่อหรือสถานะ Ignore ได้ที่เมนู "User Security Settings -> ตั้งค่าวันลาประจำปี"'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
