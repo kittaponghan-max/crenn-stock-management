@@ -292,6 +292,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         id: emp.id,
         name: empName,
         branch: empBranch,
+        birthDate: emp.birthDate || emp.birth_date,
       });
 
       const sickTotal = configured.sick;
