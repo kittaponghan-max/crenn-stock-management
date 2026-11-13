@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Building } from 'lucide-react';
 import { LeaveRequestModal } from './LeaveRequestModal';
+import { canAccessTab } from '../utils/permissions';
 
 export interface UserDropdownMenuProps {
   user?: {
@@ -8,6 +9,7 @@ export interface UserDropdownMenuProps {
     role?: string;
     branch?: string;
     username?: string;
+    permissions?: any;
   } | null;
   userName?: string;
   userRole?: string;
@@ -42,6 +44,10 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
   const branchLabel = branchVal === 'Rayong' ? 'สาขาระยอง (Rayong)' : 'สาขากรุงเทพฯ (Bangkok)';
   const shortBranchLabel = branchVal === 'Rayong' ? 'ระยอง' : 'กรุงเทพฯ';
   const initial = displayName.charAt(0).toUpperCase();
+  const effectiveUser = user || { name: displayName, role: displayRole, branch: branchVal };
+  const canOpenSettings = canAccessTab(effectiveUser, 'userSettings');
+  const canOpenLeaveRequest = canAccessTab(effectiveUser, 'leaveRequest');
+  const canOpenLogs = canAccessTab(effectiveUser, 'logs');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -151,6 +157,7 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
             {/* Group 1: Navigation & Info Items */}
             <div className="space-y-0.5">
               {/* 1. ตั้งค่า / Settings */}
+              {canOpenSettings && (
               <button
                 type="button"
                 onClick={handleSelectSettings}
@@ -162,6 +169,7 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
                 </div>
                 <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
               </button>
+              )}
 
               {/* 2. โปรไฟล์ผู้ใช้ */}
               <button
@@ -190,6 +198,7 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
               </button>
 
               {/* 4. ทำรายการลา */}
+              {canOpenLeaveRequest && (
               <button
                 type="button"
                 onClick={handleSelectLeaveRequest}
@@ -201,8 +210,10 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
                 </div>
                 <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
               </button>
+              )}
 
               {/* 5. ประวัติแก้ไขข้อมูล */}
+              {canOpenLogs && (
               <button
                 type="button"
                 onClick={handleSelectLogs}
@@ -214,6 +225,7 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
                 </div>
                 <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
               </button>
+              )}
             </div>
 
             {/* Divider Line */}
@@ -252,6 +264,7 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
               <p className="text-[11px] text-slate-400 mt-1">สาขา: {shortBranchLabel}</p>
             </div>
             <div className="pt-2 space-y-2">
+              {canOpenSettings && (
               <button
                 type="button"
                 onClick={() => { setShowProfileModal(false); handleSelectSettings(); }}
@@ -259,6 +272,7 @@ export const UserDropdownMenu: React.FC<UserDropdownMenuProps> = ({
               >
                 จัดการบัญชีและความปลอดภัย
               </button>
+              )}
               {onLogout && (
                 <button
                   type="button"
