@@ -20,7 +20,8 @@ import {
   RotateCcw,
   Globe,
   Calendar,
-  Search
+  Search,
+  EyeOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserRole } from './LoginForm';
@@ -325,14 +326,21 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
 
   // Annual Leave Quotas Settings State (Per Year & Per Employee)
   const currentCalendarYear = String(new Date().getFullYear());
+  const loggedInBranch = branch || user?.branch || currentUser?.branch || 'Rayong';
+  const loggedInBranchLabel =
+    normalizeBranchKey(loggedInBranch) === 'bangkok'
+      ? 'สาขา กรุงเทพฯ (Bangkok)'
+      : normalizeBranchKey(loggedInBranch) === 'rayong'
+        ? 'สาขา ระยอง (Rayong)'
+        : `สาขา ${loggedInBranch}`;
   const [annualLeaveQuotas, setAnnualLeaveQuotas] = useState<AnnualLeaveQuotasByYear>({});
   const [isLeaveQuotaModalOpen, setIsLeaveQuotaModalOpen] = useState(false);
   const [leaveQuotaYear, setLeaveQuotaYear] = useState<string>(currentCalendarYear);
-  const [leaveQuotaBranchFilter, setLeaveQuotaBranchFilter] = useState<string>('ALL');
   const [leaveQuotaSearch, setLeaveQuotaSearch] = useState<string>('');
   const [leaveQuotaDraft, setLeaveQuotaDraft] = useState<AnnualLeaveQuotasByYear>({});
   const [allUsersForQuotas, setAllUsersForQuotas] = useState<AppUser[]>([]);
   const [isSavingLeaveQuotas, setIsSavingLeaveQuotas] = useState(false);
+  const [justSavedLeaveQuotas, setJustSavedLeaveQuotas] = useState(false);
   const [leaveQuotaSaveStatus, setLeaveQuotaSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [userQuotaYear, setUserQuotaYear] = useState<string>(currentCalendarYear);
   const [userQuotaDraft, setUserQuotaDraft] = useState<Record<string, EmployeeAnnualLeaveQuota>>({});
@@ -1080,11 +1088,15 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
       .reverse();
   }, [currentCalendarYear, annualLeaveQuotas, leaveQuotaDraft]);
 
+  const isLeaveQuotasDirty = useMemo(() => {
+    return JSON.stringify(leaveQuotaDraft) !== JSON.stringify(annualLeaveQuotas);
+  }, [leaveQuotaDraft, annualLeaveQuotas]);
+
   const handleOpenLeaveQuotaModal = async () => {
     if (effectiveReadOnly) return;
     setLeaveQuotaSaveStatus(null);
+    setJustSavedLeaveQuotas(false);
     setLeaveQuotaSearch('');
-    setLeaveQuotaBranchFilter(selectedBranchFilter || 'ALL');
     setIsLeaveQuotaModalOpen(true);
 
     // Load latest quotas
@@ -1092,7 +1104,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     setAnnualLeaveQuotas(latestQuotas);
     setLeaveQuotaDraft(JSON.parse(JSON.stringify(latestQuotas)));
 
-    // Load all staff accounts across branches
+    // Load staff accounts and strictly filter by loggedInBranch in filteredQuotaUsers
     let mergedUsers: AppUser[] = [...users];
     if (supabase) {
       try {
@@ -1101,7 +1113,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
           mergedUsers = data as AppUser[];
         }
       } catch (e) {
-        console.warn('Could not load all branch users for leave quotas:', e);
+        console.warn('Could not load branch users for leave quotas:', e);
       }
     }
 
@@ -1166,7 +1178,31 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             ...current,
             [field]: safeNum,
             userName: emp.name,
-            branch: emp.branch || 'Rayong',
+            branch: emp.branch || loggedInBranch,
+          },
+        },
+      };
+    });
+    setLeaveQuotaSaveStatus(null);
+  };
+
+  const handleToggleIgnoreQuota = (emp: AppUser, year: string) => {
+    setLeaveQuotaDraft((prev) => {
+      const current = getEmployeeQuotaForYear(prev, year, {
+        id: emp.id,
+        name: emp.name,
+        branch: emp.branch,
+      });
+      const empKey = emp.id || `${emp.name.trim().toLowerCase()}__${normalizeBranchKey(emp.branch)}`;
+      return {
+        ...prev,
+        [year]: {
+          ...(prev[year] || {}),
+          [empKey]: {
+            ...current,
+            ignored: !current.ignored,
+            userName: emp.name,
+            branch: emp.branch || loggedInBranch,
           },
         },
       };
@@ -1176,12 +1212,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
 
   const filteredQuotaUsers = useMemo(() => {
     const source = allUsersForQuotas.length > 0 ? allUsersForQuotas : users;
+    const targetBranchKey = normalizeBranchKey(loggedInBranch);
     return [...source]
       .filter((u) => {
-        if (leaveQuotaBranchFilter && leaveQuotaBranchFilter !== 'ALL') {
-          if (normalizeBranchKey(u.branch) !== normalizeBranchKey(leaveQuotaBranchFilter)) {
-            return false;
-          }
+        if (targetBranchKey && normalizeBranchKey(u.branch || 'Rayong') !== targetBranchKey) {
+          return false;
         }
         if (leaveQuotaSearch.trim()) {
           const q = leaveQuotaSearch.trim().toLowerCase();
@@ -1197,7 +1232,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         if (rankA !== rankB) return rankA - rankB;
         return (a.name || '').localeCompare(b.name || '', 'th');
       });
-  }, [allUsersForQuotas, users, leaveQuotaBranchFilter, leaveQuotaSearch]);
+  }, [allUsersForQuotas, users, loggedInBranch, leaveQuotaSearch]);
 
   const handleCopyQuotasFromPrevYear = () => {
     const prevYear = String(parseInt(leaveQuotaYear, 10) - 1);
@@ -1213,7 +1248,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         updatedYearMap[empKey] = {
           ...prevQuota,
           userName: emp.name,
-          branch: emp.branch || 'Rayong',
+          branch: emp.branch || loggedInBranch,
         };
       });
       return {
@@ -1223,7 +1258,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     });
     setLeaveQuotaSaveStatus({
       type: 'success',
-      message: `คัดลอกข้อมูลจากปี ${prevYear} มายังปี ${leaveQuotaYear} แล้ว (กดบันทึกเพื่อยืนยัน)`,
+      message: `คัดลอกข้อมูลจากปี ${prevYear} มายังปี ${leaveQuotaYear} แล้ว (กรุณากดปุ่ม "บันทึกข้อมูล" เพื่อบันทึกลงฐานข้อมูล)`,
     });
   };
 
@@ -1234,8 +1269,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         const empKey = emp.id || `${emp.name.trim().toLowerCase()}__${normalizeBranchKey(emp.branch)}`;
         updatedYearMap[empKey] = {
           ...DEFAULT_ANNUAL_LEAVE_QUOTA,
+          ignored: false,
           userName: emp.name,
-          branch: emp.branch || 'Rayong',
+          branch: emp.branch || loggedInBranch,
         };
       });
       return {
@@ -1245,7 +1281,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     });
     setLeaveQuotaSaveStatus({
       type: 'success',
-      message: `รีเซ็ตสิทธิ์วันลาปี ${leaveQuotaYear} ของรายชื่อที่แสดงเป็นค่ามาตรฐานแล้ว (กดบันทึกเพื่อยืนยัน)`,
+      message: `รีเซ็ตสิทธิ์วันลาปี ${leaveQuotaYear} ของรายชื่อที่แสดงเป็นค่ามาตรฐานแล้ว (กรุณากดปุ่ม "บันทึกข้อมูล" เพื่อบันทึกลงฐานข้อมูล)`,
     });
   };
 
@@ -1254,7 +1290,6 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     setIsSavingLeaveQuotas(true);
     setLeaveQuotaSaveStatus(null);
 
-    // Ensure every visible employee in the active year has an explicit sanitized record if edited or initialized
     const sanitizedToSave: AnnualLeaveQuotasByYear = {};
     Object.entries(leaveQuotaDraft).forEach(([yr, yearMap]) => {
       sanitizedToSave[yr] = {};
@@ -1270,12 +1305,12 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         const logId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
         await supabase.from('audit_logs').insert({
           id: logId,
-          branch: leaveQuotaBranchFilter !== 'ALL' ? leaveQuotaBranchFilter : (branch || 'Rayong'),
+          branch: loggedInBranch,
           timestamp: new Date().toISOString(),
           user_email: currentUser?.name || 'Admin',
           user_role: currentUser?.role || 'Admin',
           action: 'UPDATE_LEAVE_QUOTAS',
-          details: `อัปเดตการตั้งค่าจำนวนวันลาประจำปี ${leaveQuotaYear} (${filteredQuotaUsers.length} พนักงาน)`,
+          details: `อัปเดตการตั้งค่าจำนวนวันลาประจำปี ${leaveQuotaYear} (${filteredQuotaUsers.length} พนักงาน) [สาขา: ${loggedInBranch}]`,
         });
       } catch (logErr) {
         console.warn('Audit log recording error:', logErr);
@@ -1283,14 +1318,21 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     }
 
     setAnnualLeaveQuotas(sanitizedToSave);
-    setLeaveQuotaDraft(sanitizedToSave);
+    setLeaveQuotaDraft(JSON.parse(JSON.stringify(sanitizedToSave)));
     setIsSavingLeaveQuotas(false);
 
     if (res.success) {
+      setJustSavedLeaveQuotas(true);
+      setTimeout(() => {
+        setJustSavedLeaveQuotas(false);
+      }, 2500);
       setLeaveQuotaSaveStatus({
         type: 'success',
-        message: `บันทึกจำนวนวันลาประจำปี ${leaveQuotaYear} ลง Supabase และระบบเรียบร้อยแล้ว`,
+        message: `บันทึกข้อมูลจำนวนวันลาประจำปี ${leaveQuotaYear} สำเร็จเรียบร้อย (${filteredQuotaUsers.length} รายการ บน Supabase)`,
       });
+      setTimeout(() => {
+        setLeaveQuotaSaveStatus(null);
+      }, 4000);
     } else {
       setLeaveQuotaSaveStatus({
         type: 'error',
@@ -2288,80 +2330,125 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 };
 
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
+                  <div className="space-y-3">
+                    {/* Ignore Toggle Bar inside User Form */}
+                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                      activeQ.ignored
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-white border-[#D4E4E3]'
+                    }`}>
                       <div>
-                        <span className="text-[11px] font-bold text-[#2D4A49] block">🏖️ ลาพักร้อน (Vacation Leave)</span>
-                        <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลาพักร้อนต่อปี</span>
+                        <span className="text-[11px] font-bold text-[#2D4A49] flex items-center gap-1.5">
+                          <EyeOff size={13} className={activeQ.ignored ? 'text-amber-600' : 'text-[#5A8A88]'} />
+                          <span>ไม่ติดตามวันลา (Ignore Leave Tracking)</span>
+                        </span>
+                        <span className="text-[10px] text-[#6B8F8E] block mt-0.5">
+                          เปิดใช้งานสำหรับผู้บริหารหรือพนักงานที่ไม่จำเป็นต้อง track วันลาใน Leave Dashboard / Personnel Leave
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          min={0}
-                          max={365}
-                          step="0.5"
-                          value={activeQ.vacation}
-                          onChange={(e) => updateUserQuotaField('vacation', e.target.value)}
-                          className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-emerald-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88]"
-                        />
-                        <span className="text-[11px] text-slate-500 font-medium">วัน</span>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserFormDirty(true);
+                          setIsUserQuotaDirty(true);
+                          setUserQuotaDraft((prev) => ({
+                            ...prev,
+                            [userQuotaYear]: {
+                              ...(prev[userQuotaYear] || activeQ),
+                              ignored: !activeQ.ignored,
+                            },
+                          }));
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                          activeQ.ignored
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
+                            : 'bg-[#F8FCFC] hover:bg-amber-50 text-[#6B8F8E] hover:text-amber-700 border-[#D4E4E3] hover:border-amber-200'
+                        }`}
+                      >
+                        <EyeOff size={12} />
+                        <span>{activeQ.ignored ? 'Ignored (คลิกเพื่อยกเลิก)' : 'Ignore'}</span>
+                      </button>
                     </div>
 
-                    <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#2D4A49] block">🎂 ลาพักประจำวันเกิด (Birthday Leave)</span>
-                        <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลาวันเกิดต่อปี</span>
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${activeQ.ignored ? 'opacity-50' : ''}`}>
+                      <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#2D4A49] block">🏖️ ลาพักร้อน (Vacation Leave)</span>
+                          <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลาพักร้อนต่อปี</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={365}
+                            step="0.5"
+                            disabled={!!activeQ.ignored}
+                            value={activeQ.vacation}
+                            onChange={(e) => updateUserQuotaField('vacation', e.target.value)}
+                            className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-emerald-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] disabled:cursor-not-allowed"
+                          />
+                          <span className="text-[11px] text-slate-500 font-medium">วัน</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          min={0}
-                          max={365}
-                          step="0.5"
-                          value={activeQ.birthday}
-                          onChange={(e) => updateUserQuotaField('birthday', e.target.value)}
-                          className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-amber-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88]"
-                        />
-                        <span className="text-[11px] text-slate-500 font-medium">วัน</span>
-                      </div>
-                    </div>
 
-                    <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#2D4A49] block">💼 ลากิจ (Personal Leave)</span>
-                        <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลากิจต่อปี</span>
+                      <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#2D4A49] block">🎂 ลาพักประจำวันเกิด (Birthday Leave)</span>
+                          <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลาวันเกิดต่อปี</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={365}
+                            step="0.5"
+                            disabled={!!activeQ.ignored}
+                            value={activeQ.birthday}
+                            onChange={(e) => updateUserQuotaField('birthday', e.target.value)}
+                            className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-amber-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] disabled:cursor-not-allowed"
+                          />
+                          <span className="text-[11px] text-slate-500 font-medium">วัน</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          min={0}
-                          max={365}
-                          step="0.5"
-                          value={activeQ.personal}
-                          onChange={(e) => updateUserQuotaField('personal', e.target.value)}
-                          className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-purple-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88]"
-                        />
-                        <span className="text-[11px] text-slate-500 font-medium">วัน</span>
-                      </div>
-                    </div>
 
-                    <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#2D4A49] block">🤒 ลาป่วย (Sick Leave)</span>
-                        <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลาป่วยต่อปี</span>
+                      <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#2D4A49] block">💼 ลากิจ (Personal Leave)</span>
+                          <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลากิจต่อปี</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={365}
+                            step="0.5"
+                            disabled={!!activeQ.ignored}
+                            value={activeQ.personal}
+                            onChange={(e) => updateUserQuotaField('personal', e.target.value)}
+                            className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-purple-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] disabled:cursor-not-allowed"
+                          />
+                          <span className="text-[11px] text-slate-500 font-medium">วัน</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          min={0}
-                          max={365}
-                          step="0.5"
-                          value={activeQ.sick}
-                          onChange={(e) => updateUserQuotaField('sick', e.target.value)}
-                          className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-rose-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88]"
-                        />
-                        <span className="text-[11px] text-slate-500 font-medium">วัน</span>
+
+                      <div className="p-3.5 bg-white rounded-xl border border-[#D4E4E3] flex items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#2D4A49] block">🤒 ลาป่วย (Sick Leave)</span>
+                          <span className="text-[10px] text-[#6B8F8E]">จำนวนวันลาป่วยต่อปี</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={365}
+                            step="0.5"
+                            disabled={!!activeQ.ignored}
+                            value={activeQ.sick}
+                            onChange={(e) => updateUserQuotaField('sick', e.target.value)}
+                            className="w-20 px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-center text-[12px] font-bold text-rose-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] disabled:cursor-not-allowed"
+                          />
+                          <span className="text-[11px] text-slate-500 font-medium">วัน</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3228,16 +3315,14 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                     </select>
                   </div>
 
-                  {/* Branch Filter */}
-                  <select
-                    value={leaveQuotaBranchFilter}
-                    onChange={(e) => setLeaveQuotaBranchFilter(e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-semibold text-[#2D4A49] outline-none focus:border-[#5A8A88] cursor-pointer shadow-2xs"
+                  {/* Fixed Branch Display (Locked to Login Branch) */}
+                  <div
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F3F2] border border-[#B8D4D2] rounded-lg text-[11px] font-bold text-[#2D4A49] shadow-2xs"
+                    title="สาขาถูกกำหนดตามบัญชีที่เข้าสู่ระบบ"
                   >
-                    <option value="Rayong">สาขา ระยอง (Rayong)</option>
-                    <option value="Bangkok">สาขา Bangkok</option>
-                    <option value="ALL">ทุกสาขา (All Branches)</option>
-                  </select>
+                    <span>📍</span>
+                    <span>{loggedInBranchLabel}</span>
+                  </div>
 
                   {/* Search Employee */}
                   <div className="relative">
@@ -3279,8 +3364,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             <div className="flex-1 overflow-y-auto p-3.5 custom-scrollbar">
               {filteredQuotaUsers.length === 0 ? (
                 <div className="text-center py-12 bg-[#F8FCFC] rounded-xl border border-dashed border-[#D4E4E3]">
-                  <p className="text-xs font-bold text-[#2D4A49]">ไม่พบรายชื่อพนักงานตามเงื่อนไขที่เลือก</p>
-                  <p className="text-[11px] text-[#6B8F8E] mt-1">ลองเปลี่ยนสาขาหรือล้างคำค้นหา</p>
+                  <p className="text-xs font-bold text-[#2D4A49]">ไม่พบรายชื่อพนักงานใน{loggedInBranchLabel}</p>
+                  <p className="text-[11px] text-[#6B8F8E] mt-1">ลองล้างคำค้นหาหรือตรวจสอบรายชื่อผู้ใช้ในสาขานี้</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-[#D4E4E3]">
@@ -3288,28 +3373,34 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                     <thead>
                       <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
                         <th className="p-2.5 font-bold min-w-[180px]">พนักงาน (Employee)</th>
-                        <th className="p-2.5 font-bold text-center min-w-[110px]">
+                        <th className="p-2.5 font-bold text-center min-w-[100px]">
                           <div className="flex flex-col items-center">
                             <span>🏖️ ลาพักร้อน</span>
                             <span className="text-[9px] font-normal text-[#5A8A88]">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="p-2.5 font-bold text-center min-w-[125px]">
+                        <th className="p-2.5 font-bold text-center min-w-[115px]">
                           <div className="flex flex-col items-center">
                             <span>🎂 ลาพักประจำวันเกิด</span>
                             <span className="text-[9px] font-normal text-[#5A8A88]">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="p-2.5 font-bold text-center min-w-[100px]">
+                        <th className="p-2.5 font-bold text-center min-w-[95px]">
                           <div className="flex flex-col items-center">
                             <span>💼 ลากิจ</span>
                             <span className="text-[9px] font-normal text-[#5A8A88]">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="p-2.5 font-bold text-center min-w-[100px]">
+                        <th className="p-2.5 font-bold text-center min-w-[95px]">
                           <div className="flex flex-col items-center">
                             <span>🤒 ลาป่วย</span>
                             <span className="text-[9px] font-normal text-[#5A8A88]">(วัน/ปี)</span>
+                          </div>
+                        </th>
+                        <th className="p-2.5 font-bold text-center min-w-[110px]">
+                          <div className="flex flex-col items-center">
+                            <span>ไม่ติดตามวันลา</span>
+                            <span className="text-[9px] font-normal text-[#5A8A88]">(Ignore)</span>
                           </div>
                         </th>
                       </tr>
@@ -3321,10 +3412,14 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                           name: emp.name,
                           branch: emp.branch,
                         });
+                        const isIgnored = Boolean(q.ignored);
                         return (
-                          <tr key={emp.id || `${emp.name}-${idx}`} className="hover:bg-[#F8FAFA] transition-colors">
+                          <tr
+                            key={emp.id || `${emp.name}-${idx}`}
+                            className={`transition-colors ${isIgnored ? 'bg-slate-50/90' : 'hover:bg-[#F8FAFA]'}`}
+                          >
                             <td className="p-2.5">
-                              <div className="flex items-center gap-2.5">
+                              <div className={`flex items-center gap-2.5 ${isIgnored ? 'opacity-65' : ''}`}>
                                 <div
                                   className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-2xs"
                                   style={{ background: getAvatarGradient(emp.name, idx) }}
@@ -3332,13 +3427,20 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                                   {(emp.name || 'U').charAt(0).toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="font-bold text-[#2D4A49] truncate">{emp.name}</div>
+                                  <div className="font-bold text-[#2D4A49] truncate flex items-center gap-1.5">
+                                    <span>{emp.name}</span>
+                                    {isIgnored && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                        Ignored
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                                     <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-[#F0F5F4] text-[#5A8A88] border border-[#D4E4E3]">
                                       {emp.role}
                                     </span>
                                     <span className="text-[9px] text-slate-400 font-medium">
-                                      📍 {emp.branch === 'Rayong' ? 'ระยอง' : emp.branch || 'Rayong'}
+                                      📍 {emp.branch === 'Rayong' ? 'ระยอง' : emp.branch || loggedInBranch}
                                     </span>
                                   </div>
                                 </div>
@@ -3350,9 +3452,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                                 min={0}
                                 max={365}
                                 step="0.5"
+                                disabled={isIgnored}
                                 value={q.vacation}
                                 onChange={(e) => handleDraftQuotaChange(emp, leaveQuotaYear, 'vacation', e.target.value)}
-                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-emerald-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-emerald-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-40 disabled:bg-slate-100 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="p-2 text-center">
@@ -3361,9 +3464,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                                 min={0}
                                 max={365}
                                 step="0.5"
+                                disabled={isIgnored}
                                 value={q.birthday}
                                 onChange={(e) => handleDraftQuotaChange(emp, leaveQuotaYear, 'birthday', e.target.value)}
-                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-amber-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-amber-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-40 disabled:bg-slate-100 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="p-2 text-center">
@@ -3372,9 +3476,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                                 min={0}
                                 max={365}
                                 step="0.5"
+                                disabled={isIgnored}
                                 value={q.personal}
                                 onChange={(e) => handleDraftQuotaChange(emp, leaveQuotaYear, 'personal', e.target.value)}
-                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-purple-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-purple-700 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-40 disabled:bg-slate-100 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="p-2 text-center">
@@ -3383,10 +3488,26 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                                 min={0}
                                 max={365}
                                 step="0.5"
+                                disabled={isIgnored}
                                 value={q.sick}
                                 onChange={(e) => handleDraftQuotaChange(emp, leaveQuotaYear, 'sick', e.target.value)}
-                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-rose-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20"
+                                className="w-20 px-2 py-1.5 border border-[#D4E4E3] rounded-lg text-center font-bold text-rose-600 bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 disabled:opacity-40 disabled:bg-slate-100 disabled:cursor-not-allowed"
                               />
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleIgnoreQuota(emp, leaveQuotaYear)}
+                                className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                  isIgnored
+                                    ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                    : 'bg-white hover:bg-amber-50 text-[#6B8F8E] hover:text-amber-700 border-[#D4E4E3] hover:border-amber-200'
+                                }`}
+                                title={isIgnored ? 'คลิกเพื่อกลับมาติดตามวันลาของพนักงานคนนี้' : 'คลิกเพื่อ Ignore (ไม่ต้องติดตามวันลาของพนักงานคนนี้)'}
+                              >
+                                <EyeOff size={12} />
+                                <span>{isIgnored ? 'Ignored' : 'Ignore'}</span>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -3402,7 +3523,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
               <div className="flex-1 min-h-[20px]">
                 {leaveQuotaSaveStatus ? (
                   <div
-                    className={`text-[11px] font-semibold flex items-center gap-1.5 ${
+                    className={`text-[11px] font-semibold flex items-center gap-1.5 animate-in fade-in duration-200 ${
                       leaveQuotaSaveStatus.type === 'success' ? 'text-emerald-700' : 'text-amber-700'
                     }`}
                   >
@@ -3415,7 +3536,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   </div>
                 ) : (
                   <span className="text-[10px] sm:text-[11px] text-[#6B8F8E]">
-                    แสดง {filteredQuotaUsers.length} พนักงาน • ข้อมูลประจำปี {leaveQuotaYear} (พ.ศ. {parseInt(leaveQuotaYear, 10) + 543})
+                    แสดง {filteredQuotaUsers.length} พนักงาน • {loggedInBranchLabel} • ข้อมูลประจำปี {leaveQuotaYear} (พ.ศ. {parseInt(leaveQuotaYear, 10) + 543})
                   </span>
                 )}
               </div>
@@ -3424,18 +3545,45 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 <button
                   type="button"
                   onClick={() => setIsLeaveQuotaModalOpen(false)}
-                  className="px-3.5 py-1.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+                  className="px-3.5 py-[6px] h-[32px] text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-[8px] hover:bg-[#F0F5F4] transition-colors cursor-pointer"
                 >
                   ปิด
                 </button>
+                {/* Save Button (Matches DailyBakeryRecord design & function) */}
                 <button
                   type="button"
                   onClick={handleSaveAllLeaveQuotas}
                   disabled={isSavingLeaveQuotas}
-                  className="px-4 py-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-70 cursor-pointer"
+                  className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
+                    justSavedLeaveQuotas
+                      ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
+                      : isLeaveQuotasDirty
+                        ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70'
+                        : 'bg-[#2D4A49] hover:bg-[#203635]'
+                  }`}
                 >
-                  {isSavingLeaveQuotas ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                  <span>{isSavingLeaveQuotas ? 'กำลังบันทึก...' : `บันทึกวันลาประจำปี ${leaveQuotaYear}`}</span>
+                  {isSavingLeaveQuotas ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : justSavedLeaveQuotas ? (
+                    <>
+                      <CheckCircle2 size={13} className="text-white" />
+                      <span>บันทึกสำเร็จ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={13} />
+                      <span>บันทึกข้อมูล</span>
+                      {isLeaveQuotasDirty && (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5"
+                          title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก"
+                        />
+                      )}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
