@@ -234,6 +234,8 @@ export interface AppUser {
   branch?: Branch;
   avatar?: string;
   image?: string;
+  birthDate?: string;
+  birth_date?: string;
 }
 
 export const BAR_CATEGORIES = [
