@@ -30,7 +30,9 @@ import { AppUser } from '../types';
 import {
   AnnualLeaveQuotasByYear,
   fetchAnnualLeaveQuotas,
+  getEmployeeBirthDate,
   getEmployeeQuotaForYear,
+  parseBirthMonthDay,
 } from '../utils/leaveQuotas';
 
 export interface LeaveDashboardProps {
@@ -135,7 +137,8 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       name: u.name,
                       role: u.role || 'Staff',
                       branch: normalizedBranch,
-                      avatar: u.avatar
+                      avatar: u.avatar,
+                      birthDate: u.birthDate || u.birth_date || '',
                     });
                   }
                 }
@@ -161,6 +164,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           name: user.name,
           role: user.role || 'Admin',
           branch: activeUserBranch,
+          birthDate: user.birthDate || user.birth_date || '',
         });
       }
     }
@@ -309,19 +313,21 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
       leaveRecords.forEach(r => {
         const matchesEmployee = r.userName?.toLowerCase().trim() === empName.toLowerCase().trim();
+        const matchesBranch = !r.userBranch || isBranchMatch(r.userBranch, empBranch);
         const matchesYear =
           selectedYear === 'all' ||
           (r.fromDate && r.fromDate.startsWith(selectedYear)) ||
           (r.toDate && r.toDate.startsWith(selectedYear));
 
-        if (matchesEmployee && matchesYear && r.status === 'Approved') {
+        if (matchesEmployee && matchesBranch && matchesYear && r.status === 'Approved') {
           const type = `${r.leaveType || ''} ${r.leaveTypeName || ''}`.toLowerCase();
-          const days = Number(r.totalDays || 1);
-          if (type.includes('birthday') || type.includes('วันเกิด')) birthdayUsed += days;
-          else if (type.includes('sick') || type.includes('ป่วย')) sickUsed += days;
-          else if (type.includes('personal') || type.includes('กิจ')) personalUsed += days;
-          else if (type.includes('vacation') || type.includes('พักร้อน') || type.includes('annual')) vacationUsed += days;
-          else if (type.includes('maternity') || type.includes('คลอด')) maternityUsed += days;
+          const days = r.totalDays !== undefined && r.totalDays !== null ? Number(r.totalDays) : 1;
+          const safeDays = Number.isFinite(days) && days >= 0 ? days : 0;
+          if (type.includes('birthday') || type.includes('วันเกิด')) birthdayUsed += safeDays;
+          else if (type.includes('sick') || type.includes('ป่วย')) sickUsed += safeDays;
+          else if (type.includes('personal') || type.includes('กิจ')) personalUsed += safeDays;
+          else if (type.includes('vacation') || type.includes('พักร้อน') || type.includes('annual')) vacationUsed += safeDays;
+          else if (type.includes('maternity') || type.includes('คลอด')) maternityUsed += safeDays;
         }
       });
 
@@ -346,9 +352,23 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     });
   }, [staffAccounts, leaveRecords, quotasByYear, activeQuotaYear, selectedYear]);
 
-  // Update status (Approve / Reject)
+  // Approver role check: strictly Admin, Owner, Co-founder, and Branch Manager only
+  const canApproveLeave = useMemo(() => {
+    if (isReadOnly) return false;
+    const role = String(user?.role || '').trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+    return (
+      role === 'admin' ||
+      role === 'owner' ||
+      role === 'co founder' ||
+      role === 'cofounder' ||
+      role === 'branch manager' ||
+      role === 'branchmanager'
+    );
+  }, [user?.role, isReadOnly]);
+
+  // Update status (Approve / Reject) — recalculates employeeQuotas reactively upon Approved
   const handleUpdateStatus = async (id: string, newStatus: 'Approved' | 'Rejected') => {
-    if (isReadOnly) return;
+    if (!canApproveLeave || isPersonalMode) return;
     const updated = leaveRecords.map(r => r.id === id ? { ...r, status: newStatus } : r);
     setLeaveRecords(updated);
 
@@ -362,7 +382,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     // Save to Supabase
     if (supabase) {
       try {
-        await supabase.from('leave_requests').update({ status: newStatus }).eq('id', id);
+        const { error } = await supabase
+          .from('leave_requests')
+          .update({ status: newStatus })
+          .eq('id', id);
+        if (error) {
+          console.warn('Supabase update leave_requests status error:', error);
+        }
       } catch (err) {
         console.warn(err);
       }
@@ -524,44 +550,154 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     return list;
   }, [employeeQuotas, selectedBranch, isPersonalMode, user?.name, isCurrentUserIgnored]);
 
-  // Calendar matrix generator for current month
+  // Leave Request Approval Queue (คำขออนุมัติวันลา): Pending requests (any date) + upcoming Approved requests
+  const approvalQueueLeaves = useMemo(() => {
+    const filtered = leaveRecords.filter(r => {
+      if (!isBranchMatch(r.userBranch, selectedBranch)) return false;
+
+      if (selectedYear !== 'all') {
+        const matchesYear =
+          (r.fromDate && r.fromDate.startsWith(selectedYear)) ||
+          (r.toDate && r.toDate.startsWith(selectedYear));
+        if (!matchesYear) return false;
+      }
+
+      const matchesRealEmployee = staffAccounts.length === 0 || staffAccounts.some(s =>
+        s.name?.toLowerCase().trim() === r.userName?.toLowerCase().trim()
+      );
+      if (!matchesRealEmployee) return false;
+
+      if (r.status === 'Pending') return true;
+      if (r.status === 'Approved' && r.fromDate >= todayStr) return true;
+      return false;
+    });
+
+    // Pending requests first, then chronological by fromDate
+    return filtered.sort((a, b) => {
+      if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+      if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+      return (a.fromDate || '').localeCompare(b.fromDate || '');
+    });
+  }, [leaveRecords, todayStr, selectedBranch, selectedYear, staffAccounts]);
+
+  const displayApprovalQueueLeaves = isPersonalActive ? myUpcomingLeaves : approvalQueueLeaves;
+
+  // Unique branch staff birthdays mapped from Annual Leave Quotas / user profiles
+  const branchStaffBirthdays = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Array<{ id: string; name: string; role: string; branch: string; month: number; day: number; birthDate: string }> = [];
+
+    staffAccounts.forEach((emp) => {
+      const empBranch = emp.branch || 'Rayong';
+      if (!isBranchMatch(empBranch, selectedBranch)) return;
+      const empName = (emp.name || '').trim();
+      if (!empName) return;
+
+      const dedupeKey = `${empName.toLowerCase()}__${empBranch.toLowerCase()}`;
+      if (seen.has(dedupeKey)) return;
+
+      const birthDate = getEmployeeBirthDate(quotasByYear, {
+        id: emp.id,
+        name: empName,
+        branch: empBranch,
+        birthDate: emp.birthDate || emp.birth_date,
+      });
+      const md = parseBirthMonthDay(birthDate);
+      if (!md) return;
+
+      seen.add(dedupeKey);
+      list.push({
+        id: emp.id || dedupeKey,
+        name: empName,
+        role: emp.role || 'Staff',
+        branch: empBranch,
+        month: md.month,
+        day: md.day,
+        birthDate,
+      });
+    });
+
+    return list;
+  }, [staffAccounts, selectedBranch, quotasByYear]);
+
+  // Calendar matrix generator for current month (includes leaves & employee birthdays)
   const calendarDays = useMemo(() => {
     const year = selectedMonth.getFullYear();
     const month = selectedMonth.getMonth();
-    
+
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    const days: Array<{ dayNum: number; dateStr: string; isCurrentMonth: boolean; leaveItems: LeaveRecord[] }> = [];
+
+    const days: Array<{
+      dayNum: number;
+      dateStr: string;
+      isCurrentMonth: boolean;
+      leaveItems: LeaveRecord[];
+      birthdayItems: Array<{ id: string; name: string; role: string; branch: string; birthDate: string }>;
+    }> = [];
 
     for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push({ dayNum: 0, dateStr: '', isCurrentMonth: false, leaveItems: [] });
+      days.push({ dayNum: 0, dateStr: '', isCurrentMonth: false, leaveItems: [], birthdayItems: [] });
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const leavesOnThisDay = leaveRecords.filter(r => 
-        r.fromDate <= dateStr && 
-        r.toDate >= dateStr && 
+      const leavesOnThisDay = leaveRecords.filter(r =>
+        r.fromDate <= dateStr &&
+        r.toDate >= dateStr &&
         r.status !== 'Rejected' &&
         isBranchMatch(r.userBranch, selectedBranch)
       );
+      const birthdaysOnThisDay = branchStaffBirthdays.filter(b =>
+        (b.month === month + 1 && b.day === d) ||
+        (b.month === 2 && b.day === 29 && month + 1 === 2 && daysInMonth === 28 && d === 28)
+      );
+
       days.push({
         dayNum: d,
         dateStr,
         isCurrentMonth: true,
         leaveItems: leavesOnThisDay,
+        birthdayItems: birthdaysOnThisDay,
       });
     }
 
     return days;
-  }, [selectedMonth, leaveRecords, selectedBranch]);
+  }, [selectedMonth, leaveRecords, selectedBranch, branchStaffBirthdays]);
 
-  // Check if current user is admin
-  const isAdmin = useMemo(() => {
-    const role = String(user?.role || '').toLowerCase();
-    return role === 'admin' || role === 'owner' || role === 'co-founder';
-  }, [user?.role]);
+  // Selected day details for Calendar & Attendance panel
+  const selectedDayDetails = useMemo(() => {
+    if (!selectedDateFilter) return null;
+    const foundCell = calendarDays.find(c => c.isCurrentMonth && c.dateStr === selectedDateFilter);
+    if (foundCell) {
+      return {
+        dateStr: foundCell.dateStr,
+        leaveItems: foundCell.leaveItems,
+        birthdayItems: foundCell.birthdayItems,
+      };
+    }
+
+    const parts = selectedDateFilter.split('-');
+    const yrNum = parseInt(parts[0], 10);
+    const moNum = parseInt(parts[1], 10);
+    const dyNum = parseInt(parts[2], 10);
+    const daysInMo = !isNaN(yrNum) && !isNaN(moNum) ? new Date(yrNum, moNum, 0).getDate() : 31;
+
+    const leaveItems = leaveRecords.filter(r =>
+      r.fromDate <= selectedDateFilter &&
+      r.toDate >= selectedDateFilter &&
+      r.status !== 'Rejected' &&
+      isBranchMatch(r.userBranch, selectedBranch)
+    );
+    const birthdayItems = !isNaN(moNum) && !isNaN(dyNum)
+      ? branchStaffBirthdays.filter(b =>
+          (b.month === moNum && b.day === dyNum) ||
+          (b.month === 2 && b.day === 29 && moNum === 2 && daysInMo === 28 && dyNum === 28)
+        )
+      : [];
+
+    return { dateStr: selectedDateFilter, leaveItems, birthdayItems };
+  }, [selectedDateFilter, calendarDays, leaveRecords, selectedBranch, branchStaffBirthdays]);
 
   // Current branch display label
   const currentBranchLabel = useMemo(() => {
@@ -829,13 +965,45 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             {calendarDays.map((cell, idx) => {
               if (!cell.isCurrentMonth) {
                 return (
-                  <div key={idx} className="h-16 rounded-xl bg-slate-50/50 border border-slate-100 p-1 opacity-30 select-none" />
+                  <div key={idx} className="min-h-[78px] rounded-xl bg-slate-50/50 border border-slate-100 p-1 opacity-30 select-none" />
                 );
               }
 
               const hasLeaves = cell.leaveItems.length > 0;
+              const hasPending = cell.leaveItems.some(item => item.status === 'Pending');
+              const hasApproved = cell.leaveItems.some(item => item.status === 'Approved');
+              const hasBirthdays = cell.birthdayItems.length > 0;
               const isSelected = selectedDateFilter === cell.dateStr;
               const isToday = cell.dateStr === todayStr;
+
+              const cellSurfaceClass = isSelected
+                ? 'bg-[#2D4A49] text-white border-[#2D4A49] shadow-md ring-2 ring-[#5A8A88]/40'
+                : hasPending && hasApproved
+                ? `bg-gradient-to-br from-amber-50 to-emerald-50 border-amber-300 text-slate-800 hover:brightness-95 ${isToday ? 'ring-2 ring-[#5A8A88]' : ''}`
+                : hasPending
+                ? `bg-amber-50/90 border-amber-300 text-amber-950 hover:bg-amber-100/75 ${isToday ? 'ring-2 ring-[#5A8A88]' : ''}`
+                : hasApproved
+                ? `bg-emerald-50/90 border-emerald-300 text-emerald-950 hover:bg-emerald-100/75 ${isToday ? 'ring-2 ring-[#5A8A88]' : ''}`
+                : isToday
+                ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#2D4A49] font-bold'
+                : hasBirthdays
+                ? 'bg-pink-50/75 border-pink-200 text-pink-950 hover:bg-pink-100/70'
+                : 'bg-white border-[#D4E4E3]/80 hover:bg-[#F4F9F8] text-slate-700';
+
+              const badges: Array<{ key: string; kind: 'birthday' | 'pending' | 'approved'; label: string; title: string }> = [
+                ...cell.birthdayItems.map((b, bIdx) => ({
+                  key: `bday-${b.id}-${bIdx}`,
+                  kind: 'birthday' as const,
+                  label: `🎂 ${b.name.split(' ')[0]}`,
+                  title: `วันเกิด: ${b.name} (${b.role})`,
+                })),
+                ...cell.leaveItems.map((item, lIdx) => ({
+                  key: `leave-${item.id}-${lIdx}`,
+                  kind: item.status === 'Approved' ? ('approved' as const) : ('pending' as const),
+                  label: `${item.status === 'Approved' ? '✓' : '⏳'} ${item.userName.split(' ')[0]}`,
+                  title: `${item.userName}: ${item.leaveTypeName} (${item.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'})`,
+                })),
+              ];
 
               return (
                 <button
@@ -848,47 +1016,64 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       setSelectedDateFilter(cell.dateStr);
                     }
                   }}
-                  className={`h-16 rounded-xl p-1.5 flex flex-col justify-between text-left transition-all border cursor-pointer relative overflow-hidden ${
-                    isSelected
-                      ? 'bg-[#2D4A49] text-white border-[#2D4A49] shadow-md ring-2 ring-[#5A8A88]/30'
-                      : isToday
-                      ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#2D4A49] font-bold'
-                      : hasLeaves
-                      ? 'bg-amber-50/60 border-amber-200 text-slate-800 hover:bg-amber-100/60'
-                      : 'bg-white border-[#D4E4E3]/80 hover:bg-[#F4F9F8] text-slate-700'
-                  }`}
+                  className={`min-h-[78px] rounded-xl p-1.5 flex flex-col justify-between text-left transition-all border cursor-pointer relative overflow-hidden ${cellSurfaceClass}`}
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span className={`text-xs font-bold ${isSelected ? 'text-white' : isToday ? 'text-[#5A8A88]' : 'text-slate-700'}`}>
+                  <div className="flex items-center justify-between w-full gap-0.5">
+                    <span className={`text-xs font-bold leading-none ${
+                      isSelected
+                        ? 'text-white'
+                        : isToday
+                        ? 'text-[#5A8A88]'
+                        : hasPending && !hasApproved
+                        ? 'text-amber-800'
+                        : hasApproved && !hasPending
+                        ? 'text-emerald-800'
+                        : 'text-slate-700'
+                    }`}>
                       {cell.dayNum}
                     </span>
-                    {isToday && (
-                      <span className="text-[9px] px-1 bg-[#5A8A88] text-white rounded font-semibold">วันนี้</span>
-                    )}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {hasPending && (
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-amber-500'}`} title="มีคำขอรออนุมัติ" />
+                      )}
+                      {hasApproved && (
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-300' : 'bg-emerald-500'}`} title="มีรายการอนุมัติแล้ว" />
+                      )}
+                      {isToday && (
+                        <span className="text-[9px] px-1 bg-[#5A8A88] text-white rounded font-semibold leading-tight">วันนี้</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Leave Items Indicator Badges */}
-                  {hasLeaves && (
-                    <div className="space-y-0.5 w-full">
-                      {cell.leaveItems.slice(0, 2).map((item, lIdx) => (
-                        <div 
-                          key={lIdx}
-                          className={`text-[9px] px-1 py-0.2 rounded truncate font-medium flex items-center gap-0.5 ${
-                              isSelected 
-                                ? 'bg-white/20 text-white' 
-                                : item.leaveType === 'sick' ? 'bg-rose-100 text-rose-800' :
-                                  item.leaveType === 'vacation' ? 'bg-emerald-100 text-emerald-800' :
-                                  item.leaveType === 'birthday' ? 'bg-amber-100 text-amber-800' :
-                                  'bg-purple-100 text-purple-800'
-                            }`}
-                          title={`${item.userName}: ${item.leaveTypeName}`}
+                  {/* Birthday & Leave Status Badges */}
+                  {badges.length > 0 && (
+                    <div className="space-y-0.5 w-full mt-1">
+                      {badges.slice(0, 2).map((badge) => (
+                        <div
+                          key={badge.key}
+                          className={`text-[9px] px-1 py-0.5 rounded truncate font-semibold leading-tight ${
+                            isSelected
+                              ? badge.kind === 'birthday'
+                                ? 'bg-pink-400/30 text-white'
+                                : badge.kind === 'approved'
+                                ? 'bg-emerald-400/30 text-emerald-100'
+                                : 'bg-amber-400/30 text-amber-100'
+                              : badge.kind === 'birthday'
+                              ? 'bg-pink-100 text-pink-800 border border-pink-200/70'
+                              : badge.kind === 'approved'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/70'
+                              : 'bg-amber-100 text-amber-800 border border-amber-200/70'
+                          }`}
+                          title={badge.title}
                         >
-                          <span className="truncate">{item.userName.split(' ')[0]}</span>
+                          <span className="truncate">{badge.label}</span>
                         </div>
                       ))}
-                      {cell.leaveItems.length > 2 && (
-                        <p className={`text-[8px] font-bold leading-tight ${isSelected ? 'text-emerald-300' : 'text-amber-700'}`}>
-                          +{cell.leaveItems.length - 2} รายการ
+                      {badges.length > 2 && (
+                        <p className={`text-[8px] font-bold leading-tight ${
+                          isSelected ? 'text-emerald-200' : hasPending ? 'text-amber-700' : hasApproved ? 'text-emerald-700' : 'text-pink-700'
+                        }`}>
+                          +{badges.length - 2} รายการ
                         </p>
                       )}
                     </div>
@@ -898,58 +1083,153 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             })}
           </div>
 
-          {selectedDateFilter && (
-            <div className="p-2.5 bg-[#E8F3F2] border border-[#D4E4E3] rounded-xl flex items-center justify-between text-xs text-[#2D4A49] font-medium">
-              <span>📅 กำลังกรองดูวันลาของวันที่: <strong className="font-bold text-[#5A8A88]">{selectedDateFilter}</strong></span>
-              <button
-                type="button"
-                onClick={() => setSelectedDateFilter(null)}
-                className="text-xs text-rose-600 hover:underline cursor-pointer font-bold"
-              >
-                ล้างตัวกรองวันที่
-              </button>
+          {/* Calendar Status Legend */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" />
+              อนุมัติแล้ว (Approved)
+            </span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" />
+              รออนุมัติ (Pending)
+            </span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="w-3 h-3 rounded bg-pink-100 border border-pink-200 inline-block" />
+              🎂 วันเกิดพนักงาน (Birthday)
+            </span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="w-3 h-3 rounded bg-[#E8F3F2] border border-[#5A8A88] inline-block" />
+              วันนี้ (Today)
+            </span>
+          </div>
+
+          {/* Selected Date Detail Drawer */}
+          {selectedDayDetails && (
+            <div className="p-3.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2.5">
+              <div className="flex items-center justify-between gap-2 border-b border-[#D4E4E3]/70 pb-2">
+                <span className="text-xs font-bold text-[#2D4A49] flex items-center gap-1.5">
+                  <span>📅</span>
+                  <span>
+                    รายละเอียดวันที่{' '}
+                    {new Date(`${selectedDayDetails.dateStr}T00:00:00`).toLocaleDateString('th-TH', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}{' '}
+                    <span className="text-[#5A8A88] font-semibold">({selectedDayDetails.dateStr})</span>
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDateFilter(null)}
+                  className="text-[11px] text-rose-600 hover:underline cursor-pointer font-bold shrink-0"
+                >
+                  ล้างตัวกรองวันที่
+                </button>
+              </div>
+
+              {selectedDayDetails.birthdayItems.length === 0 && selectedDayDetails.leaveItems.length === 0 ? (
+                <p className="text-xs text-slate-400 py-1">
+                  ไม่มีรายการลาหยุดหรือวันเกิดพนักงานในวันที่ {selectedDayDetails.dateStr}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {/* Birthdays on Selected Date */}
+                  {selectedDayDetails.birthdayItems.map((b) => (
+                    <div
+                      key={`detail-bday-${b.id}`}
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-pink-50 border border-pink-200 text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm shrink-0">🎂</span>
+                        <span className="font-bold text-pink-900 truncate">วันเกิดของ {b.name}</span>
+                        <span className="text-[10px] font-semibold text-pink-700 bg-white/80 px-1.5 py-0.5 rounded border border-pink-200/70 shrink-0">
+                          {b.role}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-pink-700 shrink-0">Happy Birthday!</span>
+                    </div>
+                  ))}
+
+                  {/* Leaves on Selected Date */}
+                  {selectedDayDetails.leaveItems.map((item) => (
+                    <div
+                      key={`detail-leave-${item.id}`}
+                      className={`p-2.5 rounded-lg border text-xs space-y-1 ${
+                        item.status === 'Approved'
+                          ? 'bg-emerald-50/70 border-emerald-200'
+                          : 'bg-amber-50/70 border-amber-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-slate-800 truncate">{item.userName}</span>
+                          <span className="text-[10px] font-semibold text-[#5A8A88] bg-white px-1.5 py-0.5 rounded border border-[#D4E4E3] shrink-0">
+                            {item.leaveTypeName}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                          item.status === 'Approved'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-amber-100 text-amber-800 border border-amber-300'
+                        }`}>
+                          {item.status === 'Approved' ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                        <span>
+                          🗓️ {item.fromDate === item.toDate ? item.fromDate : `${item.fromDate} ถึง ${item.toDate}`} ({item.totalDays} วัน)
+                        </span>
+                        <span className="text-slate-500 truncate max-w-[260px]" title={item.description}>
+                          เหตุผล: {item.description || '-'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
         </div>
 
-        {/* RIGHT 5-COLUMNS: Upcoming & Advance Leaves (การลาล่วงหน้า - Real Employees) */}
+        {/* RIGHT 5-COLUMNS: Leave Request Approval (คำขออนุมัติวันลา) */}
         <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-[#D4E4E3] shadow-xs space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-[#D4E4E3] pb-3 mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles size={18} className="text-amber-500" />
                 <h2 className="text-sm font-bold text-[#2D4A49]">
-                  {isPersonalActive ? 'การลาล่วงหน้าของคุณ' : 'การลาล่วงหน้าของทีม'}{' '}
+                  {isPersonalActive ? 'การลาล่วงหน้าของคุณ' : 'คำขออนุมัติวันลา'}{' '}
                   <span className="text-xs text-slate-500 font-normal">
-                    {isPersonalActive ? '(Your Advance Leaves)' : '(Advance Leaves)'}
+                    {isPersonalActive ? '(Your Advance Leaves)' : '(Leave Request Approval)'}
                   </span>
                 </h2>
               </div>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F2] text-[#5A8A88]">
-                {displayUpcomingLeaves.length} รายการ
+                {displayApprovalQueueLeaves.length} รายการ
               </span>
             </div>
 
             <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-              {displayUpcomingLeaves.length === 0 ? (
+              {displayApprovalQueueLeaves.length === 0 ? (
                 <div className="text-center py-12 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
                   <div className="w-10 h-10 rounded-2xl bg-white text-slate-400 mx-auto flex items-center justify-center text-lg mb-2 shadow-2xs border border-slate-200">
                     🏖️
                   </div>
                   <p className="text-xs font-bold text-slate-600">
-                    {isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีรายการลาล่วงหน้า'}
+                    {isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีคำขออนุมัติวันลาในขณะนี้'}
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
-                    {isPersonalActive 
-                      ? `คุณ (${user?.name || 'พนักงาน'}) ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ` 
-                      : `พนักงานใน${currentBranchLabel}ปฏิบัติงานตามปกติ ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ`
+                    {isPersonalActive
+                      ? `คุณ (${user?.name || 'พนักงาน'}) ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ`
+                      : `พนักงานใน${currentBranchLabel}ยังไม่มีคำขออนุมัติวันลาหรือการลาล่วงหน้าในระบบ`
                     }
                   </p>
                 </div>
               ) : (
-                displayUpcomingLeaves.map((record) => (
-                  <div 
+                displayApprovalQueueLeaves.map((record) => (
+                  <div
                     key={record.id}
                     className="p-3 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2 hover:border-[#5A8A88] transition-colors"
                   >
@@ -984,6 +1264,38 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     <p className="text-[11px] text-slate-600 truncate bg-slate-50 p-1.5 rounded">
                       <span className="font-medium text-slate-700">{record.leaveTypeName}:</span> {record.description || '-'}
                     </p>
+
+                    {/* Approve / Reject Controls for Authorized Roles Only (Admin, Owner, Co-founder, Branch Manager) */}
+                    {!isPersonalActive && record.status === 'Pending' && (
+                      canApproveLeave ? (
+                        <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-[#D4E4E3]/60">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(record.id, 'Rejected')}
+                            className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            title="ไม่อนุมัติคำขอลา"
+                          >
+                            <X size={13} />
+                            <span>ไม่อนุมัติ (Reject)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(record.id, 'Approved')}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
+                            title="อนุมัติการลาและหักวันลาคงเหลือทันที"
+                          >
+                            <Check size={13} />
+                            <span>อนุมัติ (Approve)</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="pt-1.5 border-t border-[#D4E4E3]/60 text-right">
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            🔒 เฉพาะ Admin, Owner, Co-founder และ Branch Manager เท่านั้นที่มีสิทธิ์อนุมัติ
+                          </span>
+                        </div>
+                      )
+                    )}
                   </div>
                 ))
               )}
@@ -992,7 +1304,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
           <div className="pt-2 border-t border-slate-100 text-center">
             <p className="text-[11px] text-slate-400">
-              💡 แสดงเฉพาะพนักงานจริงตามบัญชีผู้ใช้ของสาขาที่เลือก
+              💡 แสดงเฉพาะพนักงานจริงตามบัญชีผู้ใช้ของสาขาที่เลือก (เมื่ออนุมัติแล้วระบบจะหักวันลาคงเหลือทันที)
             </p>
           </div>
         </div>
@@ -1145,7 +1457,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <p className="text-xs text-slate-400 mt-0.5">
               {isPersonalActive
                 ? 'แสดงรายการคำขอลาของคุณในระบบ สามารถกรองตามปี และสถานะได้'
-                : 'แสดงรายการคำขอลาทั้งหมดในระบบ สามารถค้นหา กรองตามปี/สาขา/สถานะ และอนุมัติรายการได้'
+                : 'แสดงรายการคำขอลาทั้งหมดในระบบ สามารถค้นหา กรองตามปี/สาขา และสถานะได้'
               }
             </p>
           </div>
@@ -1208,13 +1520,12 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 <th className="p-3 text-center">จำนวนวัน</th>
                 <th className="p-3">เหตุผล (Description)</th>
                 <th className="p-3 text-center">สถานะ (Status)</th>
-                <th className="p-3 text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D4E4E3] text-xs">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
                     <div className="py-4 space-y-1">
                       <p className="text-xs font-bold text-slate-600">
                         {isPersonalActive 
@@ -1262,34 +1573,6 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       }`}>
                         {item.status === 'Pending' ? '⏳ รออนุมัติ' : item.status === 'Approved' ? '✅ อนุมัติแล้ว' : '❌ ไม่อนุมัติ'}
                       </span>
-                    </td>
-                    <td className="p-3 text-center whitespace-nowrap">
-                      {item.status === 'Pending' && !isReadOnly ? (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateStatus(item.id, 'Approved')}
-                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="อนุมัติการลา"
-                          >
-                            <Check size={12} />
-                            อนุมัติ
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateStatus(item.id, 'Rejected')}
-                            className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            title="ปฏิเสธคำขอ"
-                          >
-                            <X size={12} />
-                            ไม่อนุมัติ
-                          </button>
-                        </div>
-                      ) : item.status === 'Pending' ? (
-                        <span className="text-[10px] text-slate-400 font-medium">รออนุมัติ (ดูอย่างเดียว)</span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 font-medium">เสร็จสิ้น</span>
-                      )}
                     </td>
                   </tr>
                 ))
