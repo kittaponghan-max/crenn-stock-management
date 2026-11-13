@@ -46,6 +46,7 @@ import {
   getEmployeeQuotaForYear,
   getEmployeeBirthDate,
   isBirthdayPassedInYear,
+  parseBirthMonthDay,
   sanitizeQuotaNumbers,
   normalizeBranchKey,
 } from '../utils/leaveQuotas';
@@ -191,6 +192,152 @@ function getRoleRank(role: string): number {
   if (r === 'SERVER/RUNNER' || r === 'SERVER' || r === 'RUNNER') return 11;
   if (r === 'DISHWASHER/CLEANER' || r === 'CLEANER' || r === 'DISHWASHER') return 12;
   return 99;
+}
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+
+const MAX_DAYS_BY_MONTH: Record<number, number> = {
+  1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30,
+  7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31,
+};
+
+function BirthDayMonthPicker({
+  value,
+  onChange,
+  disabled = false,
+  compact = false,
+}: {
+  value: string;
+  onChange: (mmDd: string) => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  const parsed = parseBirthMonthDay(value);
+  const [dayVal, setDayVal] = useState<string>(parsed ? String(parsed.day).padStart(2, '0') : '');
+  const [monthVal, setMonthVal] = useState<string>(parsed ? String(parsed.month).padStart(2, '0') : '');
+
+  useEffect(() => {
+    const p = parseBirthMonthDay(value);
+    setDayVal(p ? String(p.day).padStart(2, '0') : '');
+    setMonthVal(p ? String(p.month).padStart(2, '0') : '');
+  }, [value]);
+
+  const maxDay = monthVal ? (MAX_DAYS_BY_MONTH[Number(monthVal)] || 31) : 31;
+
+  const handleDayChange = (nextDay: string) => {
+    setDayVal(nextDay);
+    if (!nextDay) {
+      if (value) onChange('');
+      return;
+    }
+    if (monthVal) {
+      onChange(`${monthVal}-${nextDay}`);
+    }
+  };
+
+  const handleMonthChange = (nextMonth: string) => {
+    setMonthVal(nextMonth);
+    if (!nextMonth) {
+      if (value) onChange('');
+      return;
+    }
+    const maxForMonth = MAX_DAYS_BY_MONTH[Number(nextMonth)] || 31;
+    let adjustedDay = dayVal;
+    if (adjustedDay && Number(adjustedDay) > maxForMonth) {
+      adjustedDay = String(maxForMonth).padStart(2, '0');
+      setDayVal(adjustedDay);
+    }
+    if (adjustedDay) {
+      onChange(`${nextMonth}-${adjustedDay}`);
+    }
+  };
+
+  if (compact) {
+    return (
+      <div
+        className="inline-flex items-center gap-0.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded px-1 py-0.5 text-[9.5px] text-[#2D4A49]"
+        title="ระบุวันเกิด (วันที่และเดือน) เพื่อคำนวณวันลาพักประจำวันเกิดทุกปี"
+      >
+        <span className="text-[9px]">🎂</span>
+        <select
+          value={dayVal}
+          disabled={disabled}
+          onChange={(e) => handleDayChange(e.target.value)}
+          className="bg-transparent text-[9.5px] font-semibold text-[#2D4A49] outline-none cursor-pointer disabled:cursor-not-allowed"
+          aria-label="วันที่เกิด"
+        >
+          <option value="">วัน</option>
+          {Array.from({ length: maxDay }, (_, i) => String(i + 1).padStart(2, '0')).map((d) => (
+            <option key={d} value={d}>
+              {Number(d)}
+            </option>
+          ))}
+        </select>
+        <span className="text-[#9AB5B3]">/</span>
+        <select
+          value={monthVal}
+          disabled={disabled}
+          onChange={(e) => handleMonthChange(e.target.value)}
+          className="bg-transparent text-[9.5px] font-semibold text-[#2D4A49] outline-none cursor-pointer disabled:cursor-not-allowed"
+          aria-label="เดือนเกิด"
+        >
+          <option value="">เดือน</option>
+          {THAI_MONTHS_SHORT.map((mLabel, idx) => {
+            const mCode = String(idx + 1).padStart(2, '0');
+            return (
+              <option key={mCode} value={mCode}>
+                {mLabel}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={dayVal}
+        disabled={disabled}
+        onChange={(e) => handleDayChange(e.target.value)}
+        className="w-28 px-2.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="วันที่เกิด"
+      >
+        <option value="">-- วันที่ --</option>
+        {Array.from({ length: maxDay }, (_, i) => String(i + 1).padStart(2, '0')).map((d) => (
+          <option key={d} value={d}>
+            วันที่ {Number(d)}
+          </option>
+        ))}
+      </select>
+      <select
+        value={monthVal}
+        disabled={disabled}
+        onChange={(e) => handleMonthChange(e.target.value)}
+        className="flex-1 min-w-[120px] px-2.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="เดือนเกิด"
+      >
+        <option value="">-- เดือน --</option>
+        {THAI_MONTHS_FULL.map((mLabel, idx) => {
+          const mCode = String(idx + 1).padStart(2, '0');
+          return (
+            <option key={mCode} value={mCode}>
+              {mLabel}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
 }
 
 interface UserSettingsProps {
@@ -2208,14 +2355,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1">
-                    🎂 วันเกิดพนักงาน (Birthday)
+                    🎂 วันเกิดพนักงาน (วันที่ / เดือน)
                   </label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium"
+                  <BirthDayMonthPicker
                     value={formData.birthDate}
-                    onChange={(e) => {
-                      const nextDate = e.target.value.trim();
+                    onChange={(nextDate) => {
                       setIsUserFormDirty(true);
                       setIsUserQuotaDirty(true);
                       setFormData(prev => ({ ...prev, birthDate: nextDate }));
@@ -2511,10 +2655,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   <div className="space-y-3">
                     {/* Birthday + Ignore Controls inside Tab 3 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="p-3 rounded-xl border border-[#D4E4E3] bg-white flex items-center justify-between gap-3">
+                      <div className="p-3 rounded-xl border border-[#D4E4E3] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <div className="min-w-0">
                           <span className="text-[11px] font-bold text-[#2D4A49] block">
-                            🎂 วันเกิดพนักงาน (Birthday)
+                            🎂 วันเกิดพนักงาน (วันที่ / เดือน)
                           </span>
                           <span className="text-[10px] text-[#6B8F8E] block mt-0.5">
                             {isTabBirthdayPassed
@@ -2522,11 +2666,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                               : 'หากเลยวันเกิดแล้ว ระบบจะปรับวันลาวันเกิดเป็น 0 อัตโนมัติ'}
                           </span>
                         </div>
-                        <input
-                          type="date"
+                        <BirthDayMonthPicker
                           value={effectiveTabBirthDate}
-                          onChange={(e) => {
-                            const nextDate = e.target.value.trim();
+                          onChange={(nextDate) => {
                             setIsUserFormDirty(true);
                             setIsUserQuotaDirty(true);
                             setFormData(prev => ({ ...prev, birthDate: nextDate }));
@@ -2549,7 +2691,6 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                               return nextDraft;
                             });
                           }}
-                          className="px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg text-[11px] font-semibold text-[#2D4A49] bg-[#F8FCFC] focus:outline-none focus:border-[#5A8A88] shrink-0"
                         />
                       </div>
 
@@ -3687,19 +3828,12 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                                     <span className="inline-block text-[9.5px] font-semibold px-1.5 py-0.2 rounded bg-[#F0F5F4] text-[#5A8A88] border border-[#D4E4E3] truncate max-w-full">
                                       {emp.role}
                                     </span>
-                                    <label
-                                      className="inline-flex items-center gap-1 bg-[#F8FCFC] border border-[#D4E4E3] rounded px-1 py-0.2 text-[9px] text-[#5A8A88]"
-                                      title="วันเกิดพนักงาน (หากเลยวันเกิดแล้ว ระบบจะปรับวันลาพักประจำวันเกิดเป็น 0 อัตโนมัติ)"
-                                    >
-                                      <span>🎂</span>
-                                      <input
-                                        type="date"
-                                        value={empBirthDate}
-                                        disabled={isIgnored}
-                                        onChange={(e) => handleDraftBirthDateChange(emp, e.target.value)}
-                                        className="bg-transparent text-[9.5px] font-medium text-[#2D4A49] outline-none w-[98px] cursor-pointer disabled:cursor-not-allowed"
-                                      />
-                                    </label>
+                                    <BirthDayMonthPicker
+                                      compact
+                                      value={empBirthDate}
+                                      disabled={isIgnored}
+                                      onChange={(nextDate) => handleDraftBirthDateChange(emp, nextDate)}
+                                    />
                                   </div>
                                 </div>
                               </div>
