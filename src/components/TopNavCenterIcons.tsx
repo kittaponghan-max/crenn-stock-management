@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
+import { canAccessTab } from '../utils/permissions';
 
 export interface TopNavCenterIconsProps {
   activeTab?: string;
@@ -138,20 +139,16 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
               label: 'หน้าหลัก (Inventory Dashboard)',
               emoji: '🏠'
             },
-            ...(user?.permissions?.leaveDashboard !== 'hidden' && user?.permissions?.leaveDashboard !== 'Hidden' ? [
-              {
-                route: 'leaveDashboard',
-                label: 'Leave Dashboard (ภาพรวมการลา)',
-                emoji: '📊'
-              }
-            ] : []),
-            ...(user?.permissions?.personnelLeave !== 'hidden' && user?.permissions?.personnelLeave !== 'Hidden' ? [
-              {
-                route: 'personnelLeave',
-                label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)',
-                emoji: '👤'
-              }
-            ] : []),
+            {
+              route: 'leaveDashboard',
+              label: 'Leave Dashboard (ภาพรวมการลา)',
+              emoji: '📊'
+            },
+            {
+              route: 'personnelLeave',
+              label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)',
+              emoji: '👤'
+            },
           ],
         },
       ],
@@ -305,6 +302,24 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
     },
   ];
 
+  const visibleNavItems: NavItemConfig[] = NAV_ITEMS.map((item) => {
+    if (!item.hasDropdown) {
+      return canAccessTab(user, item.route) ? item : null;
+    }
+    const filteredGroups = (item.groups || [])
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((sub) => canAccessTab(user, sub.route)),
+      }))
+      .filter((group) => group.items.length > 0);
+    if (filteredGroups.length === 0) return null;
+    return {
+      ...item,
+      route: filteredGroups[0].items[0].route,
+      groups: filteredGroups,
+    };
+  }).filter(Boolean) as NavItemConfig[];
+
   const handleTabClick = (item: NavItemConfig) => {
     if (item.hasDropdown) {
       setOpenDropdownId((prev) => (prev === item.id ? null : item.id));
@@ -382,7 +397,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       ref={containerRef}
       className="hidden md:flex items-center justify-center gap-[2px] flex-1 px-[8px] relative overflow-visible"
     >
-      {NAV_ITEMS.map((item) => {
+      {visibleNavItems.map((item) => {
         const active = isItemActive(item.id, activeTab);
         const isOpen = openDropdownId === item.id;
         const hovered = hoveredId === item.id;
