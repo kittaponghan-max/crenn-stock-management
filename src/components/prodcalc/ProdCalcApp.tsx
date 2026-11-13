@@ -26,9 +26,10 @@ interface ProdCalcAppProps {
   };
   onSwitchToCafe: () => void;
   onLogout: () => void;
+  isReadOnly?: boolean;
 }
 
-export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcAppProps) {
+export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly = false }: ProdCalcAppProps) {
   // Navigation tabs: 'ingredients' | 'recipes' | 'recipeEditor' | 'reports'
   const [currentTab, setCurrentTab] = useState<'ingredients' | 'recipes' | 'recipeEditor' | 'reports'>('recipes');
 
@@ -150,6 +151,7 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
 
   // Save recipe
   const handleSaveRecipe = async (savedRecipe: Recipe) => {
+    if (isReadOnly) return;
     const existingIndex = recipes.findIndex(r => r.id === savedRecipe.id);
     let updated: Recipe[] = [];
 
@@ -176,6 +178,7 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
 
   // Delete recipe
   const handleDeleteRecipe = async (id: string) => {
+    if (isReadOnly) return;
     if (window.confirm('คุณต้องการลบสูตรนี้หรือไม่? การลบนี้จะไม่สามารถย้อนกลับได้')) {
       const updated = recipes.filter(r => r.id !== id);
       setRecipes(updated);
@@ -310,22 +313,25 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {currentTab === 'ingredients' && (
-          <IngredientPricing currentBranch={currentUser.branch} />
+          <IngredientPricing currentBranch={currentUser.branch} isReadOnly={isReadOnly} />
         )}
 
         {currentTab === 'recipes' && (
           <RecipeList
             recipes={recipes}
             onNewRecipe={() => {
+              if (isReadOnly) return;
               setEditingRecipe(null);
               setCurrentTab('recipeEditor');
             }}
             onEditRecipe={(r) => {
+              if (isReadOnly) return;
               setEditingRecipe(r);
               setCurrentTab('recipeEditor');
             }}
             onDeleteRecipe={handleDeleteRecipe}
             currentBranch={currentUser.branch}
+            isReadOnly={isReadOnly}
           />
         )}
 
@@ -339,6 +345,7 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout }: ProdCalcA
               setCurrentTab('recipes');
             }}
             currentBranch={currentUser.branch}
+            isReadOnly={isReadOnly}
           />
         )}
 
