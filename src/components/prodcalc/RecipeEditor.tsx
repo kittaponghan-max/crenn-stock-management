@@ -32,9 +32,10 @@ interface RecipeEditorProps {
   onSave: (recipe: Recipe) => void;
   onCancel: () => void;
   currentBranch: string;
+  isReadOnly?: boolean;
 }
 
-export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCancel, currentBranch }: RecipeEditorProps) {
+export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCancel, currentBranch, isReadOnly = false }: RecipeEditorProps) {
   // Generate random default code
   const defaultCode = useMemo(() => {
     return `REC-${Math.floor(100 + Math.random() * 900)}`;
@@ -158,6 +159,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   // ITEM HANDLERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const handleAddIngredient = () => {
+    if (isReadOnly) return;
     // Pick first available ingredient with price or first available
     const firstOption = availableIngredients.find(i => i.effective_cost_per_unit > 0) || availableIngredients[0];
     const newItem: RecipeIngredientItem = {
@@ -173,6 +175,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   };
 
   const handleUpdateIngredient = (idx: number, patch: Partial<RecipeIngredientItem>) => {
+    if (isReadOnly) return;
     const updated = [...ingredients];
     const item = { ...updated[idx], ...patch };
     item.total_cost = Number(((item.qty || 0) * (item.unit_cost || 0)).toFixed(2));
@@ -181,6 +184,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   };
 
   const handleSelectIngredientOption = (idx: number, priceId: string) => {
+    if (isReadOnly) return;
     const selected = availableIngredients.find(i => i.id === priceId);
     if (!selected) return;
     const updated = [...ingredients];
@@ -198,11 +202,13 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   };
 
   const handleDeleteIngredient = (idx: number) => {
+    if (isReadOnly) return;
     setIngredients(ingredients.filter((_, i) => i !== idx));
   };
 
   // Labor Handlers
   const handleAddLabor = () => {
+    if (isReadOnly) return;
     const newItem: RecipeLaborItem = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
       description: 'ค่าแรงเตรียม/อบ/ผสม',
@@ -214,6 +220,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   };
 
   const handleUpdateLabor = (idx: number, patch: Partial<RecipeLaborItem>) => {
+    if (isReadOnly) return;
     const updated = [...labor];
     const item = { ...updated[idx], ...patch };
     item.total_cost = Number(((item.hours || 0) * (item.rate_per_hour || 0)).toFixed(2));
@@ -223,6 +230,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
 
   // Other Handlers
   const handleAddOther = () => {
+    if (isReadOnly) return;
     const newItem: RecipeOtherItem = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
       description: 'ค่าแก๊ส/ไฟฟ้า/บรรจุภัณฑ์',
@@ -234,6 +242,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   };
 
   const handleUpdateOther = (idx: number, patch: Partial<RecipeOtherItem>) => {
+    if (isReadOnly) return;
     const updated = [...other];
     const item = { ...updated[idx], ...patch };
     item.total_cost = Number(((item.qty || 0) * (item.unit_cost || 0)).toFixed(2));
@@ -244,6 +253,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   // Submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!name.trim()) {
       alert('กรุณาระบุชื่อสูตรอาหาร');
       return;
@@ -321,16 +331,18 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             style={{ border: '1px solid #C8E3F0', color: '#4A7592' }}
             className="px-3 py-1 rounded-xl text-[11px] font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
           >
-            ยกเลิก
+            {isReadOnly ? 'ย้อนกลับ' : 'ยกเลิก'}
           </button>
-          <button
-            type="submit"
-            style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-            className="px-3.5 py-1 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Save size={13} />
-            <span>บันทึกสูตร</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              type="submit"
+              style={{ background: '#5BA4C8', color: '#FFFFFF' }}
+              className="px-3.5 py-1 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Save size={13} />
+              <span>บันทึกสูตร</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -366,11 +378,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 <input
                   type="text"
                   required
+                  disabled={isReadOnly}
                   placeholder="เช่น ข้าวเหนียวมะม่วง, ชิฟฟ่อนมะพร้าว"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8]"
+                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -380,11 +393,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </label>
                 <input
                   type="text"
+                  disabled={isReadOnly}
                   placeholder="REC-001"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold text-[#1E5A7A] outline-none focus:border-[#5BA4C8]"
+                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold text-[#1E5A7A] outline-none focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -393,10 +407,11 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   หมวดหมู่สินค้า
                 </label>
                 <select
+                  disabled={isReadOnly}
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none cursor-pointer"
+                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                 >
                   {PRODCALC_CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -410,11 +425,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </label>
                 <input
                   type="url"
+                  disabled={isReadOnly}
                   placeholder="https://images.unsplash.com/..."
                   value={image}
                   onChange={(e) => setImage(e.target.value)}
                   style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8]"
+                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -424,13 +440,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </label>
                 <input
                   type="number"
+                  disabled={isReadOnly}
                   min="0.1"
                   step="any"
                   required
                   value={yieldQty}
                   onChange={(e) => setYieldQty(Math.max(0.01, Number(e.target.value) || 1))}
                   style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold text-[#1E3D52] outline-none text-center"
+                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold text-[#1E3D52] outline-none text-center disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -440,11 +457,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </label>
                 <input
                   type="number"
+                  disabled={isReadOnly}
                   min="1"
                   value={servingQty}
                   onChange={(e) => setServingQty(Math.max(1, Number(e.target.value) || 1))}
                   style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono outline-none text-center"
+                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono outline-none text-center disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -510,15 +528,17 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   <span className="text-[11px] font-semibold text-[#1E3D52]">
                     รายการวัตถุดิบและส่วนผสม
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleAddIngredient}
-                    style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
-                  >
-                    <Plus size={11} />
-                    <span>เพิ่มวัตถุดิบ</span>
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={handleAddIngredient}
+                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                    >
+                      <Plus size={11} />
+                      <span>เพิ่มวัตถุดิบ</span>
+                    </button>
+                  )}
                 </div>
 
                 {ingredients.length === 0 ? (
@@ -535,7 +555,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           <th className="py-1.5 px-2 w-14 text-center">หน่วย</th>
                           <th className="py-1.5 px-2 w-20 text-right">ต้นทุน/หน่วย</th>
                           <th className="py-1.5 px-2.5 w-20 text-right">รวม (บาท)</th>
-                          <th className="py-1.5 px-1 w-7 text-center"></th>
+                          {!isReadOnly && <th className="py-1.5 px-1 w-7 text-center"></th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E4F1F8]">
@@ -543,10 +563,11 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           <tr key={item.id} className="hover:bg-[#F8FCFE]">
                             <td className="py-1 px-2.5">
                               <select
+                                disabled={isReadOnly}
                                 value={item.ingredient_price_id}
                                 onChange={(e) => handleSelectIngredientOption(idx, e.target.value)}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white cursor-pointer"
+                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed"
                               >
                                 <option value="" disabled>-- เลือกวัตถุดิบ --</option>
                                 {availableIngredients.map(ing => (
@@ -560,12 +581,13 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                             <td className="py-1 px-2 text-center">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 step="any"
                                 min="0.0001"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateIngredient(idx, { qty: Number(e.target.value) || 0 })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white"
+                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
 
@@ -581,21 +603,23 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                               ฿{item.total_cost.toFixed(2)}
                             </td>
 
-                            <td className="py-1 px-1 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteIngredient(idx)}
-                                className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </td>
+                            {!isReadOnly && (
+                              <td className="py-1 px-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteIngredient(idx)}
+                                  className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                         <tr className="bg-[#EEF6FB] font-bold text-[#1E5A7A] text-[10.5px]">
                           <td colSpan={4} className="py-1.5 px-2.5 text-right">รวมต้นทุนวัตถุดิบ:</td>
                           <td className="py-1.5 px-2.5 text-right font-mono">฿{calculations.ingredientsCost.toFixed(2)}</td>
-                          <td></td>
+                          {!isReadOnly && <td></td>}
                         </tr>
                       </tbody>
                     </table>
@@ -611,15 +635,17 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   <span className="text-[11px] font-semibold text-[#1E3D52]">
                     รายการค่าแรงในการผลิต
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleAddLabor}
-                    style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
-                  >
-                    <Plus size={11} />
-                    <span>เพิ่มค่าแรง</span>
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={handleAddLabor}
+                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                    >
+                      <Plus size={11} />
+                      <span>เพิ่มค่าแรง</span>
+                    </button>
+                  )}
                 </div>
 
                 {labor.length === 0 ? (
@@ -635,7 +661,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           <th className="py-1.5 px-2 w-20 text-center">ชั่วโมง</th>
                           <th className="py-1.5 px-2 w-24 text-right">ค่าแรง/ชม. (฿)</th>
                           <th className="py-1.5 px-2.5 w-24 text-right">รวม (บาท)</th>
-                          <th className="py-1.5 px-1 w-7 text-center"></th>
+                          {!isReadOnly && <th className="py-1.5 px-1 w-7 text-center"></th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E4F1F8]">
@@ -644,53 +670,58 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                             <td className="py-1 px-2.5">
                               <input
                                 type="text"
+                                disabled={isReadOnly}
                                 placeholder="เช่น ผสมแป้ง, อบขนม, แต่งหน้าเค้ก"
                                 value={item.description}
                                 onChange={(e) => handleUpdateLabor(idx, { description: e.target.value })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white"
+                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="py-1 px-2 text-center">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 step="any"
                                 min="0"
                                 value={item.hours || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { hours: Number(e.target.value) || 0 })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white"
+                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="py-1 px-2 text-right">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 step="any"
                                 min="0"
                                 value={item.rate_per_hour || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { rate_per_hour: Number(e.target.value) || 0 })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-right px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white"
+                                className="w-full text-right px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="py-1 px-2.5 text-right font-mono font-bold text-[#1E5A7A] text-[10.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </td>
-                            <td className="py-1 px-1 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setLabor(labor.filter((_, i) => i !== idx))}
-                                className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </td>
+                            {!isReadOnly && (
+                              <td className="py-1 px-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setLabor(labor.filter((_, i) => i !== idx))}
+                                  className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                         <tr className="bg-[#EEF6FB] font-bold text-[#1E5A7A] text-[10.5px]">
                           <td colSpan={3} className="py-1.5 px-2.5 text-right">รวมค่าแรง:</td>
                           <td className="py-1.5 px-2.5 text-right font-mono">฿{calculations.laborCost.toFixed(2)}</td>
-                          <td></td>
+                          {!isReadOnly && <td></td>}
                         </tr>
                       </tbody>
                     </table>
@@ -706,15 +737,17 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   <span className="text-[11px] font-semibold text-[#1E3D52]">
                     รายการค่าใช้จ่ายอื่นๆ (ค่าแก๊ส, ค่าไฟ, บรรจุภัณฑ์)
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleAddOther}
-                    style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
-                  >
-                    <Plus size={11} />
-                    <span>เพิ่มรายการ</span>
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={handleAddOther}
+                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                    >
+                      <Plus size={11} />
+                      <span>เพิ่มรายการ</span>
+                    </button>
+                  )}
                 </div>
 
                 {other.length === 0 ? (
@@ -730,7 +763,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           <th className="py-1.5 px-2 w-20 text-center">จำนวน</th>
                           <th className="py-1.5 px-2 w-24 text-right">ต้นทุน/หน่วย (฿)</th>
                           <th className="py-1.5 px-2.5 w-24 text-right">รวม (บาท)</th>
-                          <th className="py-1.5 px-1 w-7 text-center"></th>
+                          {!isReadOnly && <th className="py-1.5 px-1 w-7 text-center"></th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E4F1F8]">
@@ -739,53 +772,58 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                             <td className="py-1 px-2.5">
                               <input
                                 type="text"
+                                disabled={isReadOnly}
                                 placeholder="เช่น กล่องเบเกอรี่, แก๊ส, ค่าสติกเกอร์"
                                 value={item.description}
                                 onChange={(e) => handleUpdateOther(idx, { description: e.target.value })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white"
+                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="py-1 px-2 text-center">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 step="any"
                                 min="0"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateOther(idx, { qty: Number(e.target.value) || 0 })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white"
+                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="py-1 px-2 text-right">
                               <input
                                 type="number"
+                                disabled={isReadOnly}
                                 step="any"
                                 min="0"
                                 value={item.unit_cost || ''}
                                 onChange={(e) => handleUpdateOther(idx, { unit_cost: Number(e.target.value) || 0 })}
                                 style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-right px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white"
+                                className="w-full text-right px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="py-1 px-2.5 text-right font-mono font-bold text-[#1E5A7A] text-[10.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </td>
-                            <td className="py-1 px-1 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setOther(other.filter((_, i) => i !== idx))}
-                                className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </td>
+                            {!isReadOnly && (
+                              <td className="py-1 px-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setOther(other.filter((_, i) => i !== idx))}
+                                  className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                         <tr className="bg-[#EEF6FB] font-bold text-[#1E5A7A] text-[10.5px]">
                           <td colSpan={3} className="py-1.5 px-2.5 text-right">รวมค่าใช้จ่ายอื่นๆ:</td>
                           <td className="py-1.5 px-2.5 text-right font-mono">฿{calculations.otherCost.toFixed(2)}</td>
-                          <td></td>
+                          {!isReadOnly && <td></td>}
                         </tr>
                       </tbody>
                     </table>
@@ -867,10 +905,11 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
               </label>
 
               <select
+                disabled={isReadOnly}
                 value={pricingMethod}
                 onChange={(e) => setPricingMethod(e.target.value as PricingMethod)}
                 style={{ border: '1px solid #C8E3F0', background: '#F8FCFE', color: '#1E3D52' }}
-                className="w-full px-2.5 py-1.5 rounded-xl text-[10.5px] font-semibold outline-none cursor-pointer focus:border-[#5BA4C8]"
+                className="w-full px-2.5 py-1.5 rounded-xl text-[10.5px] font-semibold outline-none cursor-pointer focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 <option value="margin_pct">วิธีที่ 1: กำไร % ขั้นต้น (Target Margin %)</option>
                 <option value="profit_thb">วิธีที่ 2: กำไรบาทต่อชิ้น (Target Profit THB)</option>
@@ -888,11 +927,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   </div>
                   <input
                     type="range"
+                    disabled={isReadOnly}
                     min="1"
                     max="90"
                     value={targetMarginPct}
                     onChange={(e) => setTargetMarginPct(Number(e.target.value))}
-                    className="w-full accent-[#5BA4C8] cursor-pointer"
+                    className="w-full accent-[#5BA4C8] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                   <div className="flex justify-between text-[9px] text-[#90C4DC]">
                     <span>10%</span>
@@ -912,12 +952,13 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
                     <input
                       type="number"
+                      disabled={isReadOnly}
                       step="any"
                       min="0"
                       value={targetProfitThb}
                       onChange={(e) => setTargetProfitThb(Number(e.target.value) || 0)}
                       style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full pl-6 pr-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none"
+                      className="w-full pl-6 pr-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -932,12 +973,13 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
                     <input
                       type="number"
+                      disabled={isReadOnly}
                       step="any"
                       min="0"
                       value={fixedPriceInput}
                       onChange={(e) => setFixedPriceInput(Number(e.target.value) || 0)}
                       style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full pl-6 pr-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none"
+                      className="w-full pl-6 pr-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -949,23 +991,25 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                     <label className="block text-[#4A7592] font-semibold mb-0.5">ราคาป้ายปกติ (บาท):</label>
                     <input
                       type="number"
+                      disabled={isReadOnly}
                       step="any"
                       value={fixedPriceInput}
                       onChange={(e) => setFixedPriceInput(Number(e.target.value) || 0)}
                       style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none"
+                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
                     <label className="block text-[#4A7592] font-semibold mb-0.5">ส่วนลดโปรโมชั่น (%):</label>
                     <input
                       type="number"
+                      disabled={isReadOnly}
                       min="0"
                       max="90"
                       value={discountPct}
                       onChange={(e) => setDiscountPct(Number(e.target.value) || 0)}
                       style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono bg-white outline-none"
+                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -977,23 +1021,25 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                     <label className="block text-[#4A7592] font-semibold mb-0.5">ราคาฐานก่อนภาษี (บาท):</label>
                     <input
                       type="number"
+                      disabled={isReadOnly}
                       step="any"
                       value={fixedPriceInput}
                       onChange={(e) => setFixedPriceInput(Number(e.target.value) || 0)}
                       style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none"
+                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
                     <label className="block text-[#4A7592] font-semibold mb-0.5">อัตราภาษีมูลค่าเพิ่ม VAT (%):</label>
                     <input
                       type="number"
+                      disabled={isReadOnly}
                       min="0"
                       max="30"
                       value={vatPct}
                       onChange={(e) => setVatPct(Number(e.target.value) || 0)}
                       style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono bg-white outline-none"
+                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1063,14 +1109,16 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             </div>
 
             {/* Save Button */}
-            <button
-              type="submit"
-              style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-              className="w-full py-2 rounded-xl font-bold text-[11.5px] shadow-sm hover:bg-[#3D7FA3] active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
-            >
-              <Save size={14} />
-              <span>บันทึกสูตรและราคาขาย</span>
-            </button>
+            {!isReadOnly && (
+              <button
+                type="submit"
+                style={{ background: '#5BA4C8', color: '#FFFFFF' }}
+                className="w-full py-2 rounded-xl font-bold text-[11.5px] shadow-sm hover:bg-[#3D7FA3] active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+              >
+                <Save size={14} />
+                <span>บันทึกสูตรและราคาขาย</span>
+              </button>
+            )}
           </div>
         </div>
 
