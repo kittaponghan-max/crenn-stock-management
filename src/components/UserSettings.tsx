@@ -171,6 +171,24 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   prodcalc: 'Hidden'
 };
 
+// Helper for sorting users by official position hierarchy
+function getRoleRank(role: string): number {
+  const r = (role || '').toUpperCase().trim();
+  if (r === 'CO-FOUNDER' || r === 'COFOUNDER') return 1;
+  if (r === 'OWNER') return 2;
+  if (r === 'ADMIN') return 3;
+  if (r === 'BRANCH MANAGER' || r === 'BRANCHMANAGER') return 4;
+  if (r === 'HEAD BAKER') return 5;
+  if (r === 'SENIOR BAKER') return 6;
+  if (r === 'JUNIOR BAKER' || r === 'BAKER') return 7;
+  if (r === 'BARISTA') return 8;
+  if (r === 'BARISTA ASSISTANCE' || r === 'BARISTA ASSISTANT') return 9;
+  if (r === 'CASHIER') return 10;
+  if (r === 'SERVER/RUNNER' || r === 'SERVER' || r === 'RUNNER') return 11;
+  if (r === 'DISHWASHER/CLEANER' || r === 'CLEANER' || r === 'DISHWASHER') return 12;
+  return 99;
+}
+
 interface UserSettingsProps {
   branch?: string;
   currentUser?: { name: string; role: UserRole | string; permissions?: AppPermissions | any; branch?: string };
@@ -1744,24 +1762,6 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         {role}
       </span>
     );
-  };
-
-  // Helper for sorting users by official position hierarchy
-  const getRoleRank = (role: string): number => {
-    const r = (role || '').toUpperCase().trim();
-    if (r === 'CO-FOUNDER' || r === 'COFOUNDER') return 1;
-    if (r === 'OWNER') return 2;
-    if (r === 'ADMIN') return 3;
-    if (r === 'BRANCH MANAGER' || r === 'BRANCHMANAGER') return 4;
-    if (r === 'HEAD BAKER') return 5;
-    if (r === 'SENIOR BAKER') return 6;
-    if (r === 'JUNIOR BAKER' || r === 'BAKER') return 7;
-    if (r === 'BARISTA') return 8;
-    if (r === 'BARISTA ASSISTANCE' || r === 'BARISTA ASSISTANT') return 9;
-    if (r === 'CASHIER') return 10;
-    if (r === 'SERVER/RUNNER' || r === 'SERVER' || r === 'RUNNER') return 11;
-    if (r === 'DISHWASHER/CLEANER' || r === 'CLEANER' || r === 'DISHWASHER') return 12;
-    return 99;
   };
 
   const sortedUsers = [...users].sort((a, b) => {
