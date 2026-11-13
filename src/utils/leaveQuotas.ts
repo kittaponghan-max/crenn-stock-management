@@ -5,6 +5,7 @@ export interface EmployeeAnnualLeaveQuota {
   birthday: number; // ลาพักประจำวันเกิด
   personal: number; // ลากิจ
   sick: number;     // ลาป่วย
+  ignored?: boolean; // ไม่ติดตามวันลา (Ignore)
   userName?: string;
   branch?: string;
 }
@@ -48,6 +49,7 @@ export function sanitizeQuotaNumbers(
     birthday: parseNum(quota?.birthday, DEFAULT_ANNUAL_LEAVE_QUOTA.birthday),
     personal: parseNum(quota?.personal, DEFAULT_ANNUAL_LEAVE_QUOTA.personal),
     sick: parseNum(quota?.sick, DEFAULT_ANNUAL_LEAVE_QUOTA.sick),
+    ignored: Boolean(quota?.ignored),
     ...(quota?.userName ? { userName: quota.userName } : {}),
     ...(quota?.branch ? { branch: quota.branch } : {}),
   };
@@ -174,7 +176,7 @@ export async function fetchAnnualLeaveQuotas(): Promise<AnnualLeaveQuotasByYear>
     try {
       const { data: tableRows, error: tableErr } = await supabase
         .from(LEAVE_QUOTAS_TABLE)
-        .select('id, year, user_id, user_name, branch, vacation_days, birthday_days, personal_days, sick_days');
+        .select('id, year, user_id, user_name, branch, vacation_days, birthday_days, personal_days, sick_days, is_ignored');
 
       if (!tableErr && Array.isArray(tableRows) && tableRows.length > 0) {
         const fromTable: AnnualLeaveQuotasByYear = {};
@@ -188,6 +190,7 @@ export async function fetchAnnualLeaveQuotas(): Promise<AnnualLeaveQuotasByYear>
             birthday: row.birthday_days,
             personal: row.personal_days,
             sick: row.sick_days,
+            ignored: Boolean(row.is_ignored),
             userName: row.user_name || undefined,
             branch: row.branch || undefined,
           });
@@ -258,6 +261,7 @@ export async function saveAnnualLeaveQuotas(
         birthday_days: number;
         personal_days: number;
         sick_days: number;
+        is_ignored: boolean;
         updated_at: string;
       }> = [];
 
@@ -275,6 +279,7 @@ export async function saveAnnualLeaveQuotas(
             birthday_days: q.birthday,
             personal_days: q.personal,
             sick_days: q.sick,
+            is_ignored: Boolean(q.ignored),
             updated_at: nowIso,
           });
         });
