@@ -619,7 +619,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
                     )}>
                       <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#B8D4D2] inline-block">
-                        {item.minStock} {item.unit}
+                        {item.minStock} {item.min_stock_unit || item.unit}
                       </span>
                     </td>
                   )}
@@ -629,7 +629,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
                     )}>
                       <span className="bg-[#FEF3C7] text-[#F59E0B] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#FDE68A] inline-block">
-                        {item.minOrder} {item.unit}
+                        {item.minOrder} {item.min_order_unit || item.unit}
                       </span>
                     </td>
                   )}
