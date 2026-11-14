@@ -710,31 +710,31 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   const monthYearLabel = selectedMonth.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 pb-20">
+    <div className="w-full max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20">
       
-      {/* ── HEADER BANNER CARD ── */}
-      <div className="bg-white rounded-2xl p-5 md:p-6 shadow-xs border border-[#D4E4E3] border-t-4 border-t-[#5A8A88]">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* ── HEADER BANNER CARD (Aligned with Inventory Dashboard Typography) ── */}
+      <div className="bg-gradient-to-r from-white to-[#EAF2F1] rounded-2xl p-4 md:p-5 shadow-xs border border-[#D4E4E3]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
           
           {/* Left: Icon + Title + Badges + Subtitle */}
           <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center text-2xl font-bold border border-[#D4E4E3] shrink-0 shadow-2xs">
+            <div className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white text-[#5A8A88] flex items-center justify-center text-xl md:text-2xl font-bold border border-[#D4E4E3] shrink-0 shadow-xs">
               {isPersonalMode ? '👤' : '📊'}
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl md:text-2xl font-black text-[#2D4A49] tracking-tight whitespace-nowrap">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight whitespace-nowrap">
                   {isPersonalMode ? 'Personnel Leave' : 'Leave Dashboard'}
                 </h1>
-                <span className="text-xs font-bold text-[#5A8A88] bg-[#E8F3F2] px-2.5 py-0.5 rounded-full border border-[#D4E4E3]/70 whitespace-nowrap">
+                <span className="text-[10px] sm:text-[11px] font-bold text-[#5A8A88] bg-[#5A8A88]/15 px-2 py-0.5 rounded-md whitespace-nowrap">
                   {isPersonalMode ? 'ภาพรวมการลาส่วนตัว' : 'ภาพรวมการลาของทีม'}
                 </span>
-                <span className="text-xs font-bold text-[#2D4A49] bg-[#E8F3F2] px-3 py-1 rounded-full border border-[#D4E4E3] whitespace-nowrap flex items-center gap-1.5 shadow-2xs">
+                <span className="text-[11px] sm:text-xs font-semibold text-[#2D4A49] bg-white px-2.5 py-0.5 rounded-full border border-[#D4E4E3] whitespace-nowrap flex items-center gap-1 shadow-2xs">
                   <span>📍</span>
                   <span>{currentBranchLabel}</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1 font-medium truncate sm:whitespace-normal">
+              <p className="text-xs md:text-sm text-[#6B8F8E] font-medium mt-1 truncate sm:whitespace-normal">
                 {isPersonalMode 
                   ? `ติดตามการลาล่วงหน้า สถิติวันลาคงเหลือ และประวัติการลาส่วนบุคคลของ ${user?.name || 'พนักงาน'} (${currentBranchLabel})`
                   : `ติดตามการลาล่วงหน้า สถิติวันลาคงเหลือของพนักงาน และปฏิทินการลาใน${currentBranchLabel}`
@@ -744,16 +744,16 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           </div>
 
           {/* Right: Year Filter & Action Button */}
-          <div className="flex flex-wrap items-center gap-3 shrink-0 self-stretch sm:self-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-stretch sm:self-auto justify-end">
             
             {/* Year Filter Tool */}
-            <div className="flex items-center gap-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3 py-2 shadow-2xs hover:border-[#5A8A88] transition-colors">
-              <CalendarIcon size={14} className="text-[#5A8A88] shrink-0" />
-              <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">ปี:</span>
+            <div className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] rounded-full px-3 py-1.5 shadow-xs hover:border-[#5A8A88] transition-colors">
+              <CalendarIcon size={13} className="text-[#5A8A88] shrink-0" />
+              <span className="text-[11px] font-semibold text-[#6B8F8E] whitespace-nowrap">ปี:</span>
               <select
                 value={selectedYear}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="text-xs font-bold text-[#2D4A49] bg-transparent focus:outline-none cursor-pointer"
+                className="text-[11px] font-semibold text-[#2D4A49] bg-transparent focus:outline-none cursor-pointer"
               >
                 <option value="all">ทุกปี (All Years)</option>
                 {availableYears.map(yr => (
@@ -769,9 +769,9 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               <button
                 type="button"
                 onClick={onOpenLeaveModal}
-                className="px-4 py-2.5 rounded-xl bg-[#2D4A49] hover:bg-[#203635] text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98]"
+                className="px-3.5 py-1.5 rounded-full bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] font-semibold shadow-xs hover:shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98]"
               >
-                <Plus size={16} className="shrink-0" />
+                <Plus size={14} className="shrink-0" />
                 <span>ทำรายการลาหยุด (Leave Request)</span>
               </button>
             )}
@@ -781,44 +781,47 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         </div>
       </div>
 
-      {/* ── 1. TOP KPI SUMMARY CARDS (Guaranteed Single Row Across Screens) ── */}
-      <div className="w-full overflow-x-auto pb-1">
-        <div className="grid grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 min-w-[620px] lg:min-w-0">
+      {/* ── 1. TOP KPI SUMMARY CARDS (Aligned with HomeScreen KPI Typography) ── */}
+      <div className="w-full overflow-x-auto custom-scrollbar pb-0.5">
+        <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3 min-w-[520px] sm:min-w-0">
           
           {/* Card 1: On Leave Today / Personal Status Today */}
-          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
+          <div className="bg-white border border-amber-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-1">
+              <div className="min-w-0">
+                <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-amber-800 block truncate">
                   {isPersonalActive ? 'สถานะการลาวันนี้' : 'พนักงานที่ลาวันนี้'}
                 </span>
-                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm ${
-                  isPersonalActive 
-                    ? (displayTodayLeaves.length > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600')
-                    : 'bg-amber-50 text-amber-600'
-                }`}>
-                  {isPersonalActive ? (displayTodayLeaves.length > 0 ? '🤒' : '✨') : '🤒'}
-                </div>
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-slate-800">
-                  {isPersonalActive 
-                    ? (displayTodayLeaves.length > 0 ? 'ลาหยุด' : 'ปกติ')
-                    : displayTodayLeaves.length
-                  }
-                </span>
-                <span className="text-xs text-slate-500 font-semibold">
-                  {isPersonalActive ? (displayTodayLeaves.length > 0 ? '' : '(ทำงาน)') : 'คน'}
+                <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                  {isPersonalActive ? 'สถานะประจำวัน' : 'อัปเดตวันลาล่าสุด'}
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {isPersonalActive
-                  ? (displayTodayLeaves.length > 0 ? displayTodayLeaves[0].leaveTypeName : 'คุณปฏิบัติงานตามปกติ')
-                  : (displayTodayLeaves.length > 0 ? displayTodayLeaves.map(l => l.userName).join(', ') : 'ไม่มีพนักงานลาในวันนี้')
-                }
-              </p>
+              <div className={`w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full flex items-center justify-center shrink-0 text-xs sm:text-sm ${
+                isPersonalActive 
+                  ? (displayTodayLeaves.length > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600')
+                  : 'bg-amber-50 text-amber-600'
+              }`}>
+                {isPersonalActive ? (displayTodayLeaves.length > 0 ? '🤒' : '✨') : '🤒'}
+              </div>
             </div>
-            <div className="w-full bg-slate-100 h-1 rounded-full mt-3 overflow-hidden">
+            <div className="mt-1.5 sm:mt-2 flex items-baseline">
+              <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-slate-800 leading-none">
+                {isPersonalActive 
+                  ? (displayTodayLeaves.length > 0 ? 'ลาหยุด' : 'ปกติ')
+                  : displayTodayLeaves.length
+                }
+              </span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">
+                {isPersonalActive ? (displayTodayLeaves.length > 0 ? '' : '(ทำงาน)') : 'คน'}
+              </span>
+            </div>
+            <p className="text-[8.5px] sm:text-[9.5px] text-amber-600 font-medium mt-1 sm:mt-1.5 truncate">
+              {isPersonalActive
+                ? (displayTodayLeaves.length > 0 ? displayTodayLeaves[0].leaveTypeName : 'คุณปฏิบัติงานตามปกติ')
+                : (displayTodayLeaves.length > 0 ? displayTodayLeaves.map(l => l.userName).join(', ') : 'ไม่มีพนักงานลาในวันนี้')
+              }
+            </p>
+            <div className="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
               <div 
                 className={`h-full rounded-full ${isPersonalActive && displayTodayLeaves.length === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`} 
                 style={{ width: isPersonalActive ? '100%' : `${Math.min(100, displayTodayLeaves.length * 25)}%` }} 
@@ -827,82 +830,91 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           </div>
 
           {/* Card 2: Upcoming Leaves */}
-          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
+          <div className="bg-white border border-[#D4E4E3] rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-1">
+              <div className="min-w-0">
+                <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-[#2D4A49] block truncate">
                   {isPersonalActive ? 'การลาล่วงหน้าของคุณ' : 'การลาล่วงหน้า'}
                 </span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center shrink-0 font-bold text-sm">
-                  🏖️
-                </div>
+                <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                  ตารางวันลาถัดไป
+                </span>
               </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-[#5A8A88]">{displayUpcomingLeaves.length}</span>
-                <span className="text-xs text-slate-500 font-semibold">รายการ</span>
+              <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center shrink-0 text-xs sm:text-sm">
+                🏖️
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {displayUpcomingLeaves.length > 0 
-                  ? `ลาล่วงหน้าตั้งแต่ ${displayUpcomingLeaves[0].fromDate}` 
-                  : (isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีรายการลาล่วงหน้า')
-                }
-              </p>
             </div>
-            <div className="w-full bg-[#E8F3F2] h-1 rounded-full mt-3 overflow-hidden">
+            <div className="mt-1.5 sm:mt-2 flex items-baseline">
+              <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-[#5A8A88] leading-none">{displayUpcomingLeaves.length}</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+            </div>
+            <p className="text-[8.5px] sm:text-[9.5px] text-[#5A8A88] font-medium mt-1 sm:mt-1.5 truncate">
+              {displayUpcomingLeaves.length > 0 
+                ? `ลาล่วงหน้าตั้งแต่ ${displayUpcomingLeaves[0].fromDate}` 
+                : (isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีรายการลาล่วงหน้า')
+              }
+            </p>
+            <div className="w-full bg-[#E8F3F2] h-1 rounded-full mt-2 overflow-hidden">
               <div className="bg-[#5A8A88] h-full rounded-full" style={{ width: `${Math.min(100, displayUpcomingLeaves.length * 20)}%` }} />
             </div>
           </div>
 
           {/* Card 3: Pending Approvals */}
-          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
+          <div className="bg-white border border-orange-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-1">
+              <div className="min-w-0">
+                <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-orange-700 block truncate">
                   {isPersonalActive ? 'คำขอรออนุมัติของคุณ' : 'คำขอรออนุมัติ'}
                 </span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                  ⏳
-                </div>
+                <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                  รอพิจารณาอนุมัติ
+                </span>
               </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-orange-600">{displayPendingCount}</span>
-                <span className="text-xs text-slate-500 font-semibold">คำขอ</span>
+              <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 text-xs sm:text-sm">
+                ⏳
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {displayPendingCount > 0 
-                  ? (isPersonalActive ? 'รอผู้จัดการพิจารณาอนุมัติ' : 'รอผู้จัดการดำเนินการอนุมัติ') 
-                  : (isPersonalActive ? 'ไม่มีคำขอที่รออนุมัติ' : 'พิจารณาครบทุกรายการแล้ว')
-                }
-              </p>
             </div>
-            <div className="w-full bg-orange-100 h-1 rounded-full mt-3 overflow-hidden">
+            <div className="mt-1.5 sm:mt-2 flex items-baseline">
+              <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-orange-600 leading-none">{displayPendingCount}</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">คำขอ</span>
+            </div>
+            <p className="text-[8.5px] sm:text-[9.5px] text-orange-600 font-medium mt-1 sm:mt-1.5 truncate">
+              {displayPendingCount > 0 
+                ? (isPersonalActive ? 'รอผู้จัดการพิจารณาอนุมัติ' : 'รอผู้จัดการดำเนินการอนุมัติ') 
+                : (isPersonalActive ? 'ไม่มีคำขอที่รออนุมัติ' : 'พิจารณาครบทุกรายการแล้ว')
+              }
+            </p>
+            <div className="w-full bg-orange-100 h-1 rounded-full mt-2 overflow-hidden">
               <div className="bg-orange-500 h-full rounded-full" style={{ width: `${Math.min(100, displayPendingCount * 33)}%` }} />
             </div>
           </div>
 
           {/* Card 4: Total Requests */}
-          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
+          <div className="bg-white border border-purple-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 lg:p-3.5 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-1">
+              <div className="min-w-0">
+                <span className="text-[11px] sm:text-[11.5px] lg:text-[12px] font-bold text-purple-800 block truncate">
                   {isPersonalActive ? 'คำขอทั้งหมดของคุณ' : 'คำขอทั้งหมดในระบบ'}
                 </span>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                  📋
-                </div>
+                <span className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-[#6B8F8E] font-medium block truncate mt-0.5">
+                  ประวัติคำขอลาสะสม
+                </span>
               </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black text-purple-700">{displayTotalRequestsCount}</span>
-                <span className="text-xs text-slate-500 font-semibold">รายการ</span>
+              <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 lg:w-7 lg:h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 text-xs sm:text-sm">
+                📋
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate">
-                {selectedYear === 'all' 
-                  ? (isPersonalActive ? 'ประวัติคำขอทั้งหมดของคุณ' : 'ครอบคลุมทุกปีในระบบ') 
-                  : `ประจำปี ${selectedYear}`
-                }
-              </p>
             </div>
-            <div className="w-full bg-purple-100 h-1 rounded-full mt-3 overflow-hidden">
+            <div className="mt-1.5 sm:mt-2 flex items-baseline">
+              <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-purple-700 leading-none">{displayTotalRequestsCount}</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium ml-1">รายการ</span>
+            </div>
+            <p className="text-[8.5px] sm:text-[9.5px] text-purple-600 font-medium mt-1 sm:mt-1.5 truncate">
+              {selectedYear === 'all' 
+                ? (isPersonalActive ? 'ประวัติคำขอทั้งหมดของคุณ' : 'ครอบคลุมทุกปีในระบบ') 
+                : `ประจำปี ${selectedYear}`
+              }
+            </p>
+            <div className="w-full bg-purple-100 h-1 rounded-full mt-2 overflow-hidden">
               <div className="bg-purple-600 h-full rounded-full" style={{ width: '85%' }} />
             </div>
           </div>
@@ -910,17 +922,17 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         </div>
       </div>
 
-      {/* ── 2. MAIN TWO-COLUMN SECTION (Calendar & Advance Leaves) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* ── 2. MAIN TWO-COLUMN SECTION (Calendar & Leave Request Approval) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
         
         {/* LEFT 7-COLUMNS: Interactive Monthly Calendar */}
-        <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-[#D4E4E3] shadow-xs space-y-4">
+        <div className="lg:col-span-7 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs space-y-4">
           
-          <div className="flex items-center justify-between border-b border-[#D4E4E3] pb-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
-              <CalendarIcon size={18} className="text-[#5A8A88]" />
-              <h2 className="text-sm font-bold text-[#2D4A49]">
-                Calendar & Attendance <span className="text-xs text-slate-500 font-normal">(ปฏิทินการลาในทีม)</span>
+              <CalendarIcon size={16} className="text-[#5A8A88] shrink-0" />
+              <h2 className="text-[13px] sm:text-[14px] font-bold text-slate-800 tracking-tight">
+                Calendar & Attendance <span className="text-[11px] sm:text-[12px] text-slate-400 font-medium">(ปฏิทินการลาในทีม)</span>
               </h2>
             </div>
             
@@ -932,10 +944,10 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 className="p-1.5 rounded-lg hover:bg-[#E8F3F2] text-[#5A8A88] transition-colors cursor-pointer"
                 title="เดือนก่อนหน้า"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={15} />
               </button>
               
-              <span className="text-xs font-bold text-[#2D4A49] min-w-[120px] text-center capitalize">
+              <span className="text-[12px] sm:text-[13px] font-bold text-[#2D4A49] min-w-[115px] text-center capitalize">
                 {monthYearLabel}
               </span>
 
@@ -945,13 +957,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 className="p-1.5 rounded-lg hover:bg-[#E8F3F2] text-[#5A8A88] transition-colors cursor-pointer"
                 title="เดือนถัดไป"
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={15} />
               </button>
             </div>
           </div>
 
           {/* Days of Week Header */}
-          <div className="grid grid-cols-7 gap-1 text-center font-bold text-[11px] text-slate-400 py-1">
+          <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] sm:text-[11px] text-slate-400 py-0.5">
             <span>อา (Sun)</span>
             <span>จ (Mon)</span>
             <span>อ (Tue)</span>
@@ -1020,7 +1032,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                   className={`min-h-[78px] rounded-xl p-1.5 flex flex-col justify-between text-left transition-all border cursor-pointer relative overflow-hidden ${cellSurfaceClass}`}
                 >
                   <div className="flex items-center justify-between w-full gap-0.5">
-                    <span className={`text-xs font-bold leading-none ${
+                    <span className={`text-[11px] font-bold leading-none ${
                       isSelected
                         ? 'text-white'
                         : isToday
@@ -1085,30 +1097,30 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           </div>
 
           {/* Calendar Status Legend */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-slate-100 text-[10px] sm:text-[11px] text-[#6B8F8E]">
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" />
+              <span className="w-2.5 h-2.5 rounded bg-emerald-100 border border-emerald-300 inline-block" />
               อนุมัติแล้ว (Approved)
             </span>
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" />
+              <span className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300 inline-block" />
               รออนุมัติ (Pending)
             </span>
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-3 h-3 rounded bg-pink-100 border border-pink-200 inline-block" />
+              <span className="w-2.5 h-2.5 rounded bg-pink-100 border border-pink-200 inline-block" />
               🎂 วันเกิดพนักงาน (Birthday)
             </span>
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-3 h-3 rounded bg-[#E8F3F2] border border-[#5A8A88] inline-block" />
+              <span className="w-2.5 h-2.5 rounded bg-[#E8F3F2] border border-[#5A8A88] inline-block" />
               วันนี้ (Today)
             </span>
           </div>
 
           {/* Selected Date Detail Drawer */}
           {selectedDayDetails && (
-            <div className="p-3.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2.5">
+            <div className="p-3 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2">
               <div className="flex items-center justify-between gap-2 border-b border-[#D4E4E3]/70 pb-2">
-                <span className="text-xs font-bold text-[#2D4A49] flex items-center gap-1.5">
+                <span className="text-[11px] sm:text-xs font-bold text-[#2D4A49] flex items-center gap-1.5">
                   <span>📅</span>
                   <span>
                     รายละเอียดวันที่{' '}
@@ -1123,28 +1135,28 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedDateFilter(null)}
-                  className="text-[11px] text-rose-600 hover:underline cursor-pointer font-bold shrink-0"
+                  className="text-[10px] text-rose-600 hover:underline cursor-pointer font-bold shrink-0"
                 >
                   ล้างตัวกรองวันที่
                 </button>
               </div>
 
               {selectedDayDetails.birthdayItems.length === 0 && selectedDayDetails.leaveItems.length === 0 ? (
-                <p className="text-xs text-slate-400 py-1">
+                <p className="text-[11px] text-slate-400 py-1">
                   ไม่มีรายการลาหยุดหรือวันเกิดพนักงานในวันที่ {selectedDayDetails.dateStr}
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {/* Birthdays on Selected Date */}
                   {selectedDayDetails.birthdayItems.map((b) => (
                     <div
                       key={`detail-bday-${b.id}`}
-                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-pink-50 border border-pink-200 text-xs"
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-pink-50 border border-pink-200 text-[11px]"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm shrink-0">🎂</span>
+                        <span className="text-xs shrink-0">🎂</span>
                         <span className="font-bold text-pink-900 truncate">วันเกิดของ {b.name}</span>
-                        <span className="text-[10px] font-semibold text-pink-700 bg-white/80 px-1.5 py-0.5 rounded border border-pink-200/70 shrink-0">
+                        <span className="text-[9.5px] font-semibold text-pink-700 bg-white/80 px-1.5 py-0.5 rounded border border-pink-200/70 shrink-0">
                           {b.role}
                         </span>
                       </div>
@@ -1156,7 +1168,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                   {selectedDayDetails.leaveItems.map((item) => (
                     <div
                       key={`detail-leave-${item.id}`}
-                      className={`p-2.5 rounded-lg border text-xs space-y-1 ${
+                      className={`p-2 rounded-lg border text-[11px] space-y-1 ${
                         item.status === 'Approved'
                           ? 'bg-emerald-50/70 border-emerald-200'
                           : 'bg-amber-50/70 border-amber-200'
@@ -1164,12 +1176,12 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-bold text-slate-800 truncate">{item.userName}</span>
-                          <span className="text-[10px] font-semibold text-[#5A8A88] bg-white px-1.5 py-0.5 rounded border border-[#D4E4E3] shrink-0">
+                          <span className="font-bold text-[#2D4A49] truncate">{item.userName}</span>
+                          <span className="text-[9.5px] font-semibold text-[#5A8A88] bg-white px-1.5 py-0.5 rounded border border-[#D4E4E3] shrink-0">
                             {item.leaveTypeName}
                           </span>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                        <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-bold shrink-0 ${
                           item.status === 'Approved'
                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                             : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -1177,7 +1189,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                           {item.status === 'Approved' ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}
                         </span>
                       </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-600">
                         <span>
                           🗓️ {item.fromDate === item.toDate ? item.fromDate : `${item.fromDate} ถึง ${item.toDate}`} ({item.totalDays} วัน)
                         </span>
@@ -1195,33 +1207,33 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         </div>
 
         {/* RIGHT 5-COLUMNS: Leave Request Approval (คำขออนุมัติวันลา) */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-[#D4E4E3] shadow-xs space-y-4 flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs space-y-4 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-[#D4E4E3] pb-3 mb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles size={18} className="text-amber-500" />
-                <h2 className="text-sm font-bold text-[#2D4A49]">
+                <Sparkles size={15} className="text-amber-500 shrink-0" />
+                <h2 className="text-[13px] sm:text-[14px] font-bold text-slate-800 tracking-tight">
                   คำขออนุมัติวันลา{' '}
-                  <span className="text-xs text-slate-500 font-normal">
+                  <span className="text-[11px] sm:text-[12px] text-slate-400 font-medium">
                     (Leave Request Approval)
                   </span>
                 </h2>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F2] text-[#5A8A88]">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F2] text-[#5A8A88] shrink-0">
                 {displayApprovalQueueLeaves.length} รายการ
               </span>
             </div>
 
-            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
               {displayApprovalQueueLeaves.length === 0 ? (
-                <div className="text-center py-12 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
-                  <div className="w-10 h-10 rounded-2xl bg-white text-slate-400 mx-auto flex items-center justify-center text-lg mb-2 shadow-2xs border border-slate-200">
+                <div className="text-center py-10 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-9 h-9 rounded-xl bg-white text-slate-400 mx-auto flex items-center justify-center text-base mb-2 shadow-2xs border border-slate-200">
                     🏖️
                   </div>
-                  <p className="text-xs font-bold text-slate-600">
+                  <p className="text-[11px] font-bold text-slate-700">
                     {isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีคำขออนุมัติวันลาในขณะนี้'}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                  <p className="text-[10px] text-[#6B8F8E] mt-1 max-w-xs mx-auto">
                     {isPersonalActive
                       ? `คุณ (${user?.name || 'พนักงาน'}) ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ`
                       : `พนักงานใน${currentBranchLabel}ยังไม่มีคำขออนุมัติวันลาหรือการลาล่วงหน้าในระบบ`
@@ -1232,20 +1244,20 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 displayApprovalQueueLeaves.map((record) => (
                   <div
                     key={record.id}
-                    className="p-3 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2 hover:border-[#5A8A88] transition-colors"
+                    className="p-2.5 sm:p-3 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl space-y-2 hover:border-[#5A8A88] transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-[#5A8A88] text-white flex items-center justify-center font-bold text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-[#5A8A88] text-white flex items-center justify-center font-bold text-[11px] shrink-0">
                           {record.userName.charAt(0)}
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-800 leading-tight">{record.userName}</p>
-                          <p className="text-[10px] text-slate-400">สาขา {record.userBranch}</p>
+                        <div className="min-w-0">
+                          <p className="text-[11px] sm:text-xs font-bold text-[#2D4A49] leading-snug truncate">{record.userName}</p>
+                          <p className="text-[9.5px] sm:text-[10px] text-[#6B8F8E]">สาขา {record.userBranch}</p>
                         </div>
                       </div>
 
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                         record.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
@@ -1253,7 +1265,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-[#D4E4E3]/60">
+                    <div className="flex items-center justify-between text-[11px] bg-white px-2.5 py-1.5 rounded-lg border border-[#D4E4E3]/60">
                       <span className="font-semibold text-slate-700">
                         🗓️ {record.fromDate} ถึง {record.toDate}
                       </span>
@@ -1262,8 +1274,8 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-600 truncate bg-slate-50 p-1.5 rounded">
-                      <span className="font-medium text-slate-700">{record.leaveTypeName}:</span> {record.description || '-'}
+                    <p className="text-[10px] sm:text-[11px] text-slate-600 truncate bg-slate-50 px-2 py-1 rounded">
+                      <span className="font-semibold text-slate-700">{record.leaveTypeName}:</span> {record.description || '-'}
                     </p>
 
                     {/* Approve / Reject Controls for Authorized Roles Only (Admin, Owner, Co-founder, Branch Manager) */}
@@ -1273,25 +1285,25 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                           <button
                             type="button"
                             onClick={() => handleUpdateStatus(record.id, 'Rejected')}
-                            className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1"
                             title="ไม่อนุมัติคำขอลา"
                           >
-                            <X size={13} />
+                            <X size={12} />
                             <span>ไม่อนุมัติ (Reject)</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleUpdateStatus(record.id, 'Approved')}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
                             title="อนุมัติการลาและหักวันลาคงเหลือทันที"
                           >
-                            <Check size={13} />
+                            <Check size={12} />
                             <span>อนุมัติ (Approve)</span>
                           </button>
                         </div>
                       ) : (
                         <div className="pt-1.5 border-t border-[#D4E4E3]/60 text-right">
-                          <span className="text-[10px] text-slate-400 font-medium">
+                          <span className="text-[9.5px] sm:text-[10px] text-[#6B8F8E] font-medium">
                             🔒 เฉพาะ Admin, Owner, Co-founder และ Branch Manager เท่านั้นที่มีสิทธิ์อนุมัติ
                           </span>
                         </div>
@@ -1304,7 +1316,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           </div>
 
           <div className="pt-2 border-t border-slate-100 text-center">
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[10px] text-[#6B8F8E]">
               💡 แสดงเฉพาะพนักงานจริงตามบัญชีผู้ใช้ของสาขาที่เลือก (เมื่ออนุมัติแล้วระบบจะหักวันลาคงเหลือทันที)
             </p>
           </div>
@@ -1313,19 +1325,19 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       </div>
 
       {/* ── 3. EMPLOYEE LEAVE QUOTAS & REMAINING BALANCE SECTION (Real Accounts Only) ── */}
-      <div className="bg-white rounded-2xl p-5 md:p-6 border border-[#D4E4E3] shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs space-y-4">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D4E4E3] pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
-            <Users size={18} className="text-[#5A8A88]" />
+            <Users size={16} className="text-[#5A8A88] shrink-0" />
             <div>
-              <h2 className="text-sm md:text-base font-bold text-[#2D4A49]">
+              <h2 className="text-[13px] sm:text-[14px] font-bold text-slate-800 tracking-tight">
                 {isPersonalActive ? 'สิทธิ์วันลาคงเหลือส่วนบุคคล' : 'สิทธิ์วันลาคงเหลือของพนักงานรายบุคคล'}{' '}
-                <span className="text-xs text-[#5A8A88] font-normal">
+                <span className="text-[11px] sm:text-[12px] text-slate-400 font-medium">
                   {isPersonalActive ? '(Your Leave Quotas & Balances)' : '(Employee Leave Quotas & Balances)'}
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[10px] sm:text-[11px] text-[#6B8F8E] mt-0.5">
                 {isPersonalActive 
                   ? `สรุปสิทธิ์วันลาคงเหลือแยกตามประเภท (ลาพักร้อน, ลาพักประจำวันเกิด, ลากิจ, ลาป่วย) ประจำปี ${activeQuotaYear} ของคุณ (${user?.name || 'พนักงาน'})`
                   : `สรุปสิทธิ์คงเหลือแยกตามประเภท (ลาพักร้อน, ลาพักประจำวันเกิด, ลากิจ, ลาป่วย) ประจำปี ${activeQuotaYear} ของพนักงานจริงใน${currentBranchLabel} (${filteredEmployeeQuotas.length} คน)`
@@ -1333,33 +1345,33 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-lg bg-[#E8F3F2] border border-[#D4E4E3] text-[11px] font-bold text-[#2D4A49] shrink-0">
+          <span className="px-2.5 py-1 rounded-lg bg-[#E8F3F2] border border-[#D4E4E3] text-[10px] sm:text-[11px] font-bold text-[#2D4A49] shrink-0 self-start sm:self-auto">
             ปี {activeQuotaYear} (พ.ศ. {parseInt(activeQuotaYear, 10) + 543})
           </span>
         </div>
 
         {/* Real Staff Cards Grid */}
         {filteredEmployeeQuotas.length === 0 ? (
-          <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-            <p className="text-sm font-bold text-slate-600">
+          <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <p className="text-xs font-bold text-slate-700">
               {isPersonalMode && isCurrentUserIgnored
                 ? 'บัญชีของคุณถูกตั้งค่าเป็น Ignore (ไม่ต้องติดตามวันลาประจำปี)'
                 : 'ไม่พบบัญชีพนักงานที่ติดตามวันลาในสาขานี้'}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-[10px] sm:text-[11px] text-[#6B8F8E] mt-1">
               {isPersonalMode && isCurrentUserIgnored
                 ? `สำหรับปี ${activeQuotaYear} บัญชีนี้ไม่ต้องติดตามโควต้าวันลา (สามารถปรับแก้ได้ที่ User Security Settings)`
                 : 'สามารถตรวจสอบรายชื่อหรือสถานะ Ignore ได้ที่เมนู "User Security Settings -> ตั้งค่าวันลาประจำปี"'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {filteredEmployeeQuotas.map((emp) => {
               const isOwnAccount = isCurrentUser(emp.name);
               return (
                 <div 
                   key={emp.id} 
-                  className={`rounded-2xl p-4 space-y-3 transition-shadow ${
+                  className={`rounded-2xl p-3.5 space-y-3 transition-shadow ${
                     isOwnAccount 
                       ? 'bg-[#F0F7F6] border-2 border-[#5A8A88] shadow-xs' 
                       : 'bg-[#F8FCFC] border border-[#D4E4E3] hover:shadow-xs'
@@ -1367,15 +1379,15 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 >
                   
                   {/* Staff Header */}
-                  <div className="flex items-center gap-3 border-b border-[#D4E4E3]/60 pb-2.5">
-                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-base shadow-xs shrink-0 ${
+                  <div className="flex items-center gap-2.5 border-b border-[#D4E4E3]/60 pb-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs shrink-0 ${
                       isOwnAccount ? 'bg-[#2D4A49] text-white' : 'bg-[#5A8A88] text-white'
                     }`}>
                       {emp.avatar}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-xs font-bold text-slate-800 truncate">{emp.name}</h3>
+                        <h3 className="text-xs font-bold text-[#2D4A49] truncate">{emp.name}</h3>
                         {isOwnAccount && (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#5A8A88] text-white whitespace-nowrap">
                             ⭐ บัญชีของคุณ
@@ -1383,7 +1395,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                         )}
                       </div>
                       <p className="text-[10px] text-[#5A8A88] font-semibold truncate">{emp.role}</p>
-                      <p className="text-[9px] text-slate-400 font-medium">📍 สาขา {emp.branch}</p>
+                      <p className="text-[9.5px] text-[#6B8F8E] font-medium">📍 สาขา {emp.branch}</p>
                     </div>
                   </div>
 
@@ -1392,7 +1404,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     
                     {/* 1. ลาพักร้อน */}
                     <div>
-                      <div className="flex justify-between text-[11px] mb-0.5">
+                      <div className="flex justify-between text-[10.5px] sm:text-[11px] mb-0.5">
                         <span className="font-semibold text-slate-700">🏖️ ลาพักร้อน (Vacation Leave)</span>
                         <span className="font-bold text-emerald-700">{emp.vacationRemaining} / {emp.vacationTotal} วัน</span>
                       </div>
@@ -1403,7 +1415,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
                     {/* 2. ลาพักประจำวันเกิด */}
                     <div>
-                      <div className="flex justify-between text-[11px] mb-0.5">
+                      <div className="flex justify-between text-[10.5px] sm:text-[11px] mb-0.5">
                         <span className="font-semibold text-slate-700">🎂 ลาพักประจำวันเกิด (Birthday Leave)</span>
                         <span className="font-bold text-amber-600">{emp.birthdayRemaining} / {emp.birthdayTotal} วัน</span>
                       </div>
@@ -1414,7 +1426,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
                     {/* 3. ลากิจ */}
                     <div>
-                      <div className="flex justify-between text-[11px] mb-0.5">
+                      <div className="flex justify-between text-[10.5px] sm:text-[11px] mb-0.5">
                         <span className="font-semibold text-slate-700">💼 ลากิจ (Personal Leave)</span>
                         <span className="font-bold text-purple-700">{emp.personalRemaining} / {emp.personalTotal} วัน</span>
                       </div>
@@ -1425,7 +1437,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
                     {/* 4. ลาป่วย */}
                     <div>
-                      <div className="flex justify-between text-[11px] mb-0.5">
+                      <div className="flex justify-between text-[10.5px] sm:text-[11px] mb-0.5">
                         <span className="font-semibold text-slate-700">🤒 ลาป่วย (Sick Leave)</span>
                         <span className="font-bold text-rose-600">{emp.sickRemaining} / {emp.sickTotal} วัน</span>
                       </div>
@@ -1445,17 +1457,17 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       </div>
 
       {/* ── 4. ALL TEAM LEAVE REQUESTS TABLE (HISTORY & APPROVAL) ── */}
-      <div className="bg-white rounded-2xl p-5 md:p-6 border border-[#D4E4E3] shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs space-y-4">
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#D4E4E3] pb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h2 className="text-base font-bold text-[#2D4A49]">
+            <h2 className="text-[13px] sm:text-[14px] font-bold text-slate-800 tracking-tight">
               {isPersonalActive ? 'ประวัติการลาของคุณ' : 'ประวัติการลาทั้งหมดของทีม'}{' '}
-              <span className="text-xs text-slate-500 font-normal">
+              <span className="text-[11px] sm:text-[12px] text-slate-400 font-medium">
                 {isPersonalActive ? '(Your Leave Requests History)' : '(All Leave Requests History)'}
               </span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-[10px] sm:text-[11px] text-[#6B8F8E] mt-0.5">
               {isPersonalActive
                 ? 'แสดงรายการคำขอลาของคุณในระบบ สามารถกรองตามปี และสถานะได้'
                 : 'แสดงรายการคำขอลาทั้งหมดในระบบ สามารถค้นหา กรองตามปี/สาขา และสถานะได้'
@@ -1469,13 +1481,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             {/* Search Box (Leave Dashboard Only) */}
             {!isPersonalActive && (
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ค้นหาชื่อพนักงาน, ชนิดการลา..."
-                  className="pl-8 pr-3 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#5A8A88] w-44 sm:w-52"
+                  className="pl-8 pr-3 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-[11px] sm:text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#5A8A88] w-44 sm:w-52"
                 />
               </div>
             )}
@@ -1484,7 +1496,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <select
               value={selectedYear}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-xs text-[#2D4A49] font-bold focus:outline-none focus:border-[#5A8A88] cursor-pointer"
+              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-[11px] sm:text-xs text-[#2D4A49] font-semibold focus:outline-none focus:border-[#5A8A88] cursor-pointer"
               title="กรองตามปี"
             >
               <option value="all">ทุกปี (All Years)</option>
@@ -1499,7 +1511,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
+              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-[11px] sm:text-xs text-slate-700 font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
             >
               <option value="all">ทุกสถานะ</option>
               <option value="Pending">รออนุมัติ</option>
@@ -1513,28 +1525,28 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         <div className="overflow-x-auto rounded-xl border border-[#D4E4E3]">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#2D4A49] text-white text-[11px] uppercase tracking-wider font-bold">
-                <th className="p-3">ชื่อพนักงาน</th>
-                <th className="p-3">สาขา</th>
-                <th className="p-3">ประเภทการลา</th>
-                <th className="p-3">ช่วงวันที่ลา (From - To)</th>
-                <th className="p-3 text-center">จำนวนวัน</th>
-                <th className="p-3">เหตุผล (Description)</th>
-                <th className="p-3 text-center">สถานะ (Status)</th>
+              <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] uppercase tracking-wider font-bold">
+                <th className="p-2.5 sm:p-3">ชื่อพนักงาน</th>
+                <th className="p-2.5 sm:p-3">สาขา</th>
+                <th className="p-2.5 sm:p-3">ประเภทการลา</th>
+                <th className="p-2.5 sm:p-3">ช่วงวันที่ลา (From - To)</th>
+                <th className="p-2.5 sm:p-3 text-center">จำนวนวัน</th>
+                <th className="p-2.5 sm:p-3">เหตุผล (Description)</th>
+                <th className="p-2.5 sm:p-3 text-center">สถานะ (Status)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D4E4E3] text-xs">
+            <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-xs">
               {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">
                     <div className="py-4 space-y-1">
-                      <p className="text-xs font-bold text-slate-600">
+                      <p className="text-[11px] sm:text-xs font-bold text-slate-600">
                         {isPersonalActive 
                           ? `คุณยังไม่มีประวัติการลาในระบบ (ปี ${selectedYear === 'all' ? 'ทั้งหมด' : selectedYear})`
                           : `ยังไม่มีประวัติการลาในระบบ (ปี ${selectedYear === 'all' ? 'ทั้งหมด' : selectedYear})`
                         }
                       </p>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[10px] text-[#6B8F8E]">
                         {isPersonalActive
                           ? 'คุณยังไม่มีการยื่นคำขอลา สามารถกดปุ่ม "ทำรายการลาหยุด" เพื่อเริ่มสร้างคำขอจริงได้'
                           : `พนักงานใน${currentBranchLabel}ยังไม่มีการยื่นคำขอลา สามารถกดปุ่ม "ทำรายการลาหยุด" เพื่อเริ่มสร้างคำขอจริงได้`
@@ -1546,28 +1558,28 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               ) : (
                 filteredRecords.map((item) => (
                   <tr key={item.id} className="hover:bg-[#F4F9F8] transition-colors">
-                    <td className="p-3 font-bold text-slate-800 whitespace-nowrap">
+                    <td className="p-2.5 sm:p-3 font-bold text-[#2D4A49] whitespace-nowrap">
                       {item.userName}
                     </td>
-                    <td className="p-3 text-slate-600 whitespace-nowrap">
+                    <td className="p-2.5 sm:p-3 text-slate-600 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-md bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold">
                         {item.userBranch}
                       </span>
                     </td>
-                    <td className="p-3 whitespace-nowrap font-medium text-slate-700">
+                    <td className="p-2.5 sm:p-3 whitespace-nowrap font-medium text-slate-700">
                       {item.leaveTypeName}
                     </td>
-                    <td className="p-3 whitespace-nowrap font-medium text-slate-800">
+                    <td className="p-2.5 sm:p-3 whitespace-nowrap font-medium text-slate-800">
                       📅 {item.fromDate} ถึง {item.toDate}
                     </td>
-                    <td className="p-3 text-center font-bold text-[#5A8A88] whitespace-nowrap">
+                    <td className="p-2.5 sm:p-3 text-center font-bold text-[#5A8A88] whitespace-nowrap">
                       {item.totalDays} วัน
                     </td>
-                    <td className="p-3 text-slate-600 max-w-xs truncate" title={item.description}>
+                    <td className="p-2.5 sm:p-3 text-slate-600 max-w-xs truncate" title={item.description}>
                       {item.description || '-'}
                     </td>
-                    <td className="p-3 text-center whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold shadow-2xs ${
+                    <td className="p-2.5 sm:p-3 text-center whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-2xs ${
                         item.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         item.status === 'Rejected' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
