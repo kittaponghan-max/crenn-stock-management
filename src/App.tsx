@@ -636,30 +636,45 @@ export default function App() {
         }
 
         if (ingredientsData && ingredientsData.length > 0) {
-          setIngredients(ingredientsData.map(ing => ({
-            id: ing.id,
-            name: ing.name,
-            brand: ing.brand,
-            sizePerUnit: ing.size_per_unit,
-            pack_qty_1: ing.pack_qty_1,
-            pack_unit_1: ing.pack_unit_1,
-            pack_qty_2: ing.pack_qty_2,
-            pack_unit_2: ing.pack_unit_2,
-            purchase_mode: ing.purchase_mode,
-            purchase_unit: ing.purchase_unit,
-            bulk_pack_qty: ing.bulk_pack_qty,
-            total_pack_qty: ing.total_pack_qty,
-            total_pack_unit: ing.total_pack_unit,
-            min_stock_unit: ing.min_stock_unit,
-            min_order_unit: ing.min_order_unit,
-            minStock: ing.min_stock,
-            minOrder: ing.min_order,
-            supplier: ing.supplier,
-            unit: ing.unit,
-            category: ing.category,
-            image: ing.image,
-            department: ing.department
-          })));
+          const purchaseSpecRow = settingsData?.find((s: any) => s.setting_key === 'ingredient_purchase_specs');
+          let localPurchaseSpecs: Record<string, any> = {};
+          try {
+            const rawSpecs = localStorage.getItem('cafe-ingredient-purchase-specs');
+            if (rawSpecs) localPurchaseSpecs = JSON.parse(rawSpecs) || {};
+          } catch {}
+          const cloudPurchaseSpecs =
+            purchaseSpecRow?.setting_value && typeof purchaseSpecRow.setting_value === 'object'
+              ? purchaseSpecRow.setting_value
+              : {};
+          const mergedPurchaseSpecs: Record<string, any> = { ...localPurchaseSpecs, ...cloudPurchaseSpecs };
+
+          setIngredients(ingredientsData.map(ing => {
+            const spec = mergedPurchaseSpecs[ing.id] || {};
+            return {
+              id: ing.id,
+              name: ing.name,
+              brand: ing.brand,
+              sizePerUnit: ing.size_per_unit,
+              pack_qty_1: ing.pack_qty_1,
+              pack_unit_1: ing.pack_unit_1,
+              pack_qty_2: ing.pack_qty_2,
+              pack_unit_2: ing.pack_unit_2,
+              purchase_mode: ing.purchase_mode ?? spec.purchase_mode,
+              purchase_unit: ing.purchase_unit ?? spec.purchase_unit,
+              bulk_pack_qty: ing.bulk_pack_qty ?? spec.bulk_pack_qty,
+              total_pack_qty: ing.total_pack_qty ?? spec.total_pack_qty,
+              total_pack_unit: ing.total_pack_unit ?? spec.total_pack_unit,
+              min_stock_unit: ing.min_stock_unit ?? spec.min_stock_unit,
+              min_order_unit: ing.min_order_unit ?? spec.min_order_unit,
+              minStock: ing.min_stock,
+              minOrder: ing.min_order,
+              supplier: ing.supplier,
+              unit: ing.unit,
+              category: ing.category,
+              image: ing.image,
+              department: ing.department
+            };
+          }));
         } else {
           const savedIng = localStorage.getItem(`cafe-ingredients-v4-${branch}`) || (branch === 'Rayong' ? localStorage.getItem('cafe-ingredients-v4') : null);
           const parsedIng = savedIng ? JSON.parse(savedIng) : INITIAL_INGREDIENTS;
