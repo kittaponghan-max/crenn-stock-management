@@ -645,6 +645,13 @@ export default function App() {
             pack_unit_1: ing.pack_unit_1,
             pack_qty_2: ing.pack_qty_2,
             pack_unit_2: ing.pack_unit_2,
+            purchase_mode: ing.purchase_mode,
+            purchase_unit: ing.purchase_unit,
+            bulk_pack_qty: ing.bulk_pack_qty,
+            total_pack_qty: ing.total_pack_qty,
+            total_pack_unit: ing.total_pack_unit,
+            min_stock_unit: ing.min_stock_unit,
+            min_order_unit: ing.min_order_unit,
             minStock: ing.min_stock,
             minOrder: ing.min_order,
             supplier: ing.supplier,
@@ -1522,14 +1529,28 @@ export default function App() {
       if (ingredient.pack_unit_1 !== undefined) payload.pack_unit_1 = ingredient.pack_unit_1;
       if (ingredient.pack_qty_2 !== undefined) payload.pack_qty_2 = ingredient.pack_qty_2;
       if (ingredient.pack_unit_2 !== undefined) payload.pack_unit_2 = ingredient.pack_unit_2;
+      if (ingredient.purchase_mode !== undefined) payload.purchase_mode = ingredient.purchase_mode;
+      if (ingredient.purchase_unit !== undefined) payload.purchase_unit = ingredient.purchase_unit;
+      if (ingredient.bulk_pack_qty !== undefined) payload.bulk_pack_qty = ingredient.bulk_pack_qty;
+      if (ingredient.total_pack_qty !== undefined) payload.total_pack_qty = ingredient.total_pack_qty;
+      if (ingredient.total_pack_unit !== undefined) payload.total_pack_unit = ingredient.total_pack_unit;
+      if (ingredient.min_stock_unit !== undefined) payload.min_stock_unit = ingredient.min_stock_unit;
+      if (ingredient.min_order_unit !== undefined) payload.min_order_unit = ingredient.min_order_unit;
 
       const { error } = await supabase.from('ingredients').insert(payload);
       // Fallback: If columns do not exist yet in Supabase schema cache
-      if (error && (error.code === 'PGRST204' || error.message?.includes('pack_') || error.message?.includes('column'))) {
+      if (error && (error.code === 'PGRST204' || error.message?.includes('pack_') || error.message?.includes('purchase_') || error.message?.includes('total_pack_') || error.message?.includes('min_') || error.message?.includes('column'))) {
         delete payload.pack_qty_1;
         delete payload.pack_unit_1;
         delete payload.pack_qty_2;
         delete payload.pack_unit_2;
+        delete payload.purchase_mode;
+        delete payload.purchase_unit;
+        delete payload.bulk_pack_qty;
+        delete payload.total_pack_qty;
+        delete payload.total_pack_unit;
+        delete payload.min_stock_unit;
+        delete payload.min_order_unit;
         await supabase.from('ingredients').insert(payload);
       }
     }
@@ -1560,14 +1581,28 @@ export default function App() {
       if (updatedIngredient.pack_unit_1 !== undefined) updatePayload.pack_unit_1 = updatedIngredient.pack_unit_1;
       if (updatedIngredient.pack_qty_2 !== undefined) updatePayload.pack_qty_2 = updatedIngredient.pack_qty_2;
       if (updatedIngredient.pack_unit_2 !== undefined) updatePayload.pack_unit_2 = updatedIngredient.pack_unit_2;
+      if (updatedIngredient.purchase_mode !== undefined) updatePayload.purchase_mode = updatedIngredient.purchase_mode;
+      if (updatedIngredient.purchase_unit !== undefined) updatePayload.purchase_unit = updatedIngredient.purchase_unit;
+      if (updatedIngredient.bulk_pack_qty !== undefined) updatePayload.bulk_pack_qty = updatedIngredient.bulk_pack_qty;
+      if (updatedIngredient.total_pack_qty !== undefined) updatePayload.total_pack_qty = updatedIngredient.total_pack_qty;
+      if (updatedIngredient.total_pack_unit !== undefined) updatePayload.total_pack_unit = updatedIngredient.total_pack_unit;
+      if (updatedIngredient.min_stock_unit !== undefined) updatePayload.min_stock_unit = updatedIngredient.min_stock_unit;
+      if (updatedIngredient.min_order_unit !== undefined) updatePayload.min_order_unit = updatedIngredient.min_order_unit;
 
       const { error } = await supabase.from('ingredients').update(updatePayload).eq('id', updatedIngredient.id).eq('branch', user?.branch || 'Rayong');
       // Fallback: If columns do not exist yet in Supabase schema cache
-      if (error && (error.code === 'PGRST204' || error.message?.includes('pack_') || error.message?.includes('column'))) {
+      if (error && (error.code === 'PGRST204' || error.message?.includes('pack_') || error.message?.includes('purchase_') || error.message?.includes('total_pack_') || error.message?.includes('min_') || error.message?.includes('column'))) {
         delete updatePayload.pack_qty_1;
         delete updatePayload.pack_unit_1;
         delete updatePayload.pack_qty_2;
         delete updatePayload.pack_unit_2;
+        delete updatePayload.purchase_mode;
+        delete updatePayload.purchase_unit;
+        delete updatePayload.bulk_pack_qty;
+        delete updatePayload.total_pack_qty;
+        delete updatePayload.total_pack_unit;
+        delete updatePayload.min_stock_unit;
+        delete updatePayload.min_order_unit;
         await supabase.from('ingredients').update(updatePayload).eq('id', updatedIngredient.id).eq('branch', user?.branch || 'Rayong');
       }
     }
