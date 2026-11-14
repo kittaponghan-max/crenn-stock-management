@@ -23,6 +23,15 @@ export interface Ingredient {
   pack_unit_1?: string;
   pack_qty_2?: number;
   pack_unit_2?: string;
+  // Purchase Mode & ProdCalc Pack Conversion fields (ปลีก/เหมา และผลคำนวณเป็นหน่วยบรรจุ)
+  purchase_mode?: 'retail' | 'bulk';
+  purchase_unit?: string;
+  bulk_pack_qty?: number;
+  total_pack_qty?: number;
+  total_pack_unit?: string;
+  // Stock Control Unit fields (หน่วยนับของจำนวนคงเหลือขั้นต่ำ และจำนวนสั่งซื้อขั้นต่ำ)
+  min_stock_unit?: string;
+  min_order_unit?: string;
 }
 
 export interface DailyStock {
