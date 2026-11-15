@@ -24,6 +24,7 @@ import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import { normalizeDateRange } from './ui';
 
 export interface OrderRecord {
   id?: string;
@@ -720,12 +721,12 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
             >
               <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <div className="w-10 h-10 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
-              <PackageCheck size={20} />
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0">
+              <PackageCheck size={18} />
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-[16px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
                   รายการวัตถุดิบที่สั่งซื้อแล้ว
                 </h1>
                 {branch && (
@@ -743,15 +744,15 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
           {/* RIGHT: Date Range Selector Group */}
           <div className="flex flex-col items-start md:items-end gap-1 shrink-0">
             {/* Quick Select Buttons */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="inline-flex items-center gap-0.5 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
               <button
                 type="button"
                 onClick={() => setDateRangeMode('7days')}
                 className={cn(
-                  "text-[12px] rounded-[8px] px-3.5 py-[7px] cursor-pointer transition-all",
+                  "text-[11px] font-[600] rounded-[6px] px-2.5 py-1 cursor-pointer transition-colors whitespace-nowrap",
                   dateRangeMode === '7days'
-                    ? "bg-[#5A8A88] text-white font-[600] shadow-xs border-none"
-                    : "bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:bg-[#E8F3F2]"
+                    ? "bg-[#5A8A88] text-white shadow-xs"
+                    : "text-[#2D4A49] hover:bg-white"
                 )}
               >
                 7 วัน
@@ -760,10 +761,10 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                 type="button"
                 onClick={() => setDateRangeMode('30days')}
                 className={cn(
-                  "text-[12px] rounded-[8px] px-3.5 py-[7px] cursor-pointer transition-all",
+                  "text-[11px] font-[600] rounded-[6px] px-2.5 py-1 cursor-pointer transition-colors whitespace-nowrap",
                   dateRangeMode === '30days'
-                    ? "bg-[#5A8A88] text-white font-[600] shadow-xs border-none"
-                    : "bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:bg-[#E8F3F2]"
+                    ? "bg-[#5A8A88] text-white shadow-xs"
+                    : "text-[#2D4A49] hover:bg-white"
                 )}
               >
                 1 เดือน
@@ -772,10 +773,10 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                 type="button"
                 onClick={() => setDateRangeMode('custom')}
                 className={cn(
-                  "text-[12px] rounded-[8px] px-3.5 py-[7px] cursor-pointer transition-all",
+                  "text-[11px] font-[600] rounded-[6px] px-2.5 py-1 cursor-pointer transition-colors whitespace-nowrap",
                   dateRangeMode === 'custom'
-                    ? "bg-[#5A8A88] text-white font-[600] shadow-xs border-none"
-                    : "bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:bg-[#E8F3F2]"
+                    ? "bg-[#5A8A88] text-white shadow-xs"
+                    : "text-[#2D4A49] hover:bg-white"
                 )}
               >
                 กำหนดเอง
@@ -783,7 +784,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
             </div>
 
             {/* Active Range Display */}
-            <div className="text-[11px] text-[#6B8F8E] mt-0.5 md:text-right">
+            <div className="text-[11px] text-[#6B8F8E] mt-0.5 md:text-right tabular-nums">
               แสดงผล: {startDateTH} – {endDateTH} (พบ {filteredOrderedItems.length} รายการ)
             </div>
           </div>
@@ -793,32 +794,42 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
         {/* Custom Date Inputs (show only when dateRangeMode === 'custom') */}
         {dateRangeMode === 'custom' && (
           <div className="flex items-center justify-end gap-2 flex-wrap pt-2.5 mt-2 border-t border-[#F0F5F4]">
-            <span className="text-[12px] text-[#6B8F8E]">ตั้งแต่:</span>
+            <span className="text-[11px] font-medium text-[#6B8F8E]">ตั้งแต่:</span>
             <input
               type="date"
               value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
+              max={customEndDate || undefined}
+              onChange={(e) => {
+                const next = normalizeDateRange(e.target.value, customEndDate, 'start');
+                setCustomStartDate(next.startDate);
+                setCustomEndDate(next.endDate);
+              }}
+              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 h-[32px] text-[11px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] tabular-nums"
             />
-            <span className="text-[12px] text-[#6B8F8E]">ถึง:</span>
+            <span className="text-[11px] font-medium text-[#6B8F8E]">ถึง:</span>
             <input
               type="date"
               value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
+              min={customStartDate || undefined}
+              onChange={(e) => {
+                const next = normalizeDateRange(customStartDate, e.target.value, 'end');
+                setCustomStartDate(next.startDate);
+                setCustomEndDate(next.endDate);
+              }}
+              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 h-[32px] text-[11px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] tabular-nums"
             />
             <button
               type="button"
               onClick={() => fetchOrderedItems()}
               disabled={!customStartDate || !customEndDate}
               className={cn(
-                "flex items-center gap-1.5 text-[12px] font-[600] rounded-[8px] px-3.5 py-1.5 transition-colors cursor-pointer",
+                "flex items-center gap-1.5 h-[32px] text-[11px] font-[600] rounded-[8px] px-3 transition-colors cursor-pointer",
                 customStartDate && customEndDate
-                  ? "bg-[#5A8A88] text-white hover:bg-[#4a7270] shadow-xs"
-                  : "bg-[#D4E4E3] text-gray-400 cursor-not-allowed"
+                  ? "bg-[#5A8A88] text-white hover:bg-[#476E6C] shadow-xs"
+                  : "bg-[#D4E4E3] text-slate-400 cursor-not-allowed"
               )}
             >
-              <Search size={13} />
+              <Search size={12} />
               <span>ดูข้อมูล</span>
             </button>
           </div>
@@ -1084,28 +1095,18 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                         {!isReadOnly && <col style={{ width: '72px' }} />}
                       </colgroup>
                       <thead>
-                        <tr className="bg-[#2D4A49] text-white text-[9.5px] font-semibold border-b border-[#2D4A49] leading-tight">
-                          <th className="p-1 text-center w-[36px] border-r border-[#3d605f] whitespace-nowrap">รูป</th>
-                          <th className="py-2 px-2 text-left w-[146px] border-r border-[#3d605f] whitespace-nowrap">รายการสินค้า</th>
-                          <th className="py-2 px-1 text-left w-[68px] border-r border-[#3d605f] whitespace-nowrap">ขนาด/หน่วย</th>
-                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
-                          <th className="py-2 px-1 text-center w-[64px] border-r border-[#3d605f] whitespace-nowrap">ยอดตรวจนับ</th>
-                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3d605f] whitespace-nowrap">ยอดสั่งแนะนำ</th>
-                          <th className="py-2 px-1 text-center w-[92px] border-r border-[#3d605f] whitespace-nowrap">วันที่สั่งซื้อ</th>
-                          <th className="py-2 px-1 text-center w-[68px] border-r border-[#3d605f] whitespace-nowrap">จำนวนที่สั่ง</th>
-                          <th className={cn("py-2 px-1.5 text-left w-[96px] whitespace-nowrap", !isReadOnly && "border-r border-[#3d605f]")}>ผู้สั่งซื้อ</th>
+                        <tr className="bg-[#2D4A49] text-white text-[10px] font-semibold border-b border-[#1E3A39] leading-tight">
+                          <th className="p-1 text-center w-[36px] border-r border-[#3D6B69] whitespace-nowrap">รูป</th>
+                          <th className="py-2 px-2 text-left w-[146px] border-r border-[#3D6B69] whitespace-nowrap">รายการสินค้า</th>
+                          <th className="py-2 px-1 text-left w-[68px] border-r border-[#3D6B69] whitespace-nowrap">ขนาด/หน่วย</th>
+                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3D6B69] whitespace-nowrap">คงเหลือขั้นต่ำ</th>
+                          <th className="py-2 px-1 text-center w-[64px] border-r border-[#3D6B69] whitespace-nowrap">ยอดตรวจนับ</th>
+                          <th className="py-2 px-1 text-center w-[66px] border-r border-[#3D6B69] whitespace-nowrap">ยอดสั่งแนะนำ</th>
+                          <th className="py-2 px-1 text-center w-[92px] border-r border-[#3D6B69] whitespace-nowrap">วันที่สั่งซื้อ</th>
+                          <th className="py-2 px-1 text-center w-[68px] border-r border-[#3D6B69] whitespace-nowrap">จำนวนที่สั่ง</th>
+                          <th className={cn("py-2 px-1.5 text-left w-[96px] whitespace-nowrap", !isReadOnly && "border-r border-[#3D6B69]")}>ผู้สั่งซื้อ</th>
                           {!isReadOnly && (
-                            <th 
-                              className="py-2 px-1 text-center w-[72px] whitespace-nowrap"
-                              style={{
-                                width: "72px",
-                                textAlign: "center",
-                                backgroundColor: "#1E5A7A",
-                                color: "#FFFFFF",
-                                fontSize: "10px",
-                                fontWeight: 600,
-                              }}
-                            >
+                            <th className="py-2 px-1 text-center w-[72px] whitespace-nowrap bg-[#2D4A49] text-white text-[10px] font-semibold">
                               จัดการ
                             </th>
                           )}
@@ -1469,11 +1470,7 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {/* วันที่สั่งซื้อ */}
               <div>
-                <label style={{
-                  fontSize: "11px", fontWeight: 500,
-                  color: "#4A7592",
-                  display: "block", marginBottom: "5px",
-                }}>
+                <label className="block text-[11px] font-medium text-[#6B8F8E] mb-1">
                   วันที่สั่งซื้อ
                 </label>
                 <input
@@ -1482,28 +1479,16 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                   onChange={e => setEditForm(prev =>
                     ({ ...prev, order_date: e.target.value })
                   )}
-                  style={{
-                    width: "100%", height: "38px",
-                    border: "1px solid #C8E3F0",
-                    borderRadius: "8px",
-                    padding: "0 12px",
-                    fontSize: "12px",
-                    color: "#1E3D52",
-                    outline: "none",
-                  }}
+                  className="w-full h-[32px] border border-[#D4E4E3] rounded-[8px] px-2.5 text-[11px] text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] tabular-nums"
                 />
               </div>
 
               {/* จำนวนที่สั่ง */}
               <div>
-                <label style={{
-                  fontSize: "11px", fontWeight: 500,
-                  color: "#4A7592",
-                  display: "block", marginBottom: "5px",
-                }}>
+                <label className="block text-[11px] font-medium text-[#6B8F8E] mb-1">
                   จำนวนที่สั่ง
                 </label>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div className="flex gap-2 items-center">
                   <input
                     type="number"
                     min="1"
@@ -1513,24 +1498,9 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                          order_qty: parseInt(e.target.value) || 0
                       })
                     )}
-                    style={{
-                      flex: 1, height: "38px",
-                      border: "1px solid #C8E3F0",
-                      borderRadius: "8px",
-                      padding: "0 12px",
-                      fontSize: "13px",
-                      color: "#1E3D52",
-                      textAlign: "center",
-                      outline: "none",
-                    }}
+                    className="flex-1 h-[32px] border border-[#D4E4E3] rounded-[8px] px-2.5 text-[12px] font-semibold text-[#2D4A49] text-center focus:outline-none focus:border-[#5A8A88] tabular-nums"
                   />
-                  <span style={{
-                    display: "flex",
-                    alignItems: "center",
-                    fontSize: "12px",
-                    color: "#4A7592",
-                    paddingRight: "4px",
-                  }}>
+                  <span className="text-[11px] font-medium text-[#6B8F8E] pr-1">
                     {editForm.order_unit}
                   </span>
                 </div>
@@ -1538,23 +1508,12 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
             </div>
 
             {/* Buttons */}
-            <div style={{
-              display: "flex", gap: "8px",
-              marginTop: "24px",
-            }}>
+            <div className="flex gap-2 mt-5">
               <button
                 type="button"
                 onClick={() => setEditingOrder(null)}
                 disabled={isSaving}
-                style={{
-                  flex: 1, padding: "11px",
-                  borderRadius: "10px",
-                  border: "1px solid #C8E3F0",
-                  background: "#EEF6FB",
-                  color: "#4A7592",
-                  fontSize: "13px", fontWeight: 500,
-                  cursor: isSaving ? "not-allowed" : "pointer",
-                }}
+                className="flex-1 h-[32px] rounded-[8px] border border-[#D4E4E3] bg-[#F0F5F4] hover:bg-[#E8F3F2] text-[#2D4A49] text-[11px] sm:text-[12px] font-[500] transition-colors cursor-pointer disabled:cursor-not-allowed"
               >
                 ยกเลิก
               </button>
@@ -1562,17 +1521,9 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                 type="button"
                 onClick={() => handleEditSave()}
                 disabled={isSaving}
-                style={{
-                  flex: 1, padding: "11px",
-                  borderRadius: "10px",
-                  border: "none",
-                  background: isSaving ? "#82BBD8" : "#5BA4C8",
-                  color: "white",
-                  fontSize: "13px", fontWeight: 600,
-                  cursor: isSaving ? "wait" : "pointer",
-                }}
+                className="flex-1 h-[32px] rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-1.5 shadow-xs"
               >
-                {isSaving ? "กำลังบันทึก..." : "💾 บันทึกการแก้ไข"}
+                {isSaving ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
               </button>
             </div>
           </div>
