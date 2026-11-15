@@ -8,23 +8,28 @@ import {
   PricingMethod,
   PRODCALC_CATEGORIES 
 } from '../../types/prodcalc';
-import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  X, 
-  DollarSign, 
-  Clock, 
-  Zap, 
-  Package, 
-  Calculator, 
-  ArrowLeft, 
-  Percent, 
-  Sparkles,
-  PieChart,
-  HelpCircle,
-  Upload
+import {
+  Plus,
+  Trash2,
+  Save,
+  Clock,
+  Zap,
+  Package,
+  Calculator,
+  Sparkles
 } from 'lucide-react';
+import {
+  PageHeaderBanner,
+  StandardTableCard,
+  StandardTable,
+  StandardThead,
+  StandardHeaderRow,
+  StandardTh,
+  StandardTbody,
+  StandardTr,
+  StandardTd,
+  STANDARD_NATIVE_SELECT_CLASS
+} from '../ui';
 
 interface RecipeEditorProps {
   initialRecipe?: Recipe | null;
@@ -294,85 +299,55 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* TOP HEADER BAR */}
+      {/* TOP HEADER BANNER */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1.5px solid #C8E3F0',
-          borderRadius: '16px',
-          padding: '12px 18px',
-          boxShadow: '0 4px 16px rgba(90, 164, 200, 0.08)'
-        }}
-        className="flex items-center justify-between gap-3"
-      >
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] border border-[#C8E3F0] text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E3D52] transition-colors cursor-pointer"
-          >
-            <ArrowLeft size={15} />
-          </button>
-          <div>
-            <h1 className="font-[700] text-[#1E3D52] text-[15px] leading-tight">
-              {initialRecipe ? 'แก้ไขสูตรอาหาร' : 'สร้างสูตรอาหารและคำนวณต้นทุนใหม่'}
-            </h1>
-            <span className="text-[11px] text-[#4A7592]">
-              คำนวณต้นทุนวัตถุดิบ ค่าแรง และค่าใช้จ่ายอื่นๆ แบบเรียลไทม์
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{ border: '1px solid #C8E3F0', color: '#4A7592' }}
-            className="h-[32px] px-3.5 rounded-[8px] text-[11px] font-medium hover:bg-[#EEF6FB] transition-colors cursor-pointer"
-          >
-            {isReadOnly ? 'ย้อนกลับ' : 'ยกเลิก'}
-          </button>
-          {!isReadOnly && (
+      <PageHeaderBanner
+        variant="sub"
+        onBack={onCancel}
+        icon={<Calculator size={18} />}
+        title={initialRecipe ? 'แก้ไขสูตรอาหาร' : 'สร้างสูตรอาหารและคำนวณต้นทุนใหม่'}
+        branchLabel={`สาขา: ${currentBranch}`}
+        subtitle="คำนวณต้นทุนวัตถุดิบ ค่าแรง และค่าใช้จ่ายอื่นๆ แบบเรียลไทม์"
+        actions={
+          <div className="flex items-center gap-2">
             <button
-              type="submit"
-              style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-              className="h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] transition-all flex items-center gap-1.5 cursor-pointer"
+              type="button"
+              onClick={onCancel}
+              className="h-[32px] px-3.5 rounded-[8px] border border-[#D4E4E3] bg-white text-[#2D4A49] text-[11px] font-medium hover:bg-[#F0F5F4] transition-colors cursor-pointer"
             >
-              <Save size={13} />
-              <span>บันทึกสูตร</span>
+              {isReadOnly ? 'ย้อนกลับ' : 'ยกเลิก'}
             </button>
-          )}
-        </div>
-      </div>
+            {!isReadOnly && (
+              <button
+                type="submit"
+                className="h-[32px] px-3.5 rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save size={13} />
+                <span>บันทึกสูตร</span>
+              </button>
+            )}
+          </div>
+        }
+      />
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* MAIN TWO-COLUMN LAYOUT */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        
+
         {/* LEFT COLUMN: FORM & TABS (60% / 7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          
+
           {/* Card 1: Recipe Basic Info */}
-          <div 
-            style={{
-              background: '#FFFFFF',
-              border: '1.5px solid #C8E3F0',
-              borderRadius: '16px',
-              padding: '14px',
-              boxShadow: '0 4px 16px rgba(90, 164, 200, 0.05)'
-            }}
-            className="space-y-2.5"
-          >
-            <h3 className="font-bold text-[11px] text-[#1E3D52] flex items-center gap-1.5">
-              <Package size={13} color="#5BA4C8" />
+          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-4 shadow-[0_2px_8px_rgba(90,138,136,0.06)] space-y-3">
+            <h3 className="font-bold text-[12px] text-[#2D4A49] flex items-center gap-1.5">
+              <Package size={14} className="text-[#5A8A88]" />
               <span>ข้อมูลทั่วไปของสินค้า/สูตร</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[10.5px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
               <div>
-                <label className="block text-[10px] font-semibold text-[#4A7592] mb-0.5">
+                <label className="block text-[10.5px] font-semibold text-[#6B8F8E] mb-1">
                   ชื่อสูตรอาหาร/สินค้า *
                 </label>
                 <input
@@ -382,13 +357,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   placeholder="เช่น ข้าวเหนียวมะม่วง, ชิฟฟ่อนมะพร้าว"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[#2D4A49] text-[11px] outline-none focus:border-[#5A8A88] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-[#4A7592] mb-0.5">
+                <label className="block text-[10.5px] font-semibold text-[#6B8F8E] mb-1">
                   รหัสสูตร (Code)
                 </label>
                 <input
@@ -397,21 +371,19 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   placeholder="REC-001"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold text-[#1E5A7A] outline-none focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[11px] font-mono font-bold text-[#2D4A49] outline-none focus:border-[#5A8A88] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-[#4A7592] mb-0.5">
+                <label className="block text-[10.5px] font-semibold text-[#6B8F8E] mb-1">
                   หมวดหมู่สินค้า
                 </label>
                 <select
                   disabled={isReadOnly}
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  style={{ border: '1px solid #C8E3F0', background: '#FFFFFF' }}
-                  className="w-full h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium text-[#1E3D52] outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+                  className={`w-full ${STANDARD_NATIVE_SELECT_CLASS} disabled:opacity-75 disabled:cursor-not-allowed`}
                 >
                   {PRODCALC_CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -420,7 +392,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-[#4A7592] mb-0.5">
+                <label className="block text-[10.5px] font-semibold text-[#6B8F8E] mb-1">
                   รูปภาพสินค้า (Image URL)
                 </label>
                 <input
@@ -429,13 +401,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   placeholder="https://images.unsplash.com/..."
                   value={image}
                   onChange={(e) => setImage(e.target.value)}
-                  style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[#2D4A49] text-[11px] outline-none focus:border-[#5A8A88] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-[#4A7592] mb-0.5">
+                <label className="block text-[10.5px] font-semibold text-[#6B8F8E] mb-1">
                   ผลิตได้กี่ชิ้นต่อสูตร (Batch Yield) *
                 </label>
                 <input
@@ -446,13 +417,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   required
                   value={yieldQty}
                   onChange={(e) => setYieldQty(Math.max(0.01, Number(e.target.value) || 1))}
-                  style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold text-[#1E3D52] outline-none text-center disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[11px] tabular-nums font-bold text-[#2D4A49] outline-none focus:border-[#5A8A88] text-center disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-[#4A7592] mb-0.5">
+                <label className="block text-[10.5px] font-semibold text-[#6B8F8E] mb-1">
                   ขายครั้งละกี่ชิ้น (Serving Qty)
                 </label>
                 <input
@@ -461,63 +431,47 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   min="1"
                   value={servingQty}
                   onChange={(e) => setServingQty(Math.max(1, Number(e.target.value) || 1))}
-                  style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono outline-none text-center disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[11px] tabular-nums text-[#2D4A49] outline-none focus:border-[#5A8A88] text-center disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
           </div>
 
           {/* Card 2: Cost Breakdown Tabs */}
-          <div 
-            style={{
-              background: '#FFFFFF',
-              border: '1.5px solid #C8E3F0',
-              borderRadius: '16px',
-              padding: '14px',
-              boxShadow: '0 4px 16px rgba(90, 164, 200, 0.05)'
-            }}
-            className="space-y-3"
-          >
-            {/* Tabs Header */}
-            <div className="flex items-center gap-1.5 p-1 bg-[#EEF6FB] rounded-xl border border-[#C8E3F0]">
+          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-4 shadow-[0_2px_8px_rgba(90,138,136,0.06)] space-y-3">
+            {/* Segmented Tabs Header */}
+            <div className="flex items-center gap-0.5 p-0.5 bg-[#F0F5F4] rounded-[8px] border border-[#D4E4E3]">
               <button
                 type="button"
                 onClick={() => setActiveTab('ingredients')}
-                style={{
-                  background: activeTab === 'ingredients' ? '#5BA4C8' : 'transparent',
-                  color: activeTab === 'ingredients' ? '#FFFFFF' : '#4A7592'
-                }}
-                className="flex-1 py-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className={`flex-1 py-1.5 rounded-[6px] text-[11px] font-[600] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'ingredients' ? 'bg-[#5A8A88] text-white shadow-xs' : 'text-[#2D4A49] hover:bg-white'
+                }`}
               >
                 <Package size={12} />
-                <span>📦 วัตถุดิบ ({ingredients.length})</span>
+                <span className="tabular-nums">วัตถุดิบ ({ingredients.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('labor')}
-                style={{
-                  background: activeTab === 'labor' ? '#5BA4C8' : 'transparent',
-                  color: activeTab === 'labor' ? '#FFFFFF' : '#4A7592'
-                }}
-                className="flex-1 py-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className={`flex-1 py-1.5 rounded-[6px] text-[11px] font-[600] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'labor' ? 'bg-[#5A8A88] text-white shadow-xs' : 'text-[#2D4A49] hover:bg-white'
+                }`}
               >
                 <Clock size={12} />
-                <span>👷 ค่าแรง ({labor.length})</span>
+                <span className="tabular-nums">ค่าแรง ({labor.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('other')}
-                style={{
-                  background: activeTab === 'other' ? '#5BA4C8' : 'transparent',
-                  color: activeTab === 'other' ? '#FFFFFF' : '#4A7592'
-                }}
-                className="flex-1 py-1 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className={`flex-1 py-1.5 rounded-[6px] text-[11px] font-[600] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'other' ? 'bg-[#5A8A88] text-white shadow-xs' : 'text-[#2D4A49] hover:bg-white'
+                }`}
               >
                 <Zap size={12} />
-                <span>⚡ อื่นๆ ({other.length})</span>
+                <span className="tabular-nums">อื่นๆ ({other.length})</span>
               </button>
             </div>
 
@@ -525,15 +479,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             {activeTab === 'ingredients' && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-[#1E3D52]">
+                  <span className="text-[11px] font-bold text-[#2D4A49]">
                     รายการวัตถุดิบและส่วนผสม
                   </span>
                   {!isReadOnly && (
                     <button
                       type="button"
                       onClick={handleAddIngredient}
-                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                      className="h-[28px] px-2.5 rounded-[8px] bg-[#E8F3F2] text-[#2D4A49] border border-[#5A8A88]/50 text-[10.5px] font-semibold flex items-center gap-1 hover:bg-[#5A8A88] hover:text-white transition-all cursor-pointer"
                     >
                       <Plus size={11} />
                       <span>เพิ่มวัตถุดิบ</span>
@@ -542,32 +495,31 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </div>
 
                 {ingredients.length === 0 ? (
-                  <div className="p-5 text-center text-[10.5px] text-[#4A7592] border border-dashed border-[#C8E3F0] rounded-xl bg-[#F8FCFE]">
-                    ยังไม่มีวัตถุดิบในสูตรนี้ กดปุ่ม "+ เพิ่มวัตถุดิบ" เพื่อเลือกจากคลังวัตถุดิบ
+                  <div className="p-6 text-center text-[11px] text-[#6B8F8E] border border-dashed border-[#D4E4E3] rounded-xl bg-[#F8FCFC]">
+                    ยังไม่มีวัตถุดิบในสูตรนี้ กดปุ่ม &quot;+ เพิ่มวัตถุดิบ&quot; เพื่อเลือกจากคลังวัตถุดิบ
                   </div>
                 ) : (
-                  <div className="border border-[#C8E3F0] rounded-xl overflow-hidden">
-                    <table className="w-full text-[10px]">
-                      <thead style={{ background: '#1E5A7A', color: '#FFFFFF' }}>
-                        <tr>
-                          <th className="py-1.5 px-2.5 text-left">ชื่อวัตถุดิบ</th>
-                          <th className="py-1.5 px-2 w-16 text-center">จำนวน</th>
-                          <th className="py-1.5 px-2 w-14 text-center">หน่วย</th>
-                          <th className="py-1.5 px-2 w-20 text-right">ต้นทุน/หน่วย</th>
-                          <th className="py-1.5 px-2.5 w-20 text-right">รวม (บาท)</th>
-                          {!isReadOnly && <th className="py-1.5 px-1 w-7 text-center"></th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E4F1F8]">
+                  <StandardTableCard>
+                    <StandardTable>
+                      <StandardThead sticky={false}>
+                        <StandardHeaderRow>
+                          <StandardTh>ชื่อวัตถุดิบ</StandardTh>
+                          <StandardTh align="center" className="w-20">จำนวน</StandardTh>
+                          <StandardTh align="center" className="w-16">หน่วย</StandardTh>
+                          <StandardTh align="right" className="w-24">ต้นทุน/หน่วย</StandardTh>
+                          <StandardTh align="right" className="w-24">รวม (บาท)</StandardTh>
+                          {!isReadOnly && <StandardTh align="center" className="w-8"></StandardTh>}
+                        </StandardHeaderRow>
+                      </StandardThead>
+                      <StandardTbody>
                         {ingredients.map((item, idx) => (
-                          <tr key={item.id} className="hover:bg-[#F8FCFE]">
-                            <td className="py-1 px-2.5">
+                          <StandardTr key={item.id}>
+                            <StandardTd>
                               <select
                                 disabled={isReadOnly}
                                 value={item.ingredient_price_id}
                                 onChange={(e) => handleSelectIngredientOption(idx, e.target.value)}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] outline-none bg-white focus:border-[#5A8A88] cursor-pointer disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               >
                                 <option value="" disabled>-- เลือกวัตถุดิบ --</option>
                                 {availableIngredients.map(ing => (
@@ -576,9 +528,9 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                   </option>
                                 ))}
                               </select>
-                            </td>
+                            </StandardTd>
 
-                            <td className="py-1 px-2 text-center">
+                            <StandardTd align="center">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -586,25 +538,24 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0.0001"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateIngredient(idx, { qty: Number(e.target.value) || 0 })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
+                            </StandardTd>
 
-                            <td className="py-1 px-2 text-center text-[#4A7592] font-mono text-[10px]">
+                            <StandardTd align="center" className="text-[#6B8F8E] text-[10.5px]">
                               {item.unit}
-                            </td>
+                            </StandardTd>
 
-                            <td className="py-1 px-2 text-right font-mono text-[#4A7592] text-[10px]">
+                            <StandardTd align="right" numeric className="text-[#6B8F8E] text-[10.5px]">
                               ฿{item.unit_cost.toFixed(2)}
-                            </td>
+                            </StandardTd>
 
-                            <td className="py-1 px-2.5 text-right font-mono font-bold text-[#1E5A7A] text-[10.5px]">
+                            <StandardTd align="right" numeric className="font-bold text-[#2D4A49] text-[11px]">
                               ฿{item.total_cost.toFixed(2)}
-                            </td>
+                            </StandardTd>
 
                             {!isReadOnly && (
-                              <td className="py-1 px-1 text-center">
+                              <StandardTd align="center">
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteIngredient(idx)}
@@ -612,18 +563,18 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 >
                                   <Trash2 size={12} />
                                 </button>
-                              </td>
+                              </StandardTd>
                             )}
-                          </tr>
+                          </StandardTr>
                         ))}
-                        <tr className="bg-[#EEF6FB] font-bold text-[#1E5A7A] text-[10.5px]">
-                          <td colSpan={4} className="py-1.5 px-2.5 text-right">รวมต้นทุนวัตถุดิบ:</td>
-                          <td className="py-1.5 px-2.5 text-right font-mono">฿{calculations.ingredientsCost.toFixed(2)}</td>
+                        <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
+                          <td colSpan={4} className="py-2 px-3 text-right">รวมต้นทุนวัตถุดิบ:</td>
+                          <td className="py-2 px-3 text-right tabular-nums">฿{calculations.ingredientsCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                      </StandardTbody>
+                    </StandardTable>
+                  </StandardTableCard>
                 )}
               </div>
             )}
@@ -632,15 +583,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             {activeTab === 'labor' && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-[#1E3D52]">
+                  <span className="text-[11px] font-bold text-[#2D4A49]">
                     รายการค่าแรงในการผลิต
                   </span>
                   {!isReadOnly && (
                     <button
                       type="button"
                       onClick={handleAddLabor}
-                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                      className="h-[28px] px-2.5 rounded-[8px] bg-[#E8F3F2] text-[#2D4A49] border border-[#5A8A88]/50 text-[10.5px] font-semibold flex items-center gap-1 hover:bg-[#5A8A88] hover:text-white transition-all cursor-pointer"
                     >
                       <Plus size={11} />
                       <span>เพิ่มค่าแรง</span>
@@ -649,36 +599,35 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </div>
 
                 {labor.length === 0 ? (
-                  <div className="p-5 text-center text-[10.5px] text-[#4A7592] border border-dashed border-[#C8E3F0] rounded-xl bg-[#F8FCFE]">
-                    ยังไม่มีรายการค่าแรง กดปุ่ม "+ เพิ่มค่าแรง" เพื่อบันทึกค่าแรงต่อชั่วโมง
+                  <div className="p-6 text-center text-[11px] text-[#6B8F8E] border border-dashed border-[#D4E4E3] rounded-xl bg-[#F8FCFC]">
+                    ยังไม่มีรายการค่าแรง กดปุ่ม &quot;+ เพิ่มค่าแรง&quot; เพื่อบันทึกค่าแรงต่อชั่วโมง
                   </div>
                 ) : (
-                  <div className="border border-[#C8E3F0] rounded-xl overflow-hidden">
-                    <table className="w-full text-[10px]">
-                      <thead style={{ background: '#1E5A7A', color: '#FFFFFF' }}>
-                        <tr>
-                          <th className="py-1.5 px-2.5 text-left">รายละเอียดค่าแรง</th>
-                          <th className="py-1.5 px-2 w-20 text-center">ชั่วโมง</th>
-                          <th className="py-1.5 px-2 w-24 text-right">ค่าแรง/ชม. (฿)</th>
-                          <th className="py-1.5 px-2.5 w-24 text-right">รวม (บาท)</th>
-                          {!isReadOnly && <th className="py-1.5 px-1 w-7 text-center"></th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E4F1F8]">
+                  <StandardTableCard>
+                    <StandardTable>
+                      <StandardThead sticky={false}>
+                        <StandardHeaderRow>
+                          <StandardTh>รายละเอียดค่าแรง</StandardTh>
+                          <StandardTh align="center" className="w-20">ชั่วโมง</StandardTh>
+                          <StandardTh align="right" className="w-24">ค่าแรง/ชม. (฿)</StandardTh>
+                          <StandardTh align="right" className="w-24">รวม (บาท)</StandardTh>
+                          {!isReadOnly && <StandardTh align="center" className="w-8"></StandardTh>}
+                        </StandardHeaderRow>
+                      </StandardThead>
+                      <StandardTbody>
                         {labor.map((item, idx) => (
-                          <tr key={item.id} className="hover:bg-[#F8FCFE]">
-                            <td className="py-1 px-2.5">
+                          <StandardTr key={item.id}>
+                            <StandardTd>
                               <input
                                 type="text"
                                 disabled={isReadOnly}
                                 placeholder="เช่น ผสมแป้ง, อบขนม, แต่งหน้าเค้ก"
                                 value={item.description}
                                 onChange={(e) => handleUpdateLabor(idx, { description: e.target.value })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
-                            <td className="py-1 px-2 text-center">
+                            </StandardTd>
+                            <StandardTd align="center">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -686,11 +635,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.hours || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { hours: Number(e.target.value) || 0 })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
-                            <td className="py-1 px-2 text-right">
+                            </StandardTd>
+                            <StandardTd align="right">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -698,15 +646,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.rate_per_hour || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { rate_per_hour: Number(e.target.value) || 0 })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-right px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
-                            <td className="py-1 px-2.5 text-right font-mono font-bold text-[#1E5A7A] text-[10.5px]">
+                            </StandardTd>
+                            <StandardTd align="right" numeric className="font-bold text-[#2D4A49] text-[11px]">
                               ฿{item.total_cost.toFixed(2)}
-                            </td>
+                            </StandardTd>
                             {!isReadOnly && (
-                              <td className="py-1 px-1 text-center">
+                              <StandardTd align="center">
                                 <button
                                   type="button"
                                   onClick={() => setLabor(labor.filter((_, i) => i !== idx))}
@@ -714,18 +661,18 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 >
                                   <Trash2 size={12} />
                                 </button>
-                              </td>
+                              </StandardTd>
                             )}
-                          </tr>
+                          </StandardTr>
                         ))}
-                        <tr className="bg-[#EEF6FB] font-bold text-[#1E5A7A] text-[10.5px]">
-                          <td colSpan={3} className="py-1.5 px-2.5 text-right">รวมค่าแรง:</td>
-                          <td className="py-1.5 px-2.5 text-right font-mono">฿{calculations.laborCost.toFixed(2)}</td>
+                        <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
+                          <td colSpan={3} className="py-2 px-3 text-right">รวมค่าแรง:</td>
+                          <td className="py-2 px-3 text-right tabular-nums">฿{calculations.laborCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                      </StandardTbody>
+                    </StandardTable>
+                  </StandardTableCard>
                 )}
               </div>
             )}
@@ -734,15 +681,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             {activeTab === 'other' && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-[#1E3D52]">
+                  <span className="text-[11px] font-bold text-[#2D4A49]">
                     รายการค่าใช้จ่ายอื่นๆ (ค่าแก๊ส, ค่าไฟ, บรรจุภัณฑ์)
                   </span>
                   {!isReadOnly && (
                     <button
                       type="button"
                       onClick={handleAddOther}
-                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-1 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                      className="h-[28px] px-2.5 rounded-[8px] bg-[#E8F3F2] text-[#2D4A49] border border-[#5A8A88]/50 text-[10.5px] font-semibold flex items-center gap-1 hover:bg-[#5A8A88] hover:text-white transition-all cursor-pointer"
                     >
                       <Plus size={11} />
                       <span>เพิ่มรายการ</span>
@@ -751,36 +697,35 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 </div>
 
                 {other.length === 0 ? (
-                  <div className="p-5 text-center text-[10.5px] text-[#4A7592] border border-dashed border-[#C8E3F0] rounded-xl bg-[#F8FCFE]">
-                    ยังไม่มีค่าใช้จ่ายอื่นๆ กดปุ่ม "+ เพิ่มรายการ" เพื่อเพิ่มค่าแก๊ส/ไฟ หรือกล่องบรรจุภัณฑ์
+                  <div className="p-6 text-center text-[11px] text-[#6B8F8E] border border-dashed border-[#D4E4E3] rounded-xl bg-[#F8FCFC]">
+                    ยังไม่มีค่าใช้จ่ายอื่นๆ กดปุ่ม &quot;+ เพิ่มรายการ&quot; เพื่อเพิ่มค่าแก๊ส/ไฟ หรือกล่องบรรจุภัณฑ์
                   </div>
                 ) : (
-                  <div className="border border-[#C8E3F0] rounded-xl overflow-hidden">
-                    <table className="w-full text-[10px]">
-                      <thead style={{ background: '#1E5A7A', color: '#FFFFFF' }}>
-                        <tr>
-                          <th className="py-1.5 px-2.5 text-left">รายละเอียด</th>
-                          <th className="py-1.5 px-2 w-20 text-center">จำนวน</th>
-                          <th className="py-1.5 px-2 w-24 text-right">ต้นทุน/หน่วย (฿)</th>
-                          <th className="py-1.5 px-2.5 w-24 text-right">รวม (บาท)</th>
-                          {!isReadOnly && <th className="py-1.5 px-1 w-7 text-center"></th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E4F1F8]">
+                  <StandardTableCard>
+                    <StandardTable>
+                      <StandardThead sticky={false}>
+                        <StandardHeaderRow>
+                          <StandardTh>รายละเอียด</StandardTh>
+                          <StandardTh align="center" className="w-20">จำนวน</StandardTh>
+                          <StandardTh align="right" className="w-24">ต้นทุน/หน่วย (฿)</StandardTh>
+                          <StandardTh align="right" className="w-24">รวม (บาท)</StandardTh>
+                          {!isReadOnly && <StandardTh align="center" className="w-8"></StandardTh>}
+                        </StandardHeaderRow>
+                      </StandardThead>
+                      <StandardTbody>
                         {other.map((item, idx) => (
-                          <tr key={item.id} className="hover:bg-[#F8FCFE]">
-                            <td className="py-1 px-2.5">
+                          <StandardTr key={item.id}>
+                            <StandardTd>
                               <input
                                 type="text"
                                 disabled={isReadOnly}
                                 placeholder="เช่น กล่องเบเกอรี่, แก๊ส, ค่าสติกเกอร์"
                                 value={item.description}
                                 onChange={(e) => handleUpdateOther(idx, { description: e.target.value })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full px-2 py-0.5 rounded text-[10px] outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
-                            <td className="py-1 px-2 text-center">
+                            </StandardTd>
+                            <StandardTd align="center">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -788,11 +733,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateOther(idx, { qty: Number(e.target.value) || 0 })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-center px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
-                            <td className="py-1 px-2 text-right">
+                            </StandardTd>
+                            <StandardTd align="right">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -800,15 +744,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.unit_cost || ''}
                                 onChange={(e) => handleUpdateOther(idx, { unit_cost: Number(e.target.value) || 0 })}
-                                style={{ border: '1px solid #C8E3F0' }}
-                                className="w-full text-right px-1 py-0.5 rounded text-[10px] font-mono outline-none bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
-                            </td>
-                            <td className="py-1 px-2.5 text-right font-mono font-bold text-[#1E5A7A] text-[10.5px]">
+                            </StandardTd>
+                            <StandardTd align="right" numeric className="font-bold text-[#2D4A49] text-[11px]">
                               ฿{item.total_cost.toFixed(2)}
-                            </td>
+                            </StandardTd>
                             {!isReadOnly && (
-                              <td className="py-1 px-1 text-center">
+                              <StandardTd align="center">
                                 <button
                                   type="button"
                                   onClick={() => setOther(other.filter((_, i) => i !== idx))}
@@ -816,18 +759,18 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 >
                                   <Trash2 size={12} />
                                 </button>
-                              </td>
+                              </StandardTd>
                             )}
-                          </tr>
+                          </StandardTr>
                         ))}
-                        <tr className="bg-[#EEF6FB] font-bold text-[#1E5A7A] text-[10.5px]">
-                          <td colSpan={3} className="py-1.5 px-2.5 text-right">รวมค่าใช้จ่ายอื่นๆ:</td>
-                          <td className="py-1.5 px-2.5 text-right font-mono">฿{calculations.otherCost.toFixed(2)}</td>
+                        <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
+                          <td colSpan={3} className="py-2 px-3 text-right">รวมค่าใช้จ่ายอื่นๆ:</td>
+                          <td className="py-2 px-3 text-right tabular-nums">฿{calculations.otherCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                      </StandardTbody>
+                    </StandardTable>
+                  </StandardTableCard>
                 )}
               </div>
             )}
@@ -837,60 +780,48 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {/* RIGHT COLUMN: STICKY COST SUMMARY (40% / 5 cols) */}
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4">
-          
+        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
+
           {/* Main Calculation Card */}
-          <div 
-            style={{
-              background: '#FFFFFF',
-              border: '1.5px solid #C8E3F0',
-              borderRadius: '16px',
-              padding: '14px',
-              boxShadow: '0 8px 24px rgba(90, 164, 200, 0.1)'
-            }}
-            className="space-y-3"
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-[#E4F1F8]">
+          <div className="bg-white border border-[#D4E4E3] rounded-2xl p-4 shadow-[0_2px_10px_rgba(90,138,136,0.08)] space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#F0F5F4]">
               <div className="flex items-center gap-1.5">
-                <Calculator size={14} color="#5BA4C8" />
-                <h3 className="font-bold text-[12px] text-[#1E3D52]">สรุปต้นทุนและการตั้งราคา</h3>
+                <Calculator size={15} className="text-[#5A8A88]" />
+                <h3 className="font-bold text-[12.5px] text-[#2D4A49]">สรุปต้นทุนและการตั้งราคา</h3>
               </div>
-              <span className="text-[9.5px] text-[#4A7592] font-mono bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
+              <span className="text-[10px] text-[#5A8A88] font-[600] bg-[#E8F3F2] px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
                 Real-time
               </span>
             </div>
 
             {/* Cost Rows */}
-            <div className="space-y-1.5 text-[10.5px]">
-              <div className="flex items-center justify-between text-[#4A7592]">
-                <span>📦 วัตถุดิบ รวม:</span>
-                <span className="font-mono font-semibold text-[#1E3D52]">฿{calculations.ingredientsCost.toFixed(2)}</span>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex items-center justify-between text-[#6B8F8E]">
+                <span>วัตถุดิบ รวม:</span>
+                <span className="tabular-nums font-semibold text-[#2D4A49]">฿{calculations.ingredientsCost.toFixed(2)}</span>
               </div>
-              <div className="flex items-center justify-between text-[#4A7592]">
-                <span>👷 ค่าแรง รวม:</span>
-                <span className="font-mono font-semibold text-[#1E3D52]">฿{calculations.laborCost.toFixed(2)}</span>
+              <div className="flex items-center justify-between text-[#6B8F8E]">
+                <span>ค่าแรง รวม:</span>
+                <span className="tabular-nums font-semibold text-[#2D4A49]">฿{calculations.laborCost.toFixed(2)}</span>
               </div>
-              <div className="flex items-center justify-between text-[#4A7592]">
-                <span>⚡ อื่นๆ รวม:</span>
-                <span className="font-mono font-semibold text-[#1E3D52]">฿{calculations.otherCost.toFixed(2)}</span>
+              <div className="flex items-center justify-between text-[#6B8F8E]">
+                <span>อื่นๆ รวม:</span>
+                <span className="tabular-nums font-semibold text-[#2D4A49]">฿{calculations.otherCost.toFixed(2)}</span>
               </div>
 
-              <div className="pt-1.5 border-t border-[#E4F1F8] flex items-center justify-between text-[#1E5A7A] font-bold">
+              <div className="pt-2 border-t border-[#F0F5F4] flex items-center justify-between text-[#2D4A49] font-bold">
                 <span>รวมต้นทุนทั้งสูตร:</span>
-                <span className="font-mono text-[12px]">฿{calculations.totalBatchCost.toFixed(2)}</span>
+                <span className="tabular-nums text-[12.5px]">฿{calculations.totalBatchCost.toFixed(2)}</span>
               </div>
-              <div className="flex items-center justify-between text-[#4A7592] text-[10px]">
+              <div className="flex items-center justify-between text-[#6B8F8E] text-[10.5px]">
                 <span>ผลิตได้:</span>
-                <span className="font-mono font-semibold">{yieldQty} ชิ้น/สูตร</span>
+                <span className="tabular-nums font-semibold">{yieldQty} ชิ้น/สูตร</span>
               </div>
 
               {/* Cost per piece highlight */}
-              <div 
-                style={{ background: '#F8FCFE', border: '1px solid #C8E3F0' }}
-                className="p-2 rounded-xl flex items-center justify-between my-1.5"
-              >
-                <span className="font-bold text-[11px] text-[#1E3D52]">ต้นทุนต่อชิ้น:</span>
-                <span className="font-black text-[12px] text-[#1E5A7A] font-mono">
+              <div className="bg-[#F8FCFC] border border-[#D4E4E3] p-2.5 rounded-xl flex items-center justify-between my-1.5">
+                <span className="font-bold text-[11px] text-[#2D4A49]">ต้นทุนต่อชิ้น:</span>
+                <span className="font-black text-[13px] text-[#2D4A49] tabular-nums">
                   ฿{calculations.costPerPiece.toFixed(2)}
                 </span>
               </div>
@@ -899,8 +830,8 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             {/* PRICING METHOD SELECTOR */}
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <div className="space-y-1.5 pt-1.5 border-t border-[#E4F1F8]">
-              <label className="block text-[11px] font-bold text-[#1E3D52]">
+            <div className="space-y-2 pt-2 border-t border-[#F0F5F4]">
+              <label className="block text-[11px] font-bold text-[#2D4A49]">
                 วิธีการกำหนดราคาขาย (Pricing Method)
               </label>
 
@@ -908,8 +839,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                 disabled={isReadOnly}
                 value={pricingMethod}
                 onChange={(e) => setPricingMethod(e.target.value as PricingMethod)}
-                style={{ border: '1px solid #C8E3F0', background: '#F8FCFE', color: '#1E3D52' }}
-                className="w-full px-2.5 py-1.5 rounded-xl text-[10.5px] font-semibold outline-none cursor-pointer focus:border-[#5BA4C8] disabled:opacity-75 disabled:cursor-not-allowed"
+                className={`w-full ${STANDARD_NATIVE_SELECT_CLASS} disabled:opacity-75 disabled:cursor-not-allowed`}
               >
                 <option value="margin_pct">วิธีที่ 1: กำไร % ขั้นต้น (Target Margin %)</option>
                 <option value="profit_thb">วิธีที่ 2: กำไรบาทต่อชิ้น (Target Profit THB)</option>
@@ -920,10 +850,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
 
               {/* Dynamic Inputs Based on Method */}
               {pricingMethod === 'margin_pct' && (
-                <div className="p-2.5 rounded-xl bg-[#F8FCFE] border border-[#C8E3F0] space-y-1.5 text-[10.5px]">
+                <div className="p-2.5 rounded-xl bg-[#F8FCFC] border border-[#D4E4E3] space-y-1.5 text-[11px]">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#4A7592] font-semibold">เป้าหมายกำไร (%):</span>
-                    <span className="font-mono font-bold text-[#1E5A7A]">{targetMarginPct}%</span>
+                    <span className="text-[#6B8F8E] font-semibold">เป้าหมายกำไร (%):</span>
+                    <span className="tabular-nums font-bold text-[#2D4A49]">{targetMarginPct}%</span>
                   </div>
                   <input
                     type="range"
@@ -932,9 +862,9 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                     max="90"
                     value={targetMarginPct}
                     onChange={(e) => setTargetMarginPct(Number(e.target.value))}
-                    className="w-full accent-[#5BA4C8] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full accent-[#5A8A88] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   />
-                  <div className="flex justify-between text-[9px] text-[#90C4DC]">
+                  <div className="flex justify-between text-[9.5px] text-[#6B8F8E] tabular-nums">
                     <span>10%</span>
                     <span>30%</span>
                     <span>50% (แนะนำ)</span>
@@ -944,12 +874,12 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
               )}
 
               {pricingMethod === 'profit_thb' && (
-                <div className="p-2.5 rounded-xl bg-[#F8FCFE] border border-[#C8E3F0] space-y-1 text-[10.5px]">
-                  <label className="block text-[#4A7592] font-semibold">
+                <div className="p-2.5 rounded-xl bg-[#F8FCFC] border border-[#D4E4E3] space-y-1 text-[11px]">
+                  <label className="block text-[#6B8F8E] font-semibold">
                     ต้องการกำไรต่อชิ้น (บาท):
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B8F8E] text-[10px]">฿</span>
                     <input
                       type="number"
                       disabled={isReadOnly}
@@ -957,20 +887,19 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                       min="0"
                       value={targetProfitThb}
                       onChange={(e) => setTargetProfitThb(Number(e.target.value) || 0)}
-                      style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full pl-6 pr-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      className="w-full h-[32px] pl-6 pr-2.5 rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] tabular-nums font-bold bg-white outline-none focus:border-[#5A8A88] disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
               )}
 
               {pricingMethod === 'fixed_price' && (
-                <div className="p-2.5 rounded-xl bg-[#F8FCFE] border border-[#C8E3F0] space-y-1 text-[10.5px]">
-                  <label className="block text-[#4A7592] font-semibold">
+                <div className="p-2.5 rounded-xl bg-[#F8FCFC] border border-[#D4E4E3] space-y-1 text-[11px]">
+                  <label className="block text-[#6B8F8E] font-semibold">
                     ระบุราคาขายที่ต้องการ (บาท):
                   </label>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B8F8E] text-[10px]">฿</span>
                     <input
                       type="number"
                       disabled={isReadOnly}
@@ -978,29 +907,27 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                       min="0"
                       value={fixedPriceInput}
                       onChange={(e) => setFixedPriceInput(Number(e.target.value) || 0)}
-                      style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full pl-6 pr-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      className="w-full h-[32px] pl-6 pr-2.5 rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] tabular-nums font-bold bg-white outline-none focus:border-[#5A8A88] disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
               )}
 
               {pricingMethod === 'discount_price' && (
-                <div className="p-2.5 rounded-xl bg-[#F8FCFE] border border-[#C8E3F0] space-y-1.5 text-[10.5px]">
+                <div className="p-2.5 rounded-xl bg-[#F8FCFC] border border-[#D4E4E3] space-y-2 text-[11px]">
                   <div>
-                    <label className="block text-[#4A7592] font-semibold mb-0.5">ราคาป้ายปกติ (บาท):</label>
+                    <label className="block text-[#6B8F8E] font-semibold mb-1">ราคาป้ายปกติ (บาท):</label>
                     <input
                       type="number"
                       disabled={isReadOnly}
                       step="any"
                       value={fixedPriceInput}
                       onChange={(e) => setFixedPriceInput(Number(e.target.value) || 0)}
-                      style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] tabular-nums font-bold bg-white outline-none focus:border-[#5A8A88] disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="block text-[#4A7592] font-semibold mb-0.5">ส่วนลดโปรโมชั่น (%):</label>
+                    <label className="block text-[#6B8F8E] font-semibold mb-1">ส่วนลดโปรโมชั่น (%):</label>
                     <input
                       type="number"
                       disabled={isReadOnly}
@@ -1008,29 +935,27 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                       max="90"
                       value={discountPct}
                       onChange={(e) => setDiscountPct(Number(e.target.value) || 0)}
-                      style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] tabular-nums bg-white outline-none focus:border-[#5A8A88] disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
               )}
 
               {pricingMethod === 'net_price' && (
-                <div className="p-2.5 rounded-xl bg-[#F8FCFE] border border-[#C8E3F0] space-y-1.5 text-[10.5px]">
+                <div className="p-2.5 rounded-xl bg-[#F8FCFC] border border-[#D4E4E3] space-y-2 text-[11px]">
                   <div>
-                    <label className="block text-[#4A7592] font-semibold mb-0.5">ราคาฐานก่อนภาษี (บาท):</label>
+                    <label className="block text-[#6B8F8E] font-semibold mb-1">ราคาฐานก่อนภาษี (บาท):</label>
                     <input
                       type="number"
                       disabled={isReadOnly}
                       step="any"
                       value={fixedPriceInput}
                       onChange={(e) => setFixedPriceInput(Number(e.target.value) || 0)}
-                      style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] tabular-nums font-bold bg-white outline-none focus:border-[#5A8A88] disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="block text-[#4A7592] font-semibold mb-0.5">อัตราภาษีมูลค่าเพิ่ม VAT (%):</label>
+                    <label className="block text-[#6B8F8E] font-semibold mb-1">อัตราภาษีมูลค่าเพิ่ม VAT (%):</label>
                     <input
                       type="number"
                       disabled={isReadOnly}
@@ -1038,8 +963,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                       max="30"
                       value={vatPct}
                       onChange={(e) => setVatPct(Number(e.target.value) || 0)}
-                      style={{ border: '1px solid #C8E3F0' }}
-                      className="w-full px-2.5 py-1 rounded-lg text-[10.5px] font-mono bg-white outline-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+                      className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] tabular-nums bg-white outline-none focus:border-[#5A8A88] disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1047,62 +971,57 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             </div>
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            {/* BLUE RESULT BOX */}
+            {/* RESULT HIGHLIGHT BOX */}
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <div 
-              style={{
-                background: '#EEF6FB',
-                border: '1.5px solid #5BA4C8',
-                borderRadius: '16px',
-                padding: '12px 14px'
-              }}
-              className="space-y-2"
-            >
-              <div className="text-[10.5px] font-bold text-[#1E5A7A] flex items-center justify-between">
+            <div className="bg-[#E8F3F2] border border-[#5A8A88] rounded-2xl p-3.5 space-y-2">
+              <div className="text-[11px] font-bold text-[#2D4A49] flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles size={13} color="#5BA4C8" />
+                  <Sparkles size={13} className="text-[#5A8A88]" />
                   <span>ผลลัพธ์ราคาขายและกำไร</span>
                 </span>
-                <span className="font-mono bg-white px-2 py-0.5 rounded border border-[#C8E3F0] text-[9.5px]">
+                <span className="bg-white px-2 py-0.5 rounded-[5px] border border-[#D4E4E3] text-[10px] font-[600] text-[#5A8A88]">
                   {calculations.profitPct >= 50 ? 'กำไรดีเยี่ยม' : calculations.profitPct >= 30 ? 'กำไรปานกลาง' : 'กำไรต่ำ'}
                 </span>
               </div>
 
               <div className="flex items-baseline justify-between">
-                <span className="text-[11px] text-[#4A7592] font-semibold">ราคาขายที่แนะนำ:</span>
-                <span className="text-[12px] font-black text-[#1E5A7A] font-mono">
+                <span className="text-[11px] text-[#6B8F8E] font-semibold">ราคาขายที่แนะนำ:</span>
+                <span className="text-[15px] font-black text-[#2D4A49] tabular-nums">
                   ฿{calculations.finalSellingPrice.toFixed(2)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-[10.5px] pt-1.5 border-t border-[#C8E3F0]">
-                <span className="text-[#4A7592]">กำไรสุทธิต่อชิ้น:</span>
-                <span className="font-bold text-[#22C55E] font-mono text-[11px]">
+              <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[#D4E4E3]">
+                <span className="text-[#6B8F8E]">กำไรสุทธิต่อชิ้น:</span>
+                <span className="font-bold text-emerald-600 tabular-nums text-[11.5px]">
                   +฿{calculations.profitPerPiece.toFixed(2)} ({calculations.profitPct.toFixed(1)}%)
                 </span>
               </div>
             </div>
 
             {/* Cost Structure Bar Chart */}
-            <div className="space-y-1 pt-0.5 text-[10px]">
-              <div className="flex items-center justify-between text-[9.5px] text-[#4A7592]">
+            <div className="space-y-1.5 pt-0.5 text-[10.5px]">
+              <div className="flex items-center justify-between text-[10px] text-[#6B8F8E]">
                 <span>สัดส่วนต้นทุน:</span>
-                <span className="font-mono">
-                  📦 {calculations.matPct}% &nbsp;|&nbsp; 👷 {calculations.labPct}% &nbsp;|&nbsp; ⚡ {calculations.othPct}%
+                <span className="tabular-nums">
+                  วัตถุดิบ {calculations.matPct}% · ค่าแรง {calculations.labPct}% · อื่นๆ {calculations.othPct}%
                 </span>
               </div>
 
-              <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-slate-100">
-                <div 
-                  style={{ width: `${calculations.matPct}%`, background: '#5BA4C8' }} 
+              <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-[#F0F5F4]">
+                <div
+                  style={{ width: `${calculations.matPct}%` }}
+                  className="bg-[#5A8A88]"
                   title={`วัตถุดิบ: ${calculations.matPct}%`}
                 />
-                <div 
-                  style={{ width: `${calculations.labPct}%`, background: '#3D7FA3' }} 
+                <div
+                  style={{ width: `${calculations.labPct}%` }}
+                  className="bg-[#2D4A49]"
                   title={`ค่าแรง: ${calculations.labPct}%`}
                 />
-                <div 
-                  style={{ width: `${calculations.othPct}%`, background: '#D4A853' }} 
+                <div
+                  style={{ width: `${calculations.othPct}%` }}
+                  className="bg-[#D4A853]"
                   title={`อื่นๆ: ${calculations.othPct}%`}
                 />
               </div>
@@ -1112,8 +1031,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             {!isReadOnly && (
               <button
                 type="submit"
-                style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-                className="w-full py-2 rounded-xl font-bold text-[11.5px] shadow-sm hover:bg-[#3D7FA3] active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                className="w-full h-[36px] rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white font-[600] text-[12px] shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
               >
                 <Save size={14} />
                 <span>บันทึกสูตรและราคาขาย</span>
