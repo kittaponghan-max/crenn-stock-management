@@ -355,24 +355,24 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header Card */}
-      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-5 sm:p-6 overflow-hidden">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-4 sm:p-5 overflow-hidden">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
           {/* Left Title */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3">
             <button 
               onClick={onBack}
               title="ย้อนกลับหน้าหลัก"
-              className="p-2.5 hover:bg-[#E8F3F2] text-[#2D4A49] rounded-xl transition-all shadow-xs bg-white border border-[#D4E4E3] cursor-pointer"
+              className="w-[32px] h-[32px] flex items-center justify-center hover:bg-[#E8F3F2] text-[#2D4A49] rounded-[8px] transition-all shadow-xs bg-white border border-[#D4E4E3] cursor-pointer shrink-0"
             >
-              <ChevronLeft size={20} className="text-[#5A8A88]" />
+              <ChevronLeft size={16} className="text-[#5A8A88]" />
             </button>
-            <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
-              <ChefHat size={22} className="text-[#5A8A88]" />
+            <div className="w-9 h-9 bg-[#E8F3F2] rounded-[10px] shrink-0 flex items-center justify-center text-[#5A8A88]">
+              <ChefHat size={18} className="text-[#5A8A88]" />
             </div>
             <div>
-              <h2 className="text-[18px] font-bold text-[#2D4A49] flex items-center gap-2 leading-tight">
+              <h1 className="text-[15px] font-[700] text-[#2D4A49] flex items-center gap-2 leading-tight">
                 รายงาน R&D และพัฒนาเมนู (Menu Development)
-              </h2>
+              </h1>
               <p className="text-[11px] text-[#6B8F8E] font-medium mt-0.5">
                 บันทึกการทดลองรสชาติและพัฒนาสูตรเครื่องดื่ม / เบเกอรี่
               </p>
@@ -380,17 +380,17 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
           </div>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-2.5 w-full lg:w-auto">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
             {/* Search */}
-            <div className="relative flex-1 sm:w-56">
+            <div className="relative flex-1 sm:w-52">
               <input
                 type="text"
                 placeholder="ค้นหาชื่อเมนู..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-[#D4E4E3] rounded-xl text-[12px] font-medium text-[#2D4A49] placeholder-[#A8BCBB] focus:border-[#5A8A88] outline-none transition-all shadow-xs h-[38px]"
+                className="w-full pl-8 pr-3 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] placeholder-[#A8BCBB] focus:border-[#5A8A88] outline-none transition-all shadow-xs h-[32px]"
               />
-              <Search className="absolute left-3 top-2.5 text-[#5A8A88]" size={16} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5A8A88]" size={14} />
             </div>
 
             {/* Refresh */}
@@ -398,19 +398,19 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
               onClick={() => fetchData()}
               disabled={loading}
               title="รีเฟรชข้อมูล"
-              className="w-[38px] h-[38px] bg-white border border-[#D4E4E3] rounded-xl text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
+              className="w-[32px] h-[32px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
             >
-              <RefreshCw size={16} className={cn(loading && "animate-spin text-[#5A8A88]")} />
+              <RefreshCw size={14} className={cn(loading && "animate-spin text-[#5A8A88]")} />
             </button>
 
             {/* Add New Button */}
             {!isReadOnly && (
               <button
                 onClick={handleAddNew}
-                className="flex items-center gap-1.5 px-4 h-[38px] bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[13px] font-bold transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 h-[32px] bg-[#2D4A49] hover:bg-[#203635] text-white rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
               >
-                <Plus size={16} />
-                <span>+ สร้างรายงาน R&D</span>
+                <Plus size={14} />
+                <span>สร้างรายงาน R&D</span>
               </button>
             )}
           </div>
@@ -451,7 +451,7 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
                       required
                       value={formData.date}
                       onChange={e => setFormData({ ...formData, date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-[#D4E4E3] rounded-lg text-[13px] font-medium text-[#2D4A49] focus:border-[#5A8A88] outline-none"
+                      className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] tabular-nums focus:border-[#5A8A88] outline-none"
                     />
                   </div>
 
@@ -688,19 +688,19 @@ export function RnDReport({ reports, currentUser, onSave, onUpdate, onBack, bran
               </div>
 
               {/* Form Action Buttons */}
-              <div className="pt-2 flex justify-end gap-2.5 border-t border-[#E2EAE9]">
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#E2EAE9]">
                 <button
                   type="button"
                   onClick={() => { setIsFormOpen(false); setEditingId(null); }}
-                  className="px-5 py-2.5 bg-[#F0F5F4] text-[#6B8F8E] hover:text-[#2D4A49] rounded-xl text-[13px] font-semibold hover:bg-[#E2EAE9] transition-colors cursor-pointer"
+                  className="h-[32px] px-3.5 bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] rounded-[8px] text-[11px] font-medium hover:bg-[#F0F5F4] transition-colors cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[13px] font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="h-[32px] px-3.5 bg-[#2D4A49] hover:bg-[#203635] text-white rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
-                  <Save size={16} />
+                  <Save size={14} />
                   <span>{editingId ? 'บันทึกการแก้ไข' : 'บันทึกรายงาน R&D'}</span>
                 </button>
               </div>
