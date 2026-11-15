@@ -37,6 +37,12 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
 
   const fetchData = useCallback(async () => {
     if (!supabase) {
+      try {
+        const saved = localStorage.getItem(`cafe-checklist-records-${currentBranch}`);
+        setLiveChecklists(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setLiveChecklists([]);
+      }
       setLoading(false);
       return;
     }
@@ -55,6 +61,12 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
       if (fetchErr) {
         console.error('Error fetching checklist_records in BarWasteReport:', fetchErr);
         setError(fetchErr.message);
+        try {
+          const saved = localStorage.getItem(`cafe-checklist-records-${currentBranch}`);
+          setLiveChecklists(saved ? JSON.parse(saved) : []);
+        } catch (e) {
+          setLiveChecklists([]);
+        }
       } else if (data) {
         const mapped = data.map((c: any) => ({
           id: c.id,
@@ -71,6 +83,12 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
     } catch (err: any) {
       console.error('Fetch exception in BarWasteReport:', err);
       setError(err?.message || 'Failed to sync with Supabase');
+      try {
+        const saved = localStorage.getItem(`cafe-checklist-records-${currentBranch}`);
+        setLiveChecklists(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setLiveChecklists([]);
+      }
     } finally {
       setLoading(false);
       setLastFetch(new Date());
@@ -118,7 +136,8 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
     };
   }, [fetchData]);
 
-  const effectiveChecklists = !loading ? liveChecklists : (liveChecklists.length > 0 ? liveChecklists : checklistRecords);
+  // Use only checklists belonging strictly to the current branch
+  const effectiveChecklists = liveChecklists;
 
   // Filter only Coffee Beans ingredients
   const coffeeIngredients = useMemo(() => {
@@ -183,16 +202,21 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             PAGE HEADER (REPLACED DARK BAND WITH WHITE CARD)
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <div className="bg-white border-b border-[#D4E4E3] p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-white border-b border-[#D4E4E3] p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Left block */}
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#FEE2E2] rounded-xl shrink-0 flex items-center justify-center">
-              <Trash2 size={20} className="text-[#EF4444]" />
+            <div className="w-9 h-9 bg-[#FEE2E2] rounded-[10px] border border-[#FECACA]/60 shadow-xs shrink-0 flex items-center justify-center">
+              <Trash2 size={18} className="text-[#EF4444]" />
             </div>
             <div>
-              <h2 className="text-[16px] font-bold text-[#2D4A49]">
-                รายงาน Waste เมล็ดกาแฟรายวัน
-              </h2>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                  รายงาน Waste เมล็ดกาแฟรายวัน
+                </h1>
+                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
+                  สาขา {currentBranch}
+                </span>
+              </div>
               <p className="text-[11px] text-[#6B8F8E] mt-0.5">
                 คำนวณจากน้ำหนักเมล็ดกาแฟตอน Check-in และ Check-out
               </p>
@@ -201,12 +225,12 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
 
           {/* Right — Summary badge */}
           <div className="flex items-center gap-2.5 self-start sm:self-auto">
-            <div className="flex items-center gap-3 bg-[#E8F3F2] border border-[#D4E4E3] rounded-xl px-5 py-2.5">
+            <div className="flex items-center gap-3 bg-[#E8F3F2] border border-[#D4E4E3] rounded-xl px-4 py-2">
               <div>
-                <div className="text-[10px] font-semibold text-[#6B8F8E] uppercase tracking-wider">
+                <div className="text-[10px] font-semibold text-[#6B8F8E] tracking-wider">
                   จำนวนบันทึก
                 </div>
-                <div className="text-[20px] font-extrabold text-[#2D4A49] leading-tight">
+                <div className="text-[18px] font-extrabold text-[#2D4A49] leading-tight tabular-nums">
                   {dailyWaste.length} วัน
                 </div>
               </div>
@@ -215,7 +239,7 @@ export function BarWasteReport({ ingredients, checklistRecords, branch }: BarWas
                 onClick={() => fetchData()}
                 disabled={loading}
                 title="รีเฟรชข้อมูลล่าสุด (Sync with Supabase)"
-                className="p-2 bg-white border border-[#D4E4E3] rounded-lg text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0 ml-1"
+                className="w-[32px] h-[32px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#5A8A88] hover:bg-[#E8F3F2] flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0 ml-1"
               >
                 <RefreshCw size={14} className={cn("text-[#5A8A88]", loading && "animate-spin")} />
               </button>
