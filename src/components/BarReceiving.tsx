@@ -541,13 +541,18 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
         {/* HEADER ROW WITH TITLE (LEFT) & DATE PICKER (RIGHT) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#F0F5F4]">
           <div className="flex items-center gap-3">
-            <div className="bg-[#E8F3F2] rounded-xl p-2.5 text-[#5A8A88] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 bg-[#E8F3F2] rounded-[10px] border border-[#D4E4E3]/50 shadow-xs text-[#5A8A88] flex items-center justify-center shrink-0">
               <Package size={18} className="text-[#5A8A88]" />
             </div>
             <div>
-              <h2 className="text-[16px] sm:text-[17px] font-bold text-[#2D4A49] leading-tight">
-                บันทึกรับวัตถุดิบประจำวัน ({department === 'Bar' ? 'บาร์' : 'ครัว'})
-              </h2>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                  บันทึกรับวัตถุดิบประจำวัน ({department === 'Bar' ? 'บาร์' : 'ครัว'})
+                </h1>
+                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
+                  แผนก{department === 'Bar' ? 'บาร์' : 'ครัว'}
+                </span>
+              </div>
               <p className="text-[11px] text-[#6B8F8E] mt-0.5">
                 บันทึกการตรวจรับวัตถุดิบเข้าสต็อกร้านประจำวันเพื่อความถูกต้องของยอดคงเหลือ
               </p>
@@ -568,7 +573,7 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full pl-7 pr-2 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[11px] text-[#2D4A49] font-mono focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 shadow-xs transition-all"
+                className="w-full h-[32px] pl-7 pr-2 py-1 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] font-mono tabular-nums focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 shadow-xs transition-all"
               />
             </div>
           </div>
@@ -636,24 +641,24 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
             <div className="w-full overflow-x-hidden">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
-                  <tr className="bg-[#2D4A49] text-white text-[11px] font-semibold">
-                    <th className="py-2 px-1 text-center w-[28px] sm:w-[34px]">#</th>
-                    <th className="py-2 px-1.5 w-[36%] sm:w-[38%]">รายการวัตถุดิบ</th>
-                    <th className="py-2 px-1.5 w-[24%] sm:w-[24%]">ผู้จัดจำหน่าย</th>
-                    <th className="py-2 px-1.5 text-center w-[18%] sm:w-[16%]">จำนวนที่รับ</th>
-                    <th className="py-2 px-1.5 text-center w-[18%] sm:w-[18%]">วันหมดอายุ</th>
+                  <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide border-b border-[#1E3A39]">
+                    <th className="py-2 px-1 text-center w-[28px] sm:w-[34px] border-r border-[#3D6B69]">#</th>
+                    <th className="py-2 px-1.5 w-[36%] sm:w-[38%] border-r border-[#3D6B69]">รายการวัตถุดิบ</th>
+                    <th className="py-2 px-1.5 w-[24%] sm:w-[24%] border-r border-[#3D6B69]">ผู้จัดจำหน่าย</th>
+                    <th className="py-2 px-1.5 text-center w-[18%] sm:w-[16%] border-r border-[#3D6B69]">จำนวนที่รับ</th>
+                    <th className="py-2 px-1.5 text-center w-[18%] sm:w-[18%] border-r border-[#3D6B69]">วันหมดอายุ</th>
                     <th className="py-2 px-1 text-center w-[28px] sm:w-[34px]">ลบ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#F0F5F4] text-[11px]">
+                <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]">
                   {rows.map((row, index) => (
                     <tr 
                       key={row.id} 
-                      className="odd:bg-white even:bg-[#F8FAF9] hover:bg-[#E8F3F2]/60 transition-colors"
+                      className="odd:bg-white even:bg-[#F8FAF9] hover:bg-[#F4F9F8] transition-colors"
                     >
                       {/* Row number badge */}
                       <td className="py-1.5 px-1 text-center">
-                        <span className="w-5 h-5 rounded bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-bold flex items-center justify-center mx-auto">
+                        <span className="w-5 h-5 rounded bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-bold flex items-center justify-center mx-auto tabular-nums">
                           {index + 1}
                         </span>
                       </td>
@@ -673,7 +678,7 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                         <select
                           value={row.supplier}
                           onChange={(e) => handleRowChange(row.id, 'supplier', e.target.value)}
-                          className="w-full px-1.5 sm:px-2 py-1 border border-[#D4E4E3] rounded-md text-[11px] text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] disabled:opacity-50 disabled:bg-[#F0F5F4] transition-all shadow-xs truncate"
+                          className="w-full h-[32px] px-2 py-1 border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] disabled:opacity-50 disabled:bg-[#F0F5F4] transition-all shadow-2xs truncate cursor-pointer"
                           disabled={isReadOnly}
                         >
                           <option value="" className="text-[#7A9E9C]">-- ผู้จัดจำหน่าย --</option>
@@ -759,23 +764,23 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                 <span>+ เพิ่มรายการอีก 5 แถว</span>
               </button>
 
-              <div className="flex gap-2.5 sm:gap-3 w-full sm:w-auto">
+              <div className="flex gap-2 w-full sm:w-auto">
                 {/* ล้างทั้งหมด button */}
                 <button
                   type="button"
                   onClick={clearForm}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#F0F5F4] border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] px-4 py-2.5 rounded-lg text-[12px] font-medium transition-colors shadow-xs cursor-pointer active:scale-95"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#F0F5F4] border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] px-3.5 h-[32px] rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-colors shadow-xs cursor-pointer whitespace-nowrap"
                 >
-                  <RotateCcw size={15} className="text-[#5A8A88]" />
+                  <RotateCcw size={13} className="text-[#5A8A88]" />
                   <span>ล้างทั้งหมด</span>
                 </button>
 
                 {/* บันทึกข้อมูล / Submit button */}
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#2D4A49] hover:bg-[#1D3A39] text-white px-6 py-2.5 rounded-lg text-[13px] font-semibold transition-all shadow-xs cursor-pointer active:scale-95"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#2D4A49] hover:bg-[#203635] text-white px-4 h-[32px] rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-colors shadow-xs cursor-pointer whitespace-nowrap"
                 >
-                  <Save size={15} className="text-white" />
+                  <Save size={13} className="text-white" />
                   <span>บันทึกการรับ</span>
                 </button>
               </div>
@@ -810,32 +815,32 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
           <div className="w-full overflow-x-hidden rounded-xl border border-[#D4E4E3]">
             <table className="w-full text-left border-collapse table-fixed">
               <thead>
-                <tr className="bg-[#E8F3F2] text-[#2D4A49] text-[11px] font-bold border-b border-[#D4E4E3]">
-                  <th className="py-2 px-2 w-[16%]">วันที่รับ</th>
-                  <th className="py-2 px-2.5 w-[36%]">รายการวัตถุดิบ</th>
-                  <th className="py-2 px-2.5 w-[22%]">ผู้จัดจำหน่าย</th>
-                  <th className="py-2 px-2 text-center w-[13%]">จำนวนที่รับ</th>
-                  <th className="py-2 px-2 text-center w-[13%]">วันหมดอายุ</th>
+                <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide border-b border-[#1E3A39]">
+                  <th className="py-2 px-2 w-[16%] border-r border-[#3D6B69]">วันที่รับ</th>
+                  <th className="py-2 px-2.5 w-[36%] border-r border-[#3D6B69]">รายการวัตถุดิบ</th>
+                  <th className="py-2 px-2.5 w-[22%] border-r border-[#3D6B69]">ผู้จัดจำหน่าย</th>
+                  <th className="py-2 px-2 text-center w-[13%] border-r border-[#3D6B69]">จำนวนที่รับ</th>
+                  <th className="py-2 px-2 text-center w-[13%] border-r border-[#3D6B69] last:border-r-0">วันหมดอายุ</th>
                   {!isReadOnly && <th className="py-2 px-1 text-center w-[30px] sm:w-[34px]">ลบ</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F0F5F4] text-[11px]">
+              <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]">
                 {departmentRecords.slice(0, 50).map((record) => {
                   const ing = ingredients.find(i => i.id === record.ingredientId);
                   return (
-                    <tr key={record.id} className="hover:bg-[#F8FAF9] transition-colors">
-                      <td className="py-2 px-2 font-mono text-[#6B8F8E] truncate">
+                    <tr key={record.id} className="hover:bg-[#F4F9F8] transition-colors">
+                      <td className="py-2 px-2 font-mono text-[11px] text-[#6B8F8E] truncate tabular-nums">
                         {format(new Date(record.date), 'dd/MM/yyyy')}
                       </td>
                       <td className="py-2 px-2.5 font-semibold text-[#2D4A49] truncate">
                         {ing?.name || record.ingredientId}
                         {ing?.brand && <span className="text-[10px] text-[#6B8F8E] block font-normal truncate">แบรนด์: {ing.brand}</span>}
                       </td>
-                      <td className="py-2 px-2.5 text-[#6B8F8E] truncate">{record.supplier}</td>
-                      <td className="py-2 px-2 text-center font-bold text-[#5A8A88] truncate">
+                      <td className="py-2 px-2.5 text-[11px] text-[#6B8F8E] truncate">{record.supplier}</td>
+                      <td className="py-2 px-2 text-center font-bold text-[#5A8A88] truncate tabular-nums">
                         {record.quantity} {ing?.unit || ''}
                       </td>
-                      <td className="py-2 px-2 text-center text-[#6B8F8E] font-mono truncate">
+                      <td className="py-2 px-2 text-center text-[11px] text-[#6B8F8E] font-mono truncate tabular-nums">
                         {record.expiryDate ? format(new Date(record.expiryDate), 'dd-MMM-yyyy') : '-'}
                       </td>
                       {!isReadOnly && (
