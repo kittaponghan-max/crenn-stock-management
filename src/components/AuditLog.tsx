@@ -613,18 +613,18 @@ export function AuditLog({
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="flex items-center justify-between gap-4 flex-wrap pb-4">
         {/* Left — Title block */}
-        <div className="flex flex-col">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-[#E8F3F2] flex items-center justify-center shrink-0">
-              <Clock size={18} className="text-[#5A8A88]" />
-            </div>
-            <h2 className="text-[16px] font-bold text-[#2D4A49] ml-2.5">
-              ประวัติย้อนหลัง
-            </h2>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] border border-[#D4E4E3]/50 shadow-xs flex items-center justify-center shrink-0">
+            <Clock size={18} className="text-[#5A8A88]" />
           </div>
-          <span className="text-[11px] text-[#6B8F8E] mt-0.5 ml-[42px]">
-            แสดงรายการล่าสุด 120 รายการ
-          </span>
+          <div className="flex flex-col">
+            <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+              ประวัติย้อนหลัง
+            </h1>
+            <span className="text-[11px] text-[#6B8F8E] mt-0.5">
+              แสดงรายการล่าสุด 120 รายการ
+            </span>
+          </div>
         </div>
 
         {/* Right — Search + Refresh */}
@@ -644,7 +644,7 @@ export function AuditLog({
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg pl-9 pr-3 py-2 text-[11px] text-[#2D4A49] placeholder:text-[#6B8F8E] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 transition-all"
+              className="w-full h-[32px] bg-white border border-[#D4E4E3] rounded-[8px] pl-9 pr-3 py-1 text-[11px] text-[#2D4A49] placeholder:text-[#6B8F8E] focus:outline-none focus:border-[#5A8A88] transition-colors"
             />
           </div>
           <button
@@ -652,7 +652,7 @@ export function AuditLog({
             onClick={() => fetchData()}
             disabled={loading}
             title="รีเฟรชข้อมูลล่าสุด (Sync with Supabase)"
-            className="p-2 bg-white border border-[#D4E4E3] rounded-lg text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0 ml-2"
+            className="w-[32px] h-[32px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#5A8A88] hover:bg-[#E8F3F2] flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
           >
             <RefreshCw size={14} className={cn(loading && "animate-spin")} />
           </button>
