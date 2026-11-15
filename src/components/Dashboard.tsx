@@ -148,55 +148,42 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800">ภาพรวมสต็อกสินค้า (Dashboard)</h2>
-          <p className="text-[13px] text-slate-500 mt-1">สรุปสถานะวัตถุดิบและรายการที่ต้องสั่งซื้อ</p>
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)] flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0">
+            <LayoutGrid size={18} />
+          </div>
+          <div>
+            <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+              ภาพรวมสต็อกสินค้า (Dashboard)
+            </h1>
+            <p className="text-[11px] text-[#6B8F8E] mt-0.5">สรุปสถานะวัตถุดิบและรายการที่ต้องสั่งซื้อ</p>
+          </div>
         </div>
         
-        <div className="flex bg-slate-100/50 backdrop-blur-md p-2 rounded-2xl border border-slate-200 self-start shadow-sm gap-2">
+        <div className="inline-flex items-center gap-0.5 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3] self-start md:self-auto">
           {(['All', 'Bar', 'Bakery'] as DepartmentFilter[])
           .filter(dept => dept === 'All' ? allowedDepartments.length === 2 : allowedDepartments.includes(dept as any))
           .map((dept) => {
             const isActive = activeDepartment === dept;
             const Icon = dept === 'All' ? LayoutGrid : dept === 'Bar' ? Coffee : ChefHat;
             
-            // Define colors for each department
-            const colors = {
-              All: {
-                active: "bg-blue-600 text-white shadow-blue-200",
-                hover: "hover:bg-blue-50 hover:text-blue-600",
-                icon: "text-blue-600"
-              },
-              Bar: {
-                active: "bg-orange-600 text-white shadow-orange-200",
-                hover: "hover:bg-orange-50 hover:text-orange-600",
-                icon: "text-orange-600"
-              },
-              Bakery: {
-                active: "bg-pink-600 text-white shadow-pink-200",
-                hover: "hover:bg-pink-50 hover:text-pink-600",
-                icon: "text-pink-600"
-              }
-            };
-
-            const theme = colors[dept];
-            
             return (
               <button
                 key={dept}
+                type="button"
                 onClick={() => {
                   setActiveDepartment(dept);
                   setActiveFilter('needsAttention');
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-300 shadow-sm border border-transparent",
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer whitespace-nowrap",
                   isActive 
-                    ? cn(theme.active, "shadow-md scale-105 border-white/20") 
-                    : cn("bg-white text-slate-500 border-slate-100", theme.hover)
+                    ? "bg-[#5A8A88] text-white shadow-xs" 
+                    : "text-[#2D4A49] hover:bg-white"
                 )}
               >
-                <Icon size={16} className={cn("transition-transform duration-300", isActive ? "scale-110 text-white" : theme.icon)} />
+                <Icon size={13} className={isActive ? "text-white" : "text-[#5A8A88]"} />
                 <span>
                   {dept === 'All' ? 'ทั้งหมด' : dept === 'Bar' ? 'บาร์ (Bar)' : 'ครัว (Bakery)'}
                 </span>
@@ -349,34 +336,34 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
             >
               <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 z-20 shadow-sm">
-                <tr className="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-500 font-bold whitespace-nowrap">
-                  <th className="px-3 py-2 bg-slate-50 sticky left-0 z-30 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[260px] max-w-[260px]">สินค้า</th>
-                  {activeDepartment === 'All' && <th className="px-2 py-2 text-center bg-slate-50 w-[80px]">แผนก</th>}
-                  <th className="px-2 py-2 text-center bg-slate-50 w-[100px]">คงเหลือล่าสุด</th>
-                  <th className="px-2 py-2 text-center bg-slate-50 w-[80px]">ขั้นต่ำ</th>
-                  <th className="px-3 py-2 text-right bg-slate-50 w-[100px]">อัปเดตล่าสุด</th>
+                <tr className="bg-[#2D4A49] border-b border-[#1E3A39] text-[10px] sm:text-[11px] text-white font-semibold whitespace-nowrap tracking-wide">
+                  <th className="px-3 py-2 bg-[#2D4A49] sticky left-0 z-30 border-r border-[#3D6B69] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[260px] max-w-[260px]">สินค้า</th>
+                  {activeDepartment === 'All' && <th className="px-2 py-2 text-center bg-[#2D4A49] border-r border-[#3D6B69] w-[80px]">แผนก</th>}
+                  <th className="px-2 py-2 text-center bg-[#2D4A49] border-r border-[#3D6B69] w-[100px]">คงเหลือล่าสุด</th>
+                  <th className="px-2 py-2 text-center bg-[#2D4A49] border-r border-[#3D6B69] w-[80px]">ขั้นต่ำ</th>
+                  <th className="px-3 py-2 text-right bg-[#2D4A49] w-[100px]">อัปเดตล่าสุด</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]">
                 {filteredIngredients.map(item => {
                   const record = latestStock[item.id];
                   const isOut = record.stock === 0;
                   const isLow = record.stock > 0 && record.stock < item.minStock;
                   
                   return (
-                    <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-                      <td className="px-3 py-2 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] w-[260px] max-w-[260px]">
+                    <tr key={item.id} className="hover:bg-[#F4F9F8] transition-colors group">
+                      <td className="px-3 py-2 sticky left-0 z-10 bg-white group-hover:bg-[#F4F9F8] border-r border-[#D4E4E3] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] w-[260px] max-w-[260px]">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                          <div className="w-6 h-6 rounded-lg overflow-hidden bg-[#F0F5F4] border border-[#D4E4E3] shrink-0">
                             {item.image ? (
                               <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center"><ShoppingCart size={12} className="text-slate-300"/></div>
+                              <div className="w-full h-full flex items-center justify-center"><ShoppingCart size={12} className="text-[#A8BCBB]"/></div>
                             )}
                           </div>
                           <div className="min-w-0 pr-2">
-                            <p className="font-bold text-[10px] text-slate-800 truncate" title={item.name}>{item.name}</p>
-                            <p className="text-[9px] text-slate-500 truncate" title={item.brand || '-'}>{item.brand || '-'}</p>
+                            <p className="font-semibold text-[11px] text-[#2D4A49] truncate" title={item.name}>{item.name}</p>
+                            <p className="text-[10px] text-[#6B8F8E] truncate" title={item.brand || '-'}>{item.brand || '-'}</p>
                           </div>
                         </div>
                       </td>
@@ -390,9 +377,9 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
                           </span>
                         </td>
                       )}
-                      <td className="px-2 py-2 text-center">
+                      <td className="px-2 py-2 text-center tabular-nums">
                         <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap",
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap tabular-nums",
                           isOut ? "bg-red-50 text-red-700 border-red-200" : 
                           isLow ? "bg-orange-50 text-orange-700 border-orange-200" :
                           "bg-green-50 text-green-700 border-green-200"
@@ -400,10 +387,10 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
                           {record.stock} {item.unit}
                         </span>
                       </td>
-                      <td className="px-2 py-2 text-center text-[10px] text-slate-600 font-mono">
+                      <td className="px-2 py-2 text-center text-[11px] text-[#6B8F8E] font-mono tabular-nums">
                         {item.minStock}
                       </td>
-                      <td className="px-3 py-2 text-[10px] text-slate-500 text-right whitespace-nowrap">
+                      <td className="px-3 py-2 text-[11px] text-[#6B8F8E] text-right whitespace-nowrap tabular-nums">
                         {record.date === format(new Date(), 'yyyy-MM-dd') ? 'วันนี้' : record.date}
                       </td>
                     </tr>
