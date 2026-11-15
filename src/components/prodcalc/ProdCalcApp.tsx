@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Recipe, ProdcalcIngredientPrice } from '../../types/prodcalc';
 import { IngredientPricing } from './IngredientPricing';
 import { RecipeList } from './RecipeList';
 import { RecipeEditor } from './RecipeEditor';
 import { CostReport } from './CostReport';
-import { 
-  Calculator, 
-  FlaskConical, 
-  BookOpen, 
-  BarChart2, 
-  Bell, 
-  User, 
-  Coffee, 
-  LogOut, 
-  Sparkles,
-  ChevronDown
+import {
+  FlaskConical,
+  BookOpen,
+  BarChart2,
+  Coffee,
+  ChevronDown,
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 
 interface ProdCalcAppProps {
@@ -35,6 +32,30 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
 
   // Recipe editing state
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+
+  // Supabase connection indicator & user dropdown menu state
+  const [dbStatus, setDbStatus] = useState<'connected' | 'checking' | 'offline'>(supabase ? 'checking' : 'offline');
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    };
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [userMenuOpen]);
 
   // Stored recipes
   const [recipes, setRecipes] = useState<Recipe[]>(() => {
@@ -120,7 +141,11 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
 
   // Load recipes from Supabase on mount
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setDbStatus('offline');
+      return;
+    }
+    setDbStatus('checking');
     const fetchRecipes = async () => {
       try {
         const { data, error } = await supabase
@@ -128,11 +153,17 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
           .select('*')
           .eq('branch', currentUser.branch);
 
-        if (!error && data && data.length > 0) {
-          setRecipes(data as Recipe[]);
+        if (error) {
+          setDbStatus('offline');
+        } else {
+          setDbStatus('connected');
+          if (data && data.length > 0) {
+            setRecipes(data as Recipe[]);
+          }
         }
       } catch (err) {
         console.warn('Supabase recipes fetch note:', err);
+        setDbStatus('offline');
       }
     };
     fetchRecipes();
@@ -191,109 +222,239 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
     }
   };
 
+  const branchLabel =
+    currentUser.branch === 'Rayong'
+      ? 'สาขาระยอง (Rayong)'
+      : currentUser.branch === 'Bangkok'
+        ? 'สาขากรุงเทพฯ (Bangkok)'
+        : currentUser.branch;
+
+  const userInitial = (currentUser.name || 'U').charAt(0).toUpperCase();
+
+  const navItems: Array<{
+    id: 'ingredients' | 'recipes' | 'reports';
+    label: string;
+    icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+    isActive: boolean;
+  }> = [
+    {
+      id: 'ingredients',
+      label: 'วัตถุดิบ & Yield',
+      icon: FlaskConical,
+      isActive: currentTab === 'ingredients',
+    },
+    {
+      id: 'recipes',
+      label: `สูตรอาหาร (${recipes.length})`,
+      icon: BookOpen,
+      isActive: currentTab === 'recipes' || currentTab === 'recipeEditor',
+    },
+    {
+      id: 'reports',
+      label: 'รายงานต้นทุน',
+      icon: BarChart2,
+      isActive: currentTab === 'reports',
+    },
+  ];
+
   return (
-    <div className="bg-[#F8FCFC] min-h-screen text-[#2D4A49] font-sans pb-24 md:pb-12">
+    <div className="min-h-screen bg-[#F0F5F4] text-[#2D4A49] font-sans pb-24 md:pb-12">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* TOP NAVIGATION BAR */}
+      {/* ROW 1: TOP NAVIGATION BAR (Matches Main App TopNav) */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <header className="bg-white border-b border-[#D4E4E3] sticky top-0 z-40 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          {/* Brand Left */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] border border-[#D4E4E3]/70 flex items-center justify-center text-[#5A8A88] shadow-xs">
-              <Calculator size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-[12px] tracking-wider uppercase text-[#2D4A49]">CRENN</span>
-                <span className="text-[10px] text-[#5A8A88] font-bold">|</span>
-                <span className="font-extrabold text-[12px] text-[#2D4A49]">ProdCalc</span>
-              </div>
-              <span className="text-[9.5px] text-[#6B8F8E] font-medium hidden sm:block">
-                Production Cost Calculator
-              </span>
-            </div>
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#D4E4E3] shadow-xs px-4 py-3 w-full">
+        <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between">
+          {/* Left: Brand Wordmark CRENN + Sub-App Label */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => { setCurrentTab('recipes'); setEditingRecipe(null); }}
+              className="text-left group focus:outline-none cursor-pointer"
+              title="กลับหน้าสูตรอาหาร (ProdCalc)"
+            >
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-[0.22em] uppercase leading-none font-sans">
+                CRENN
+              </h1>
+              <p className="text-[9px] text-[#5A8A88] font-bold tracking-widest uppercase mt-0.5">
+                ProdCalc · Cost System
+              </p>
+            </button>
           </div>
 
-          {/* Desktop Center Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-0.5 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
-            <button
-              onClick={() => { setCurrentTab('ingredients'); setEditingRecipe(null); }}
-              className={`px-3 py-1.5 rounded-[6px] text-[11px] font-[600] transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                currentTab === 'ingredients'
-                  ? 'bg-[#5A8A88] text-white shadow-xs'
-                  : 'text-[#2D4A49] hover:bg-white'
-              }`}
-            >
-              <FlaskConical size={13} />
-              <span>วัตถุดิบ & Yield</span>
-            </button>
-
-            <button
-              onClick={() => { setCurrentTab('recipes'); setEditingRecipe(null); }}
-              className={`px-3 py-1.5 rounded-[6px] text-[11px] font-[600] transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                currentTab === 'recipes' || currentTab === 'recipeEditor'
-                  ? 'bg-[#5A8A88] text-white shadow-xs'
-                  : 'text-[#2D4A49] hover:bg-white'
-              }`}
-            >
-              <BookOpen size={13} />
-              <span className="tabular-nums">สูตรอาหาร ({recipes.length})</span>
-            </button>
-
-            <button
-              onClick={() => { setCurrentTab('reports'); setEditingRecipe(null); }}
-              className={`px-3 py-1.5 rounded-[6px] text-[11px] font-[600] transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                currentTab === 'reports'
-                  ? 'bg-[#5A8A88] text-white shadow-xs'
-                  : 'text-[#2D4A49] hover:bg-white'
-              }`}
-            >
-              <BarChart2 size={13} />
-              <span>รายงานต้นทุน</span>
-            </button>
+          {/* Center: Vertical Icon-Above-Label Navigation Tabs */}
+          <nav
+            aria-label="เมนูหลัก ProdCalc"
+            className="hidden md:flex items-center justify-center gap-1 flex-1 px-2"
+          >
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => { setCurrentTab(item.id); setEditingRecipe(null); }}
+                  className={`flex flex-col items-center justify-center gap-[2px] px-[12px] py-[6px] rounded-lg min-w-[68px] cursor-pointer relative transition-all duration-150 ${
+                    item.isActive
+                      ? 'bg-[#E8F3F2] text-[#5A8A88]'
+                      : 'text-[#A8BCBB] hover:bg-[#F0F5F4] hover:text-[#5A8A88]'
+                  }`}
+                  title={item.label}
+                  aria-current={item.isActive ? 'page' : undefined}
+                >
+                  <Icon size={18} strokeWidth={1.5} />
+                  <span
+                    className={`text-[9px] leading-none whitespace-nowrap mt-[1px] tabular-nums ${
+                      item.isActive ? 'font-semibold text-[#5A8A88]' : 'font-normal'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
           </nav>
 
-          {/* Right Actions: App Switcher & User Profile */}
-          <div className="flex items-center gap-2">
-            {/* Switch to Cafe Management System */}
-            <button
-              onClick={onSwitchToCafe}
-              className="h-[32px] px-2.5 sm:px-3 rounded-[8px] bg-white border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium flex items-center gap-1.5 hover:bg-[#E8F3F2] hover:border-[#5A8A88] transition-all cursor-pointer shadow-2xs"
-              title="สลับไปยังระบบ Cafe Management System"
-            >
-              <Coffee size={13} className="text-[#5A8A88]" />
-              <span className="hidden sm:inline">สลับไป Cafe Mgmt</span>
-              <span className="sm:hidden text-[10px]">Cafe</span>
-            </button>
+          {/* Right: User Avatar Pill + Dropdown Menu */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="relative inline-block text-left select-none" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#D4E4E3] transition-colors focus:outline-none shadow-xs cursor-pointer"
+                title="โปรไฟล์ผู้ใช้"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+              >
+                <div className="w-7 h-7 rounded-full bg-[#5A8A88] text-white flex items-center justify-center text-xs font-bold uppercase shrink-0">
+                  {userInitial}
+                </div>
+                <div className="text-left hidden sm:block">
+                  <p className="text-[11px] font-bold text-slate-800 leading-tight">
+                    {currentUser.name}
+                  </p>
+                  {currentUser.role && (
+                    <p className="text-[9px] text-[#5A8A88] font-semibold leading-tight capitalize">
+                      {currentUser.role}
+                    </p>
+                  )}
+                </div>
+                <ChevronDown
+                  size={12}
+                  className={`text-[#5A8A88] transition-transform duration-200 shrink-0 ${
+                    userMenuOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
 
-            {/* User Badge */}
-            <div className="hidden lg:flex items-center gap-2 px-2.5 h-[32px] rounded-[8px] bg-[#E8F3F2] border border-[#D4E4E3] text-[10px]">
-              <div className="w-5 h-5 rounded-full bg-[#5A8A88] text-white flex items-center justify-center font-bold text-[9px]">
-                {currentUser.name.charAt(0)}
-              </div>
-              <div className="text-left leading-tight">
-                <span className="font-bold text-[#2D4A49] block text-[10.5px]">{currentUser.name}</span>
-                <span className="text-[9px] text-[#6B8F8E]">{currentUser.branch}</span>
-              </div>
+              {userMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-1.5 w-[225px] bg-white border border-[#D4E4E3] rounded-[12px] p-1.5 shadow-[0_8px_24px_rgba(45,74,73,0.12)] z-[200] animate-in fade-in slide-in-from-top-2 duration-150"
+                >
+                  {/* Branch & User Info */}
+                  <div className="px-3 py-2 rounded-lg bg-[#F8FCFC] border border-[#D4E4E3]/60 mb-1">
+                    <p className="text-[11px] font-bold text-[#2D4A49] truncate">
+                      {currentUser.name}
+                    </p>
+                    <p className="text-[10px] text-[#6B8F8E] truncate mt-0.5">
+                      📍 {branchLabel}
+                    </p>
+                  </div>
+
+                  {/* Quick Switch to Cafe Management */}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onSwitchToCafe();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-[9px] rounded-lg text-xs text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] font-normal transition-all duration-100 cursor-pointer text-left group select-none"
+                  >
+                    <div className="flex items-center gap-[10px] min-w-0">
+                      <span className="text-[14px] shrink-0 leading-none">☕</span>
+                      <span className="truncate text-[12px]">สลับไป Cafe Management</span>
+                    </div>
+                    <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
+                  </button>
+
+                  {/* Divider */}
+                  <div className="h-[1px] bg-[#D4E4E3] mx-2 my-1" />
+
+                  {/* Logout */}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-[9px] rounded-lg text-xs text-rose-600 hover:bg-rose-50 font-medium transition-all duration-100 cursor-pointer text-left group select-none"
+                  >
+                    <div className="flex items-center gap-[10px] min-w-0">
+                      <span className="text-[14px] shrink-0 leading-none">🚪</span>
+                      <span className="truncate text-[12px]">ออกจากระบบ (Logout)</span>
+                    </div>
+                    <ChevronRight size={13} className="text-rose-400 group-hover:text-rose-600 shrink-0 ml-2 transition-colors" />
+                  </button>
+                </div>
+              )}
             </div>
-
-            {/* Logout Button */}
-            <button
-              onClick={onLogout}
-              className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] border border-[#D4E4E3] text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-              title="ออกจากระบบ"
-            >
-              <LogOut size={15} />
-            </button>
           </div>
         </div>
       </header>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* MAIN CONTAINER */}
+      {/* ROW 2: SECONDARY STATUS & APP SWITCHER BAR (Matches SupabaseStatusBar) */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+      <section className="w-full relative bg-white/80 backdrop-blur-xs border-b border-[#D4E4E3] shadow-xs px-4 md:px-6 lg:px-8 py-2 z-10 shrink-0">
+        <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between text-xs min-h-[32px]">
+          {/* Left: Switch back to Main App Pill */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onSwitchToCafe}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#5A8A88] text-[#2D4A49] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer"
+              title="สลับไปยังระบบ Cafe Management System"
+            >
+              <Coffee size={13} className="text-[#5A8A88]" />
+              <span>Cafe Management</span>
+            </button>
+          </div>
+
+          {/* Right: Supabase Status Indicator */}
+          <div className="flex items-center gap-1.5 font-semibold text-[11px]">
+            {dbStatus === 'connected' && (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E] shadow-[0_0_6px_#22C55E]"></span>
+                </span>
+                <span className="text-emerald-700">Supabase ● Connected</span>
+              </>
+            )}
+
+            {dbStatus === 'checking' && (
+              <>
+                <Loader2 size={12} className="animate-spin text-amber-500" />
+                <span className="text-amber-700">Supabase ● Connecting...</span>
+              </>
+            )}
+
+            {dbStatus === 'offline' && (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span className="text-rose-700">Supabase ● Disconnected (Offline)</span>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* MAIN CONTAINER (Aligned to max-w-6xl grid) */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <main className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8">
         {currentTab === 'ingredients' && (
           <IngredientPricing currentBranch={currentUser.branch} isReadOnly={isReadOnly} />
         )}
@@ -337,41 +498,51 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
       </main>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* MOBILE BOTTOM NAVIGATION (PILL STYLE) */}
+      {/* MOBILE BOTTOM NAVIGATION */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="md:hidden fixed bottom-3 left-4 right-4 z-40">
-        <div className="bg-white/95 border border-[#D4E4E3] backdrop-blur-md shadow-[0_8px_24px_rgba(90,138,136,0.2)] rounded-full p-1 flex items-center justify-around">
+        <div className="bg-white/95 border border-[#D4E4E3] backdrop-blur-md shadow-[0_8px_24px_rgba(45,74,73,0.16)] rounded-2xl p-1 flex items-center justify-around gap-1">
           <button
+            type="button"
             onClick={() => { setCurrentTab('ingredients'); setEditingRecipe(null); }}
-            className={`flex-1 py-1.5 rounded-full text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
-              currentTab === 'ingredients' ? 'bg-[#5A8A88] text-white' : 'text-[#2D4A49]'
+            className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+              currentTab === 'ingredients'
+                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                : 'text-[#A8BCBB] hover:text-[#5A8A88]'
             }`}
           >
-            <FlaskConical size={15} />
-            <span className="text-[9.5px]">วัตถุดิบ</span>
+            <FlaskConical size={16} strokeWidth={1.5} />
+            <span>วัตถุดิบ</span>
           </button>
 
           <button
+            type="button"
             onClick={() => { setCurrentTab('recipes'); setEditingRecipe(null); }}
-            className={`flex-1 py-1.5 rounded-full text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
-              currentTab === 'recipes' || currentTab === 'recipeEditor' ? 'bg-[#5A8A88] text-white' : 'text-[#2D4A49]'
+            className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+              currentTab === 'recipes' || currentTab === 'recipeEditor'
+                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                : 'text-[#A8BCBB] hover:text-[#5A8A88]'
             }`}
           >
-            <BookOpen size={15} />
-            <span className="text-[9.5px]">สูตร</span>
+            <BookOpen size={16} strokeWidth={1.5} />
+            <span>สูตร ({recipes.length})</span>
           </button>
 
           <button
+            type="button"
             onClick={() => { setCurrentTab('reports'); setEditingRecipe(null); }}
-            className={`flex-1 py-1.5 rounded-full text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
-              currentTab === 'reports' ? 'bg-[#5A8A88] text-white' : 'text-[#2D4A49]'
+            className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+              currentTab === 'reports'
+                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                : 'text-[#A8BCBB] hover:text-[#5A8A88]'
             }`}
           >
-            <BarChart2 size={15} />
-            <span className="text-[9.5px]">รายงาน</span>
+            <BarChart2 size={16} strokeWidth={1.5} />
+            <span>รายงาน</span>
           </button>
         </div>
       </div>
     </div>
   );
 }
+
