@@ -65,12 +65,12 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
       >
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[12px]">📖</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-[12px] font-bold tracking-tight">
+            <span className="text-[15px]">📖</span>
+            <h1 style={{ color: '#1E3D52' }} className="text-[15px] font-[700] tracking-tight">
               สูตรอาหาร / สินค้า (Recipe List)
             </h1>
           </div>
-          <p style={{ color: '#4A7592' }} className="text-[10px] mt-0.5 font-normal leading-relaxed">
+          <p style={{ color: '#4A7592' }} className="text-[11px] mt-0.5 font-normal leading-relaxed">
             จัดการสูตรการผลิต คำนวณต้นทุนต่อชิ้น และกำหนดราคาขายเพื่อผลกำไรที่แม่นยำ
           </p>
         </div>
@@ -82,7 +82,7 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
               background: '#5BA4C8',
               color: '#FFFFFF'
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer shrink-0"
           >
             <Plus size={14} />
             <span>สร้างสูตรใหม่</span>
@@ -103,7 +103,7 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
         className="flex flex-wrap items-center justify-between gap-2.5"
       >
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} color="#4A7592" className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search size={13} color="#4A7592" className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="ค้นหาชื่อสูตร หรือรหัสสูตร..."
@@ -114,7 +114,7 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
               border: '1px solid #C8E3F0',
               color: '#1E3D52'
             }}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg text-[10.5px] outline-none focus:border-[#5BA4C8] transition-colors"
+            className="w-full h-[32px] pl-8 pr-3 rounded-[8px] text-[11px] outline-none focus:border-[#5BA4C8] transition-colors"
           />
         </div>
 
@@ -123,11 +123,11 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             style={{
-              background: '#F8FCFE',
+              background: '#FFFFFF',
               border: '1px solid #C8E3F0',
               color: '#1E3D52'
             }}
-            className="px-2.5 py-1.5 rounded-lg text-[10.5px] outline-none cursor-pointer"
+            className="h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium outline-none cursor-pointer"
           >
             <option value="ALL">ทุกหมวดหมู่ ({recipes.length})</option>
             {categories.map(cat => (
