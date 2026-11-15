@@ -309,7 +309,7 @@ function BirthDayMonthPicker({
         value={dayVal}
         disabled={disabled}
         onChange={(e) => handleDayChange(e.target.value)}
-        className="w-28 px-2.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-28 h-[32px] px-2.5 border border-[#D4E4E3] rounded-[8px] focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="วันที่เกิด"
       >
         <option value="">-- วันที่ --</option>
@@ -323,7 +323,7 @@ function BirthDayMonthPicker({
         value={monthVal}
         disabled={disabled}
         onChange={(e) => handleMonthChange(e.target.value)}
-        className="flex-1 min-w-[120px] px-2.5 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex-1 min-w-[120px] h-[32px] px-2.5 border border-[#D4E4E3] rounded-[8px] focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="เดือนเกิด"
       >
         <option value="">-- เดือน --</option>
@@ -2097,49 +2097,47 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300 pb-12">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          PAGE HEADER CARD
+          SUB-PAGE HEADER CARD (CRENN UI STANDARD)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: 'linear-gradient(135deg, #2D4A49 0%, #3D6B69 100%)'
-        }}
-        className="rounded-2xl p-6 text-white shadow-[0_4px_16px_rgba(45,74,73,0.15)] border border-[#2D4A49]"
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
-          <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
             {/* Icon badge */}
-            <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-[#E8F3F2] shrink-0">
-              <Shield size={22} className="text-[#C5D5D3]" />
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] shrink-0">
+              <Shield size={18} className="text-[#5A8A88]" />
             </div>
 
             {/* Title & Subtitle */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-[17px] font-bold text-white tracking-[0.01em] leading-tight whitespace-nowrap">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-[0.01em] leading-tight whitespace-nowrap">
                   User Security Settings
-                </h2>
+                </h1>
+                <span className="text-[10px] font-[600] px-[7px] py-[2px] rounded-[5px] bg-[#E8F3F2] text-[#5A8A88] border border-[#D4E4E3]">
+                  สาขา {branch}
+                </span>
                 {effectiveReadOnly && (
-                  <span className="px-2 py-0.5 rounded-md bg-white/15 border border-white/25 text-[10px] font-semibold text-amber-200 whitespace-nowrap">
+                  <span className="text-[10px] font-[600] px-[7px] py-[2px] rounded-[5px] bg-amber-50 border border-amber-200 text-amber-700 whitespace-nowrap">
                     Read-Only (ดูอย่างเดียว)
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-white/75 leading-relaxed mt-1">
+              <p className="text-[11px] text-[#6B8F8E] leading-relaxed mt-0.5">
                 จัดการบัญชีผู้ใช้งาน เพิ่ม แก้ไข หรือลบบัญชี รวมถึงกำหนดสิทธิ์การใช้งานแอปพลิเคชัน
               </p>
             </div>
           </div>
 
           {!isFormOpen && !effectiveReadOnly && (
-            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-start lg:justify-end gap-2 sm:pl-[58px] lg:pl-0 shrink-0">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-start lg:justify-end gap-2 sm:pl-[48px] lg:pl-0 shrink-0">
               {/* ปุ่มตั้งค่าจำนวนวันลาประจำปีของพนักงาน */}
               <button
                 type="button"
                 onClick={handleOpenLeaveQuotaModal}
-                className="flex items-center justify-center gap-1.5 bg-white/12 hover:bg-white/22 border border-white/30 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 h-[32px] bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium px-3 rounded-[8px] transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                 title="ตั้งค่าจำนวนวันลาประจำปีของพนักงานแต่ละคน"
               >
-                <Calendar size={14} className="text-white/90 shrink-0" />
+                <Calendar size={13} className="text-[#5A8A88] shrink-0" />
                 <span>ตั้งค่าวันลาประจำปี</span>
               </button>
 
@@ -2153,10 +2151,10 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   setTemplateForm({ ...cur });
                   setIsTemplateModalOpen(true);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-white/12 hover:bg-white/22 border border-white/30 text-white text-[11px] font-semibold px-3 py-2 rounded-lg transition-all cursor-pointer shadow-xs whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 h-[32px] bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium px-3 rounded-[8px] transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                 title="ตั้งค่า Default ของ Authority ตามตำแหน่ง"
               >
-                <Settings size={14} className="text-white/90 shrink-0" />
+                <Settings size={13} className="text-[#5A8A88] shrink-0" />
                 <span>ตั้งค่า Default ตามตำแหน่ง</span>
               </button>
 
@@ -2179,9 +2177,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   setActiveModalTab('general');
                   setIsFormOpen(true);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-white text-[#2D4A49] hover:bg-[#E8F3F2] border border-white text-[11px] font-bold px-3.5 py-2 rounded-lg transition-all cursor-pointer shadow-sm whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 h-[32px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] px-3.5 rounded-[8px] transition-all cursor-pointer shadow-xs whitespace-nowrap"
               >
-                <Plus size={14} className="text-[#2D4A49] shrink-0" />
+                <Plus size={14} className="text-white shrink-0" />
                 <span>เพิ่มผู้ใช้งานใหม่</span>
               </button>
             </div>
@@ -2321,7 +2319,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 <div>
                   <label className="block text-[11px] font-semibold text-[#2D4A49] mb-1">Role</label>
                   <select
-                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none bg-white text-[11px] font-medium text-[#2D4A49] transition-all cursor-pointer"
+                    className="w-full h-[32px] px-2.5 border border-[#D4E4E3] rounded-[8px] focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none bg-white text-[11px] font-medium text-[#2D4A49] transition-all cursor-pointer"
                     value={formData.role}
                     onChange={(e) => {
                       setIsUserFormDirty(true);
@@ -2607,7 +2605,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   <select
                     value={userQuotaYear}
                     onChange={(e) => setUserQuotaYear(e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[11px] font-bold text-[#2D4A49] outline-none focus:border-[#5A8A88] cursor-pointer"
+                    className="h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 cursor-pointer"
                   >
                     {leaveQuotaYearOptions.map((yr) => (
                       <option key={yr} value={yr}>
@@ -2848,18 +2846,18 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   setIsUserFormDirty(false);
                   setUserSaveStatus(null);
                 }} 
-                className="px-3.5 py-1.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer disabled:opacity-50"
+                className="h-[32px] px-3.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-[8px] hover:bg-[#F0F5F4] transition-colors cursor-pointer disabled:opacity-50"
               >
                 ยกเลิก
               </button>
               <button 
                 type="submit" 
                 disabled={isSavingUser}
-                className={`flex items-center justify-center gap-1.5 text-white text-[11px] font-semibold rounded-[8px] px-4 py-1.5 min-h-[34px] min-w-[160px] transition-all shadow-2xs cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 h-[32px] min-w-[160px] transition-all shadow-xs cursor-pointer disabled:opacity-50 ${
                   isSavingUser
-                    ? 'bg-[#5A8A88] cursor-wait opacity-90'
+                    ? 'bg-[#2D4A49] cursor-wait opacity-50'
                     : justSavedUser
-                      ? 'bg-[#10B981] hover:bg-[#059669]'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
                       : isUserFormDirty
                         ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70'
                         : 'bg-[#2D4A49] hover:bg-[#203635]'
@@ -3204,7 +3202,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 type="button"
                 onClick={handleTestDiscordNotify}
                 disabled={isTestingDiscord || !discordSettings.webhookUrl}
-                className="flex items-center gap-1.5 border border-[#D4E4E3] hover:bg-[#F0F5F4] bg-white text-[#2D4A49] px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 h-[32px] border border-[#D4E4E3] hover:bg-[#F0F5F4] bg-white text-[#2D4A49] px-3 rounded-[8px] text-[11px] font-medium transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
               >
                 <Send size={12} className="text-[#5A8A88]" />
                 <span>{isTestingDiscord ? 'กำลังส่งทดสอบ...' : 'ส่งข้อความทดสอบ'}</span>
@@ -3221,7 +3219,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
               type="button"
               onClick={handleSaveDiscordSettings}
               disabled={isSavingDiscord}
-              className="flex items-center justify-center gap-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white px-4 py-1.5 rounded-lg text-[11px] font-semibold transition-all shadow-xs disabled:opacity-70 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 h-[32px] bg-[#2D4A49] hover:bg-[#203635] text-white px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
               <Save size={13} />
               <span>{isSavingDiscord ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า Discord Notify'}</span>
@@ -3282,7 +3280,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                     เลือกตำแหน่ง (Role):
                   </label>
                   <select
-                    className="px-2.5 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] outline-none bg-white text-[11px] font-semibold text-[#2D4A49] shadow-2xs cursor-pointer min-w-[140px]"
+                    className="h-[32px] px-2.5 border border-[#D4E4E3] rounded-[8px] focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none bg-white text-[11px] font-medium text-[#2D4A49] shadow-2xs cursor-pointer min-w-[140px]"
                     value={selectedTemplateRole}
                     onChange={(e) => {
                       const role = e.target.value;
@@ -3374,7 +3372,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   <Globe size={13} className="text-[#5A8A88]" />
                   <span className="text-[11px] font-bold text-[#2D4A49]">ดึง Authority ข้ามสาขา:</span>
                   <select
-                    className="px-2 py-1 bg-white border border-[#B8D4D2] rounded text-[11px] text-[#2D4A49] font-medium outline-none cursor-pointer"
+                    className="h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] font-medium outline-none focus:border-[#5A8A88] cursor-pointer"
                     defaultValue=""
                     onChange={(e) => {
                       const sourceBranch = e.target.value;
@@ -3464,11 +3462,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
               <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-xs">
                 <table className="w-full text-left bg-white text-[11px]">
                   <thead>
-                    <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
-                      <th className="p-2 font-bold w-full text-[11px]">ฟังก์ชันระบบ</th>
-                      <th className="p-2 font-bold text-center w-20 text-[11px]">Read</th>
-                      <th className="p-2 font-bold text-center w-20 text-[11px]">Edit</th>
-                      <th className="p-2 font-bold text-center w-20 text-[11px]">Hidden</th>
+                    <tr className="bg-[#2D4A49] border-b border-[#1E3A39] text-white text-[10px] sm:text-[11px] font-semibold divide-x divide-[#3D6B69]">
+                      <th className="p-2.5 w-full">ฟังก์ชันระบบ</th>
+                      <th className="p-2.5 text-center w-20">Read</th>
+                      <th className="p-2.5 text-center w-20">Edit</th>
+                      <th className="p-2.5 text-center w-20">Hidden</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0F5F4]">
@@ -3550,7 +3548,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 <button 
                   type="button" 
                   onClick={() => setIsTemplateModalOpen(false)} 
-                  className="px-3.5 py-1.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] rounded-[8px] hover:bg-[#F0F5F4] transition-colors cursor-pointer"
                 >
                   ปิด
                 </button>
@@ -3558,7 +3556,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   type="button" 
                   onClick={handleSaveRoleTemplate}
                   disabled={isSavingTemplate}
-                  className="px-3.5 py-1.5 bg-[#5A8A88] hover:bg-[#4d7775] text-white text-[11px] font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-70 cursor-pointer"
+                  className="h-[32px] px-3.5 bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSavingTemplate ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                   <span>{isSavingTemplate ? 'กำลังบันทึกและอัปเดตบัญชี...' : `บันทึก Default & ปรับใช้กับทุกบัญชี (${users.filter(u => (u.role || '').toLowerCase().trim() === (selectedTemplateRole || '').toLowerCase().trim()).length})`}</span>
@@ -3661,16 +3659,16 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Year Filter */}
-                  <div className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] rounded-lg px-2.5 py-1.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 h-[32px] bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 shadow-2xs">
                     <Calendar size={13} className="text-[#5A8A88]" />
-                    <span className="text-[11px] font-bold text-[#2D4A49]">ปี:</span>
+                    <span className="text-[11px] font-medium text-[#6B8F8E]">ปี:</span>
                     <select
                       value={leaveQuotaYear}
                       onChange={(e) => {
                         setLeaveQuotaYear(e.target.value);
                         setLeaveQuotaSaveStatus(null);
                       }}
-                      className="text-[11px] font-bold text-[#2D4A49] bg-transparent outline-none cursor-pointer"
+                      className="text-[11px] font-medium text-[#2D4A49] bg-transparent outline-none cursor-pointer"
                     >
                       {leaveQuotaYearOptions.map((yr) => (
                         <option key={yr} value={yr}>
@@ -3681,7 +3679,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   </div>
 
                   {/* Branch Filter (Allows selecting specific branch or All branches) */}
-                  <div className="flex items-center gap-1.5 bg-white border border-[#D4E4E3] rounded-lg px-2.5 py-1.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 h-[32px] bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 shadow-2xs">
                     <span className="text-[11px]">📍</span>
                     <select
                       value={leaveQuotaBranchFilter}
@@ -3689,7 +3687,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                         setLeaveQuotaBranchFilter(e.target.value);
                         setLeaveQuotaSaveStatus(null);
                       }}
-                      className="text-[11px] font-bold text-[#2D4A49] bg-transparent outline-none cursor-pointer"
+                      className="text-[11px] font-medium text-[#2D4A49] bg-transparent outline-none cursor-pointer"
                     >
                       <option value="ALL">ทุกสาขา (ทั้งหมด)</option>
                       {leaveQuotaBranchOptions.map((b) => (
@@ -3712,7 +3710,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                       value={leaveQuotaSearch}
                       onChange={(e) => setLeaveQuotaSearch(e.target.value)}
                       placeholder="ค้นหาชื่อหรือตำแหน่ง..."
-                      className="pl-7 pr-2.5 py-1.5 bg-white border border-[#D4E4E3] rounded-lg text-[11px] text-[#2D4A49] placeholder:text-[#6B8F8E]/70 outline-none focus:border-[#5A8A88] w-44"
+                      className="h-[32px] pl-7 pr-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] placeholder:text-[#6B8F8E]/70 outline-none focus:border-[#5A8A88] w-44"
                     />
                   </div>
                 </div>
@@ -3722,7 +3720,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   <button
                     type="button"
                     onClick={handleCopyQuotasFromPrevYear}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#D4E4E3] text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
+                    className="flex items-center gap-1 h-[32px] px-2.5 bg-white border border-[#D4E4E3] text-[#2D4A49] hover:bg-[#E8F3F2] rounded-[8px] text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
                     title={`คัดลอกโควต้าจากปี ${parseInt(leaveQuotaYear, 10) - 1} มายังปี ${leaveQuotaYear}`}
                   >
                     <span>คัดลอกจากปี {parseInt(leaveQuotaYear, 10) - 1}</span>
@@ -3730,7 +3728,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   <button
                     type="button"
                     onClick={handleResetYearQuotasToDefault}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
+                    className="flex items-center gap-1 h-[32px] px-2.5 bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-[8px] text-[11px] font-medium transition-colors cursor-pointer shadow-2xs"
                     title="รีเซ็ตเป็นค่ามาตรฐาน (พักร้อน 10, วันเกิด 1, กิจ 6, ป่วย 30)"
                   >
                     <RotateCcw size={11} />
@@ -3751,38 +3749,38 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 <div className="rounded-xl border border-[#D4E4E3] overflow-hidden">
                   <table className="w-full table-fixed text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#E8F3F2] border-b border-[#D4E4E3] text-[#2D4A49]">
-                        <th className="w-[32%] px-2.5 py-2 text-[10px] sm:text-[11px] font-bold">
+                      <tr className="bg-[#2D4A49] border-b border-[#1E3A39] text-white text-[10px] sm:text-[11px] font-semibold divide-x divide-[#3D6B69]">
+                        <th className="w-[32%] px-2.5 py-2">
                           พนักงาน (Employee)
                         </th>
-                        <th className="w-[13%] px-1 py-2 text-[10px] sm:text-[11px] font-bold text-center">
+                        <th className="w-[13%] px-1 py-2 text-center">
                           <div className="flex flex-col items-center leading-tight">
                             <span>🏖️ ลาพักร้อน</span>
-                            <span className="text-[9px] font-normal text-[#5A8A88] mt-0.5">(วัน/ปี)</span>
+                            <span className="text-[9px] font-normal text-white/75 mt-0.5">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="w-[16%] px-1 py-2 text-[10px] sm:text-[11px] font-bold text-center">
+                        <th className="w-[16%] px-1 py-2 text-center">
                           <div className="flex flex-col items-center leading-tight">
                             <span>🎂 ลาพักประจำวันเกิด</span>
-                            <span className="text-[9px] font-normal text-[#5A8A88] mt-0.5">(วัน/ปี)</span>
+                            <span className="text-[9px] font-normal text-white/75 mt-0.5">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="w-[12%] px-1 py-2 text-[10px] sm:text-[11px] font-bold text-center">
+                        <th className="w-[12%] px-1 py-2 text-center">
                           <div className="flex flex-col items-center leading-tight">
                             <span>💼 ลากิจ</span>
-                            <span className="text-[9px] font-normal text-[#5A8A88] mt-0.5">(วัน/ปี)</span>
+                            <span className="text-[9px] font-normal text-white/75 mt-0.5">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="w-[12%] px-1 py-2 text-[10px] sm:text-[11px] font-bold text-center">
+                        <th className="w-[12%] px-1 py-2 text-center">
                           <div className="flex flex-col items-center leading-tight">
                             <span>🤒 ลาป่วย</span>
-                            <span className="text-[9px] font-normal text-[#5A8A88] mt-0.5">(วัน/ปี)</span>
+                            <span className="text-[9px] font-normal text-white/75 mt-0.5">(วัน/ปี)</span>
                           </div>
                         </th>
-                        <th className="w-[15%] px-1.5 py-2 text-[10px] sm:text-[11px] font-bold text-center">
+                        <th className="w-[15%] px-1.5 py-2 text-center">
                           <div className="flex flex-col items-center leading-tight">
                             <span>ไม่ติดตามวันลา</span>
-                            <span className="text-[9px] font-normal text-[#5A8A88] mt-0.5">(Ignore)</span>
+                            <span className="text-[9px] font-normal text-white/75 mt-0.5">(Ignore)</span>
                           </div>
                         </th>
                       </tr>
