@@ -370,11 +370,18 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
         <div className="bg-white p-5 sm:p-6 border-b border-[#D4E4E3]">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
-                <ChefHat size={22} className="text-[#5A8A88]" />
+              <div className="w-9 h-9 bg-[#E8F3F2] rounded-[10px] border border-[#D4E4E3]/50 shadow-xs shrink-0 flex items-center justify-center text-[#5A8A88]">
+                <ChefHat size={18} className="text-[#5A8A88]" />
               </div>
               <div>
-                <h2 className="text-[16px] sm:text-[17px] font-bold text-[#2D4A49]">Kitchen Check-in & Check-out</h2>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                    Kitchen Check-in & Check-out
+                  </h1>
+                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
+                    สาขา {branch}
+                  </span>
+                </div>
                 <p className="text-[#6B8F8E] text-[11px] max-w-[500px] leading-[1.5] mt-0.5">
                   {type === 'Check-in' 
                     ? 'การเตรียมตัวก่อนเปิดครัวในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อเตรียมความพร้อมสำหรับการทำขนมและเบเกอรี่ตลอดทั้งวัน'
@@ -557,14 +564,14 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
           </div>
 
           {/* Submit Action Button */}
-          <div className="mt-8 pt-6 border-t border-[#E2EAE9] flex justify-end print:hidden">
+          <div className="mt-6 pt-4 border-t border-[#E2EAE9] flex justify-end print:hidden">
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full h-12 bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[14px] font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                className="w-full sm:w-auto h-[32px] px-5 bg-[#2D4A49] hover:bg-[#203635] text-white rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <CheckCircle2 size={18} />
+                <CheckCircle2 size={14} />
                 <span>บันทึกรายการตรวจสอบ ({type})</span>
               </button>
             )}
@@ -584,8 +591,8 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
               <div className="w-14 h-14 bg-[#E8F3F2] text-[#5A8A88] rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 size={28} />
               </div>
-              <h3 className="text-[16px] font-bold text-[#2D4A49] mb-1.5">ยืนยันการบันทึกรายการ?</h3>
-              <p className="text-[12px] text-[#6B8F8E] mb-5">
+              <h3 className="text-[15px] font-bold text-[#2D4A49] mb-1.5">ยืนยันการบันทึกรายการ?</h3>
+              <p className="text-[11px] text-[#6B8F8E] mb-5">
                 คุณต้องการบันทึก {type} Checklist ของครัวใช่หรือไม่? ข้อมูลจะถูกบันทึกและไม่สามารถย้อนกลับได้
               </p>
               
@@ -593,16 +600,16 @@ export function BakeryChecklist({ onSave, user, checklistRecords = [], isReadOnl
                 <button
                   type="button"
                   onClick={() => setShowConfirm(false)}
-                  className="px-4 py-2.5 bg-[#F0F5F4] text-[#6B8F8E] hover:text-[#2D4A49] rounded-xl text-[12px] font-semibold hover:bg-[#E2EAE9] transition-colors cursor-pointer"
+                  className="px-3.5 h-[32px] bg-[#F0F5F4] text-[#2D4A49] rounded-[8px] border border-[#D4E4E3] text-[11px] sm:text-[12px] font-[600] hover:bg-[#E8F3F2] transition-colors cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="button"
                   onClick={confirmSubmit}
-                  className="px-4 py-2.5 bg-[#5A8A88] text-white rounded-xl text-[12px] font-semibold hover:bg-[#4A7A78] transition-colors shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                  className="px-3.5 h-[32px] bg-[#2D4A49] text-white rounded-[8px] text-[11px] sm:text-[12px] font-[600] hover:bg-[#203635] transition-colors shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  <Save size={16} />
+                  <Save size={14} />
                   บันทึก
                 </button>
               </div>
