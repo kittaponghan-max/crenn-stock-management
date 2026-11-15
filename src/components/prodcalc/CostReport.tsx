@@ -1,31 +1,48 @@
 import React, { useState, useMemo } from 'react';
 import { Recipe } from '../../types/prodcalc';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  DollarSign, 
-  PieChart, 
-  Download, 
-  Printer, 
-  Search, 
-  Filter, 
+import {
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  Search,
   ArrowUpDown,
   Package,
-  Award,
-  Layers,
-  Sparkles
+  Award
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import {
+  PageHeaderBanner,
+  ExportButton,
+  StandardDropdown,
+  StandardTableCard,
+  StandardTable,
+  StandardThead,
+  StandardHeaderRow,
+  StandardTh,
+  StandardTbody,
+  StandardTr,
+  StandardTd,
+  StandardTableEmpty
+} from '../ui';
 
 interface CostReportProps {
   recipes: Recipe[];
   currentBranch: string;
 }
 
+type SortField = 'profit_pct' | 'cost_per_piece' | 'selling_price' | 'profit_per_piece';
+
 export function CostReport({ recipes, currentBranch }: CostReportProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<'profit_pct' | 'cost_per_piece' | 'selling_price' | 'profit_per_piece'>('profit_pct');
+  const [sortField, setSortField] = useState<SortField>('profit_pct');
   const [sortAsc, setSortAsc] = useState(false);
+
+  const sortOptions = useMemo(() => [
+    { value: 'profit_pct' as SortField, label: 'อัตรากำไร %' },
+    { value: 'profit_per_piece' as SortField, label: 'กำไรบาท/ชิ้น' },
+    { value: 'cost_per_piece' as SortField, label: 'ต้นทุนต่อชิ้น' },
+    { value: 'selling_price' as SortField, label: 'ราคาขาย' },
+  ], []);
 
   // Summary Metrics
   const summary = useMemo(() => {
@@ -97,126 +114,79 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
   return (
     <div className="space-y-4">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* HEADER CARD */}
+      {/* HEADER BANNER */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1.5px solid #C8E3F0',
-          borderRadius: '16px',
-          padding: '14px 18px',
-          boxShadow: '0 4px 20px rgba(90, 164, 200, 0.08)'
-        }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-      >
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[15px]">📊</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-[15px] font-[700] tracking-tight">
-              รายงานวิเคราะห์ต้นทุนและผลกำไร (Cost & Profit Reports)
-            </h1>
-          </div>
-          <p style={{ color: '#4A7592' }} className="text-[11px] mt-0.5 font-normal leading-relaxed">
-            ภาพรวมการจัดอันดับสินค้าตามความคุ้มค่า สัดส่วนต้นทุนวัตถุดิบ และประมาณการกำไร
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <button
-            onClick={handleExportExcel}
-            style={{
-              background: '#FFFFFF',
-              border: '1px solid #C8E3F0',
-              color: '#1E5A7A'
-            }}
-            className="flex items-center gap-1.5 h-[32px] px-3 rounded-[8px] text-[11px] font-[500] hover:bg-[#EEF6FB] transition-colors cursor-pointer"
-          >
-            <Download size={13} />
-            <span>Excel (.xlsx)</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            style={{
-              background: '#5BA4C8',
-              color: '#FFFFFF'
-            }}
-            className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
-          >
-            <Printer size={13} />
-            <span>PDF / พิมพ์</span>
-          </button>
-        </div>
-      </div>
+      <PageHeaderBanner
+        variant="sub"
+        icon={<BarChart3 size={18} />}
+        title="รายงานวิเคราะห์ต้นทุนและผลกำไร (Cost & Profit Reports)"
+        branchLabel={`สาขา: ${currentBranch}`}
+        subtitle="ภาพรวมการจัดอันดับสินค้าตามความคุ้มค่า สัดส่วนต้นทุนวัตถุดิบ และประมาณการกำไร"
+        actions={
+          <ExportButton
+            onExportExcel={handleExportExcel}
+            onExportPrint={handlePrint}
+            disabled={recipes.length === 0}
+          />
+        }
+      />
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* SUMMARY METRICS CARDS */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Metric 1 */}
-        <div 
-          style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-3.5 shadow-xs"
-        >
-          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
+        <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
+          <div className="flex items-center justify-between text-[10.5px] text-[#6B8F8E]">
             <span>จำนวนสูตรทั้งหมด</span>
-            <span className="p-1 rounded-lg bg-[#EEF6FB] text-[#5BA4C8]">
+            <span className="p-1.5 rounded-lg bg-[#E8F3F2] text-[#5A8A88]">
               <Package size={13} />
             </span>
           </div>
-          <div className="text-[12px] font-black text-[#1E3D52] font-mono mt-1.5">
-            {summary.totalRecipes} <span className="text-[9.5px] font-normal text-[#4A7592]">รายการ</span>
+          <div className="text-[15px] font-bold text-[#2D4A49] tabular-nums mt-1.5">
+            {summary.totalRecipes} <span className="text-[10px] font-normal text-[#6B8F8E]">รายการ</span>
           </div>
         </div>
 
         {/* Metric 2 */}
-        <div 
-          style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-3.5 shadow-xs"
-        >
-          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
+        <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
+          <div className="flex items-center justify-between text-[10.5px] text-[#6B8F8E]">
             <span>กำไรเฉลี่ยภาพรวม</span>
-            <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600">
+            <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
               <TrendingUp size={13} />
             </span>
           </div>
-          <div className="text-[12px] font-black text-emerald-600 font-mono mt-1.5">
+          <div className="text-[15px] font-bold text-emerald-600 tabular-nums mt-1.5">
             {summary.avgProfitPct}%
           </div>
         </div>
 
         {/* Metric 3 */}
-        <div 
-          style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-3.5 shadow-xs"
-        >
-          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
+        <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
+          <div className="flex items-center justify-between text-[10.5px] text-[#6B8F8E]">
             <span>ต้นทุนเฉลี่ย/ชิ้น</span>
-            <span className="p-1 rounded-lg bg-[#EEF6FB] text-[#1E5A7A]">
+            <span className="p-1.5 rounded-lg bg-[#E8F3F2] text-[#2D4A49]">
               <DollarSign size={13} />
             </span>
           </div>
-          <div className="text-[12px] font-black text-[#1E5A7A] font-mono mt-1.5">
+          <div className="text-[15px] font-bold text-[#2D4A49] tabular-nums mt-1.5">
             ฿{summary.avgCostPerPiece.toFixed(2)}
           </div>
         </div>
 
         {/* Metric 4 */}
-        <div 
-          style={{ background: '#FFFFFF', border: '1.5px solid #C8E3F0', borderRadius: '16px' }}
-          className="p-3.5 shadow-xs"
-        >
-          <div className="flex items-center justify-between text-[10px] text-[#4A7592]">
+        <div className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
+          <div className="flex items-center justify-between text-[10.5px] text-[#6B8F8E]">
             <span>กำไรสูงสุดในร้าน</span>
-            <span className="p-1 rounded-lg bg-amber-50 text-amber-500">
+            <span className="p-1.5 rounded-lg bg-amber-50 text-amber-500">
               <Award size={13} />
             </span>
           </div>
-          <div className="text-[11px] font-bold text-[#1E3D52] truncate mt-1.5">
+          <div className="text-[12px] font-bold text-[#2D4A49] truncate mt-1.5">
             {summary.topProfitRecipe?.name || '-'}
           </div>
           {summary.topProfitRecipe && (
-            <span className="text-[9.5px] font-bold text-emerald-600 font-mono block mt-0.5">
+            <span className="text-[10px] font-bold text-emerald-600 tabular-nums block mt-0.5">
               กำไร {summary.topProfitRecipe.profit_pct.toFixed(1)}% (฿{summary.topProfitRecipe.profit_per_piece.toFixed(2)})
             </span>
           )}
@@ -226,66 +196,57 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* COMPARATIVE BAR CHART VISUAL */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1.5px solid #C8E3F0',
-          borderRadius: '16px',
-          padding: '14px',
-          boxShadow: '0 4px 16px rgba(90, 164, 200, 0.06)'
-        }}
-        className="space-y-2.5"
-      >
-        <div className="flex items-center justify-between">
+      <div className="bg-white border border-[#D4E4E3] rounded-2xl p-4 shadow-[0_2px_8px_rgba(90,138,136,0.06)] space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <BarChart3 size={14} color="#5BA4C8" />
-            <h3 className="font-bold text-[12px] text-[#1E3D52]">
+            <BarChart3 size={15} className="text-[#5A8A88]" />
+            <h3 className="font-bold text-[13px] text-[#2D4A49]">
               เปรียบเทียบ ต้นทุน (Cost) vs ราคาขาย (Price)
             </h3>
           </div>
-          <div className="flex items-center gap-2.5 text-[9.5px]">
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" />
-              <span className="text-[#4A7592]">ต้นทุน/ชิ้น</span>
+          <div className="flex items-center gap-3 text-[10px]">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#F87171]" />
+              <span className="text-[#6B8F8E]">ต้นทุน/ชิ้น</span>
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#5BA4C8]" />
-              <span className="text-[#4A7592]">ราคาขาย</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#5A8A88]" />
+              <span className="text-[#6B8F8E]">กำไร / ราคาขาย</span>
             </span>
           </div>
         </div>
 
         {recipes.length === 0 ? (
-          <div className="py-6 text-center text-[10.5px] text-[#4A7592]">
+          <div className="py-6 text-center text-[11px] text-[#6B8F8E]">
             ยังไม่มีข้อมูลสูตรสำหรับแสดงกราฟเปรียบเทียบ
           </div>
         ) : (
-          <div className="space-y-2 pt-1">
+          <div className="space-y-2.5 pt-1">
             {recipes.slice(0, 8).map(recipe => {
               const maxVal = Math.max(recipe.selling_price, recipe.cost_per_piece, 1);
               const costWidth = Math.min(100, (recipe.cost_per_piece / maxVal) * 100);
               const sellWidth = Math.min(100, (recipe.selling_price / maxVal) * 100);
 
               return (
-                <div key={recipe.id} className="space-y-0.5">
-                  <div className="flex items-center justify-between text-[10.5px]">
-                    <span className="font-semibold text-[#1E3D52] truncate max-w-[200px]">
+                <div key={recipe.id} className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-[#2D4A49] truncate max-w-[220px]">
                       {recipe.name}
                     </span>
-                    <span className="text-[9.5px] font-mono text-[#4A7592]">
+                    <span className="text-[10px] tabular-nums text-[#6B8F8E]">
                       กำไร ฿{recipe.profit_per_piece.toFixed(2)} ({recipe.profit_pct.toFixed(1)}%)
                     </span>
                   </div>
 
-                  <div className="w-full h-3 bg-slate-100 rounded-md overflow-hidden flex relative">
-                    <div 
-                      style={{ width: `${costWidth}%`, background: '#F87171' }} 
-                      className="h-full rounded-l transition-all"
+                  <div className="w-full h-3 bg-[#F0F5F4] rounded-md overflow-hidden flex relative">
+                    <div
+                      style={{ width: `${costWidth}%` }}
+                      className="h-full bg-[#F87171] rounded-l transition-all"
                       title={`ต้นทุน: ฿${recipe.cost_per_piece.toFixed(2)}`}
                     />
-                    <div 
-                      style={{ width: `${Math.max(0, sellWidth - costWidth)}%`, background: '#5BA4C8' }} 
-                      className="h-full rounded-r transition-all"
+                    <div
+                      style={{ width: `${Math.max(0, sellWidth - costWidth)}%` }}
+                      className="h-full bg-[#5A8A88] rounded-r transition-all"
                       title={`กำไร: ฿${recipe.profit_per_piece.toFixed(2)}`}
                     />
                   </div>
@@ -299,45 +260,32 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* RANKING TABLE */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1.5px solid #C8E3F0',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 20px rgba(90, 164, 200, 0.06)'
-        }}
-      >
-        <div className="p-3 border-b border-[#E4F1F8] flex flex-wrap items-center justify-between gap-2.5">
+      <StandardTableCard>
+        <div className="p-3 border-b border-[#D4E4E3] flex flex-wrap items-center justify-between gap-2.5 bg-white">
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={13} color="#4A7592" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B8F8E] pointer-events-none" />
             <input
               type="text"
               placeholder="ค้นหารายการสูตร..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ background: '#F8FCFE', border: '1px solid #C8E3F0' }}
-              className="w-full h-[32px] pl-8 pr-2.5 rounded-[8px] text-[11px] outline-none focus:border-[#5BA4C8]"
+              className="w-full h-[32px] pl-8 pr-2.5 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] outline-none focus:border-[#5A8A88]"
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-[#4A7592]">
-            <span>จัดเรียงตาม:</span>
-            <select
+          <div className="flex items-center gap-1.5">
+            <StandardDropdown<SortField>
+              label="จัดเรียงตาม:"
+              options={sortOptions}
               value={sortField}
-              onChange={(e) => setSortField(e.target.value as any)}
-              style={{ border: '1px solid #C8E3F0' }}
-              className="h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium text-[#1E3D52] outline-none bg-white cursor-pointer"
-            >
-              <option value="profit_pct">อัตรากำไร %</option>
-              <option value="profit_per_piece">กำไรบาท/ชิ้น</option>
-              <option value="cost_per_piece">ต้นทุนต่อชิ้น</option>
-              <option value="selling_price">ราคาขาย</option>
-            </select>
+              onChange={setSortField}
+              align="right"
+              ariaLabel="จัดเรียงตาม"
+            />
             <button
+              type="button"
               onClick={() => setSortAsc(!sortAsc)}
-              style={{ border: '1px solid #C8E3F0' }}
-              className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] hover:bg-[#EEF6FB] cursor-pointer"
+              className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] border border-[#D4E4E3] bg-white text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0"
               title="สลับลำดับ มาก/น้อย"
             >
               <ArrowUpDown size={13} />
@@ -346,77 +294,78 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] sm:text-[12px] border-collapse">
-            <thead>
-              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px] sm:text-[11px]">
-                <th className="py-2.5 px-3 w-12 text-center">อันดับ</th>
-                <th className="py-2.5 px-3 min-w-[140px]">ชื่อสินค้า/สูตร</th>
-                <th className="py-2.5 px-3 min-w-[90px]">หมวดหมู่</th>
-                <th className="py-2.5 px-3 text-center">ผลิตได้ (ชิ้น)</th>
-                <th className="py-2.5 px-3 text-right">ต้นทุนรวมสูตร</th>
-                <th className="py-2.5 px-3 text-right">ต้นทุน/ชิ้น</th>
-                <th className="py-2.5 px-3 text-right">ราคาขาย</th>
-                <th className="py-2.5 px-3 text-right">กำไร/ชิ้น</th>
-                <th className="py-2.5 px-3 text-center font-bold">อัตรากำไร (%)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E4F1F8]">
+          <StandardTable>
+            <StandardThead sticky={false}>
+              <StandardHeaderRow>
+                <StandardTh align="center" className="w-12">อันดับ</StandardTh>
+                <StandardTh className="min-w-[140px]">ชื่อสินค้า/สูตร</StandardTh>
+                <StandardTh className="min-w-[90px]">หมวดหมู่</StandardTh>
+                <StandardTh align="center">ผลิตได้ (ชิ้น)</StandardTh>
+                <StandardTh align="right">ต้นทุนรวมสูตร</StandardTh>
+                <StandardTh align="right">ต้นทุน/ชิ้น</StandardTh>
+                <StandardTh align="right">ราคาขาย</StandardTh>
+                <StandardTh align="right">กำไร/ชิ้น</StandardTh>
+                <StandardTh align="center">อัตรากำไร (%)</StandardTh>
+              </StandardHeaderRow>
+            </StandardThead>
+            <StandardTbody>
               {sortedRecipes.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-8 text-center text-[#4A7592] text-[10.5px]">
-                    ไม่พบรายการสูตร
-                  </td>
-                </tr>
+                <StandardTableEmpty
+                  colSpan={9}
+                  title="ไม่พบรายการสูตร"
+                  description="ลองเปลี่ยนคำค้นหาหรือสร้างสูตรใหม่ในแท็บสูตรอาหาร"
+                />
               ) : (
                 sortedRecipes.map((r, idx) => {
-                  const rowBg = idx % 2 === 0 ? '#FFFFFF' : '#F8FCFE';
+                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-[#F8FCFC]';
                   return (
-                    <tr key={r.id} style={{ background: rowBg }} className="hover:bg-[#EEF6FB]">
-                      <td className="py-2 px-3 text-center font-mono font-bold text-[#4A7592] text-[10.5px]">
+                    <StandardTr key={r.id} className={rowBg}>
+                      <StandardTd align="center" numeric className="font-bold text-[#6B8F8E]">
                         {idx + 1}
-                      </td>
-                      <td className="py-2 px-3 font-semibold text-[#1E3D52] text-[11px]">
+                      </StandardTd>
+                      <StandardTd className="font-semibold text-[#2D4A49]">
                         {r.name}
-                        <span className="block text-[9px] text-[#90C4DC] font-mono">{r.code}</span>
-                      </td>
-                      <td className="py-2 px-3 text-[#4A7592] text-[10px]">
+                        <span className="block text-[9.5px] text-[#6B8F8E] font-mono">{r.code}</span>
+                      </StandardTd>
+                      <StandardTd className="text-[#6B8F8E] text-[10.5px]">
                         {r.category}
-                      </td>
-                      <td className="py-2 px-3 text-center font-mono text-[10.5px]">
+                      </StandardTd>
+                      <StandardTd align="center" numeric>
                         {r.yield_qty}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono text-[#4A7592] text-[10.5px]">
+                      </StandardTd>
+                      <StandardTd align="right" numeric className="text-[#6B8F8E]">
                         ฿{r.total_batch_cost.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-semibold text-[#1E5A7A] text-[11px]">
+                      </StandardTd>
+                      <StandardTd align="right" numeric className="font-semibold text-[#2D4A49]">
                         ฿{r.cost_per_piece.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-[#1E3D52] text-[11px]">
+                      </StandardTd>
+                      <StandardTd align="right" numeric className="font-bold text-[#2D4A49]">
                         ฿{r.selling_price.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 text-[11px]">
+                      </StandardTd>
+                      <StandardTd align="right" numeric className="font-bold text-emerald-600">
                         +฿{r.profit_per_piece.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <span 
-                          style={{
-                            background: r.profit_pct >= 50 ? '#ECFDF5' : r.profit_pct >= 30 ? '#FFFBEB' : '#FEF2F2',
-                            color: r.profit_pct >= 50 ? '#22C55E' : r.profit_pct >= 30 ? '#F59E0B' : '#EF4444',
-                            border: `1px solid ${r.profit_pct >= 50 ? '#A7F3D0' : r.profit_pct >= 30 ? '#FDE68A' : '#FECACA'}`
-                          }}
-                          className="px-2 py-0.5 rounded-full font-mono font-black text-[10.5px] inline-block"
+                      </StandardTd>
+                      <StandardTd align="center">
+                        <span
+                          className={`px-2 py-0.5 rounded-full font-bold text-[10.5px] tabular-nums inline-block border ${
+                            r.profit_pct >= 50
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : r.profit_pct >= 30
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-rose-50 text-rose-600 border-rose-200'
+                          }`}
                         >
                           {r.profit_pct.toFixed(1)}%
                         </span>
-                      </td>
-                    </tr>
+                      </StandardTd>
+                    </StandardTr>
                   );
                 })
               )}
-            </tbody>
-          </table>
+            </StandardTbody>
+          </StandardTable>
         </div>
-      </div>
+      </StandardTableCard>
     </div>
   );
 }
