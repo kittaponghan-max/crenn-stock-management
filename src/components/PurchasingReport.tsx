@@ -1304,11 +1304,11 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             <button 
               onClick={handleBackClick}
               title="ย้อนกลับ"
-              className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
+              className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
-              <ChevronLeft size={15} strokeWidth={2} />
+              <ChevronLeft size={16} strokeWidth={2} />
             </button>
-            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+            <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0">
               <ShoppingCart size={18} />
             </div>
             <div className="flex flex-col">
@@ -1334,7 +1334,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
               <Calendar size={13} className="text-[#5A8A88] shrink-0" />
               <input 
                 type="date" 
-                className="bg-transparent border-none focus:outline-none text-[11px] font-medium text-[#2D4A49] cursor-pointer"
+                className="bg-transparent border-none focus:outline-none text-[11px] font-medium text-[#2D4A49] cursor-pointer tabular-nums"
                 value={selectedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
               />
@@ -1568,7 +1568,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                     </h4>
                     
                     <div className="flex items-center gap-2">
-                      {/* Save button per supplier (matches DailyBakeryRecord behavior) */}
+                      {/* Save button per supplier (matches CRENN SaveButton 4-state spec) */}
                       {!isReadOnly && (
                         <button
                           type="button"
@@ -1576,36 +1576,30 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                           disabled={supState === 'idle' || supState === 'saving' || supState === 'saved'}
                           title={supState === 'dirty' ? "คลิกเพื่อบันทึกรายการของผู้จัดจำหน่ายนี้" : undefined}
                           className={cn(
-                            "flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[11px] transition-all duration-200 select-none",
+                            "flex items-center gap-1.5 px-3.5 h-[32px] rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-all select-none shadow-xs whitespace-nowrap",
                             supState === 'idle' && "bg-[#F0F5F4] border border-[#D4E4E3] text-[#A8BCBB] cursor-not-allowed opacity-80",
-                            supState === 'dirty' && "bg-[#5A8A88] hover:bg-[#4A7A78] text-white font-[600] border-none shadow-xs cursor-pointer animate-pulse hover:animate-none hover:scale-[1.03] active:scale-[0.98]",
-                            supState === 'saving' && "bg-[#5A8A88] text-white font-[600] opacity-80 cursor-wait border-none",
-                            supState === 'saved' && "bg-[#22C55E] text-white font-[600] border-none shadow-xs"
+                            supState === 'dirty' && "bg-[#1E3A39] hover:bg-[#162D2C] text-white ring-2 ring-amber-400/70 cursor-pointer",
+                            supState === 'saving' && "bg-[#2D4A49] text-white opacity-50 cursor-wait",
+                            supState === 'saved' && "bg-emerald-600 text-white ring-2 ring-emerald-400/50"
                           )}
-                          style={
-                            supState === 'idle'
-                              ? { backgroundColor: '#F0F5F4', border: '1px solid #D4E4E3', color: '#A8BCBB', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', cursor: 'not-allowed' }
-                              : supState === 'dirty'
-                              ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none' }
-                              : supState === 'saving'
-                              ? { backgroundColor: '#5A8A88', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, opacity: 0.8, cursor: 'wait', border: 'none' }
-                              : { backgroundColor: '#22C55E', color: '#FFFFFF', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 600, border: 'none' }
-                          }
                         >
                           {supState === 'saving' ? (
                             <>
-                              <Loader2 size={12} className="animate-spin text-white" />
+                              <Loader2 size={13} className="animate-spin text-white" />
                               <span>กำลังบันทึก...</span>
                             </>
                           ) : supState === 'saved' ? (
                             <>
-                              <Check size={12} className="text-white" />
-                              <span>บันทึกแล้ว!</span>
+                              <Check size={13} className="text-white" />
+                              <span>บันทึกสำเร็จ</span>
                             </>
                           ) : (
                             <>
-                              <Save size={12} className={supState === 'dirty' ? "text-white" : "text-[#A8BCBB]"} />
-                              <span>บันทึก</span>
+                              <Save size={13} className={supState === 'dirty' ? "text-white" : "text-[#A8BCBB]"} />
+                              <span>บันทึกข้อมูล</span>
+                              {supState === 'dirty' && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" />
+                              )}
                             </>
                           )}
                         </button>
