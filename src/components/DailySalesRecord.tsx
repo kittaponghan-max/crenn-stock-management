@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase';
 import { AppPermissions } from '../types';
 import { canEditDateRangePerm } from '../utils/permissions';
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '../utils/safeStorage';
+import { exportRowsToXlsx, normalizeDateRange } from './ui';
 
 export interface DailySalesRecordProps {
   user?: {
@@ -785,35 +786,18 @@ export function DailySalesRecord({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [checkHasUnsavedChanges]);
 
-  // Export to CSV / Excel
+  // Export to Excel (.xlsx)
   const handleExportExcel = () => {
-    const headers = [
-      'วันที่',
-      'เงินสดตั้งต้น (บาท)',
-      'เงินโอน (บาท)',
-      'เงินสด (บาท)',
-      'บัตรเครดิต (บาท)',
-      'รายรับรวม (บาท)',
-      'เงินสดปิดร้าน (บาท)',
-      'หมายเหตุ',
-    ];
-
-    const csvRows = [headers.join(',')];
-
-    rows.forEach(r => {
-      const notesJoined = (r.notes || []).join('; ');
-      const row = [
-        `"${r.dayLabel}"`,
-        r.openingCash !== '' ? Math.round(Number(r.openingCash)) : 0,
-        r.transfer !== '' ? Math.round(Number(r.transfer)) : 0,
-        r.cash !== '' ? Math.round(Number(r.cash)) : 0,
-        r.creditCard !== '' ? Number(r.creditCard).toFixed(2) : '0.00',
-        r.totalRevenue !== '' ? Math.round(Number(r.totalRevenue)) : 0,
-        r.closingCash !== '' ? Math.round(Number(r.closingCash)) : 0,
-        `"${notesJoined.replace(/"/g, '""')}"`,
-      ];
-      csvRows.push(row.join(','));
-    });
+    const exportRows: Record<string, string | number>[] = rows.map(r => ({
+      'วันที่': r.dayLabel,
+      'เงินสดตั้งต้น (บาท)': r.openingCash !== '' ? Math.round(Number(r.openingCash)) : 0,
+      'เงินโอน (บาท)': r.transfer !== '' ? Math.round(Number(r.transfer)) : 0,
+      'เงินสด (บาท)': r.cash !== '' ? Math.round(Number(r.cash)) : 0,
+      'บัตรเครดิต (บาท)': r.creditCard !== '' ? Number(Number(r.creditCard).toFixed(2)) : 0,
+      'รายรับรวม (บาท)': r.totalRevenue !== '' ? Math.round(Number(r.totalRevenue)) : 0,
+      'เงินสดปิดร้าน (บาท)': r.closingCash !== '' ? Math.round(Number(r.closingCash)) : 0,
+      'หมายเหตุ': (r.notes || []).join('; '),
+    }));
 
     // Summary row
     const sumOpening = rows.reduce((s, r) => s + (Number(r.openingCash) || 0), 0);
@@ -823,27 +807,23 @@ export function DailySalesRecord({
     const sumRevenue = rows.reduce((s, r) => s + (Number(r.totalRevenue) || 0), 0);
     const sumClosing = rows.reduce((s, r) => s + (Number(r.closingCash) || 0), 0);
 
-    csvRows.push([
-      `"รวม ${summaryDateRangeLabel}"`,
-      Math.round(sumOpening),
-      Math.round(sumTransfer),
-      Math.round(sumCash),
-      sumCredit.toFixed(2),
-      Math.round(sumRevenue),
-      Math.round(sumClosing),
-      '""',
-    ].join(','));
+    exportRows.push({
+      'วันที่': `รวม ${summaryDateRangeLabel}`,
+      'เงินสดตั้งต้น (บาท)': Math.round(sumOpening),
+      'เงินโอน (บาท)': Math.round(sumTransfer),
+      'เงินสด (บาท)': Math.round(sumCash),
+      'บัตรเครดิต (บาท)': Number(sumCredit.toFixed(2)),
+      'รายรับรวม (บาท)': Math.round(sumRevenue),
+      'เงินสดปิดร้าน (บาท)': Math.round(sumClosing),
+      'หมายเหตุ': '',
+    });
 
-    const csvContent = '\uFEFF' + csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     const startStr = displayedDays[0]?.dateStr?.replace(/-/g, '') || 'range';
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Daily_Sales_${currentBranch}_${startStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportRowsToXlsx({
+      rows: exportRows,
+      fileName: `Daily_Sales_${currentBranch}_${startStr}.xlsx`,
+      sheetName: 'Daily Sales',
+    });
   };
 
   // Summary calculations based on displayed rows
@@ -952,7 +932,7 @@ export function DailySalesRecord({
               <ChevronLeft size={14} />
             </button>
 
-            <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
+            <span className="h-[30px] inline-flex items-center text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs tabular-nums">
               ช่วง: {summaryDateRangeLabel}
             </span>
 
@@ -980,16 +960,26 @@ export function DailySalesRecord({
               <input
                 type="date"
                 value={startDateStr}
-                onChange={(e) => setStartDateStr(e.target.value)}
-                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2 py-1 text-[11px] text-[#2D4A49] w-[125px] sm:w-[130px] h-[32px] focus:outline-none focus:border-[#5A8A88]"
+                max={endDateStr || undefined}
+                onChange={(e) => {
+                  const next = normalizeDateRange(e.target.value, endDateStr, 'start');
+                  setStartDateStr(next.startDate);
+                  setEndDateStr(next.endDate);
+                }}
+                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 text-[11px] text-[#2D4A49] w-[125px] sm:w-[130px] h-[32px] focus:outline-none focus:border-[#5A8A88] tabular-nums"
               />
 
               <span className="text-[11px] text-[#6B8F8E] whitespace-nowrap ml-0.5 sm:ml-0">สิ้นสุด:</span>
               <input
                 type="date"
                 value={endDateStr}
-                onChange={(e) => setEndDateStr(e.target.value)}
-                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2 py-1 text-[11px] text-[#2D4A49] w-[125px] sm:w-[130px] h-[32px] focus:outline-none focus:border-[#5A8A88]"
+                min={startDateStr || undefined}
+                onChange={(e) => {
+                  const next = normalizeDateRange(startDateStr, e.target.value, 'end');
+                  setStartDateStr(next.startDate);
+                  setEndDateStr(next.endDate);
+                }}
+                className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 text-[11px] text-[#2D4A49] w-[125px] sm:w-[130px] h-[32px] focus:outline-none focus:border-[#5A8A88] tabular-nums"
               />
 
               <button
@@ -1068,7 +1058,7 @@ export function DailySalesRecord({
                     className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Download size={13} className="text-[#5A8A88]" />
-                    <span>Excel (.csv)</span>
+                    <span>Excel (.xlsx)</span>
                   </button>
                   <button
                     type="button"
@@ -1079,7 +1069,7 @@ export function DailySalesRecord({
                     className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Printer size={13} className="text-[#5A8A88]" />
-                    <span>พิมพ์ PDF</span>
+                    <span>PDF / พิมพ์</span>
                   </button>
                 </div>
               )}
@@ -1108,7 +1098,7 @@ export function DailySalesRecord({
 
           {/* Frozen Sticky Header (Change 1: Full Visibility & Wrapping) */}
           <thead className="sticky top-0 z-10 bg-[#2D4A49]">
-            <tr className="bg-[#2D4A49] text-white text-[9px] font-[600] border-b border-[#1E3A39]">
+            <tr className="bg-[#2D4A49] text-white text-[10px] font-[600] border-b border-[#1E3A39]">
               <th 
                 style={{ height: 'auto', minHeight: '40px', padding: '6px 4px', whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}
                 className="sticky top-0 bg-[#2D4A49]"
