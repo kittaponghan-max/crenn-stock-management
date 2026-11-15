@@ -412,12 +412,12 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
       >
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[12px]">🧪</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-[12px] font-bold tracking-tight">
+            <span className="text-[15px]">🧪</span>
+            <h1 style={{ color: '#1E3D52' }} className="text-[15px] font-[700] tracking-tight">
               รายการวัตถุดิบ (Ingredient Pricing)
             </h1>
           </div>
-          <p style={{ color: '#4A7592' }} className="text-[9.5px] mt-0.5 font-normal leading-relaxed">
+          <p style={{ color: '#4A7592' }} className="text-[11px] mt-0.5 font-normal leading-relaxed">
             ดึงข้อมูลจาก Cafe Management System &nbsp;·&nbsp; อัปเดต Yield และราคาจากแหล่งจัดซื้อเพื่อคำนวณต้นทุน
           </p>
         </div>
@@ -429,7 +429,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
               color: '#1E5A7A',
               border: '1px solid #C8E3F0' 
             }}
-            className="text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5"
+            className="text-[10px] font-[600] px-2.5 py-1 rounded-[5px] flex items-center gap-1.5"
           >
             <span>📍 สาขา: {currentBranch}</span>
           </span>
@@ -442,7 +442,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                 background: '#5BA4C8',
                 color: '#FFFFFF'
               }}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
               <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
               <span>{isSyncing ? 'กำลัง Sync...' : 'Sync จาก CMS'}</span>
@@ -492,7 +492,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                 border: '1px solid #C8E3F0',
                 color: '#1E3D52'
               }}
-              className="w-full pl-8 pr-2.5 py-1 rounded-lg text-[11px] outline-none focus:border-[#5BA4C8] transition-colors"
+              className="w-full h-[32px] pl-8 pr-2.5 rounded-[8px] text-[11px] outline-none focus:border-[#5BA4C8] transition-colors"
             />
           </div>
 
@@ -501,11 +501,11 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               style={{
-                background: '#F8FCFE',
+                background: '#FFFFFF',
                 border: '1px solid #C8E3F0',
                 color: '#1E3D52'
               }}
-              className="px-2.5 py-1 rounded-lg text-[10.5px] outline-none cursor-pointer"
+              className="h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium outline-none cursor-pointer"
             >
               <option value="ALL">ทุกหมวดหมู่ ({items.length})</option>
               {categories.map(cat => (
@@ -541,7 +541,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[10.5px] border-collapse">
             <thead>
-              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px]">
+              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px] sm:text-[11px]">
                 <th className="py-2.5 px-3 w-12 text-center">รูป</th>
                 <th className="py-2.5 px-3 min-w-[150px]">ชื่อวัตถุดิบ (CMS)</th>
                 <th className="py-2.5 px-3 min-w-[90px]">ยี่ห้อ</th>
