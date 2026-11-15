@@ -155,27 +155,32 @@ export function BakeryPlanHistory({ onBack, branch }: { onBack: () => void; bran
   if (selectedRecord) {
     return (
       <div className="max-w-5xl mx-auto space-y-4 animate-in fade-in duration-200">
-        <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+        <div className="flex items-center justify-between bg-white p-4 sm:p-5 rounded-2xl border border-[#D4E4E3] shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSelectedRecord(null)}
               title="ย้อนกลับไปรายการประวัติ"
-              className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0"
+              className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
               <ChevronLeft size={16} strokeWidth={2} />
             </button>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-[#2D4A49]">
-                ประวัติแผนงาน {selectedRecord.weekLabel?.startsWith('สัปดาห์ที่') ? selectedRecord.weekLabel : `สัปดาห์ที่ ${selectedRecord.weekLabel}`}
-              </h2>
-              <p className="text-xs text-[#6B8F8E] mt-0.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                  ประวัติแผนงาน {selectedRecord.weekLabel?.startsWith('สัปดาห์ที่') ? selectedRecord.weekLabel : `สัปดาห์ที่ ${selectedRecord.weekLabel}`}
+                </h1>
+                <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
+                  Read-Only
+                </span>
+              </div>
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5 tabular-nums">
                 บันทึกเมื่อ: {new Date(selectedRecord.savedAt).toLocaleString('th-TH')}
                 {selectedRecord.userName ? ` โดย ${selectedRecord.userName}` : ''}
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-block bg-[#E8F3F2] text-[#5A8A88] text-xs font-semibold px-3 py-1 rounded-full border border-[#D4E4E3]">
+          <span className="hidden sm:inline-block bg-[#E8F3F2] text-[#5A8A88] text-[10px] font-semibold px-2.5 py-1 rounded-[6px] border border-[#D4E4E3]">
             โหมดดูย้อนหลัง (Read-Only)
           </span>
         </div>
@@ -194,28 +199,28 @@ export function BakeryPlanHistory({ onBack, branch }: { onBack: () => void; bran
   return (
     <div className="max-w-[700px] mx-auto space-y-4 animate-in fade-in duration-200">
       {/* 🔙 PAGE HEADER */}
-      <div className="flex items-start sm:items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)] flex items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {/* Back button */}
           <button
             type="button"
             onClick={onBack}
             title="กลับไปหน้าหลัก"
-            className="w-8 h-8 rounded-lg bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0"
+            className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
           >
             <ChevronLeft size={16} strokeWidth={2} />
           </button>
 
           {/* Icon badge */}
-          <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] shrink-0">
+          <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] border border-[#D4E4E3]/50 shadow-xs flex items-center justify-center text-[#5A8A88] shrink-0">
             <History size={18} strokeWidth={2} />
           </div>
 
           {/* Title & Subtitle */}
           <div className="min-w-0">
-            <h2 className="text-base sm:text-[18px] font-bold text-[#2D4A49] leading-tight truncate">
+            <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight truncate">
               ประวัติแผนงาน Bakery
-            </h2>
+            </h1>
             <p className="text-[11px] text-[#6B8F8E] mt-0.5 leading-tight truncate">
               ตรวจสอบประวัติแผนงานย้อนหลัง (เก็บสูงสุด 24 สัปดาห์)
             </p>
@@ -228,9 +233,9 @@ export function BakeryPlanHistory({ onBack, branch }: { onBack: () => void; bran
           onClick={() => fetchData()}
           disabled={loading}
           title="รีเฟรชข้อมูล (Sync with Supabase)"
-          className="flex items-center gap-1.5 text-xs text-[#5A8A88] font-medium bg-white hover:bg-[#E8F3F2] px-3.5 py-2 rounded-lg border border-[#D4E4E3] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
+          className="flex items-center gap-1.5 h-[32px] text-[11px] text-[#2D4A49] font-[500] bg-white hover:bg-[#F0F5F4] px-3 rounded-[8px] border border-[#D4E4E3] transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
         >
-          <RefreshCw size={14} className={cn(loading && "animate-spin", "text-[#5A8A88]")} />
+          <RefreshCw size={13} className={cn(loading && "animate-spin", "text-[#5A8A88]")} />
           <span>{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
         </button>
       </div>
