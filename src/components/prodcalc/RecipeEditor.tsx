@@ -306,19 +306,19 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
         }}
         className="flex items-center justify-between gap-3"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="p-1 rounded-xl border border-[#C8E3F0] text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E3D52] transition-colors cursor-pointer"
+            className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] border border-[#C8E3F0] text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E3D52] transition-colors cursor-pointer"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={15} />
           </button>
           <div>
-            <h1 className="font-bold text-[#1E3D52] text-[12px]">
+            <h1 className="font-[700] text-[#1E3D52] text-[15px] leading-tight">
               {initialRecipe ? 'แก้ไขสูตรอาหาร' : 'สร้างสูตรอาหารและคำนวณต้นทุนใหม่'}
             </h1>
-            <span className="text-[9.5px] text-[#4A7592]">
+            <span className="text-[11px] text-[#4A7592]">
               คำนวณต้นทุนวัตถุดิบ ค่าแรง และค่าใช้จ่ายอื่นๆ แบบเรียลไทม์
             </span>
           </div>
@@ -329,7 +329,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             type="button"
             onClick={onCancel}
             style={{ border: '1px solid #C8E3F0', color: '#4A7592' }}
-            className="px-3 py-1 rounded-xl text-[11px] font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+            className="h-[32px] px-3.5 rounded-[8px] text-[11px] font-medium hover:bg-[#EEF6FB] transition-colors cursor-pointer"
           >
             {isReadOnly ? 'ย้อนกลับ' : 'ยกเลิก'}
           </button>
@@ -337,7 +337,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
             <button
               type="submit"
               style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-              className="px-3.5 py-1 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Save size={13} />
               <span>บันทึกสูตร</span>
@@ -410,8 +410,8 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   disabled={isReadOnly}
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  style={{ border: '1px solid #C8E3F0', background: '#F8FCFE' }}
-                  className="w-full px-2.5 py-1 rounded-lg text-[10.5px] outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+                  style={{ border: '1px solid #C8E3F0', background: '#FFFFFF' }}
+                  className="w-full h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium text-[#1E3D52] outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                 >
                   {PRODCALC_CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
