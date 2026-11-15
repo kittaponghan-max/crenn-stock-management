@@ -51,6 +51,7 @@ import {
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { generateUUID } from '../lib/utils';
+import { normalizeDateRange } from './ui';
 
 const DEFAULT_VENDORS: MaintenanceVendorMaster[] = [
   { id: 'v-1', branch: 'Rayong', name: 'ทีมงานภายในร้าน (Internal)', serviceDetails: 'ดูแลรักษาและซ่อมบำรุงทั่วไป', phone: '-' },
@@ -1537,12 +1538,12 @@ WITH CHECK (true);`;
                 type="button"
                 onClick={onBack}
                 title="ย้อนกลับ"
-                className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
+                className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
               >
-                <ChevronLeft size={15} strokeWidth={2} />
+                <ChevronLeft size={16} strokeWidth={2} />
               </button>
 
-              <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+              <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0">
                 <Wrench size={18} />
               </div>
 
@@ -1568,7 +1569,7 @@ WITH CHECK (true);`;
                 type="button"
                 onClick={fetchRecords}
                 disabled={loading}
-                className="w-[30px] h-[30px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] hover:bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center transition-colors cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
                 title="รีเฟรชข้อมูลล่าสุด"
               >
                 <RefreshCw size={13} className={loading ? 'animate-spin text-[#5A8A88]' : ''} />
@@ -1621,7 +1622,7 @@ WITH CHECK (true);`;
                 <button
                   type="button"
                   onClick={openNewForm}
-                  className="flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] bg-[#5A8A88] hover:bg-[#476E6C] transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                  className="flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] bg-[#2D4A49] hover:bg-[#203635] transition-colors shadow-xs cursor-pointer whitespace-nowrap"
                 >
                   <Plus size={14} />
                   <span>บันทึกซ่อมบำรุง</span>
@@ -1740,19 +1741,19 @@ WITH CHECK (true);`;
             
             {/* Search Box */}
             <div className="lg:col-span-4 relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B8F8E]" />
               <input
                 type="text"
                 placeholder="ค้นหาชื่ออุปกรณ์, รหัส, ช่าง, รายละเอียด..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded-lg text-slate-800 focus:outline-none focus:border-[#5A8A88] focus:bg-white transition-all"
+                className="w-full h-[32px] pl-9 pr-8 py-1 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] transition-colors"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B8F8E] hover:text-[#2D4A49]"
                 >
                   <X size={13} />
                 </button>
@@ -1764,7 +1765,7 @@ WITH CHECK (true);`;
               <select
                 value={selectedBranch}
                 onChange={e => setSelectedBranch(e.target.value as any)}
-                className="w-full py-2 px-2.5 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded-lg text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88]"
+                className="w-full h-[32px] py-1 px-2.5 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
               >
                 <option value="All">ทุกสาขา (All Branches)</option>
                 <option value="Rayong">สาขา Rayong</option>
@@ -1777,7 +1778,7 @@ WITH CHECK (true);`;
               <select
                 value={departmentFilter}
                 onChange={e => setDepartmentFilter(e.target.value as any)}
-                className="w-full py-2 px-2.5 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded-lg text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88]"
+                className="w-full h-[32px] py-1 px-2.5 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
               >
                 <option value="All">ทุกแผนก (All Depts)</option>
                 <option value="Bar">☕ บาร์ (Bar)</option>
@@ -1791,7 +1792,7 @@ WITH CHECK (true);`;
               <select
                 value={typeFilter}
                 onChange={e => setTypeFilter(e.target.value as any)}
-                className="w-full py-2 px-2.5 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded-lg text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88]"
+                className="w-full h-[32px] py-1 px-2.5 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
               >
                 <option value="All">ทุกประเภทงาน (All Types)</option>
                 <option value="Preventive">PM บำรุงรักษาเชิงป้องกัน</option>
@@ -1807,7 +1808,7 @@ WITH CHECK (true);`;
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value as any)}
-                className="w-full py-2 px-2.5 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded-lg text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88]"
+                className="w-full h-[32px] py-1 px-2.5 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
               >
                 <option value="All">ทุกสถานะ (All Status)</option>
                 <option value="Completed">เสร็จสิ้นเรียบร้อย</option>
@@ -1819,43 +1820,55 @@ WITH CHECK (true);`;
           </div>
 
           {/* Quick Date Range Buttons */}
-          <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100 text-xs">
-            <span className="text-[11px] font-semibold text-[#6B8F8E] mr-1">ช่วงเวลา:</span>
-            {[
-              { id: 'All', label: 'ทั้งหมด' },
-              { id: 'Today', label: 'วันนี้' },
-              { id: '7Days', label: '7 วันล่าสุด' },
-              { id: 'ThisMonth', label: 'เดือนนี้' },
-              { id: 'Custom', label: 'กำหนดเอง' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setDateFilter(tab.id as any)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                  dateFilter === tab.id
-                    ? 'bg-[#2D4A49] text-white font-bold shadow-2xs'
-                    : 'bg-[#F4F8F7] hover:bg-[#E8F3F2] text-slate-600'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-[#F0F5F4] text-[11px]">
+            <span className="text-[11px] font-medium text-[#6B8F8E]">ช่วงเวลา:</span>
+            <div className="inline-flex items-center gap-0.5 bg-[#F0F5F4] p-0.5 rounded-[8px] border border-[#D4E4E3]">
+              {[
+                { id: 'All', label: 'ทั้งหมด' },
+                { id: 'Today', label: 'วันนี้' },
+                { id: '7Days', label: '7 วันล่าสุด' },
+                { id: 'ThisMonth', label: 'เดือนนี้' },
+                { id: 'Custom', label: 'กำหนดเอง' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setDateFilter(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-[6px] text-[11px] font-[600] transition-colors cursor-pointer whitespace-nowrap ${
+                    dateFilter === tab.id
+                      ? 'bg-[#5A8A88] text-white shadow-xs'
+                      : 'text-[#2D4A49] hover:bg-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
             {dateFilter === 'Custom' && (
-              <div className="flex items-center gap-1.5 ml-2">
+              <div className="flex items-center gap-1.5">
                 <input
                   type="date"
                   value={customStartDate}
-                  onChange={e => setCustomStartDate(e.target.value)}
-                  className="py-0.5 px-2 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded text-slate-700"
+                  max={customEndDate || undefined}
+                  onChange={e => {
+                    const next = normalizeDateRange(e.target.value, customEndDate, 'start');
+                    setCustomStartDate(next.startDate);
+                    setCustomEndDate(next.endDate);
+                  }}
+                  className="h-[32px] py-1 px-2.5 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] tabular-nums"
                 />
-                <span className="text-slate-400">-</span>
+                <span className="text-[11px] text-[#6B8F8E]">-</span>
                 <input
                   type="date"
                   value={customEndDate}
-                  onChange={e => setCustomEndDate(e.target.value)}
-                  className="py-0.5 px-2 text-xs bg-[#F4F8F7] border border-[#D4E4E3] rounded text-slate-700"
+                  min={customStartDate || undefined}
+                  onChange={e => {
+                    const next = normalizeDateRange(customStartDate, e.target.value, 'end');
+                    setCustomStartDate(next.startDate);
+                    setCustomEndDate(next.endDate);
+                  }}
+                  className="h-[32px] py-1 px-2.5 text-[11px] bg-white border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] tabular-nums"
                 />
               </div>
             )}
@@ -1912,24 +1925,24 @@ WITH CHECK (true);`;
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#1E5A7A] text-white text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider">
-                    <th className="py-2.5 px-3.5 w-28 whitespace-nowrap">
+                  <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide border-b border-[#1E3A39]">
+                    <th className="py-2 px-3 w-28 whitespace-nowrap border-r border-[#3D6B69]">
                       <div className="flex items-center gap-1">
                         <span>วันที่ / เวลา</span>
-                        <span className="text-[9px] text-[#A2D2DF] font-bold" title="เรียงลำดับจากล่าสุดไปหาเก่าที่สุดอัตโนมัติ">↓</span>
+                        <span className="text-[9px] text-[#B8D4D2] font-bold" title="เรียงลำดับจากล่าสุดไปหาเก่าที่สุดอัตโนมัติ">↓</span>
                       </div>
                     </th>
-                    <th className="py-2.5 px-3 w-24 whitespace-nowrap">สาขา / แผนก</th>
-                    <th className="py-2.5 px-3 min-w-[200px]">อุปกรณ์ / รหัสเครื่อง</th>
-                    <th className="py-2.5 px-3 w-36">ประเภทงาน</th>
-                    <th className="py-2.5 px-3 min-w-[220px]">รายละเอียดการซ่อมบำรุง</th>
-                    <th className="py-2.5 px-3 w-28 text-right">ค่าใช้จ่าย</th>
-                    <th className="py-2.5 px-3 w-32">ผู้ดูแล / ช่าง</th>
-                    <th className="py-2.5 px-3 w-28 text-center">สถานะ</th>
-                    <th className="py-2.5 px-3 w-24 text-center">จัดการ</th>
+                    <th className="py-2 px-3 w-24 whitespace-nowrap border-r border-[#3D6B69]">สาขา / แผนก</th>
+                    <th className="py-2 px-3 min-w-[200px] border-r border-[#3D6B69]">อุปกรณ์ / รหัสเครื่อง</th>
+                    <th className="py-2 px-3 w-36 border-r border-[#3D6B69]">ประเภทงาน</th>
+                    <th className="py-2 px-3 min-w-[220px] border-r border-[#3D6B69]">รายละเอียดการซ่อมบำรุง</th>
+                    <th className="py-2 px-3 w-28 text-right border-r border-[#3D6B69]">ค่าใช้จ่าย</th>
+                    <th className="py-2 px-3 w-32 border-r border-[#3D6B69]">ผู้ดูแล / ช่าง</th>
+                    <th className="py-2 px-3 w-28 text-center border-r border-[#3D6B69]">สถานะ</th>
+                    <th className="py-2 px-3 w-24 text-center">จัดการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-[10px]">
+                <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]">
                   {filteredRecords.map(rec => {
                     const typeCfg = MAINTENANCE_TYPE_CONFIG[rec.maintenanceType] || MAINTENANCE_TYPE_CONFIG.Preventive;
                     const statusCfg = STATUS_CONFIG[rec.status] || STATUS_CONFIG.Completed;
@@ -2164,7 +2177,7 @@ WITH CHECK (true);`;
                     required
                     value={formData.date}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    className="w-full h-[32px] py-1 px-2.5 text-[11px] border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] tabular-nums"
                   />
                 </div>
                 <div>
@@ -2173,7 +2186,7 @@ WITH CHECK (true);`;
                     type="time"
                     value={formData.time}
                     onChange={e => setFormData({ ...formData, time: e.target.value })}
-                    className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    className="w-full h-[32px] py-1 px-2.5 text-[11px] border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] tabular-nums"
                   />
                 </div>
                 <div>
@@ -2181,7 +2194,7 @@ WITH CHECK (true);`;
                   <select
                     value={formData.branch}
                     onChange={e => setFormData({ ...formData, branch: e.target.value as any })}
-                    className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    className="w-full h-[32px] py-1 px-2.5 text-[11px] font-medium border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] cursor-pointer"
                   >
                     <option value="Rayong">Rayong</option>
                     <option value="Bangkok">Bangkok</option>
@@ -2192,7 +2205,7 @@ WITH CHECK (true);`;
                   <select
                     value={formData.department}
                     onChange={e => setFormData({ ...formData, department: e.target.value as any })}
-                    className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    className="w-full h-[32px] py-1 px-2.5 text-[11px] font-medium border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] bg-white focus:outline-none focus:border-[#5A8A88] cursor-pointer"
                   >
                     <option value="Bar">☕ บาร์ (Bar)</option>
                     <option value="Bakery">🍳 ครัว (Bakery)</option>
@@ -2650,7 +2663,7 @@ WITH CHECK (true);`;
                           type="date"
                           value={eqItem.nextServiceDate || ''}
                           onChange={e => handleEquipmentChange(eqIdx, 'nextServiceDate', e.target.value)}
-                          className="w-full py-1.5 px-2.5 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white"
+                          className="w-full h-[32px] py-1 px-2.5 text-[11px] border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] bg-white tabular-nums"
                         />
                       </div>
                       <div className="sm:col-span-7">
@@ -2746,14 +2759,14 @@ WITH CHECK (true);`;
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                  className="px-3.5 h-[32px] text-[11px] sm:text-[12px] font-medium text-[#2D4A49] bg-[#F0F5F4] hover:bg-[#E8F3F2] rounded-[8px] border border-[#D4E4E3] cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 h-[32px] text-[11px] sm:text-[12px] font-[600] text-white bg-[#2D4A49] hover:bg-[#203635] rounded-[8px] shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {isSaving && <Loader2 size={13} className="animate-spin" />}
                   <span>{editingRecord ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}</span>
@@ -2771,7 +2784,7 @@ WITH CHECK (true);`;
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl border border-[#D4E4E3] w-full max-w-xl my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             
-            <div className="bg-[#1E5A7A] text-white px-5 py-3.5 flex items-center justify-between">
+            <div className="bg-[#2D4A49] text-white px-5 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wrench size={17} className="text-[#8FB3B1]" />
                 <h3 className="font-bold text-sm">รายละเอียดการบำรุงรักษา</h3>
@@ -3098,7 +3111,7 @@ WITH CHECK (true);`;
                   <select
                     value={newEquipment.department}
                     onChange={e => setNewEquipment({ ...newEquipment, department: e.target.value as any })}
-                    className="w-full py-1.5 px-2 border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                    className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] cursor-pointer"
                   >
                     <option value="Bar">บาร์ (Bar)</option>
                     <option value="Bakery">ครัว (Bakery)</option>
@@ -3114,7 +3127,7 @@ WITH CHECK (true);`;
                   placeholder="เช่น Blender, Coffee Machine..."
                   value={newEquipment.category}
                   onChange={e => setNewEquipment({ ...newEquipment, category: e.target.value })}
-                  className="w-full py-1.5 px-2.5 border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                  className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
                 />
               </div>
 
@@ -3122,13 +3135,13 @@ WITH CHECK (true);`;
                 <button
                   type="button"
                   onClick={() => setShowAddEquipmentModal(false)}
-                  className="px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] rounded-[8px] cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg shadow-2xs cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] sm:text-[12px] font-[600] text-white bg-[#2D4A49] hover:bg-[#203635] rounded-[8px] shadow-xs cursor-pointer"
                 >
                   บันทึกข้อมูล
                 </button>
@@ -3173,13 +3186,13 @@ WITH CHECK (true);`;
                 <button
                   type="button"
                   onClick={() => setShowAddCategoryModal(false)}
-                  className="px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] rounded-[8px] cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg shadow-2xs cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] sm:text-[12px] font-[600] text-white bg-[#2D4A49] hover:bg-[#203635] rounded-[8px] shadow-xs cursor-pointer"
                 >
                   บันทึกหมวดหมู่
                 </button>
@@ -3247,13 +3260,13 @@ WITH CHECK (true);`;
                 <button
                   type="button"
                   onClick={() => setShowAddVendorModal(false)}
-                  className="px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] rounded-[8px] cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg shadow-2xs cursor-pointer"
+                  className="h-[32px] px-3.5 text-[11px] sm:text-[12px] font-[600] text-white bg-[#2D4A49] hover:bg-[#203635] rounded-[8px] shadow-xs cursor-pointer"
                 >
                   บันทึกรายชื่อช่าง
                 </button>
@@ -3324,7 +3337,7 @@ WITH CHECK (true);`;
                       <select
                         value={editingEquipmentMaster.department || 'Bar'}
                         onChange={e => setEditingEquipmentMaster({ ...editingEquipmentMaster, department: e.target.value as any })}
-                        className="w-full py-1.5 px-2 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                        className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] cursor-pointer"
                       >
                         <option value="Bar">บาร์ (Bar)</option>
                         <option value="Bakery">ครัว (Bakery)</option>
@@ -3339,7 +3352,7 @@ WITH CHECK (true);`;
                       type="text"
                       value={editingEquipmentMaster.category || ''}
                       onChange={e => setEditingEquipmentMaster({ ...editingEquipmentMaster, category: e.target.value })}
-                      className="w-full py-1.5 px-2.5 bg-white border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88]"
+                      className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] focus:outline-none focus:border-[#5A8A88]"
                     />
                   </div>
 
@@ -3347,13 +3360,13 @@ WITH CHECK (true);`;
                     <button
                       type="button"
                       onClick={() => setEditingEquipmentMaster(null)}
-                      className="px-3 py-1 font-semibold text-slate-600 hover:bg-slate-200 rounded-lg cursor-pointer"
+                      className="h-[32px] px-3.5 text-[11px] font-medium text-[#6B8F8E] bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] rounded-[8px] cursor-pointer"
                     >
                       ยกเลิก
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-1 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg shadow-2xs cursor-pointer"
+                      className="h-[32px] px-3.5 text-[11px] sm:text-[12px] font-[600] text-white bg-[#2D4A49] hover:bg-[#203635] rounded-[8px] shadow-xs cursor-pointer"
                     >
                       บันทึกการแก้ไข
                     </button>
