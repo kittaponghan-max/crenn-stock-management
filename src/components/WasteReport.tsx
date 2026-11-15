@@ -520,35 +520,42 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          PAGE HEADER (NO BACK BUTTON, SAGE GREEN & RED ACCENT)
+          SUB-PAGE HEADER CARD (CRENN UI STANDARD)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        {/* Left block */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#FEE2E2] rounded-xl shrink-0 flex items-center justify-center">
-            <Trash2 size={20} className="text-[#EF4444]" />
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          {/* Left block */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-[#FEE2E2] rounded-[10px] shrink-0 flex items-center justify-center">
+              <Trash2 size={18} className="text-[#EF4444]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-[15px] font-[700] text-[#2D4A49] leading-tight">
+                  รายงานบันทึกของเสีย (Waste Report)
+                </h1>
+                <span className="text-[10px] font-[600] px-[7px] py-[2px] rounded-[5px] bg-[#E8F3F2] text-[#5A8A88] border border-[#D4E4E3]">
+                  {department === 'Bar' ? 'บาร์ (Bar)' : department === 'Bakery' ? 'เบเกอรี่ (Bakery)' : 'ครัว (Kitchen)'}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#6B8F8E] mt-0.5">
+                บันทึกและตรวจสอบประวัติวัตถุดิบ/สินค้าที่เสียหาย
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-[18px] font-bold text-[#2D4A49]">
-              รายงานบันทึกของเสีย ({department === 'Bar' ? 'บาร์' : 'ครัว'})
-            </h2>
-            <p className="text-[11px] text-[#6B8F8E] mt-0.5">
-              บันทึกและตรวจสอบประวัติวัตถุดิบ/สินค้าที่เสียหาย
-            </p>
-          </div>
+          
+          {/* Right — "+ เพิ่มรายการของเสีย" button */}
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={handleOpenForm}
+              className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] text-white text-[11px] sm:text-[12px] font-[600] bg-[#2D4A49] hover:bg-[#203635] shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              <Plus size={14} className="text-white" />
+              <span>เพิ่มรายการของเสีย</span>
+            </button>
+          )}
         </div>
-        
-        {/* Right — "+ เพิ่มรายการของเสีย" button */}
-        {!isReadOnly && (
-          <button
-            type="button"
-            onClick={handleOpenForm}
-            className="flex items-center gap-2 px-[18px] py-[10px] rounded-[10px] text-white text-[12px] font-semibold bg-[#2D4A49] hover:bg-[#1D3A39] shadow-xs hover:shadow transition-all cursor-pointer"
-          >
-            <Plus size={18} className="text-white" />
-            <span>เพิ่มรายการของเสีย</span>
-          </button>
-        )}
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -587,14 +594,14 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                   required
                   value={entryDate}
                   onChange={e => setEntryDate(e.target.value)}
-                  className="px-2.5 py-1 bg-white border border-[#D4E4E3] rounded-lg text-[12px] font-semibold text-[#2D4A49] focus:ring-2 focus:ring-[#5A8A88]/20 outline-none transition-all shadow-xs"
+                  className="h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] tabular-nums focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none transition-all shadow-xs"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-[#5A8A88] hover:bg-[#4A7A78] shadow-xs transition-all cursor-pointer"
+                className="flex items-center gap-1.5 h-[32px] px-3 rounded-[8px] text-[11px] font-[600] text-white bg-[#5A8A88] hover:bg-[#4A7A78] shadow-xs transition-all cursor-pointer"
               >
                 <Plus size={14} />
                 <span>เพิ่มรายการของเสีย</span>
@@ -647,7 +654,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                                 required
                                 value={item.ingredientId}
                                 onChange={e => handleItemChange(item.tempId, 'ingredientId', e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88]/20 outline-none text-[12px] font-medium text-[#2D4A49] transition-all cursor-pointer"
+                                className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none text-[11px] font-medium text-[#2D4A49] transition-all cursor-pointer"
                               >
                                 <option value="" className="text-slate-500 font-bold">--เลือก ชนิดแป้ง, รายการ, หรือ เมนู--</option>
                                 
@@ -701,7 +708,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                                 required
                                 value={item.ingredientId}
                                 onChange={e => handleItemChange(item.tempId, 'ingredientId', e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-[#F0F5F4] border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88]/20 outline-none text-[12px] font-medium text-[#2D4A49] transition-all cursor-pointer"
+                                className="w-full h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] outline-none text-[11px] font-medium text-[#2D4A49] transition-all cursor-pointer"
                               >
                                 <option value="" className="text-slate-500">-- เลือกรายการ --</option>
                                 {deptIngredients.map(ing => (
@@ -861,14 +868,14 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                   type="button"
                   onClick={handleCloseForm}
                   disabled={isSaving}
-                  className="px-4 py-2 text-[#6B8F8E] font-medium hover:bg-[#F0F5F4] rounded-lg text-[11px] transition-colors cursor-pointer disabled:opacity-50"
+                  className="h-[32px] px-3.5 text-[#6B8F8E] font-medium hover:bg-[#F0F5F4] border border-[#D4E4E3] bg-white rounded-[8px] text-[11px] transition-colors cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 text-white font-semibold rounded-lg text-[11px] bg-[#2D4A49] hover:bg-[#1D3A39] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                  className="h-[32px] px-3.5 text-white font-[600] rounded-[8px] text-[11px] sm:text-[12px] bg-[#2D4A49] hover:bg-[#203635] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isSaving ? (
                     <>
@@ -921,7 +928,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
             onClick={() => fetchData()}
             disabled={loading}
             title="รีเฟรชข้อมูล (Sync with Supabase)"
-            className="p-2 bg-white border border-[#D4E4E3] rounded-lg text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
+            className="w-[32px] h-[32px] flex items-center justify-center bg-white border border-[#D4E4E3] rounded-[8px] text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
           >
             <RefreshCw size={14} className={cn("text-[#5A8A88]", loading && "animate-spin")} />
           </button>
@@ -966,7 +973,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                       <h4 className="text-[13px] font-bold text-[#2D4A49] truncate">
                         {log.ingredientName}
                       </h4>
-                      <span className="text-[11px] text-[#6B8F8E] bg-[#F0F5F4] rounded-md px-2 py-0.5 border border-[#E2EAE9]">
+                      <span className="text-[11px] text-[#6B8F8E] bg-[#F0F5F4] rounded-md px-2 py-0.5 border border-[#E2EAE9] tabular-nums">
                         {format(new Date(log.date), 'dd/MM/yyyy')}
                       </span>
                     </div>
@@ -975,7 +982,7 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                     <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] text-[#6B8F8E]">จำนวน:</span>
-                        <span className="text-[12px] font-bold text-[#EF4444] bg-[#FEE2E2] rounded-md px-2 py-0.5 border border-[#FECACA]">
+                        <span className="text-[12px] font-bold text-[#EF4444] bg-[#FEE2E2] rounded-md px-2 py-0.5 border border-[#FECACA] tabular-nums">
                           {log.quantity} {log.unit}
                         </span>
                       </div>
@@ -1142,14 +1149,14 @@ export function WasteReport({ department, ingredients, wasteLogs, currentUser, o
                   <button 
                     type="button"
                     onClick={handleCancelEdit}
-                    className="px-4 py-2 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#6B8F8E] font-medium rounded-lg text-[11px] transition-colors cursor-pointer"
+                    className="h-[32px] px-3.5 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#6B8F8E] font-medium rounded-[8px] text-[11px] transition-colors cursor-pointer"
                   >
                     ยกเลิก
                   </button>
                   <button 
                     type="button"
                     onClick={handleSaveEdit}
-                    className="px-4 py-2 bg-[#5A8A88] hover:bg-[#4A7A78] text-white font-semibold rounded-lg text-[11px] transition-colors cursor-pointer"
+                    className="h-[32px] px-3.5 bg-[#2D4A49] hover:bg-[#203635] text-white font-[600] rounded-[8px] text-[11px] sm:text-[12px] transition-colors cursor-pointer"
                   >
                     บันทึก
                   </button>
