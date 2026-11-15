@@ -31,6 +31,7 @@ import {
   safeLocalStorageGetItem, 
   safeLocalStorageSetItem 
 } from '../utils/safeStorage';
+import { exportRowsToXlsx } from './ui';
 
 export interface DailyBakeryRecordProps {
   user?: {
@@ -1182,43 +1183,30 @@ export function DailyBakeryRecord({
     XLSX.writeFile(wb, 'Bakery_Items_Template.xlsx');
   };
 
-  // Export to CSV / Excel
+  // Export to Excel (.xlsx)
   const handleExportExcel = () => {
-    const headers = ['หมวดหมู่', 'รายการ'];
-    
-    weekDays.forEach(w => {
-      headers.push(`${w.shortDate} - ทั้งหมด`);
-      headers.push(`${w.shortDate} - Official Line`);
-      headers.push(`${w.shortDate} - ขายหน้าร้าน`);
-      headers.push(`${w.shortDate} - ขายได้จริง`);
-      headers.push(`${w.shortDate} - หมายเหตุ`);
-    });
-
-    const csvRows = [headers.join(',')];
-
-    bakeryItems.forEach(item => {
-      const row = [`"${item.category}"`, `"${item.name}"`];
+    const exportRows = bakeryItems.map(item => {
+      const row: Record<string, string | number> = {
+        'หมวดหมู่': item.category,
+        'รายการ': item.name,
+      };
       weekDays.forEach(w => {
         const rec = records[item.name]?.[w.dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
-        row.push(rec.totalQty !== '' ? String(rec.totalQty) : '0');
-        row.push(rec.lineQty !== '' ? String(rec.lineQty) : '0');
-        row.push(rec.storeQty !== '' ? String(rec.storeQty) : '0');
-        row.push(rec.soldQty !== '' ? String(rec.soldQty) : '0');
-        row.push(`"${(rec.note || '').replace(/"/g, '""')}"`);
+        row[`${w.shortDate} - ทั้งหมด`] = rec.totalQty !== '' ? Number(rec.totalQty) : 0;
+        row[`${w.shortDate} - Official Line`] = rec.lineQty !== '' ? Number(rec.lineQty) : 0;
+        row[`${w.shortDate} - ขายหน้าร้าน`] = rec.storeQty !== '' ? Number(rec.storeQty) : 0;
+        row[`${w.shortDate} - ขายได้จริง`] = rec.soldQty !== '' ? Number(rec.soldQty) : 0;
+        row[`${w.shortDate} - หมายเหตุ`] = rec.note || '';
       });
-      csvRows.push(row.join(','));
+      return row;
     });
 
-    const csvContent = '\uFEFF' + csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     const startStr = format(weekDays[0].date, 'yyyyMMdd');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Daily_Bakery_Record_${currentBranch}_${startStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportRowsToXlsx({
+      rows: exportRows,
+      fileName: `Daily_Bakery_Record_${currentBranch}_${startStr}.xlsx`,
+      sheetName: 'Daily Bakery Record',
+    });
   };
 
   // Calculate day totals for displayed days
@@ -1321,7 +1309,7 @@ export function DailyBakeryRecord({
               <ChevronLeft size={14} />
             </button>
 
-            <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
+            <span className="h-[30px] inline-flex items-center text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs tabular-nums">
               สัปดาห์: {summaryDateRangeLabel}
             </span>
 
@@ -1538,7 +1526,7 @@ export function DailyBakeryRecord({
                     className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Download size={13} className="text-[#5A8A88]" />
-                    <span>Excel (.csv)</span>
+                    <span>Excel (.xlsx)</span>
                   </button>
                   <button
                     type="button"
