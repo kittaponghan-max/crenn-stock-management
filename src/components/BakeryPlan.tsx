@@ -667,39 +667,39 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     return (
       <div className="overflow-x-auto shadow-xs rounded-xl border border-[#D4E4E3] border-t-2 border-t-[#5A8A88] max-h-[70vh] bg-white">
         <table className="min-w-full divide-y divide-[#D4E4E3] relative table-fixed">
-          <thead className="bg-[#E8F3F2] sticky top-0 z-20 backdrop-blur-xs">
-            <tr>
-              <th scope="col" className="py-2.5 pl-3 pr-2 text-left text-[10px] font-bold text-[#2D4A49] sticky left-0 z-30 bg-[#E8F3F2] border-r border-b border-[#D4E4E3] min-w-[140px] md:min-w-[200px] w-[140px] md:w-[200px] max-w-[140px] md:max-w-[200px] backdrop-blur-xs">
+          <thead className="bg-[#2D4A49] sticky top-0 z-20">
+            <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide">
+              <th scope="col" className="py-2 pl-3 pr-2 text-left sticky left-0 z-30 bg-[#2D4A49] border-r border-b border-[#3D6B69] min-w-[140px] md:min-w-[200px] w-[140px] md:w-[200px] max-w-[140px] md:max-w-[200px]">
                 รายการ
               </th>
-              <th scope="col" className="px-2 py-2.5 text-center text-[10px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] sticky left-[140px] md:left-[200px] z-30 bg-[#E8F3F2] min-w-[90px] md:min-w-[120px] w-[90px] md:w-[120px] max-w-[90px] md:max-w-[120px] backdrop-blur-xs">
+              <th scope="col" className="px-2 py-2 text-center border-r border-b border-[#3D6B69] sticky left-[140px] md:left-[200px] z-30 bg-[#2D4A49] min-w-[90px] md:min-w-[120px] w-[90px] md:w-[120px] max-w-[90px] md:max-w-[120px]">
                 {section === 'cutting' ? 'ตัดจาก' : section === 'items' ? 'เมนู' : 'หน่วย'}
               </th>
               {(section === 'mixing' || section === 'cutting') && (
-                <th scope="col" className="hidden md:table-cell px-2 py-2.5 text-center text-[10px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] md:sticky md:left-[320px] min-w-[120px] w-[120px] max-w-[120px] z-30 bg-[#E8F3F2] backdrop-blur-xs">
+                <th scope="col" className="hidden md:table-cell px-2 py-2 text-center border-r border-b border-[#3D6B69] md:sticky md:left-[320px] min-w-[120px] w-[120px] max-w-[120px] z-30 bg-[#2D4A49]">
                   {section === 'cutting' ? 'หน่วยต่อสูตร (Unit)' : 'ขนาด'}
                 </th>
               )}
               {DAYS.map((day, index) => {
                 const dayDate = addDays(currentWeek, index);
                 return (
-                  <th key={day.key} colSpan={4} className="px-2.5 py-2 text-center text-[10px] text-[#2D4A49] border-r border-b border-l-2 border-[#D4E4E3] border-l-[#B8D4D2]">
-                    <div className="font-bold">{day.label}</div>
-                    <div className="text-[10px] font-medium text-[#6B8F8E] mt-0.5">{format(dayDate, 'd MMM', { locale: th })}</div>
+                  <th key={day.key} colSpan={4} className="px-2.5 py-2 text-center border-r border-b border-l-2 border-[#3D6B69] border-l-[#5A8A88]">
+                    <div className="font-semibold">{day.label}</div>
+                    <div className="text-[10px] font-medium text-[#B8D4D2] mt-0.5 tabular-nums">{format(dayDate, 'd MMM', { locale: th })}</div>
                   </th>
                 );
               })}
             </tr>
-            <tr className="bg-[#F8FAF9] text-[10px] text-[#6B8F8E]">
-              <th className="sticky left-0 z-30 bg-[#F8FAF9] border-r border-b border-[#D4E4E3] backdrop-blur-xs"></th>
-              <th className="sticky left-[140px] md:left-[200px] z-30 bg-[#F8FAF9] border-r border-b border-[#D4E4E3] backdrop-blur-xs"></th>
-              {(section === 'mixing' || section === 'cutting') && <th className="hidden md:table-cell md:sticky md:left-[320px] z-30 bg-[#F8FAF9] border-r border-b border-[#D4E4E3] backdrop-blur-xs"></th>}
+            <tr className="bg-[#3D6B69] text-[10px]">
+              <th className="sticky left-0 z-30 bg-[#3D6B69] border-r border-b border-[#2D4A49]"></th>
+              <th className="sticky left-[140px] md:left-[200px] z-30 bg-[#3D6B69] border-r border-b border-[#2D4A49]"></th>
+              {(section === 'mixing' || section === 'cutting') && <th className="hidden md:table-cell md:sticky md:left-[320px] z-30 bg-[#3D6B69] border-r border-b border-[#2D4A49]"></th>}
               {DAYS.map(day => (
                 <React.Fragment key={day.key}>
-                  <th className="font-semibold px-1 py-1 text-center border-l-2 border-b border-l-[#B8D4D2] border-[#D4E4E3] bg-[#F8FAF9] text-[#2D4A49] min-w-[48px]">วางแผน</th>
-                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] bg-[#FEF3C7]/40 text-[#D97706] min-w-[48px]">ขอเพิ่ม</th>
-                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] bg-[#DCFCE7]/40 text-[#16A34A] min-w-[48px]">ทำได้</th>
-                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] bg-[#FEE2E2]/40 text-[#EF4444] min-w-[48px]">ทำเสีย</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l-2 border-b border-l-[#5A8A88] border-[#D4E4E3] bg-[#F8FAF9] text-[#2D4A49] min-w-[48px]">วางแผน</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] bg-[#FEF3C7] text-[#B45309] min-w-[48px]">ขอเพิ่ม</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] bg-[#DCFCE7] text-[#15803D] min-w-[48px]">ทำได้</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] bg-[#FEE2E2] text-[#DC2626] min-w-[48px]">ทำเสีย</th>
                 </React.Fragment>
               ))}
             </tr>
@@ -967,38 +967,38 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     return (
       <div className="overflow-x-auto shadow-xs rounded-xl border border-[#D4E4E3] border-t-2 border-t-[#5A8A88] max-h-[70vh] bg-white">
         <table className="min-w-full divide-y divide-[#D4E4E3] relative table-fixed">
-          <thead className="bg-[#E8F3F2] sticky top-0 z-20 backdrop-blur-xs">
-            <tr>
-              <th scope="col" className="py-2.5 pl-3 pr-2 text-center text-[10px] font-bold text-[#2D4A49] sticky left-0 z-30 bg-[#E8F3F2] border-r border-b border-[#D4E4E3] min-w-[70px] w-[70px] max-w-[70px] backdrop-blur-xs">
+          <thead className="bg-[#2D4A49] sticky top-0 z-20">
+            <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide">
+              <th scope="col" className="py-2 pl-3 pr-2 text-center sticky left-0 z-30 bg-[#2D4A49] border-r border-b border-[#3D6B69] min-w-[70px] w-[70px] max-w-[70px]">
                 เหลือจากแผน
               </th>
-              <th scope="col" className="py-2.5 pl-3 pr-2 text-left text-[10px] font-bold text-[#2D4A49] sticky left-[70px] z-30 bg-[#E8F3F2] min-w-[140px] md:min-w-[180px] w-[140px] md:w-[180px] max-w-[140px] md:max-w-[180px] border-r border-b border-[#D4E4E3] backdrop-blur-xs">
+              <th scope="col" className="py-2 pl-3 pr-2 text-left sticky left-[70px] z-30 bg-[#2D4A49] min-w-[140px] md:min-w-[180px] w-[140px] md:w-[180px] max-w-[140px] md:max-w-[180px] border-r border-b border-[#3D6B69]">
                 รายการ
               </th>
-              <th scope="col" className="hidden md:table-cell px-2 py-2.5 text-left text-[10px] font-bold text-[#2D4A49] border-r border-b border-[#D4E4E3] md:sticky md:left-[250px] z-30 bg-[#E8F3F2] min-w-[100px] w-[100px] max-w-[100px] backdrop-blur-xs">
+              <th scope="col" className="hidden md:table-cell px-2 py-2 text-left border-r border-b border-[#3D6B69] md:sticky md:left-[250px] z-30 bg-[#2D4A49] min-w-[100px] w-[100px] max-w-[100px]">
                 หน่วย
               </th>
               {DAYS.map((day, index) => {
                 const dayDate = addDays(currentWeek, index);
                 return (
-                  <th key={day.key} colSpan={5} className="px-2.5 py-2 text-center text-[10px] text-[#2D4A49] border-r border-b border-l-2 border-[#D4E4E3] border-l-[#B8D4D2]">
-                    <div className="font-bold">{day.label}</div>
-                    <div className="text-[10px] font-medium text-[#6B8F8E] mt-0.5">{format(dayDate, 'd MMM', { locale: th })}</div>
+                  <th key={day.key} colSpan={5} className="px-2.5 py-2 text-center border-r border-b border-l-2 border-[#3D6B69] border-l-[#5A8A88]">
+                    <div className="font-semibold">{day.label}</div>
+                    <div className="text-[10px] font-medium text-[#B8D4D2] mt-0.5 tabular-nums">{format(dayDate, 'd MMM', { locale: th })}</div>
                   </th>
                 );
               })}
             </tr>
-            <tr className="bg-[#F8FAF9] text-[10px] text-[#6B8F8E]">
-              <th className="sticky left-0 z-30 bg-[#F8FAF9] border-r border-b border-[#D4E4E3] backdrop-blur-xs"></th>
-              <th className="sticky left-[70px] z-30 bg-[#F8FAF9] border-r border-b border-[#D4E4E3] backdrop-blur-xs"></th>
-              <th className="hidden md:table-cell md:sticky md:left-[250px] z-30 bg-[#F8FAF9] border-r border-b border-[#D4E4E3] backdrop-blur-xs"></th>
+            <tr className="bg-[#3D6B69] text-[10px]">
+              <th className="sticky left-0 z-30 bg-[#3D6B69] border-r border-b border-[#2D4A49]"></th>
+              <th className="sticky left-[70px] z-30 bg-[#3D6B69] border-r border-b border-[#2D4A49]"></th>
+              <th className="hidden md:table-cell md:sticky md:left-[250px] z-30 bg-[#3D6B69] border-r border-b border-[#2D4A49]"></th>
               {DAYS.map(day => (
                 <React.Fragment key={day.key}>
-                  <th className="font-semibold px-1 py-1 text-center border-l-2 border-b border-l-[#B8D4D2] border-[#D4E4E3] text-[#2D4A49] bg-[#F8FAF9] min-w-[48px]">วางแผน</th>
-                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#D97706] bg-[#FEF3C7]/40 min-w-[48px]">ขอเพิ่ม</th>
-                  <th className="font-bold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#5A8A88] bg-[#E8F3F2] min-w-[48px]">รวม</th>
-                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#16A34A] bg-[#DCFCE7]/40 min-w-[48px]">ขายได้</th>
-                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#EF4444] bg-[#FEE2E2]/40 min-w-[48px]">เหลือ</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l-2 border-b border-l-[#5A8A88] border-[#D4E4E3] text-[#2D4A49] bg-[#F8FAF9] min-w-[48px]">วางแผน</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#B45309] bg-[#FEF3C7] min-w-[48px]">ขอเพิ่ม</th>
+                  <th className="font-bold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#2D4A49] bg-[#E8F3F2] min-w-[48px]">รวม</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#15803D] bg-[#DCFCE7] min-w-[48px]">ขายได้</th>
+                  <th className="font-semibold px-1 py-1 text-center border-l border-b border-[#D4E4E3] text-[#DC2626] bg-[#FEE2E2] min-w-[48px]">เหลือ</th>
                 </React.Fragment>
               ))}
             </tr>
@@ -1149,7 +1149,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
               <ChevronLeft size={14} />
             </button>
 
-            <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
+            <span className="h-[30px] inline-flex items-center text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs tabular-nums">
               สัปดาห์: {format(currentWeek, 'd MMM', { locale: th })} - {format(addDays(currentWeek, 6), 'd MMM yyyy', { locale: th })}
             </span>
 
@@ -1180,7 +1180,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
               <select
                 value={activeTab}
                 onChange={(e) => setActiveTab(e.target.value as 'production' | 'sales')}
-                className="appearance-none bg-[#F8FAF9] hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-[600] rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
+                className="appearance-none bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-medium rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
               >
                 <option value="production">แผนการผลิต</option>
                 <option value="sales">แผนการขาย</option>
@@ -1459,17 +1459,17 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[760px]">
-                    <thead className="bg-[#F8FAF9] border-b border-[#D4E4E3]">
-                      <tr>
-                        <th className="p-2 text-[11px] font-bold text-[#2D4A49] min-w-[180px]">รายการ</th>
-                        <th className="p-2 text-[11px] font-bold text-center text-[#2D4A49] w-24">หน่วย</th>
-                        <th className="p-2 text-[11px] font-bold text-center text-[#2D4A49] w-28">ขนาด</th>
+                    <thead className="bg-[#2D4A49] text-white border-b border-[#1E3A39]">
+                      <tr className="text-[10px] sm:text-[11px] font-semibold">
+                        <th className="p-2 min-w-[180px] border-r border-[#3D6B69]">รายการ</th>
+                        <th className="p-2 text-center w-24 border-r border-[#3D6B69]">หน่วย</th>
+                        <th className="p-2 text-center w-28 border-r border-[#3D6B69]">ขนาด</th>
                         {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => (
-                          <th key={day} className="p-2 text-[11px] font-bold text-center text-[#2D4A49] border-l border-[#D4E4E3]">
+                          <th key={day} className="p-2 text-center border-l border-[#3D6B69]">
                             {day === 'mon' ? 'จันทร์' : day === 'tue' ? 'อังคาร' : day === 'wed' ? 'พุธ' : day === 'thu' ? 'พฤหัสฯ' : day === 'fri' ? 'ศุกร์' : day === 'sat' ? 'เสาร์' : 'อาทิตย์'}
                           </th>
                         ))}
-                        <th className="p-2 text-[11px] font-bold text-center text-[#2D4A49] w-12 border-l border-[#D4E4E3]">ลบ</th>
+                        <th className="p-2 text-center w-12 border-l border-[#3D6B69]">ลบ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F0F5F4]">
@@ -1582,17 +1582,17 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[760px]">
-                    <thead className="bg-[#F8FAF9] border-b border-[#D4E4E3]">
-                      <tr>
-                        <th className="p-2 text-[11px] font-bold text-[#2D4A49] min-w-[180px]">เป้าหมาย</th>
-                        <th className="p-2 text-[11px] font-bold text-center text-[#2D4A49] w-32">Dough ต้นทาง</th>
-                        <th className="p-2 text-[11px] font-bold text-center text-[#2D4A49] w-24">หน่วย</th>
+                    <thead className="bg-[#2D4A49] text-white border-b border-[#1E3A39]">
+                      <tr className="text-[10px] sm:text-[11px] font-semibold">
+                        <th className="p-2 min-w-[180px] border-r border-[#3D6B69]">เป้าหมาย</th>
+                        <th className="p-2 text-center w-32 border-r border-[#3D6B69]">Dough ต้นทาง</th>
+                        <th className="p-2 text-center w-24 border-r border-[#3D6B69]">หน่วย</th>
                         {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => (
-                          <th key={day} className="p-2 text-[11px] font-bold text-center text-[#2D4A49] border-l border-[#D4E4E3]">
+                          <th key={day} className="p-2 text-center border-l border-[#3D6B69]">
                             {day === 'mon' ? 'จันทร์' : day === 'tue' ? 'อังคาร' : day === 'wed' ? 'พุธ' : day === 'thu' ? 'พฤหัสฯ' : day === 'fri' ? 'ศุกร์' : day === 'sat' ? 'เสาร์' : 'อาทิตย์'}
                           </th>
                         ))}
-                        <th className="p-2 text-[11px] font-bold text-center text-[#2D4A49] w-12 border-l border-[#D4E4E3]">ลบ</th>
+                        <th className="p-2 text-center w-12 border-l border-[#3D6B69]">ลบ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F0F5F4]">
@@ -1764,12 +1764,12 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 
                 <div className="border border-[#D4E4E3] rounded-lg overflow-hidden">
                   <table className="w-full text-[11px] text-left">
-                    <thead className="bg-[#F8FAF9] text-[#2D4A49] font-semibold whitespace-nowrap">
+                    <thead className="bg-[#2D4A49] text-white font-semibold whitespace-nowrap text-[10px] sm:text-[11px]">
                       <tr>
-                        <th className="px-2 py-2 border-b border-[#D4E4E3] w-[5%] text-center"></th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3]">ชนิดแป้ง (Type)</th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3]">หน่วยต่อสูตร (Unit)</th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3]">ขนาดต่อสูตร (Size)</th>
+                        <th className="px-2 py-2 border-b border-[#1E3A39] w-[5%] text-center"></th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69]">ชนิดแป้ง (Type)</th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69]">หน่วยต่อสูตร (Unit)</th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69]">ขนาดต่อสูตร (Size)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F0F5F4]">
@@ -1845,13 +1845,13 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 
                 <div className="border border-[#D4E4E3] rounded-lg overflow-hidden">
                   <table className="w-full text-[11px] text-left">
-                    <thead className="bg-[#F8FAF9] text-[#2D4A49] font-semibold whitespace-nowrap">
+                    <thead className="bg-[#2D4A49] text-white font-semibold whitespace-nowrap text-[10px] sm:text-[11px]">
                       <tr>
-                        <th className="px-2 py-2 border-b border-[#D4E4E3] w-[5%] text-center"></th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3]">ตัดจาก (Source Dough)</th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3]">แปลงเป็นรายการ (Target Item)</th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3] w-[15%] text-center">จำนวน (Ratio)</th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3] w-[15%] text-center">หน่วย (Unit)</th>
+                        <th className="px-2 py-2 border-b border-[#1E3A39] w-[5%] text-center"></th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69]">ตัดจาก (Source Dough)</th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69]">แปลงเป็นรายการ (Target Item)</th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69] w-[15%] text-center">จำนวน (Ratio)</th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69] w-[15%] text-center">หน่วย (Unit)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F0F5F4]">
@@ -1939,11 +1939,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 
                 <div className="border border-[#D4E4E3] rounded-lg overflow-hidden w-full overflow-x-auto">
                   <table className="w-full text-[11px] text-left">
-                    <thead className="bg-[#F8FAF9] text-[#2D4A49] font-semibold whitespace-nowrap">
+                    <thead className="bg-[#2D4A49] text-white font-semibold whitespace-nowrap text-[10px] sm:text-[11px]">
                       <tr>
-                        <th className="px-2 py-2 border-b border-[#D4E4E3] w-[5%] min-w-[48px] text-center"></th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3] w-[48%] min-w-[180px]">จากรายการ (Target Item)</th>
-                        <th className="px-2.5 py-2 border-b border-[#D4E4E3] w-[47%] min-w-[180px]">เมนู (Menu)</th>
+                        <th className="px-2 py-2 border-b border-[#1E3A39] w-[5%] min-w-[48px] text-center"></th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69] w-[48%] min-w-[180px]">จากรายการ (Target Item)</th>
+                        <th className="px-2.5 py-2 border-b border-l border-[#3D6B69] w-[47%] min-w-[180px]">เมนู (Menu)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F0F5F4]">
