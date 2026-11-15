@@ -805,7 +805,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               </div>
             </div>
             <div className="mt-1.5 sm:mt-2 flex items-baseline">
-              <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-slate-800 leading-none">
+              <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-slate-800 leading-none tabular-nums">
                 {isPersonalActive 
                   ? (displayTodayLeaves.length > 0 ? 'ลาหยุด' : 'ปกติ')
                   : displayTodayLeaves.length
@@ -1481,13 +1481,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             {/* Search Box (Leave Dashboard Only) */}
             {!isPersonalActive && (
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5A8A88]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ค้นหาชื่อพนักงาน, ชนิดการลา..."
-                  className="pl-8 pr-3 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-[11px] sm:text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#5A8A88] w-44 sm:w-52"
+                  className="h-[32px] pl-8 pr-3 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] font-medium text-[#2D4A49] placeholder:text-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 w-44 sm:w-52 shadow-2xs transition-all"
                 />
               </div>
             )}
@@ -1496,7 +1496,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <select
               value={selectedYear}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-[11px] sm:text-xs text-[#2D4A49] font-semibold focus:outline-none focus:border-[#5A8A88] cursor-pointer"
+              className="h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 cursor-pointer shadow-2xs transition-all"
               title="กรองตามปี"
             >
               <option value="all">ทุกปี (All Years)</option>
@@ -1511,7 +1511,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl text-[11px] sm:text-xs text-slate-700 font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
+              className="h-[32px] px-2.5 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] font-medium focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 cursor-pointer shadow-2xs transition-all"
             >
               <option value="all">ทุกสถานะ</option>
               <option value="Pending">รออนุมัติ</option>
@@ -1525,7 +1525,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         <div className="overflow-x-auto rounded-xl border border-[#D4E4E3]">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] uppercase tracking-wider font-bold">
+              <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold divide-x divide-[#3D6B69]">
                 <th className="p-2.5 sm:p-3">ชื่อพนักงาน</th>
                 <th className="p-2.5 sm:p-3">สาขา</th>
                 <th className="p-2.5 sm:p-3">ประเภทการลา</th>
@@ -1535,7 +1535,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                 <th className="p-2.5 sm:p-3 text-center">สถานะ (Status)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-xs">
+            <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]">
               {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">
@@ -1569,10 +1569,10 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     <td className="p-2.5 sm:p-3 whitespace-nowrap font-medium text-slate-700">
                       {item.leaveTypeName}
                     </td>
-                    <td className="p-2.5 sm:p-3 whitespace-nowrap font-medium text-slate-800">
+                    <td className="p-2.5 sm:p-3 whitespace-nowrap font-medium text-slate-800 tabular-nums">
                       📅 {item.fromDate} ถึง {item.toDate}
                     </td>
-                    <td className="p-2.5 sm:p-3 text-center font-bold text-[#5A8A88] whitespace-nowrap">
+                    <td className="p-2.5 sm:p-3 text-center font-bold text-[#5A8A88] whitespace-nowrap tabular-nums">
                       {item.totalDays} วัน
                     </td>
                     <td className="p-2.5 sm:p-3 text-slate-600 max-w-xs truncate" title={item.description}>
