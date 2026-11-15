@@ -85,32 +85,32 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
               type="date" 
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-[#D4E4E3] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#5A8A88]/20 focus:border-[#5A8A88] w-full sm:w-auto font-mono text-[11px] text-[#2D4A49]"
+              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 h-[32px] focus:outline-none focus:border-[#5A8A88] w-full sm:w-auto font-mono text-[11px] text-[#2D4A49] tabular-nums"
             />
           </div>
           {lastSubmittedDate && (
-            <div className="flex items-center gap-1.5 text-[11px] text-[#6B8F8E] font-medium pl-1">
+            <div className="flex items-center gap-1.5 text-[11px] text-[#6B8F8E] font-medium pl-1 tabular-nums">
               <Clock size={13} className="text-[#6B8F8E]" />
-              <span>Last Submitted Date: <span className="text-[#2D4A49] font-semibold text-[11px]">{lastSubmittedDate}</span></span>
+              <span>Last Submitted Date: <span className="text-[#2D4A49] font-semibold text-[11px] tabular-nums">{lastSubmittedDate}</span></span>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {!isReadOnly && (
             <>
               <button
                 onClick={() => setCounts({})}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#F0F5F4] text-[#2D4A49] px-4 py-2.5 rounded-xl text-[11px] font-medium hover:bg-[#E8F3F2] transition-all border border-[#D4E4E3]"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-[#F0F5F4] text-[#2D4A49] px-3.5 h-[32px] rounded-[8px] text-[11px] sm:text-[12px] font-[600] hover:bg-[#E8F3F2] transition-colors border border-[#D4E4E3] cursor-pointer whitespace-nowrap"
               >
-                <RotateCcw size={14} className="text-[#5A8A88]" />
+                <RotateCcw size={13} className="text-[#5A8A88]" />
                 ล้างข้อมูล
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#5A8A88] text-white px-6 py-2.5 rounded-xl text-[11px] font-semibold hover:bg-[#4A7A78] transition-all shadow-md transform hover:scale-105 active:scale-95 border border-[#5A8A88] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-[#2D4A49] text-white px-4 h-[32px] rounded-[8px] text-[11px] sm:text-[12px] font-[600] hover:bg-[#203635] transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
               >
-                <Send size={14} />
+                <Send size={13} />
                 {isSubmitting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
               </button>
             </>
@@ -121,13 +121,13 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
       <div className="overflow-auto max-h-[560px] border border-[#D4E4E3] rounded-xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] bg-white scrollbar-thin">
         <table className="w-full min-w-max border-collapse relative">
           <thead className="sticky top-0 z-40 shadow-sm">
-            <tr className="bg-[#2D4A49] text-white border-b-2 border-[#5A8A88]">
-              <th className="sticky left-0 z-50 px-2 py-3 text-center font-semibold tracking-wide w-[45px] min-w-[45px] max-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">รูป</th>
-              <th className="sticky left-[45px] z-50 px-3 py-3 text-left font-semibold tracking-wide w-[170px] min-w-[170px] max-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] shadow-[2px_0_6px_-1px_rgba(0,0,0,0.2)]">รายการสินค้า</th>
-              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ยี่ห้อ</th>
-              <th className="hidden md:table-cell px-2 py-3 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px]">ขนาด/หน่วย</th>
-              <th className="px-2 py-3 text-center font-semibold tracking-wide w-[85px] min-w-[85px] max-w-[85px] bg-[#2D4A49] border-r border-[#3D6B69] text-[11px] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
-              <th className="px-3 py-3 text-center font-semibold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-[#5A8A88] border-r border-[#3D6B69] text-[11px] text-white">
+            <tr className="bg-[#2D4A49] text-white border-b border-[#1E3A39] text-[10px] sm:text-[11px] font-semibold tracking-wide">
+              <th className="sticky left-0 z-50 px-2 py-2.5 text-center font-semibold tracking-wide w-[45px] min-w-[45px] max-w-[45px] bg-[#2D4A49] border-r border-[#3D6B69]">รูป</th>
+              <th className="sticky left-[45px] z-50 px-3 py-2.5 text-left font-semibold tracking-wide w-[170px] min-w-[170px] max-w-[170px] bg-[#2D4A49] border-r border-[#3D6B69] shadow-[2px_0_6px_-1px_rgba(0,0,0,0.2)]">รายการสินค้า</th>
+              <th className="hidden md:table-cell px-2 py-2.5 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69]">ยี่ห้อ</th>
+              <th className="hidden md:table-cell px-2 py-2.5 text-left font-semibold tracking-wide w-[100px] min-w-[100px] max-w-[100px] bg-[#2D4A49] border-r border-[#3D6B69]">ขนาด/หน่วย</th>
+              <th className="px-2 py-2.5 text-center font-semibold tracking-wide w-[85px] min-w-[85px] max-w-[85px] bg-[#2D4A49] border-r border-[#3D6B69] leading-tight">คงเหลือ<br/>ขั้นต่ำ</th>
+              <th className="px-3 py-2.5 text-center font-semibold tracking-wide w-[120px] min-w-[120px] max-w-[120px] bg-[#3D6B69] text-white">
                 ยอดตรวจนับ
               </th>
             </tr>
@@ -158,7 +158,7 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
 
                   return (
                     <tr key={item.id} className={cn(
-                      "group transition-colors border-b border-[#D4E4E3] hover:bg-[#E8F3F2]",
+                      "group transition-colors border-b border-[#D4E4E3] hover:bg-[#F4F9F8]",
                       index % 2 === 0 ? "bg-white" : "bg-[#F8FAFA]"
                     )}>
                       <td className="sticky left-0 z-20 p-1 w-[45px] min-w-[45px] max-w-[45px] border-r border-[#D4E4E3] font-medium text-[#2D4A49] text-center bg-inherit">
