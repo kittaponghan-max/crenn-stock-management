@@ -539,11 +539,18 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
         <div className="bg-white p-5 sm:p-6 border-b border-[#D4E4E3]">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-[#E8F3F2] rounded-xl shrink-0 flex items-center justify-center text-[#5A8A88]">
-                <Clock size={22} className="text-[#5A8A88]" />
+              <div className="w-9 h-9 bg-[#E8F3F2] rounded-[10px] border border-[#D4E4E3]/50 shadow-xs shrink-0 flex items-center justify-center text-[#5A8A88]">
+                <Clock size={18} className="text-[#5A8A88]" />
               </div>
               <div>
-                <h2 className="text-[16px] sm:text-[17px] font-bold text-[#2D4A49]">Bar Check-in & Check-out</h2>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h1 className="text-[15px] font-[700] text-[#2D4A49] tracking-tight leading-tight">
+                    Bar Check-in & Check-out
+                  </h1>
+                  <span className="text-[10px] font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
+                    สาขา {branch}
+                  </span>
+                </div>
                 <p className="text-[#6B8F8E] text-[11px] max-w-[500px] leading-[1.5] mt-0.5">
                   {type === 'Check-in' 
                     ? 'การเตรียมตัวก่อนเปิดร้านคาเฟ่ในช่วงเช้าเป็นขั้นตอนที่สำคัญมาก เพื่อให้การทำงานตลอดทั้งวันราบรื่นและลดข้อผิดพลาดหน้างาน'
@@ -579,7 +586,7 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
                     className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Download size={13} className="text-[#5A8A88]" />
-                    <span>Excel (.csv)</span>
+                    <span>Excel (.xlsx)</span>
                   </button>
                   <button
                     type="button"
@@ -884,23 +891,23 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
                               <span>ชั่งน้ำหนักเมล็ดกาแฟ ({type === 'Check-in' ? 'ก่อนเปิดร้าน' : 'หลังปิดร้าน'})</span>
                               <span className="text-[11px] text-[#6B8F8E] font-medium">{coffeeIngredients.length} รายการ</span>
                             </div>
-                            <div className="overflow-hidden rounded-lg border border-[#D4E4E3]">
+                            <div className="overflow-hidden rounded-xl border border-[#D4E4E3]">
                               <table className="w-full text-left border-collapse">
                                 <thead>
-                                  <tr className="bg-[#E8F3F2] text-[#2D4A49] text-[12px] font-bold border-b border-[#D4E4E3]">
-                                    <th className="py-2 px-3">เมล็ดกาแฟ</th>
+                                  <tr className="bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide border-b border-[#1E3A39]">
+                                    <th className="py-2 px-3 border-r border-[#3D6B69]">เมล็ดกาแฟ</th>
                                     <th className="py-2 px-3 text-right">น้ำหนักชั่งจริง</th>
                                   </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]">
                                   {coffeeIngredients.map(ing => (
-                                    <tr key={ing.id} className="bg-white border-b border-[#E2EAE9] last:border-b-0 hover:bg-[#F8FAF9]">
+                                    <tr key={ing.id} className="bg-white hover:bg-[#F4F9F8] transition-colors">
                                       <td className="py-2 px-3">
                                         <div className="flex items-center gap-2">
                                           {ing.image && (
                                             <img src={ing.image} alt={ing.name} className="w-7 h-7 rounded-md object-cover border border-[#D4E4E3]" referrerPolicy="no-referrer" />
                                           )}
-                                          <span className="text-[13px] font-semibold text-[#2D4A49]">{ing.name}</span>
+                                          <span className="text-[12px] font-semibold text-[#2D4A49]">{ing.name}</span>
                                         </div>
                                       </td>
                                       <td className="py-2 px-3 text-right">
@@ -910,9 +917,9 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
                                             placeholder="0.00"
                                             value={coffeeWeights[ing.id] || ''}
                                             onChange={(e) => setCoffeeWeights(prev => ({ ...prev, [ing.id]: e.target.value }))}
-                                            className="w-24 px-2 py-1 bg-white border border-[#D4E4E3] rounded-md text-right text-[13px] font-bold text-[#2D4A49] focus:border-[#5A8A88] outline-none"
+                                            className="w-24 h-[32px] px-2 py-1 bg-white border border-[#D4E4E3] rounded-[8px] text-right text-[12px] font-bold text-[#2D4A49] focus:border-[#5A8A88] outline-none tabular-nums"
                                           />
-                                          <span className="text-[12px] font-medium text-[#6B8F8E]">กรัม</span>
+                                          <span className="text-[11px] font-medium text-[#6B8F8E]">กรัม</span>
                                         </div>
                                       </td>
                                     </tr>
@@ -1209,14 +1216,14 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
           </div>
 
           {/* Submit Action Button */}
-          <div className="mt-8 pt-6 border-t border-[#E2EAE9] flex justify-end print:hidden">
+          <div className="mt-6 pt-4 border-t border-[#E2EAE9] flex justify-end print:hidden">
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full h-12 bg-[#5A8A88] hover:bg-[#4A7A78] text-white rounded-xl text-[14px] font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                className="w-full sm:w-auto h-[32px] px-5 bg-[#2D4A49] hover:bg-[#203635] text-white rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <CheckCircle2 size={18} />
+                <CheckCircle2 size={14} />
                 <span>บันทึกรายการตรวจสอบ ({type})</span>
               </button>
             )}
@@ -1236,8 +1243,8 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
               <div className="w-14 h-14 bg-[#E8F3F2] text-[#5A8A88] rounded-full flex items-center justify-center mx-auto mb-3">
                 <AlertCircle size={28} />
               </div>
-              <h3 className="text-[16px] font-bold text-[#2D4A49] mb-1.5">ยืนยันการบันทึกรายการ?</h3>
-              <p className="text-[12px] text-[#6B8F8E] mb-5">
+              <h3 className="text-[15px] font-bold text-[#2D4A49] mb-1.5">ยืนยันการบันทึกรายการ?</h3>
+              <p className="text-[11px] text-[#6B8F8E] mb-5">
                 {isAllChecked 
                   ? 'คุณได้ตรวจสอบครบทุกรายการแล้ว ต้องการบันทึกข้อมูลใช่หรือไม่?' 
                   : `คุณยังตรวจสอบไม่ครบ (ตรวจสอบแล้ว ${checkedItems}/${totalItems} รายการ) ต้องการบันทึกข้อมูลใช่หรือไม่?`}
@@ -1247,14 +1254,14 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
                 <button
                   type="button"
                   onClick={() => setShowConfirm(false)}
-                  className="px-4 py-2.5 bg-[#F0F5F4] text-[#6B8F8E] hover:text-[#2D4A49] rounded-xl text-[12px] font-semibold hover:bg-[#E2EAE9] transition-colors cursor-pointer"
+                  className="px-3.5 h-[32px] bg-[#F0F5F4] text-[#2D4A49] rounded-[8px] border border-[#D4E4E3] text-[11px] sm:text-[12px] font-[600] hover:bg-[#E8F3F2] transition-colors cursor-pointer"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="button"
                   onClick={confirmSubmit}
-                  className="px-4 py-2.5 bg-[#5A8A88] text-white rounded-xl text-[12px] font-semibold hover:bg-[#4A7A78] transition-colors shadow-xs cursor-pointer"
+                  className="px-3.5 h-[32px] bg-[#2D4A49] text-white rounded-[8px] text-[11px] sm:text-[12px] font-[600] hover:bg-[#203635] transition-colors shadow-xs cursor-pointer"
                 >
                   ยืนยันบันทึก
                 </button>
