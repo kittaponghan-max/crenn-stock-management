@@ -2839,12 +2839,12 @@ export default function App() {
         ) : (
           <>
             {/* ── HEADER CARD (Matches DailyBakeryRecord Layout & Style) ── */}
-            <div className="bg-white rounded-xl shadow-xs border border-[#D4E4E3] border-t-2 border-t-[#5A8A88] p-3 sm:p-4 mb-3">
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-4 sm:p-5 mb-3">
               {/* ROW 1: Title (left) + Period Navigation (right) */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
                 {/* LEFT: Icon + Title + Badge + Subtitle */}
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0 p-2">
+                  <div className="w-9 h-9 rounded-[10px] bg-[#E8F3F2] flex items-center justify-center text-[#5A8A88] border border-[#D4E4E3]/50 shadow-xs shrink-0">
                     {activeTab === 'barStock' ? <Package size={18} /> : <UtensilsCrossed size={18} />}
                   </div>
                   <div className="flex flex-col">
@@ -2890,7 +2890,7 @@ export default function App() {
                     <ChevronLeft size={14} />
                   </button>
 
-                  <span className="text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 py-[6px] rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs">
+                  <span className="h-[30px] inline-flex items-center text-[11px] font-[600] text-[#2D4A49] bg-[#E8F3F2] px-3 rounded-[8px] border border-[#D4E4E3]/40 whitespace-nowrap shadow-2xs tabular-nums">
                     สัปดาห์: {format(stockWeek, 'd MMM', { locale: th })} - {format(addDays(stockWeek, 6), 'd MMM yyyy', { locale: th })}
                   </span>
 
@@ -2930,7 +2930,7 @@ export default function App() {
                           setStockActiveChunkIdx(0);
                         }
                       }}
-                      className="appearance-none bg-[#F8FAF9] hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-[600] rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
+                      className="appearance-none bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] hover:border-[#5A8A88] text-[#2D4A49] text-[11px] font-medium rounded-[8px] pl-3 pr-8 py-[6px] h-[32px] outline-none focus:ring-1 focus:ring-[#5A8A88] focus:border-[#5A8A88] transition-colors cursor-pointer shadow-2xs"
                     >
                       <option value="1day">1 วัน</option>
                       <option value="2days">2 วัน</option>
@@ -3298,44 +3298,44 @@ export default function App() {
                 พบรายการวัตถุดิบทั้งหมด <span className="font-bold text-emerald-600">{importPreviewData.length}</span> รายการ ตรวจสอบความถูกต้องและปรับแต่งข้อมูลก่อนยืนยันนำเข้า
               </p>
               
-              <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white shadow-inner">
-                <table className="w-full text-left text-sm border-collapse min-w-[1100px]">
-                  <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[200px]">รายการสินค้า</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[120px]">ยี่ห้อ</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[130px]">หมวดหมู่</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[120px]">ขนาด</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[100px]">หน่วยนับ</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 text-right min-w-[100px]">คงเหลือขั้นต่ำ</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 text-right min-w-[100px]">สั่งซื้อขั้นต่ำ</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[160px]">ผู้จัดจำหน่าย</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 min-w-[100px]">แผนก</th>
-                      <th className="p-3 font-semibold text-slate-700 border-b border-slate-200 text-center min-w-[100px] sticky right-0 bg-slate-100 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">การจัดการ</th>
+              <div className="border border-[#D4E4E3] rounded-xl overflow-x-auto bg-white shadow-inner">
+                <table className="w-full text-left text-[11px] sm:text-[12px] border-collapse min-w-[1100px]">
+                  <thead className="bg-[#2D4A49] text-white sticky top-0 z-10 shadow-sm text-[10px] sm:text-[11px] font-semibold">
+                    <tr className="divide-x divide-[#3D6B69]">
+                      <th className="p-3 min-w-[200px]">รายการสินค้า</th>
+                      <th className="p-3 min-w-[120px]">ยี่ห้อ</th>
+                      <th className="p-3 min-w-[130px]">หมวดหมู่</th>
+                      <th className="p-3 min-w-[120px]">ขนาด</th>
+                      <th className="p-3 min-w-[100px]">หน่วยนับ</th>
+                      <th className="p-3 text-right min-w-[100px]">คงเหลือขั้นต่ำ</th>
+                      <th className="p-3 text-right min-w-[100px]">สั่งซื้อขั้นต่ำ</th>
+                      <th className="p-3 min-w-[160px]">ผู้จัดจำหน่าย</th>
+                      <th className="p-3 min-w-[100px]">แผนก</th>
+                      <th className="p-3 text-center min-w-[100px] sticky right-0 bg-[#2D4A49] shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.2)]">การจัดการ</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[#D4E4E3] text-[#2D4A49]">
                     {importPreviewData.slice(0, 100).map((ing, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                        <td className="p-3 text-slate-800 font-medium truncate max-w-[250px]" title={ing.name}>
+                      <tr key={idx} className="hover:bg-[#F4F9F8] transition-colors group">
+                        <td className="p-3 font-medium truncate max-w-[250px]" title={ing.name}>
                           {ing.name}
                         </td>
-                        <td className="p-3 text-slate-600 truncate max-w-[120px]" title={ing.brand || ''}>
+                        <td className="p-3 text-[#6B8F8E] truncate max-w-[120px]" title={ing.brand || ''}>
                           {ing.brand || <span className="text-slate-300">-</span>}
                         </td>
-                        <td className="p-3 text-slate-600">
+                        <td className="p-3 text-[#6B8F8E]">
                           {ing.category}
                         </td>
-                        <td className="p-3 text-slate-600">
+                        <td className="p-3 text-[#6B8F8E]">
                           {ing.sizePerUnit}
                         </td>
-                        <td className="p-3 text-slate-600 font-medium">
+                        <td className="p-3 font-medium">
                           {ing.unit}
                         </td>
-                        <td className="p-3 text-slate-600 text-right font-mono font-medium">
+                        <td className="p-3 text-right font-mono font-medium tabular-nums">
                           {ing.minStock}
                         </td>
-                        <td className="p-3 text-slate-600 text-right font-mono font-medium">
+                        <td className="p-3 text-right font-mono font-medium tabular-nums">
                           {ing.minOrder}
                         </td>
                         <td className="p-3 text-slate-600 truncate max-w-[180px]" title={ing.supplier || ''}>
