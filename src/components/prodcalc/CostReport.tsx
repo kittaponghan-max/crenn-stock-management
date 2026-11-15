@@ -111,12 +111,12 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
       >
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[12px]">📊</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-[12px] font-bold tracking-tight">
+            <span className="text-[15px]">📊</span>
+            <h1 style={{ color: '#1E3D52' }} className="text-[15px] font-[700] tracking-tight">
               รายงานวิเคราะห์ต้นทุนและผลกำไร (Cost & Profit Reports)
             </h1>
           </div>
-          <p style={{ color: '#4A7592' }} className="text-[9.5px] mt-0.5 font-normal leading-relaxed">
+          <p style={{ color: '#4A7592' }} className="text-[11px] mt-0.5 font-normal leading-relaxed">
             ภาพรวมการจัดอันดับสินค้าตามความคุ้มค่า สัดส่วนต้นทุนวัตถุดิบ และประมาณการกำไร
           </p>
         </div>
@@ -126,13 +126,13 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
             onClick={handleExportExcel}
             style={{
               background: '#FFFFFF',
-              border: '1.5px solid #C8E3F0',
+              border: '1px solid #C8E3F0',
               color: '#1E5A7A'
             }}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 h-[32px] px-3 rounded-[8px] text-[11px] font-[500] hover:bg-[#EEF6FB] transition-colors cursor-pointer"
           >
             <Download size={13} />
-            <span>ส่งออก Excel</span>
+            <span>Excel (.xlsx)</span>
           </button>
 
           <button
@@ -141,10 +141,10 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
               background: '#5BA4C8',
               color: '#FFFFFF'
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
           >
             <Printer size={13} />
-            <span>พิมพ์รายงาน</span>
+            <span>PDF / พิมพ์</span>
           </button>
         </div>
       </div>
@@ -317,17 +317,17 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ background: '#F8FCFE', border: '1px solid #C8E3F0' }}
-              className="w-full pl-8 pr-2.5 py-1 rounded-lg text-[11px] outline-none focus:border-[#5BA4C8]"
+              className="w-full h-[32px] pl-8 pr-2.5 rounded-[8px] text-[11px] outline-none focus:border-[#5BA4C8]"
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[10.5px] text-[#4A7592]">
+          <div className="flex items-center gap-2 text-[11px] text-[#4A7592]">
             <span>จัดเรียงตาม:</span>
             <select
               value={sortField}
               onChange={(e) => setSortField(e.target.value as any)}
               style={{ border: '1px solid #C8E3F0' }}
-              className="px-2 py-0.5 rounded-lg text-[10.5px] outline-none bg-white cursor-pointer"
+              className="h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium text-[#1E3D52] outline-none bg-white cursor-pointer"
             >
               <option value="profit_pct">อัตรากำไร %</option>
               <option value="profit_per_piece">กำไรบาท/ชิ้น</option>
@@ -337,7 +337,7 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
             <button
               onClick={() => setSortAsc(!sortAsc)}
               style={{ border: '1px solid #C8E3F0' }}
-              className="p-1 rounded-lg hover:bg-[#EEF6FB] cursor-pointer"
+              className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] hover:bg-[#EEF6FB] cursor-pointer"
               title="สลับลำดับ มาก/น้อย"
             >
               <ArrowUpDown size={13} />
@@ -346,18 +346,18 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[10.5px] border-collapse">
+          <table className="w-full text-left text-[11px] sm:text-[12px] border-collapse">
             <thead>
-              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px]">
-                <th className="py-2 px-3 w-12 text-center">อันดับ</th>
-                <th className="py-2 px-3 min-w-[140px]">ชื่อสินค้า/สูตร</th>
-                <th className="py-2 px-3 min-w-[90px]">หมวดหมู่</th>
-                <th className="py-2 px-3 text-center">ผลิตได้ (ชิ้น)</th>
-                <th className="py-2 px-3 text-right">ต้นทุนรวมสูตร</th>
-                <th className="py-2 px-3 text-right">ต้นทุน/ชิ้น</th>
-                <th className="py-2 px-3 text-right">ราคาขาย</th>
-                <th className="py-2 px-3 text-right">กำไร/ชิ้น</th>
-                <th className="py-2 px-3 text-center font-bold">อัตรากำไร (%)</th>
+              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px] sm:text-[11px]">
+                <th className="py-2.5 px-3 w-12 text-center">อันดับ</th>
+                <th className="py-2.5 px-3 min-w-[140px]">ชื่อสินค้า/สูตร</th>
+                <th className="py-2.5 px-3 min-w-[90px]">หมวดหมู่</th>
+                <th className="py-2.5 px-3 text-center">ผลิตได้ (ชิ้น)</th>
+                <th className="py-2.5 px-3 text-right">ต้นทุนรวมสูตร</th>
+                <th className="py-2.5 px-3 text-right">ต้นทุน/ชิ้น</th>
+                <th className="py-2.5 px-3 text-right">ราคาขาย</th>
+                <th className="py-2.5 px-3 text-right">กำไร/ชิ้น</th>
+                <th className="py-2.5 px-3 text-center font-bold">อัตรากำไร (%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E4F1F8]">
