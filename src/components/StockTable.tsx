@@ -585,7 +585,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       : cn("sticky z-20 w-[200px] min-w-[180px] max-w-[280px] shadow-[4px_0_8px_-2px_rgba(90,138,136,0.06)]", showManageCol ? "left-[112px]" : "left-[48px]")
                   )}>
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <div className={cn("truncate text-[10px] font-medium", isObsolete ? "text-[#8BA3A2] line-through decoration-dotted" : "text-[#2D4A49]")} title={item.name}>
+                      <div className={cn("truncate text-[11px] font-medium", isObsolete ? "text-[#8BA3A2] line-through decoration-dotted" : "text-[#2D4A49]")} title={item.name}>
                         {item.name}
                       </div>
                       {isObsolete && (
@@ -618,7 +618,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       "px-1 py-1.5 border-r border-[#D4E4E3] text-center bg-inherit",
                       isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
                     )}>
-                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#B8D4D2] inline-block">
+                      <span className="bg-[#E8F3F2] text-[#5A8A88] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#B8D4D2] inline-block tabular-nums">
                         {item.minStock} {item.min_stock_unit || item.unit}
                       </span>
                     </td>
@@ -628,7 +628,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                       "px-1 py-1.5 border-r border-[#D4E4E3] text-center bg-inherit",
                       isSingleDay ? "w-[68px] min-w-[65px] max-w-[72px]" : "w-[80px] min-w-[80px] max-w-[80px]"
                     )}>
-                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#FDE68A] inline-block">
+                      <span className="bg-[#FEF3C7] text-[#F59E0B] px-1.5 py-0.5 rounded-md text-[10px] font-semibold border border-[#FDE68A] inline-block tabular-nums">
                         {item.minOrder} {item.min_order_unit || item.unit}
                       </span>
                     </td>
