@@ -1,26 +1,38 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ProdcalcIngredientPrice, SourcingOption } from '../../types/prodcalc';
-import { 
-  Search, 
-  RefreshCw, 
-  Star, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Check, 
-  X, 
-  ChevronDown, 
-  ChevronUp, 
-  Layers, 
-  DollarSign, 
-  Percent, 
+import {
+  Search,
+  RefreshCw,
+  Star,
+  Plus,
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp,
   Sparkles,
-  HelpCircle,
   AlertTriangle,
   CheckCircle2,
-  Package
+  Package,
+  FlaskConical,
+  Filter,
+  Save
 } from 'lucide-react';
+import {
+  PageHeaderBanner,
+  StandardDropdown,
+  StandardTableCard,
+  StandardTable,
+  StandardThead,
+  StandardHeaderRow,
+  StandardTh,
+  StandardTbody,
+  StandardTr,
+  StandardTd,
+  StandardTableEmpty
+} from '../ui';
 
 interface IngredientPricingProps {
   currentBranch: string;
@@ -395,241 +407,180 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
     return Array.from(set);
   }, [items]);
 
+  const categoryOptions = useMemo(() => [
+    { value: 'ALL', label: 'ทุกหมวดหมู่', count: items.length },
+    ...categories.map(cat => ({
+      value: cat,
+      label: cat,
+      count: items.filter(i => i.category === cat).length
+    }))
+  ], [categories, items]);
+
   return (
     <div className="space-y-4">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* HEADER CARD */}
+      {/* HEADER BANNER & FILTER TOOLBAR */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1.5px solid #C8E3F0',
-          borderRadius: '16px',
-          padding: '14px 18px',
-          boxShadow: '0 4px 20px rgba(90, 164, 200, 0.08)'
-        }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-      >
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[15px]">🧪</span>
-            <h1 style={{ color: '#1E3D52' }} className="text-[15px] font-[700] tracking-tight">
-              รายการวัตถุดิบ (Ingredient Pricing)
-            </h1>
-          </div>
-          <p style={{ color: '#4A7592' }} className="text-[11px] mt-0.5 font-normal leading-relaxed">
-            ดึงข้อมูลจาก Cafe Management System &nbsp;·&nbsp; อัปเดต Yield และราคาจากแหล่งจัดซื้อเพื่อคำนวณต้นทุน
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <span 
-            style={{ 
-              background: '#EEF6FB', 
-              color: '#1E5A7A',
-              border: '1px solid #C8E3F0' 
-            }}
-            className="text-[10px] font-[600] px-2.5 py-1 rounded-[5px] flex items-center gap-1.5"
-          >
-            <span>📍 สาขา: {currentBranch}</span>
-          </span>
-
-          {!isReadOnly && (
+      <PageHeaderBanner
+        variant="sub"
+        icon={<FlaskConical size={18} />}
+        title="รายการวัตถุดิบ (Ingredient Pricing)"
+        branchLabel={`สาขา: ${currentBranch}`}
+        subtitle="ดึงข้อมูลจาก Cafe Management System · อัปเดต Yield และราคาจากแหล่งจัดซื้อเพื่อคำนวณต้นทุน"
+        actions={
+          !isReadOnly ? (
             <button
+              type="button"
               onClick={() => syncWithCMS(items)}
               disabled={isSyncing}
-              style={{
-                background: '#5BA4C8',
-                color: '#FFFFFF'
-              }}
-              className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-[600] shadow-xs hover:bg-[#3D7FA3] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 h-[32px] px-3.5 rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
               <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
               <span>{isSyncing ? 'กำลัง Sync...' : 'Sync จาก CMS'}</span>
             </button>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-2.5 w-full">
+            <div className="flex items-center gap-2 flex-1 min-w-[220px] flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B8F8E] pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อวัตถุดิบ หรือยี่ห้อ..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full h-[32px] pl-8 pr-2.5 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] outline-none focus:border-[#5A8A88] transition-colors"
+                />
+              </div>
+
+              {categories.length > 0 && (
+                <StandardDropdown
+                  options={categoryOptions}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  leadingIcon={<Filter size={12} />}
+                  ariaLabel="กรองตามหมวดหมู่"
+                />
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-[#2D4A49] font-medium">
+              <input
+                type="checkbox"
+                checked={showPricedOnly}
+                onChange={(e) => setShowPricedOnly(e.target.checked)}
+                className="w-3.5 h-3.5 rounded accent-[#5A8A88] border-[#D4E4E3] focus:ring-0 cursor-pointer"
+              />
+              <span className="tabular-nums">แสดงเฉพาะที่ตั้งราคาแล้ว ({items.filter(i => i.effective_cost_per_unit > 0).length})</span>
+            </label>
+          </div>
+        }
+      />
 
       {/* Sync Toast Notification */}
       {syncMessage && (
-        <div 
-          style={{ background: '#EEF6FB', border: '1px solid #5BA4C8', color: '#1E5A7A' }}
-          className="p-2.5 rounded-xl text-[10.5px] font-medium flex items-center justify-between animate-in fade-in duration-200"
-        >
+        <div className="bg-[#E8F3F2] border border-[#5A8A88]/60 text-[#2D4A49] p-2.5 rounded-xl text-[11px] font-medium flex items-center justify-between animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={14} color="#5BA4C8" />
+            <CheckCircle2 size={14} className="text-[#5A8A88] shrink-0" />
             <span>{syncMessage}</span>
           </div>
-          <button onClick={() => setSyncMessage(null)} className="text-[#4A7592] hover:text-[#1E3D52] cursor-pointer">
+          <button type="button" onClick={() => setSyncMessage(null)} className="text-[#6B8F8E] hover:text-[#2D4A49] cursor-pointer">
             <X size={13} />
           </button>
         </div>
       )}
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {/* FILTER & SEARCH BAR */}
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1px solid #C8E3F0',
-          borderRadius: '12px',
-          padding: '10px 14px'
-        }}
-        className="flex flex-wrap items-center justify-between gap-2.5"
-      >
-        <div className="flex items-center gap-2 flex-1 min-w-[220px]">
-          <div className="relative flex-1">
-            <Search size={13} color="#4A7592" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="ค้นหาชื่อวัตถุดิบ หรือยี่ห้อ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                background: '#F8FCFE',
-                border: '1px solid #C8E3F0',
-                color: '#1E3D52'
-              }}
-              className="w-full h-[32px] pl-8 pr-2.5 rounded-[8px] text-[11px] outline-none focus:border-[#5BA4C8] transition-colors"
-            />
-          </div>
-
-          {categories.length > 0 && (
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              style={{
-                background: '#FFFFFF',
-                border: '1px solid #C8E3F0',
-                color: '#1E3D52'
-              }}
-              className="h-[32px] px-2.5 rounded-[8px] text-[11px] font-medium outline-none cursor-pointer"
-            >
-              <option value="ALL">ทุกหมวดหมู่ ({items.length})</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <label className="flex items-center gap-2 cursor-pointer select-none text-[10.5px] text-[#1E3D52] font-medium">
-          <input
-            type="checkbox"
-            checked={showPricedOnly}
-            onChange={(e) => setShowPricedOnly(e.target.checked)}
-            className="w-3.5 h-3.5 rounded text-[#5BA4C8] border-[#C8E3F0] focus:ring-0 cursor-pointer"
-          />
-          <span>แสดงเฉพาะที่ตั้งราคาแล้ว ({items.filter(i => i.effective_cost_per_unit > 0).length})</span>
-        </label>
-      </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* TABLE */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div 
-        style={{
-          background: '#FFFFFF',
-          border: '1.5px solid #C8E3F0',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 20px rgba(90, 164, 200, 0.06)'
-        }}
-      >
+      <StandardTableCard>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[10.5px] border-collapse">
-            <thead>
-              <tr style={{ background: '#1E5A7A', color: '#FFFFFF' }} className="font-semibold select-none text-[10px] sm:text-[11px]">
-                <th className="py-2.5 px-3 w-12 text-center">รูป</th>
-                <th className="py-2.5 px-3 min-w-[150px]">ชื่อวัตถุดิบ (CMS)</th>
-                <th className="py-2.5 px-3 min-w-[90px]">ยี่ห้อ</th>
-                <th className="py-2.5 px-3 min-w-[120px]">ขนาดต่อหน่วย (CMS)</th>
-                <th className="py-2.5 px-3 min-w-[240px]">Sourcing (แหล่งราคา)</th>
-                <th className="py-2.5 px-3 min-w-[80px] text-center">Yield %</th>
-                <th className="py-2.5 px-3 min-w-[120px] text-right">ต้นทุนจริง/หน่วย</th>
-                {!isReadOnly && <th className="py-2.5 px-3 w-20 text-center">จัดการ</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E4F1F8]">
+          <StandardTable>
+            <StandardThead sticky={false}>
+              <StandardHeaderRow>
+                <StandardTh align="center" className="w-12">รูป</StandardTh>
+                <StandardTh className="min-w-[150px]">ชื่อวัตถุดิบ (CMS)</StandardTh>
+                <StandardTh className="min-w-[90px]">ยี่ห้อ</StandardTh>
+                <StandardTh className="min-w-[120px]">ขนาดต่อหน่วย (CMS)</StandardTh>
+                <StandardTh className="min-w-[240px]">Sourcing (แหล่งราคา)</StandardTh>
+                <StandardTh align="center" className="min-w-[80px]">Yield %</StandardTh>
+                <StandardTh align="right" className="min-w-[120px]">ต้นทุนจริง/หน่วย</StandardTh>
+                {!isReadOnly && <StandardTh align="center" className="w-20">จัดการ</StandardTh>}
+              </StandardHeaderRow>
+            </StandardThead>
+            <StandardTbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#4A7592]">
+                  <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#6B8F8E]">
                     <div className="flex flex-col items-center gap-2">
-                      <RefreshCw size={20} className="animate-spin text-[#5BA4C8]" />
+                      <RefreshCw size={20} className="animate-spin text-[#5A8A88]" />
                       <span className="text-[11px]">กำลังโหลดข้อมูลวัตถุดิบ...</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#4A7592]">
-                    <Package size={28} className="mx-auto mb-1.5 text-[#90C4DC]" />
-                    <p className="font-medium text-[11px]">ไม่พบรายการวัตถุดิบ</p>
-                    {!isReadOnly && (
-                      <p className="text-[9.5px] text-[#90C4DC] mt-0.5">กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก</p>
-                    )}
-                  </td>
-                </tr>
+                <StandardTableEmpty
+                  colSpan={isReadOnly ? 7 : 8}
+                  icon={<Package size={22} />}
+                  title="ไม่พบรายการวัตถุดิบ"
+                  description={!isReadOnly ? 'กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก' : undefined}
+                />
               ) : (
                 filteredItems.map((item, index) => {
                   const defaultSource = item.sourcing.find(s => s.is_default) || item.sourcing[0];
                   const hasPrice = item.effective_cost_per_unit > 0;
                   const isExpanded = expandedId === item.id;
-                  const rowBg = index % 2 === 0 ? '#FFFFFF' : '#F8FCFE';
+                  const rowBg = index % 2 === 0 ? 'bg-white' : 'bg-[#F8FCFC]';
 
                   return (
                     <React.Fragment key={item.id}>
-                      <tr 
-                        style={{ background: rowBg }}
-                        className="hover:bg-[#EEF6FB]/60 transition-colors"
-                      >
+                      <StandardTr className={rowBg}>
                         {/* Image */}
-                        <td className="py-2 px-3 text-center">
+                        <StandardTd align="center">
                           {item.image ? (
-                            <img 
-                              src={item.image} 
+                            <img
+                              src={item.image}
                               alt={item.ingredient_name}
-                              className="w-7 h-7 rounded-lg object-cover mx-auto border border-[#C8E3F0]"
+                              className="w-7 h-7 rounded-lg object-cover mx-auto border border-[#D4E4E3]"
                             />
                           ) : (
-                            <div className="w-7 h-7 rounded-lg bg-[#EEF6FB] flex items-center justify-center mx-auto text-[10px] text-[#5BA4C8]">
-                              🧪
+                            <div className="w-7 h-7 rounded-lg bg-[#E8F3F2] border border-[#D4E4E3]/60 flex items-center justify-center mx-auto text-[#5A8A88]">
+                              <FlaskConical size={13} />
                             </div>
                           )}
-                        </td>
+                        </StandardTd>
 
                         {/* Name */}
-                        <td className="py-2 px-3">
-                          <div className="font-semibold text-[#1E3D52] text-[11px]">{item.ingredient_name}</div>
+                        <StandardTd>
+                          <div className="font-semibold text-[#2D4A49] text-[11px] sm:text-[12px]">{item.ingredient_name}</div>
                           {item.category && (
-                            <span className="text-[9px] text-[#4A7592] bg-[#EEF6FB] px-1.5 py-0.2 rounded border border-[#C8E3F0]/60 inline-block mt-0.5">
+                            <span className="text-[9.5px] text-[#6B8F8E] bg-[#F0F5F4] px-1.5 py-0.5 rounded border border-[#D4E4E3] inline-block mt-0.5">
                               {item.category}
                             </span>
                           )}
-                        </td>
+                        </StandardTd>
 
                         {/* Brand */}
-                        <td className="py-2 px-3 text-[#4A7592] text-[10.5px]">
+                        <StandardTd className="text-[#6B8F8E] text-[11px]">
                           {item.ingredient_brand || '-'}
-                        </td>
+                        </StandardTd>
 
                         {/* Size Per Unit */}
-                        <td className="py-2 px-3 text-[#1E3D52]">
-                          <span className="font-mono text-[10.5px] font-medium">{item.size_per_unit || item.ingredient_unit}</span>
-                        </td>
+                        <StandardTd numeric className="text-[#2D4A49] font-medium text-[11px]">
+                          {item.size_per_unit || item.ingredient_unit}
+                        </StandardTd>
 
                         {/* Sourcing */}
-                        <td className="py-2 px-3">
+                        <StandardTd>
                           <div className="flex items-center justify-between gap-2">
                             {defaultSource && defaultSource.price > 0 ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-[#1E3D52] text-[10.5px]">{defaultSource.source_name}:</span>
-                                <span className="font-bold text-[#1E5A7A] font-mono text-[11px]">฿{defaultSource.price.toLocaleString()}</span>
-                                <span className="text-[10px] text-[#4A7592]">/{defaultSource.qty} {defaultSource.unit}</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-[#2D4A49] text-[11px]">{defaultSource.source_name}:</span>
+                                <span className="font-bold text-[#2D4A49] tabular-nums text-[11.5px]">฿{defaultSource.price.toLocaleString()}</span>
+                                <span className="text-[10px] text-[#6B8F8E] tabular-nums">/{defaultSource.qty} {defaultSource.unit}</span>
                                 {item.sourcing.length > 1 && (
-                                  <span className="text-[9.5px] bg-[#EEF6FB] text-[#3D7FA3] px-1.5 py-0.5 rounded-full font-bold">
+                                  <span className="text-[9.5px] bg-[#E8F3F2] text-[#5A8A88] border border-[#D4E4E3] px-1.5 py-0.5 rounded-full font-bold tabular-nums">
                                     +{item.sourcing.length - 1}
                                   </span>
                                 )}
@@ -642,18 +593,18 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                             )}
 
                             <button
+                              type="button"
                               onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                              style={{ border: '1px solid #C8E3F0' }}
-                              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-[#4A7592] hover:bg-[#EEF6FB] hover:text-[#1E5A7A] transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                              className="h-[28px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-white text-[10.5px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] hover:border-[#5A8A88] hover:text-[#2D4A49] transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                             >
                               <span>{isExpanded ? 'ซ่อน' : (isReadOnly ? 'ดูแหล่งราคา' : 'จัดการแหล่ง')}</span>
-                              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                              {isExpanded ? <ChevronUp size={11} className="text-[#5A8A88]" /> : <ChevronDown size={11} className="text-[#5A8A88]" />}
                             </button>
                           </div>
-                        </td>
+                        </StandardTd>
 
                         {/* Yield % */}
-                        <td className="py-2 px-3 text-center">
+                        <StandardTd align="center">
                           <div className="inline-flex items-center justify-center gap-1">
                             <input
                               type="number"
@@ -666,76 +617,69 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                 const val = Math.min(100, Math.max(1, Number(e.target.value) || 100));
                                 handleUpdateItem({ ...item, yield_pct: val });
                               }}
-                              style={{
-                                border: '1px solid #C8E3F0',
-                                color: item.yield_pct === 100 ? '#22C55E' : item.yield_pct >= 70 ? '#1E3D52' : '#F59E0B'
-                              }}
-                              className="w-12 text-center py-0.5 rounded-md text-[11px] font-bold font-mono outline-none focus:border-[#5BA4C8] disabled:bg-slate-50 disabled:cursor-not-allowed"
+                              className={`w-12 h-[28px] text-center rounded-[6px] border border-[#D4E4E3] text-[11px] font-bold tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed ${
+                                item.yield_pct === 100 ? 'text-emerald-600' : item.yield_pct >= 70 ? 'text-[#2D4A49]' : 'text-amber-600'
+                              }`}
                             />
-                            <span className="text-[10px] text-[#4A7592] font-semibold">%</span>
+                            <span className="text-[10px] text-[#6B8F8E] font-semibold">%</span>
                           </div>
-                        </td>
+                        </StandardTd>
 
                         {/* Effective Cost Per Unit */}
-                        <td className="py-2 px-3 text-right">
+                        <StandardTd align="right">
                           {hasPrice ? (
-                            <div 
-                              style={{ 
-                                background: '#EEF6FB', 
-                                border: '1px solid #C8E3F0',
-                                color: '#1E5A7A' 
-                              }}
-                              className="inline-block px-2 py-0.5 rounded-lg text-right"
-                            >
-                              <div className="font-black text-[12px] font-mono">
+                            <div className="inline-block px-2.5 py-1 rounded-[8px] text-right bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49]">
+                              <div className="font-black text-[12px] tabular-nums">
                                 ฿ {item.effective_cost_per_unit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
-                              <div className="text-[9px] text-[#4A7592]">
+                              <div className="text-[9.5px] text-[#6B8F8E]">
                                 ต่อ {defaultSource?.unit || item.ingredient_unit}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[#90C4DC] font-mono text-[10.5px]">-</span>
+                            <span className="text-[#A8BCBB] tabular-nums text-[11px]">-</span>
                           )}
-                        </td>
+                        </StandardTd>
 
                         {/* Actions */}
                         {!isReadOnly && (
-                          <td className="py-2 px-3 text-center">
+                          <StandardTd align="center">
                             <div className="flex items-center justify-center gap-1">
                               <button
+                                type="button"
                                 onClick={() => setEditingItem(item)}
                                 title="แก้ไขราคาและแหล่งซื้อ"
-                                className="p-1 rounded-lg text-[#3D7FA3] hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+                                className="w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer"
                               >
                                 <Edit3 size={13} />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleResetPricing(item)}
                                 title="ล้างข้อมูลราคาใน ProdCalc"
-                                className="p-1 rounded-lg text-[#EF4444] hover:bg-rose-50 transition-colors cursor-pointer"
+                                className="w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                               >
                                 <Trash2 size={13} />
                               </button>
                             </div>
-                          </td>
+                          </StandardTd>
                         )}
-                      </tr>
+                      </StandardTr>
 
                       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                       {/* EXPANDED SOURCING PANEL */}
                       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                       {isExpanded && (
-                        <tr style={{ background: '#F8FCFE' }}>
-                          <td colSpan={isReadOnly ? 7 : 8} className="p-3 border-t border-b border-[#C8E3F0]">
-                            <div className="bg-white p-3 rounded-xl border border-[#C8E3F0] space-y-2.5">
+                        <tr className="bg-[#F8FCFC]">
+                          <td colSpan={isReadOnly ? 7 : 8} className="p-3 border-t border-b border-[#D4E4E3]">
+                            <div className="bg-white p-3.5 rounded-xl border border-[#D4E4E3] space-y-2.5">
                               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-bold text-[#1E3D52] text-[11px]">
-                                    🛒 แหล่งจัดซื้อ (Sourcing Options) สำหรับ: {item.ingredient_name}
+                                  <span className="font-bold text-[#2D4A49] text-[11.5px]">
+                                    แหล่งจัดซื้อ (Sourcing Options) สำหรับ: {item.ingredient_name}
                                   </span>
                                   {!isReadOnly && (
-                                    <span className="text-[9.5px] text-[#4A7592] bg-[#EEF6FB] px-2 py-0.5 rounded-full border border-[#C8E3F0]">
+                                    <span className="text-[10px] text-[#6B8F8E] bg-[#E8F3F2] px-2 py-0.5 rounded-[5px] border border-[#D4E4E3]">
                                       คลิก ⭐ เพื่อเลือกเป็นราคาหลัก (ระบบจะเลือกรายการราคาสูงสุดให้อัตโนมัติ)
                                     </span>
                                   )}
@@ -743,21 +687,6 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
 
                                 {!isReadOnly && (
                                   <div className="flex items-center gap-2 self-end sm:self-center">
-                                    {/* ปุ่ม บันทึก (Save button) */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        handleUpdateItem(item);
-                                        setExpandedId(null);
-                                      }}
-                                      style={{ background: '#5A8A88', color: '#FFFFFF' }}
-                                      className="px-3 py-1 rounded-xl text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-[#476E6C] active:scale-95 transition-all shadow-xs cursor-pointer"
-                                      title="บันทึกข้อมูลแหล่งจัดซื้อ"
-                                    >
-                                      <Check size={12} />
-                                      <span>บันทึก</span>
-                                    </button>
-
                                     {/* ปุ่ม เพิ่มแหล่งซื้อ */}
                                     <button
                                       type="button"
@@ -775,36 +704,49 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                           sourcing: [...item.sourcing, newSource]
                                         });
                                       }}
-                                      style={{ background: '#EEF6FB', color: '#1E5A7A', border: '1px solid #5BA4C8' }}
-                                      className="px-3 py-1 rounded-xl text-[10.5px] font-semibold flex items-center gap-1.5 hover:bg-[#5BA4C8] hover:text-white transition-all cursor-pointer"
+                                      className="h-[32px] px-3 rounded-[8px] bg-[#E8F3F2] text-[#2D4A49] border border-[#5A8A88]/50 text-[11px] font-[600] flex items-center gap-1.5 hover:bg-[#5A8A88] hover:text-white transition-all cursor-pointer"
                                     >
                                       <Plus size={12} />
                                       <span>เพิ่มแหล่งซื้อ</span>
+                                    </button>
+
+                                    {/* ปุ่ม บันทึก (Save button) */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleUpdateItem(item);
+                                        setExpandedId(null);
+                                      }}
+                                      className="h-[32px] px-3.5 rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
+                                      title="บันทึกข้อมูลแหล่งจัดซื้อ"
+                                    >
+                                      <Save size={13} />
+                                      <span>บันทึก</span>
                                     </button>
                                   </div>
                                 )}
                               </div>
 
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-[10px]">
-                                  <thead>
-                                    <tr className="text-[#4A7592] border-b border-[#E4F1F8]">
-                                      <th className="py-1 px-2 w-14 text-center">ราคาหลัก</th>
-                                      <th className="py-1 px-2">ชื่อแหล่งซื้อ (Vendor/Store)</th>
-                                      <th className="py-1 px-2 w-24">ราคา (บาท)</th>
-                                      <th className="py-1 px-2 w-20">ปริมาณ</th>
-                                      <th className="py-1 px-2 w-24">หน่วย</th>
-                                      <th className="py-1 px-2 text-right">ต้นทุน/หน่วยดิบ</th>
-                                      <th className="py-1 px-2 w-8 text-center"></th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-[#F1F7FA]">
+                              <StandardTableCard>
+                                <StandardTable>
+                                  <StandardThead sticky={false}>
+                                    <StandardHeaderRow level="secondary">
+                                      <StandardTh align="center" className="w-16">ราคาหลัก</StandardTh>
+                                      <StandardTh>ชื่อแหล่งซื้อ (Vendor/Store)</StandardTh>
+                                      <StandardTh className="w-28">ราคา (บาท)</StandardTh>
+                                      <StandardTh className="w-24">ปริมาณ</StandardTh>
+                                      <StandardTh className="w-24">หน่วย</StandardTh>
+                                      <StandardTh align="right">ต้นทุน/หน่วยดิบ</StandardTh>
+                                      <StandardTh align="center" className="w-9"></StandardTh>
+                                    </StandardHeaderRow>
+                                  </StandardThead>
+                                  <StandardTbody>
                                     {item.sourcing.map((source, sIdx) => {
                                       const rawCost = source.qty > 0 ? source.price / source.qty : 0;
                                       return (
-                                        <tr key={source.id} className={source.is_default ? 'bg-[#EEF6FB]/40' : ''}>
+                                        <StandardTr key={source.id} className={source.is_default ? 'bg-[#E8F3F2]/50' : ''}>
                                           {/* Default Radio */}
-                                          <td className="py-1.5 px-2 text-center">
+                                          <StandardTd align="center">
                                             <button
                                               type="button"
                                               disabled={isReadOnly}
@@ -819,15 +761,15 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                               title={isReadOnly ? undefined : (source.is_default ? 'ราคานี้ถูกตั้งเป็นค่าเริ่มต้น' : 'คลิกเพื่อตั้งเป็นราคาเริ่มต้น')}
                                               className="p-0.5 text-amber-500 hover:scale-110 transition-transform cursor-pointer disabled:cursor-default disabled:hover:scale-100"
                                             >
-                                              <Star 
-                                                size={13} 
-                                                className={source.is_default ? 'fill-amber-400 text-amber-500' : 'text-slate-300'} 
+                                              <Star
+                                                size={13}
+                                                className={source.is_default ? 'fill-amber-400 text-amber-500' : 'text-slate-300'}
                                               />
                                             </button>
-                                          </td>
+                                          </StandardTd>
 
                                           {/* Source Name */}
-                                          <td className="py-1.5 px-2">
+                                          <StandardTd>
                                             <input
                                               type="text"
                                               disabled={isReadOnly}
@@ -839,15 +781,14 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                 updatedSourcing[sIdx].source_name = e.target.value;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
-                                              style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-2 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                              className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                             />
-                                          </td>
+                                          </StandardTd>
 
                                           {/* Price */}
-                                          <td className="py-1.5 px-2">
+                                          <StandardTd>
                                             <div className="relative">
-                                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">฿</span>
+                                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#6B8F8E] text-[10px]">฿</span>
                                               <input
                                                 type="number"
                                                 disabled={isReadOnly}
@@ -861,14 +802,13 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                   updatedSourcing[sIdx].price = Number(e.target.value) || 0;
                                                   handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                                 }}
-                                                style={{ border: '1px solid #C8E3F0' }}
-                                                className="w-full pl-5 pr-1.5 py-0.5 rounded text-[10.5px] font-mono font-bold outline-none focus:border-[#5BA4C8] bg-white text-right disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                                className="w-full h-[28px] pl-5 pr-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums font-bold outline-none focus:border-[#5A8A88] bg-white text-right disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                               />
                                             </div>
-                                          </td>
+                                          </StandardTd>
 
                                           {/* Qty */}
-                                          <td className="py-1.5 px-2">
+                                          <StandardTd>
                                             <input
                                               type="number"
                                               disabled={isReadOnly}
@@ -881,13 +821,12 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                 updatedSourcing[sIdx].qty = Number(e.target.value) || 1;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
-                                              style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-1.5 py-0.5 rounded text-[10px] font-mono outline-none focus:border-[#5BA4C8] bg-white text-center disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                              className="w-full h-[28px] px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white text-center disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                             />
-                                          </td>
+                                          </StandardTd>
 
                                           {/* Unit */}
-                                          <td className="py-1.5 px-2">
+                                          <StandardTd>
                                             <input
                                               type="text"
                                               disabled={isReadOnly}
@@ -898,18 +837,17 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                 updatedSourcing[sIdx].unit = e.target.value;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
-                                              style={{ border: '1px solid #C8E3F0' }}
-                                              className="w-full px-1.5 py-0.5 rounded text-[10px] outline-none focus:border-[#5BA4C8] bg-white text-center disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                              className="w-full h-[28px] px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white text-center disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                             />
-                                          </td>
+                                          </StandardTd>
 
                                           {/* Raw Cost */}
-                                          <td className="py-1.5 px-2 text-right font-mono font-semibold text-[#1E3D52] text-[10.5px]">
+                                          <StandardTd align="right" numeric className="font-semibold text-[#2D4A49]">
                                             ฿{rawCost.toFixed(2)}
-                                          </td>
+                                          </StandardTd>
 
                                           {/* Delete Source */}
-                                          <td className="py-1.5 px-2 text-center">
+                                          <StandardTd align="center">
                                             {!isReadOnly && item.sourcing.length > 1 && (
                                               <button
                                                 type="button"
@@ -925,13 +863,13 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                 <X size={12} />
                                               </button>
                                             )}
-                                          </td>
-                                        </tr>
+                                          </StandardTd>
+                                        </StandardTr>
                                       );
                                     })}
-                                  </tbody>
-                                </table>
-                              </div>
+                                  </StandardTbody>
+                                </StandardTable>
+                              </StandardTableCard>
                             </div>
                           </td>
                         </tr>
@@ -940,40 +878,40 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                   );
                 })
               )}
-            </tbody>
-          </table>
+            </StandardTbody>
+          </StandardTable>
         </div>
-      </div>
+      </StandardTableCard>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* EDIT MODAL */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {!isReadOnly && editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div 
-            style={{ border: '1.5px solid #C8E3F0' }}
-            className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between pb-2.5 border-b border-[#E4F1F8]">
+          <div className="bg-white border border-[#D4E4E3] rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#D4E4E3]">
               <div className="flex items-center gap-2">
-                <span className="text-[12px]">✏️</span>
-                <h3 className="font-bold text-[#1E3D52] text-[12px]">
+                <div className="w-7 h-7 rounded-[8px] bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center">
+                  <Edit3 size={14} />
+                </div>
+                <h3 className="font-bold text-[#2D4A49] text-[13px]">
                   แก้ไขราคาวัตถุดิบ: {editingItem.ingredient_name}
                 </h3>
               </div>
-              <button 
-                onClick={() => setEditingItem(null)} 
-                className="text-[#4A7592] hover:text-[#1E3D52] p-1 rounded-lg cursor-pointer"
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="w-[28px] h-[28px] flex items-center justify-center text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#F0F5F4] rounded-[8px] cursor-pointer"
               >
                 <X size={14} />
               </button>
             </div>
 
             {/* Yield Input */}
-            <div className="space-y-1">
-              <label className="block text-[10.5px] font-semibold text-[#1E3D52] flex items-center justify-between">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-[#2D4A49] flex items-center justify-between">
                 <span>Yield % (เปอร์เซ็นต์ที่ใช้งานได้จริงหลังเตรียม)</span>
-                <span className="text-[10px] font-normal text-[#4A7592]">
+                <span className="text-[11px] font-bold tabular-nums text-[#5A8A88]">
                   {editingItem.yield_pct}%
                 </span>
               </label>
@@ -984,7 +922,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                   max="100"
                   value={editingItem.yield_pct}
                   onChange={(e) => setEditingItem({ ...editingItem, yield_pct: Number(e.target.value) })}
-                  className="flex-1 accent-[#5BA4C8] cursor-pointer"
+                  className="flex-1 accent-[#5A8A88] cursor-pointer"
                 />
                 <input
                   type="number"
@@ -992,27 +930,23 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                   max="100"
                   value={editingItem.yield_pct}
                   onChange={(e) => setEditingItem({ ...editingItem, yield_pct: Math.min(100, Math.max(1, Number(e.target.value) || 100)) })}
-                  style={{ border: '1px solid #C8E3F0' }}
-                  className="w-14 text-center py-0.5 rounded text-[11px] font-bold font-mono outline-none"
+                  className="w-14 h-[30px] text-center rounded-[8px] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-bold tabular-nums outline-none focus:border-[#5A8A88]"
                 />
               </div>
-              <p className="text-[9.5px] text-[#4A7592]">
+              <p className="text-[10px] text-[#6B8F8E]">
                 เช่น มะม่วง 1 กก. หลังปอกเหลือ 800 กรัม = Yield 80% (ระบบจะปรับต้นทุนขึ้นให้สอดคล้องกับส่วนที่สูญเสีย)
               </p>
             </div>
 
             {/* Calculation Preview */}
-            <div 
-              style={{ background: '#EEF6FB', border: '1px solid #5BA4C8' }}
-              className="p-3 rounded-xl space-y-1"
-            >
-              <div className="text-[11px] font-bold text-[#1E5A7A] flex items-center gap-1.5">
-                <Sparkles size={13} color="#5BA4C8" />
+            <div className="bg-[#E8F3F2] border border-[#5A8A88]/60 p-3 rounded-xl space-y-1">
+              <div className="text-[11px] font-bold text-[#2D4A49] flex items-center gap-1.5">
+                <Sparkles size={13} className="text-[#5A8A88]" />
                 <span>สรุปต้นทุนจริงหลังคำนวณ Yield</span>
               </div>
-              <div className="text-[12px] font-black text-[#1E5A7A] font-mono">
+              <div className="text-[14px] font-black text-[#2D4A49] tabular-nums">
                 ฿ {calculateEffectiveCost(editingItem.sourcing, editingItem.yield_pct).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                <span className="text-[10px] font-normal text-[#4A7592] ml-1.5">
+                <span className="text-[10.5px] font-normal text-[#6B8F8E] ml-1.5">
                   / {editingItem.sourcing.find(s => s.is_default)?.unit || editingItem.ingredient_unit}
                 </span>
               </div>
@@ -1023,8 +957,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
               <button
                 type="button"
                 onClick={() => setEditingItem(null)}
-                style={{ border: '1px solid #C8E3F0', color: '#4A7592' }}
-                className="px-3.5 py-1.5 rounded-xl text-[11px] font-semibold hover:bg-[#EEF6FB] transition-colors cursor-pointer"
+                className="h-[32px] px-3.5 rounded-[8px] border border-[#D4E4E3] bg-white text-[#2D4A49] text-[11px] font-medium hover:bg-[#F0F5F4] transition-colors cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -1034,10 +967,10 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                   handleUpdateItem(editingItem);
                   setEditingItem(null);
                 }}
-                style={{ background: '#5BA4C8', color: '#FFFFFF' }}
-                className="px-4 py-1.5 rounded-xl text-[11px] font-bold shadow-xs hover:bg-[#3D7FA3] transition-all cursor-pointer"
+                className="h-[32px] px-4 rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
               >
-                บันทึกการเปลี่ยนแปลง
+                <Save size={13} />
+                <span>บันทึกการเปลี่ยนแปลง</span>
               </button>
             </div>
           </div>
