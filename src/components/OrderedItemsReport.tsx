@@ -24,6 +24,7 @@ import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 import { normalizeDateRange } from './ui';
 
 export interface OrderRecord {
@@ -160,6 +161,14 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
       }
 
       await fetchOrderedItems();
+      const itemName = editingOrder.ingredients?.name || editingOrder.ingredient_id;
+      sendDiscordNotification(
+        `✅ **[แก้ไขรายการที่สั่งซื้อแล้ว - สาขา ${currentBranch}]**\n` +
+        `👤 ผู้แก้ไข: ${user?.name || 'Admin'}\n` +
+        `📦 รายการ: ${itemName}\n` +
+        `🔢 จำนวนใหม่: ${editForm.order_qty} ${editForm.order_unit || editingOrder.order_unit || ''} (วันสั่ง ${editForm.order_date})`,
+        'notifyOnOrderedItems'
+      );
       setEditingOrder(null);
       showToast("✅ แก้ไขคำสั่งซื้อสำเร็จ");
 
@@ -207,6 +216,14 @@ export const OrderedItemsReport: React.FC<OrderedItemsReportProps> = ({
       }
 
       await fetchOrderedItems();
+      const deletedName = deletingOrder.ingredients?.name || deletingOrder.ingredient_id;
+      sendDiscordNotification(
+        `🗑️ **[ลบรายการที่สั่งซื้อแล้ว - สาขา ${currentBranch}]**\n` +
+        `👤 ผู้ดำเนินการ: ${user?.name || 'Admin'}\n` +
+        `📦 รายการ: ${deletedName}\n` +
+        `🔢 จำนวนเดิม: ${deletingOrder.order_qty} ${deletingOrder.order_unit || ''}`,
+        'notifyOnOrderedItems'
+      );
       setDeletingOrder(null);
       showToast("🗑️ ลบคำสั่งซื้อสำเร็จ");
 
