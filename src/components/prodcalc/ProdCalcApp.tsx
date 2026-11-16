@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { sendDiscordNotification } from '../../lib/discordNotify';
 import { Recipe, ProdcalcIngredientPrice } from '../../types/prodcalc';
 import { IngredientPricing } from './IngredientPricing';
 import { RecipeList } from './RecipeList';
@@ -202,6 +203,17 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
     } catch (err) {
       console.warn('Supabase recipe save note:', err);
     }
+
+    // Send Discord Notification (non-blocking)
+    const actionLabel = existingIndex >= 0 ? 'อัปเดตสูตรอาหาร ProdCalc' : 'สร้างสูตรอาหารใหม่ ProdCalc';
+    sendDiscordNotification(
+      `🧮 **[${actionLabel} - สาขา ${currentUser.branch}]**\n` +
+      `👤 ผู้บันทึก: ${currentUser.name}\n` +
+      `📖 สูตร: ${savedRecipe.code ? `[${savedRecipe.code}] ` : ''}${savedRecipe.name}\n` +
+      `💰 ต้นทุน/ชิ้น: ฿${Number(savedRecipe.cost_per_piece || 0).toFixed(2)} | ราคาขาย: ฿${Number(savedRecipe.selling_price || 0).toFixed(2)}\n` +
+      `📈 กำไร: ฿${Number(savedRecipe.profit_per_piece || 0).toFixed(2)} (${Number(savedRecipe.profit_pct || 0).toFixed(1)}%)`,
+      'notifyOnProdCalcRecipes'
+    );
 
     setEditingRecipe(null);
     setCurrentTab('recipes');
