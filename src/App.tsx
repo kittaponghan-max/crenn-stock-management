@@ -1140,7 +1140,7 @@ export default function App() {
         `🔢 จำนวน: ${newLog.quantity} ${newLog.unit}\n` +
         `⚠️ สาเหตุ: ${newLog.cause}` +
         (newLog.solution ? `\n💡 แนวทางแก้ไข: ${newLog.solution}` : ''),
-        'notifyOnWaste'
+        newLog.department === 'Bakery' ? 'notifyOnBakeryWaste' : 'notifyOnBarWaste'
       );
     }
   };
@@ -1432,7 +1432,7 @@ export default function App() {
       `🔢 จำนวน: ${record.quantity} ${ingredient?.unit || ''}\n` +
       `🏢 ผู้จัดจำหน่าย: ${record.supplier || '-'}` +
       (record.expiryDate ? `\n⏳ วันหมดอายุ: ${record.expiryDate}` : ''),
-      'notifyOnReceiving'
+      ingredient?.department === 'Bakery' ? 'notifyOnBakeryReceiving' : 'notifyOnBarReceiving'
     );
   };
 
@@ -2200,7 +2200,10 @@ export default function App() {
     }
 
     sendLineNotification(notificationMsg, 'notifyOnStockSubmit');
-    sendDiscordNotification(discordMsg, 'notifyOnStockSubmit');
+    sendDiscordNotification(
+      discordMsg,
+      department === 'Bakery' ? 'notifyOnBakeryDailyCount' : 'notifyOnBarDailyCount'
+    );
   };
 
   const handleSaveChecklist = async (type: 'Check-in' | 'Check-out', data: any) => {
@@ -2241,13 +2244,35 @@ export default function App() {
     );
 
     // Discord Notification
+    const isBarChecklist = Boolean(data.coffeeWeights || data.coffeeDialIn);
     sendDiscordNotification(
       `📋 **[รายงานเช็คลิสต์ - ${dept}]**\n` +
       `👤 ผู้บันทึก: ${data.reporterName || '-'}\n` +
       `📅 วันที่รายงาน: ${data.reportDate}\n` +
       `⚙️ ประเภทงาน: ${type}`,
-      'notifyOnChecklist'
+      isBarChecklist ? 'notifyOnBarChecklist' : 'notifyOnBakeryChecklist'
     );
+
+    if (isBarChecklist && data.coffeeWeights) {
+      const coffeeEntries = Object.entries(data.coffeeWeights as Record<string, any>).filter(
+        ([, val]) => Number(val) > 0
+      );
+      if (coffeeEntries.length > 0) {
+        const coffeeSummary = coffeeEntries
+          .map(([id, val]) => {
+            const ing = ingredients.find(i => i.id === id);
+            return `- ${ing?.name || id}: ${val} g`;
+          })
+          .join('\n');
+        sendDiscordNotification(
+          `☕ **[รายงานเมล็ดกาแฟ & Waste ประจำวัน]**\n` +
+          `👤 ผู้บันทึก: ${data.reporterName || '-'}\n` +
+          `📅 วันที่: ${data.reportDate} (${type})\n` +
+          coffeeSummary,
+          'notifyOnCoffeeWaste'
+        );
+      }
+    }
   };
 
   const syncStockRecordToSupabase = async (newStockRecord: StockRecord) => {
@@ -2338,6 +2363,12 @@ export default function App() {
       }
 
       addLog('บันทึกข้อมูลสต็อก', `บันทึกข้อมูลสต็อก (${dept === 'Bar' ? 'บาร์' : 'ครัว'}) สำเร็จ`);
+      sendDiscordNotification(
+        `📦 **[บันทึกตารางสรุปสต็อก - ${dept === 'Bar' ? 'บาร์ (Bar)' : 'ครัว (Bakery)'} · สาขา ${branch}]**\n` +
+        `👤 ผู้บันทึก: ${recorderName}\n` +
+        `🕒 เวลา: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
+        dept === 'Bakery' ? 'notifyOnBakeryStock' : 'notifyOnBarStock'
+      );
       setIsStockDirty(false);
       setJustSavedStock(true);
       setTimeout(() => {
