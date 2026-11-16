@@ -21,6 +21,7 @@ import {
 import { format, eachDayOfInterval, parseISO, isAfter, addMonths, subMonths } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 import { AppPermissions } from '../types';
 import { canEditDateRangePerm } from '../utils/permissions';
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '../utils/safeStorage';
@@ -697,6 +698,25 @@ export function DailySalesRecord({
     setTimeout(() => {
       setJustSaved(false);
     }, 2500);
+
+    // Send Discord Notification (non-blocking)
+    if (changes.length > 0) {
+      const totalSavedDays = rows.filter(r => r.totalRevenue !== '' || r.cash !== '' || r.transfer !== '').length;
+      const previewChanges = changes
+        .slice(0, 6)
+        .map(c => `- ${c.dayLabel} (${c.field}): ${c.oldVal} ➔ ${c.newVal}${c.unit ? ` ${c.unit}` : ''}`)
+        .join('\n');
+      const moreText = changes.length > 6 ? `\n...และอีก ${changes.length - 6} รายการ` : '';
+      sendDiscordNotification(
+        `💰 **[บันทึกยอดขายประจำวัน - สาขา ${currentBranch}]**\n` +
+        `👤 ผู้บันทึก: ${recorderName}\n` +
+        `📅 ช่วงวันที่: ${summaryDateRangeLabel}\n` +
+        `📊 บันทึกข้อมูล ${totalSavedDays} วัน (${changes.length} รายการเปลี่ยนแปลง)\n` +
+        previewChanges +
+        moreText,
+        'notifyOnDailySales'
+      );
+    }
 
     setIsSaving(false);
     setTimeout(() => {
