@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
+import { sendDiscordNotification } from '../../lib/discordNotify';
 import { ProdcalcIngredientPrice, SourcingOption } from '../../types/prodcalc';
 import {
   Search,
@@ -715,6 +716,15 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                       type="button"
                                       onClick={() => {
                                         handleUpdateItem(item);
+                                        const effectiveCost = calculateEffectiveCost(item.sourcing, item.yield_pct);
+                                        const unitLabel = item.sourcing.find(s => s.is_default)?.unit || item.ingredient_unit;
+                                        sendDiscordNotification(
+                                          `🧮 **[อัปเดตราคาวัตถุดิบ ProdCalc - สาขา ${currentBranch}]**\n` +
+                                          `📦 วัตถุดิบ: ${item.ingredient_name}\n` +
+                                          `🧪 Yield: ${item.yield_pct}%\n` +
+                                          `💰 ต้นทุนสุทธิ: ฿${effectiveCost.toFixed(2)} / ${unitLabel}`,
+                                          'notifyOnProdCalcIngredients'
+                                        );
                                         setExpandedId(null);
                                       }}
                                       className="h-[32px] px-3.5 rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
@@ -965,6 +975,15 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                 type="button"
                 onClick={() => {
                   handleUpdateItem(editingItem);
+                  const effectiveCost = calculateEffectiveCost(editingItem.sourcing, editingItem.yield_pct);
+                  const unitLabel = editingItem.sourcing.find(s => s.is_default)?.unit || editingItem.ingredient_unit;
+                  sendDiscordNotification(
+                    `🧮 **[อัปเดต Yield & ต้นทุน ProdCalc - สาขา ${currentBranch}]**\n` +
+                    `📦 วัตถุดิบ: ${editingItem.ingredient_name}\n` +
+                    `🧪 Yield: ${editingItem.yield_pct}%\n` +
+                    `💰 ต้นทุนสุทธิ: ฿${effectiveCost.toFixed(2)} / ${unitLabel}`,
+                    'notifyOnProdCalcIngredients'
+                  );
                   setEditingItem(null);
                 }}
                 className="h-[32px] px-4 rounded-[8px] bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] sm:text-[12px] font-[600] shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
