@@ -26,6 +26,7 @@ import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 
 export interface OrderRecord {
   id?: string;
@@ -815,6 +816,27 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
         return next;
       });
 
+      // Send Discord Notification (non-blocking)
+      const orderedSaved = itemsToSave.filter(it => Boolean(it.order_date) && Number(it.order_qty) > 0);
+      if (orderedSaved.length > 0) {
+        const orderLines = orderedSaved
+          .slice(0, 8)
+          .map(it => {
+            const ing = ingredients.find(i => i.id === it.ingredient_id);
+            return `- ${ing?.name || it.ingredient_id}: ${it.order_qty} ${it.order_unit || ing?.unit || ''} (วันสั่ง ${it.order_date})`;
+          })
+          .join('\n');
+        const moreLines = orderedSaved.length > 8 ? `\n...และอีก ${orderedSaved.length - 8} รายการ` : '';
+        sendDiscordNotification(
+          `🛒 **[บันทึกสั่งซื้อวัตถุดิบ - ${supplierId} · สาขา ${currentBranch}]**\n` +
+          `👤 ผู้สั่งซื้อ: ${currentUser}\n` +
+          `📦 จำนวน: ${orderedSaved.length} รายการ\n` +
+          orderLines +
+          moreLines,
+          'notifyOnPurchasing'
+        );
+      }
+
       // Success state → reset after 2 sec
       setSupplierSaveState(prev => ({
         ...prev,
@@ -999,6 +1021,27 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
     setTimeout(() => {
       setSupplierSaveState({});
     }, 2000);
+    // Send Discord Notification (non-blocking)
+    const orderedAll = itemsToPersist.filter(it => Boolean(it.order_date) && Number(it.order_qty) > 0);
+    if (orderedAll.length > 0) {
+      const orderLines = orderedAll
+        .slice(0, 8)
+        .map(it => {
+          const ing = ingredients.find(i => i.id === it.ingredient_id);
+          return `- ${ing?.name || it.ingredient_id}: ${it.order_qty} ${it.order_unit || ing?.unit || ''} (วันสั่ง ${it.order_date})`;
+        })
+        .join('\n');
+      const moreLines = orderedAll.length > 8 ? `\n...และอีก ${orderedAll.length - 8} รายการ` : '';
+      sendDiscordNotification(
+        `🛒 **[บันทึกสั่งซื้อวัตถุดิบ - สาขา ${currentBranch}]**\n` +
+        `👤 ผู้สั่งซื้อ: ${currentUser}\n` +
+        `📦 จำนวน: ${orderedAll.length} รายการ\n` +
+        orderLines +
+        moreLines,
+        'notifyOnPurchasing'
+      );
+    }
+
     setIsSaving(false);
     setSaveSuccessMsg(`บันทึกข้อมูลเรียบร้อยแล้ว (${itemsToPersist.length} รายการ)`);
     setTimeout(() => setSaveSuccessMsg(null), 3500);
