@@ -27,6 +27,7 @@ import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { th } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 import { 
   safeLocalStorageGetItem, 
   safeLocalStorageSetItem 
@@ -898,6 +899,24 @@ export function DailyBakeryRecord({
     setTimeout(() => {
       setJustSaved(false);
     }, 2500);
+
+    // Send Discord Notification (non-blocking)
+    if (changes.length > 0) {
+      const previewChanges = changes
+        .slice(0, 6)
+        .map(c => `- ${c.itemName} (${c.dayLabel} · ${c.field}): ${c.oldVal} ➔ ${c.newVal}${c.unit ? ` ${c.unit}` : ''}`)
+        .join('\n');
+      const moreText = changes.length > 6 ? `\n...และอีก ${changes.length - 6} รายการ` : '';
+      sendDiscordNotification(
+        `🧁 **[บันทึกจำนวนขนมประจำวัน - สาขา ${currentBranch}]**\n` +
+        `👤 ผู้บันทึก: ${recorderName}\n` +
+        `📅 สัปดาห์: ${weekRangeText}\n` +
+        `📝 การเปลี่ยนแปลง: ${changes.length} รายการ\n` +
+        previewChanges +
+        moreText,
+        'notifyOnDailyBakery'
+      );
+    }
 
     setIsSaving(false);
     setTimeout(() => {
