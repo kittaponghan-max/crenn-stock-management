@@ -50,6 +50,7 @@ import {
   MaintenanceEquipmentItem
 } from '../types';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 import { generateUUID } from '../lib/utils';
 import { normalizeDateRange } from './ui';
 
@@ -1316,6 +1317,22 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
         setViewingRecord(updatedView);
       }
     }
+
+    // Send Discord Notification (non-blocking)
+    const eqSummary = recordsToSave
+      .slice(0, 5)
+      .map(r => `- ${r.equipmentName} (${MAINTENANCE_TYPE_CONFIG[r.maintenanceType]?.sub || r.maintenanceType} · ${STATUS_CONFIG[r.status]?.label || r.status}${r.cost > 0 ? ` · ฿${r.cost.toLocaleString('th-TH')}` : ''})`)
+      .join('\n');
+    const eqMore = recordsToSave.length > 5 ? `\n...และอีก ${recordsToSave.length - 5} รายการ` : '';
+    sendDiscordNotification(
+      `🔧 **[${editingRecord ? 'อัปเดตรายงานบำรุงรักษา' : 'รายงานบำรุงรักษาเครื่องมือ'} - สาขา ${formData.branch}]**\n` +
+      `👤 ผู้บันทึก: ${currentUser || 'Admin'}\n` +
+      `📅 วันที่/เวลา: ${formData.date} ${formData.time || ''}\n` +
+      `🏷️ แผนก: ${formData.department}\n` +
+      eqSummary +
+      eqMore,
+      'notifyOnMaintenance'
+    );
 
     setIsSaving(false);
     setIsFormOpen(false);
