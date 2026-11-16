@@ -24,6 +24,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { DEFAULT_DISCORD_NOTIFY_SETTINGS, normalizeDiscordSettings } from '../lib/discordNotify';
 import { UserRole } from './LoginForm';
 import { AppUser, AppPermissions } from '../types';
 import {
@@ -1602,16 +1603,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
   };
 
   // Discord Notify Integration States & Handlers
-  const [discordSettings, setDiscordSettings] = useState<any>({
-    webhookUrl: '',
-    enabled: false,
-    notifyOnWaste: true,
-    notifyOnRnD: true,
-    notifyOnStockSubmit: true,
-    notifyOnChecklist: true,
-    notifyOnReceiving: true,
-    notifyOnBakeryPlan: true
-  });
+  const [discordSettings, setDiscordSettings] = useState<any>({ ...DEFAULT_DISCORD_NOTIFY_SETTINGS });
   const [isSavingDiscord, setIsSavingDiscord] = useState(false);
   const [isTestingDiscord, setIsTestingDiscord] = useState(false);
   const [discordTestResult, setDiscordTestResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
@@ -1620,7 +1612,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
     const saved = localStorage.getItem('discordNotifySettings');
     if (saved) {
       try {
-        setDiscordSettings(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        setDiscordSettings(normalizeDiscordSettings(parsed));
       } catch (e) {
         console.warn(e);
       }
@@ -1635,8 +1628,9 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
         .maybeSingle()
         .then(({ data }) => {
           if (data?.setting_value && typeof data.setting_value === 'object') {
-            setDiscordSettings(data.setting_value);
-            try { localStorage.setItem('discordNotifySettings', JSON.stringify(data.setting_value)); } catch {}
+            const merged = normalizeDiscordSettings(data.setting_value);
+            setDiscordSettings(merged);
+            try { localStorage.setItem('discordNotifySettings', JSON.stringify(merged)); } catch {}
           }
         }, () => {});
     }
@@ -3096,8 +3090,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             </div>
             <div>
               <h3 className="text-[14px] font-bold text-white">Discord Webhook Integration Settings</h3>
-              <p className="text-white/70 text-[11px] max-w-xl mt-0.5">
-                ตั้งค่าระบบการแจ้งเตือนยอดการทำงาน สต็อกบาร์ ครัวเบเกอรี่ รายงานของเสีย และเมนู R&D ไปยังเซิร์ฟเวอร์ Discord
+              <p className="text-white/70 text-[11px] max-w-2xl mt-0.5">
+                ตั้งค่าระบบการแจ้งเตือนรายงานจากทุกเครื่องมือบน Top Navigation Bar และ Sub-app (ProdCalc) ไปยังเซิร์ฟเวอร์ Discord
               </p>
             </div>
           </div>
@@ -3162,37 +3156,124 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             </div>
           </div>
 
-          <div className="border-t border-[#E2EAE9] pt-4">
-            <h4 className="font-semibold text-[11px] text-[#2D4A49] mb-2.5 flex items-center gap-1.5">
-              <Bell size={14} className="text-[#5A8A88]" />
-              หัวข้อรายงานที่ต้องการส่งไป Discord (Notification Subscriptions)
-            </h4>
-
-            {/* Subscriptions Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {[
-                { id: 'notifyOnStockSubmit', title: 'รายงานนับและส่งยอดคงเหลือสต็อก (Stock Submission)', desc: 'ส่งสรุปสต็อกเมื่อพนักงานบันทึกยอดนับสต็อกบาร์และครัวประจำวัน' },
-                { id: 'notifyOnReceiving', title: 'การตรวจรับวัตถุดิบ (Raw Material Receiving)', desc: 'ส่งความเคลื่อนไหวเมื่อมีการตรวจรับรับวัตถุดิบนำเข้า บาร์ หรือ ครัว' },
-                { id: 'notifyOnChecklist', title: 'เช็คลิสต์เตรียมความพร้อมเปิด-ปิดร้าน (Checklists)', desc: 'ส่งรายงานผลการทำ Check-in / Check-out หรืองานเตรียมร้าน' },
-                { id: 'notifyOnWaste', title: 'ของเสีย รายงานขยะ เมล็ดกาแฟสูญเสีย (Waste Logs)', desc: 'ส่งรายงานขยะเมล็ดกาแฟและวัตถุดิบเสียจากฝ่ายบาร์และครัว' },
-                { id: 'notifyOnRnD', title: 'การเทสสูตรและรายงานเมนูใหม่ (R&D Reports)', desc: 'แชร์สูตรพัฒนา รสชาติ การประเมิน และแผนจำหน่ายเมนู R&D' },
-                { id: 'notifyOnBakeryPlan', title: 'แผนการผลิตและยอดจัดจำหน่ายเบเกอรี่ (Bakery Plan)', desc: 'ส่งสรุปการวางแผนเป้าหมายสัปดาห์ใหม่และยอดขายจริงท้ายสัปดาห์' },
-              ].map(sub => (
-                <label key={sub.id} className={`flex items-start gap-2.5 p-2.5 bg-white border border-[#D4E4E3] rounded-xl transition-colors shadow-2xs ${effectiveReadOnly ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F0F5F4] cursor-pointer'}`}>
-                  <input 
-                    type="checkbox" 
-                    disabled={effectiveReadOnly}
-                    className="mt-0.5 rounded text-[#5A8A88] focus:ring-[#5A8A88] w-3.5 h-3.5 cursor-pointer accent-[#5A8A88] disabled:cursor-not-allowed"
-                    checked={(discordSettings as any)[sub.id]}
-                    onChange={(e) => setDiscordSettings({ ...discordSettings, [sub.id]: e.target.checked })}
-                  />
-                  <div>
-                    <h5 className="font-bold text-[#2D4A49] text-[11px]">{sub.title}</h5>
-                    <p className="text-[#6B8F8E] text-[10px] mt-0.5 leading-tight">{sub.desc}</p>
-                  </div>
-                </label>
-              ))}
+          <div className="border-t border-[#E2EAE9] pt-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-[11px] text-[#2D4A49] flex items-center gap-1.5">
+                <Bell size={14} className="text-[#5A8A88]" />
+                หัวข้อรายงานที่ต้องการส่งไป Discord แยกตามเครื่องมือและหน้าบน Top Navigation Bar (1:1 Mapping)
+              </h4>
+              <span className="text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-[5px] border border-[#D4E4E3] tabular-nums">
+                22 รายการ (20 ระบบหลัก + 2 Sub-app)
+              </span>
             </div>
+
+            {[
+              {
+                groupTitle: '1. หน้าหลัก (Home)',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnLeaveApproval', title: '📊 Leave Dashboard (ภาพรวมและอนุมัติการลา)', desc: 'ส่งแจ้งเตือนเมื่อผู้จัดการหรือแอดมิน อนุมัติ / ไม่อนุมัติคำขอลาหยุดพนักงาน' },
+                  { id: 'notifyOnLeaveRequest', title: '👤 Personnel Leave (ยื่นคำขอลาหยุดส่วนตัว)', desc: 'ส่งแจ้งเตือนเมื่อพนักงานส่งคำขอลาหยุดใหม่เข้าระบบ' },
+                ],
+              },
+              {
+                groupTitle: '2. Daily Rec.',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnDailySales', title: '💰 บันทึกยอดขายประจำวัน (Daily Sales)', desc: 'ส่งสรุปรายงานเมื่อมีการบันทึกหรือแก้ไขยอดขายประจำวัน' },
+                  { id: 'notifyOnDailyBakery', title: '🧁 บันทึกจำนวนขนมประจำวัน (Daily Bakery)', desc: 'ส่งสรุปยอดส่ง หน้าร้าน ในสต็อก และยอดขายขนมประจำวัน' },
+                ],
+              },
+              {
+                groupTitle: '3. สต็อก (Stock)',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnBarStock', title: '📦 สรุป Stock บาร์ (Bar Stock)', desc: 'ส่งแจ้งเตือนเมื่อกดบันทึกข้อมูลตารางสต็อกวัตถุดิบฝั่งบาร์' },
+                  { id: 'notifyOnBakeryStock', title: '🍳 สรุป Stock ครัว (Kitchen/Bakery Stock)', desc: 'ส่งแจ้งเตือนเมื่อกดบันทึกข้อมูลตารางสต็อกวัตถุดิบฝั่งครัวเบเกอรี่' },
+                ],
+              },
+              {
+                groupTitle: '4. รายงาน (Reports)',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnBarReceiving', title: '📦 รายงานตรวจรับวัตถุดิบ (บาร์)', desc: 'ส่งความเคลื่อนไหวเมื่อมีการตรวจรับวัตถุดิบนำเข้าฝั่งบาร์' },
+                  { id: 'notifyOnBakeryReceiving', title: '📦 รายงานตรวจรับวัตถุดิบ (ครัว)', desc: 'ส่งความเคลื่อนไหวเมื่อมีการตรวจรับวัตถุดิบนำเข้าฝั่งครัว' },
+                  { id: 'notifyOnBarDailyCount', title: '📋 รายงานตรวจนับสต็อก (บาร์)', desc: 'ส่งสรุปยอดตรวจนับสต็อกประจำวันของฝั่งบาร์' },
+                  { id: 'notifyOnBakeryDailyCount', title: '📋 รายงานตรวจนับสต็อก (ครัว)', desc: 'ส่งสรุปยอดตรวจนับสต็อกประจำวันของฝั่งครัว' },
+                  { id: 'notifyOnBarWaste', title: '🗑️ รายงาน Waste/ของเสีย (บาร์)', desc: 'ส่งรายงานขยะและวัตถุดิบเสียที่บันทึกจากฝ่ายบาร์' },
+                  { id: 'notifyOnBakeryWaste', title: '🗑️ รายงาน Waste/ของเสีย (ครัว)', desc: 'ส่งรายงานขยะและวัตถุดิบเสียที่บันทึกจากฝ่ายครัวเบเกอรี่' },
+                  { id: 'notifyOnCoffeeWaste', title: '☕ รายงาน Waste เมล็ดกาแฟ', desc: 'ส่งสรุปปริมาณเมล็ดกาแฟที่สูญเสียจากรายงานชั่งน้ำหนัก/Dial-in' },
+                  { id: 'notifyOnMaintenance', title: '🔧 รายงานบำรุงรักษาเครื่องมือ (Maintenance)', desc: 'ส่งแจ้งเตือนเมื่อมีการบันทึกหรืออัปเดตงานซ่อมบำรุงเครื่องมือและอุปกรณ์' },
+                ],
+              },
+              {
+                groupTitle: '5. Check-in',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnBarChecklist', title: '✅ Check-in & Check-out (บาร์)', desc: 'ส่งรายงานผลการทำเช็คลิสต์เตรียมความพร้อมเปิด-ปิดร้านฝั่งบาร์' },
+                  { id: 'notifyOnBakeryChecklist', title: '✅ Check-in & Check-out (ครัว)', desc: 'ส่งรายงานผลการทำเช็คลิสต์เตรียมความพร้อมเปิด-ปิดร้านฝั่งครัว' },
+                ],
+              },
+              {
+                groupTitle: '6. Purchasing',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnPurchasing', title: '🛒 รายการวัตถุดิบที่ต้องสั่งซื้อ (Purchasing)', desc: 'ส่งแจ้งเตือนเมื่อมีการบันทึกคำสั่งซื้อวัตถุดิบถึงผู้จัดจำหน่าย' },
+                  { id: 'notifyOnOrderedItems', title: '✅ รายการวัตถุดิบที่สั่งซื้อแล้ว (Ordered Items)', desc: 'ส่งแจ้งเตือนเมื่อมีการแก้ไขหรือลบรายการคำสั่งซื้อที่สั่งไปแล้ว' },
+                ],
+              },
+              {
+                groupTitle: '7. Bakery & 8. R&D',
+                isSubApp: false,
+                items: [
+                  { id: 'notifyOnBakeryPlan', title: '🧁 แผนงาน Bakery (Bakery Plan)', desc: 'ส่งสรุปการวางแผนเป้าหมายสัปดาห์ใหม่และยอดขายจริงท้ายสัปดาห์' },
+                  { id: 'notifyOnRnD', title: '🧪 R&D Report (การเทสสูตรและเมนูใหม่)', desc: 'แชร์สูตรพัฒนา รสชาติ การประเมิน และแผนจำหน่ายเมนู R&D' },
+                ],
+              },
+              {
+                groupTitle: '9. Sub-app: ProdCalc (คำนวณต้นทุนการผลิต)',
+                isSubApp: true,
+                items: [
+                  { id: 'notifyOnProdCalcIngredients', title: '🧪 วัตถุดิบ & Yield (Ingredient Pricing)', desc: 'ProdCalc → แจ้งเตือนเมื่อกดบันทึกราคาแหล่งจัดซื้อหรือปรับปรุง Yield วัตถุดิบ' },
+                  { id: 'notifyOnProdCalcRecipes', title: '📖 สูตรอาหาร / สินค้า (Recipes & Costing)', desc: 'ProdCalc → แจ้งเตือนเมื่อสร้างหรืออัปเดตสูตรอาหาร ต้นทุนต่อชิ้น และราคาขาย' },
+                ],
+              },
+            ].map((group) => (
+              <div key={group.groupTitle} className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10.5px] font-bold text-[#2D4A49] tracking-tight">{group.groupTitle}</span>
+                  <div className="h-[1px] flex-1 bg-[#E8F3F2]" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {group.items.map((sub) => (
+                    <label
+                      key={sub.id}
+                      className={`flex items-start gap-2.5 p-2.5 border border-[#D4E4E3] rounded-xl transition-colors shadow-2xs ${
+                        group.isSubApp ? 'bg-[#F8FCFC]' : 'bg-white'
+                      } ${
+                        effectiveReadOnly
+                          ? 'opacity-70 cursor-not-allowed'
+                          : group.isSubApp
+                            ? 'hover:bg-[#E8F3F2]/60 cursor-pointer'
+                            : 'hover:bg-[#F0F5F4] cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={effectiveReadOnly}
+                        className="mt-0.5 rounded text-[#5A8A88] focus:ring-[#5A8A88] w-3.5 h-3.5 cursor-pointer accent-[#5A8A88] disabled:cursor-not-allowed"
+                        checked={Boolean((discordSettings as any)[sub.id])}
+                        onChange={(e) => setDiscordSettings({ ...discordSettings, [sub.id]: e.target.checked })}
+                      />
+                      <div>
+                        <h5 className="font-bold text-[#2D4A49] text-[11px]">{sub.title}</h5>
+                        <p className="text-[#6B8F8E] text-[10px] mt-0.5 leading-tight">{sub.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {!effectiveReadOnly && (
