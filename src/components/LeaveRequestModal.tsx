@@ -18,6 +18,7 @@ import {
   Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 import {
   AnnualLeaveQuotasByYear,
   fetchAnnualLeaveQuotas,
@@ -371,6 +372,17 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     } catch (err) {
       console.error(err);
     }
+
+    // Send Discord Notification (non-blocking)
+    sendDiscordNotification(
+      `🏖️ **[คำขอลาหยุดใหม่ - ${newRecord.userBranch}]**\n` +
+      `👤 พนักงาน: ${newRecord.userName}\n` +
+      `🏷️ ประเภท: ${newRecord.leaveTypeName}\n` +
+      `📅 วันที่: ${newRecord.fromDate} ถึง ${newRecord.toDate} (${newRecord.totalDays} วัน)\n` +
+      `👔 ผู้อนุมัติ: ${newRecord.manager}\n` +
+      `📝 เหตุผล: ${newRecord.description}`,
+      'notifyOnLeaveRequest'
+    );
 
     setIsSubmitting(false);
     setShowSuccessToast(true);
