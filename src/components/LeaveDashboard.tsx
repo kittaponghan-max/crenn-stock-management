@@ -25,6 +25,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { sendDiscordNotification } from '../lib/discordNotify';
 import { LeaveRecord } from './LeaveRequestModal';
 import { AppUser } from '../types';
 import {
@@ -403,6 +404,21 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       } catch (err) {
         console.warn(err);
       }
+    }
+
+    // Send Discord Notification (non-blocking)
+    const targetRec = leaveRecords.find(r => r.id === id);
+    if (targetRec) {
+      const statusLabel = newStatus === 'Approved' ? '✅ อนุมัติแล้ว (Approved)' : '❌ ไม่อนุมัติ (Rejected)';
+      sendDiscordNotification(
+        `📋 **[อัปเดตสถานะคำขอลาหยุด]**\n` +
+        `👤 พนักงาน: ${targetRec.userName || '-'}\n` +
+        `🏷️ ประเภท: ${targetRec.leaveTypeName || targetRec.leaveType}\n` +
+        `📅 วันที่: ${targetRec.fromDate} ถึง ${targetRec.toDate} (${targetRec.totalDays} วัน)\n` +
+        `📌 สถานะ: ${statusLabel}\n` +
+        `✍️ ดำเนินการโดย: ${user?.name || 'Admin'}`,
+        'notifyOnLeaveApproval'
+      );
     }
   };
 
