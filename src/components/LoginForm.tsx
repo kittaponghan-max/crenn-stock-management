@@ -10,7 +10,7 @@ import {
   normalizePermissions,
 } from '../utils/permissions';
 
-export type AppOption = 'cafe' | 'sop' | 'prodcalc';
+export type AppOption = 'cafe' | 'sop' | 'prodcalc' | 'hellocrenn';
 
 export const APP_OPTIONS = [
   {
@@ -19,6 +19,14 @@ export const APP_OPTIONS = [
     description : 'จัดการสต็อก วัตถุดิบ และการดำเนินงาน',
     icon        : '☕',
     color       : '#1E5A7A',
+    isExisting  : true,
+  },
+  {
+    id          : 'hellocrenn',
+    label       : 'Hello, Crenn - GPS Time & Attendance',
+    description : 'สแกนเวลาเข้า-ออกงานอัตโนมัติด้วย GPS',
+    icon        : '📍',
+    color       : '#5A8A88',
     isExisting  : true,
   },
   {
@@ -106,10 +114,11 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   // STEP 6 — Dynamic Login button label
   const getLoginButtonText = () => {
     switch (selectedApp) {
-      case 'cafe'    : return 'เข้าสู่ระบบ';
-      case 'sop'     : return 'เข้าสู่ SOP';
-      case 'prodcalc': return 'เข้าสู่ ProdCalc';
-      default        : return 'Login';
+      case 'cafe'      : return 'เข้าสู่ระบบ';
+      case 'hellocrenn': return 'เข้าสู่ Hello, Crenn';
+      case 'sop'       : return 'เข้าสู่ SOP';
+      case 'prodcalc'  : return 'เข้าสู่ ProdCalc';
+      default          : return 'Login';
     }
   };
 
@@ -386,6 +395,16 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             permissions: resolvedPerms,
             branch: selectedBranch,
             app: 'prodcalc'
+          });
+          break;
+
+        case 'hellocrenn':
+          onLogin({
+            name: matchedUser.name,
+            role: matchedUser.role,
+            permissions: resolvedPerms,
+            branch: selectedBranch,
+            app: 'hellocrenn'
           });
           break;
 
