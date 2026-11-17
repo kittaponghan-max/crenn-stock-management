@@ -127,6 +127,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { key: 'userSettings', name: 'User Security Settings (ตั้งค่าสิทธิ์และบัญชีผู้ใช้)', icon: '👤' },
       { key: 'prodcalc', name: 'คำนวณต้นทุนการผลิต (ProdCalc)', icon: '🧮' },
+      { key: 'hellocrenn', name: 'ลงเวลาเข้า-ออกงาน (Hello, Crenn GPS)', icon: '📍' },
     ]
   }
 ];
@@ -151,7 +152,8 @@ const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'historyReceiving', name: 'ประวัติการรับวัตถุดิบ' },
   { id: 'manageIngredients', name: 'จัดการรายการวัตถุดิบ' },
   { id: 'adminTools', name: 'ตั้งค่าผู้ดูแลระบบ (Admin Only)' },
-  { id: 'prodcalc' as any, name: 'คำนวณต้นทุนการผลิต (ProdCalc)' }
+  { id: 'prodcalc' as any, name: 'คำนวณต้นทุนการผลิต (ProdCalc)' },
+  { id: 'hellocrenn' as any, name: 'ลงเวลาเข้า-ออกงาน (Hello, Crenn GPS)' }
 ];
 
 const DEFAULT_PERMISSIONS: AppPermissions = {
@@ -174,7 +176,8 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   historyReceiving: 'Edit',
   manageIngredients: 'Edit',
   adminTools: 'Hidden',
-  prodcalc: 'Hidden'
+  prodcalc: 'Hidden',
+  hellocrenn: 'Edit'
 };
 
 // Helper for sorting users by official position hierarchy
@@ -3236,6 +3239,14 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 items: [
                   { id: 'notifyOnProdCalcIngredients', title: '🧪 วัตถุดิบ & Yield (Ingredient Pricing)', desc: 'ProdCalc → แจ้งเตือนเมื่อกดบันทึกราคาแหล่งจัดซื้อหรือปรับปรุง Yield วัตถุดิบ' },
                   { id: 'notifyOnProdCalcRecipes', title: '📖 สูตรอาหาร / สินค้า (Recipes & Costing)', desc: 'ProdCalc → แจ้งเตือนเมื่อสร้างหรืออัปเดตสูตรอาหาร ต้นทุนต่อชิ้น และราคาขาย' },
+                ],
+              },
+              {
+                groupTitle: '10. Sub-app: Hello, Crenn (GPS ลงเวลาเข้า-ออกงาน)',
+                isSubApp: true,
+                items: [
+                  { id: 'notifyOnHelloCrennCheckin', title: '📍 สแกนเวลาเข้า-ออกงาน (Auto/Manual GPS Check-in)', desc: 'Hello, Crenn → แจ้งเตือนเมื่อพนักงานสแกนเข้างานหรือออกงานด้วยพิกัด GPS' },
+                  { id: 'notifyOnHelloCrennGeofence', title: '🛰️ ตั้งค่าพิกัดสาขาและกะงาน (Branch Geofence)', desc: 'Hello, Crenn → แจ้งเตือนเมื่อผู้ดูแลอัปเดตพิกัด GPS ร้าน รัศมี หรือเวลากะงาน' },
                 ],
               },
             ].map((group) => (
