@@ -32,6 +32,9 @@ export interface DiscordNotifySettings {
   // 9. Sub-app: ProdCalc
   notifyOnProdCalcIngredients: boolean;
   notifyOnProdCalcRecipes: boolean;
+  // 10. Sub-app: Hello, Crenn
+  notifyOnHelloCrennCheckin: boolean;
+  notifyOnHelloCrennGeofence: boolean;
   // Legacy keys kept optional for seamless migration of previously saved configs
   notifyOnWaste?: boolean;
   notifyOnStockSubmit?: boolean;
@@ -78,6 +81,8 @@ export const DEFAULT_DISCORD_NOTIFY_SETTINGS: DiscordNotifySettings = {
   notifyOnRnD: true,
   notifyOnProdCalcIngredients: true,
   notifyOnProdCalcRecipes: true,
+  notifyOnHelloCrennCheckin: true,
+  notifyOnHelloCrennGeofence: true,
 };
 
 /**
@@ -117,6 +122,8 @@ export const normalizeDiscordSettings = (raw: any): DiscordNotifySettings => {
     notifyOnRnD: boolOr(src.notifyOnRnD, undefined),
     notifyOnProdCalcIngredients: boolOr(src.notifyOnProdCalcIngredients, src.notifyOnProdCalc),
     notifyOnProdCalcRecipes: boolOr(src.notifyOnProdCalcRecipes, src.notifyOnProdCalc),
+    notifyOnHelloCrennCheckin: boolOr(src.notifyOnHelloCrennCheckin, undefined),
+    notifyOnHelloCrennGeofence: boolOr(src.notifyOnHelloCrennGeofence, undefined),
   };
 };
 
