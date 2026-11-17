@@ -214,12 +214,19 @@ export interface AppPermissions {
   canEditDateRange?: boolean;
   prodcalc?: PermissionLevel;
   ProdCalc?: PermissionLevel;
+  hellocrenn?: PermissionLevel;
 }
 
 export const canAccessProdCalc = (
   user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
 ): boolean => {
   return canViewPage(user, 'prodcalc');
+};
+
+export const canAccessHelloCrenn = (
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
+): boolean => {
+  return canViewPage(user, 'hellocrenn');
 };
 
 export const canAccessLeaveDashboard = (
