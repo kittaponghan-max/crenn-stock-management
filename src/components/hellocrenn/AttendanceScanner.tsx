@@ -22,7 +22,9 @@ import {
   calculateHaversineDistanceMeters,
   formatDistanceMeters,
   formatMinutesDuration,
+  formatOtDuration,
   getStatusLabelTH,
+  resolveEmployeeShift,
 } from '../../utils/gpsUtils';
 import {
   PageHeaderBanner,
@@ -114,6 +116,8 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
 
   const todayCheckIn = myTodayRecords.find((r) => r.type === 'check_in') || null;
   const todayCheckOut = myTodayRecords.find((r) => r.type === 'check_out') || null;
+
+  const employeeShift = resolveEmployeeShift(geofenceConfig, currentUser.name);
 
   const branchTodayRecords = attendanceRecords
     .filter((r) => r.date === todayStr && r.branch === currentUser.branch)
@@ -236,7 +240,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
       !todayCheckOut &&
       geofenceConfig.autoCheckoutEnabled
     ) {
-      const [endH, endM] = geofenceConfig.shiftEndTime.split(':').map(Number);
+      const [endH, endM] = employeeShift.shiftEndTime.split(':').map(Number);
       const currentMins = now.getHours() * 60 + now.getMinutes();
       const shiftEndMins = (endH || 17) * 60 + (endM || 0);
       if (currentMins >= shiftEndMins) {
@@ -285,7 +289,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
     todayCheckOut,
     geofenceConfig.autoCheckinEnabled,
     geofenceConfig.autoCheckoutEnabled,
-    geofenceConfig.shiftEndTime,
+    employeeShift.shiftEndTime,
     todayStr,
     currentUser.name,
     now,
@@ -394,7 +398,11 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
         icon={<Navigation size={18} />}
         title="สแกนเวลาเข้า-ออกงาน (GPS Auto Check-in)"
         branchLabel={geofenceConfig.branchLabel}
-        subtitle={`กะมาตรฐาน ${geofenceConfig.shiftStartTime} – ${geofenceConfig.shiftEndTime} น. · อนุโลมสาย ${geofenceConfig.graceMinutes} นาที · รัศมี ${geofenceConfig.radiusMeters} ม.`}
+        subtitle={`กะ${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'มาตรฐาน'} ${employeeShift.shiftStartTime} – ${employeeShift.shiftEndTime} น. · อนุโลมสาย ${employeeShift.graceMinutes} นาที · ${
+          employeeShift.otStepMinutes > 0
+            ? `คิด OT ทุก ${employeeShift.otStepMinutes} นาที`
+            : 'ไม่คิด OT'
+        } · รัศมี ${geofenceConfig.radiusMeters} ม.`}
         actions={
           <div className="flex items-center gap-2">
             <div className="h-[32px] px-3 rounded-[8px] bg-[#E8F3F2] border border-[#D4E4E3] flex items-center gap-1.5 text-[11px] font-bold text-[#2D4A49] tabular-nums">
@@ -740,6 +748,17 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                   {formatMinutesDuration(todayCheckIn?.recordedAt, todayCheckOut?.recordedAt)}
                 </span>
               </div>
+
+              {todayCheckOut && typeof todayCheckOut.otMinutes === 'number' && todayCheckOut.otMinutes > 0 && (
+                <div className="flex items-center justify-between pt-1 border-t border-[#F0F5F4]">
+                  <span className="text-xs font-semibold text-[#5A8A88]">
+                    โอที (OT · คิดทุก {employeeShift.otStepMinutes} นาที)
+                  </span>
+                  <span className="text-sm font-bold text-emerald-700 tabular-nums font-mono">
+                    +{formatOtDuration(todayCheckOut.otMinutes)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
