@@ -5,14 +5,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessLeaveDashboard, canAccessPersonnelLeave } from './types';
+import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessHelloCrenn, canAccessLeaveDashboard, canAccessPersonnelLeave } from './types';
 import {
+  PagePermission,
   RoleTemplateMap,
   getCachedRoleTemplates,
   canViewPage,
   canEditPage,
   isReadOnlyPage,
   canAccessTab,
+  getPermissionLevel,
   getFirstAccessibleRoute,
 } from './utils/permissions';
 import { IngredientForm } from './components/IngredientForm';
@@ -2501,14 +2503,14 @@ export default function App() {
             setActiveTab('home');
           }
           if (userData.app === 'prodcalc') {
-            if (canViewPage(userData, 'prodcalc', latestTemplates)) {
+            if (canAccessProdCalc(userData, latestTemplates)) {
               setCurrentApp('prodcalc');
             } else {
               alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน ProdCalc (ต้องได้รับสิทธิ์ใน User Security Settings)');
               setCurrentApp('cafe');
             }
           } else if (userData.app === 'hellocrenn') {
-            if (canViewPage(userData, 'hellocrenn', latestTemplates)) {
+            if (canAccessHelloCrenn(userData, latestTemplates)) {
               setCurrentApp('hellocrenn');
             } else {
               alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน Hello, Crenn (ต้องได้รับสิทธิ์ใน User Security Settings)');
@@ -2535,7 +2537,21 @@ export default function App() {
 
   // ProdCalc Standalone App Mode
   if (currentApp === 'prodcalc') {
-    if (!canViewPage(user, 'prodcalc', roleTemplates)) {
+    const prodcalcTabPerms: {
+      ingredients: PagePermission;
+      recipes: PagePermission;
+      reports: PagePermission;
+    } = {
+      ingredients: getPermissionLevel(user, 'prodcalc_ingredients', roleTemplates),
+      recipes: getPermissionLevel(user, 'prodcalc_recipes', roleTemplates),
+      reports: getPermissionLevel(user, 'prodcalc_reports', roleTemplates),
+    };
+    const hasAnyProdcalcTab =
+      prodcalcTabPerms.ingredients !== 'hidden' ||
+      prodcalcTabPerms.recipes !== 'hidden' ||
+      prodcalcTabPerms.reports !== 'hidden';
+
+    if (!canViewPage(user, 'prodcalc', roleTemplates) || !hasAnyProdcalcTab) {
       return (
         <div className="min-h-screen bg-[#FDFAF5] flex flex-col items-center justify-center p-4">
           <div className="bg-white p-6 rounded-2xl shadow-md border border-[#E2EAE9] max-w-md w-full text-center space-y-4">
@@ -2560,6 +2576,7 @@ export default function App() {
           branch: user.branch || 'Rayong'
         }}
         isReadOnly={isReadOnlyPage(user, 'prodcalc', roleTemplates)}
+        tabPermissions={prodcalcTabPerms}
         onSwitchToCafe={() => setCurrentApp('cafe')}
         onLogout={() => {
           setUser(null);
@@ -2571,7 +2588,24 @@ export default function App() {
 
   // Hello, Crenn Standalone Sub-app Mode (GPS Auto Check-in)
   if (currentApp === 'hellocrenn') {
-    if (!canViewPage(user, 'hellocrenn', roleTemplates)) {
+    const helloCrennTabPerms: {
+      dashboard: PagePermission;
+      scan: PagePermission;
+      history: PagePermission;
+      settings: PagePermission;
+    } = {
+      dashboard: getPermissionLevel(user, 'hellocrenn_dashboard', roleTemplates),
+      scan: getPermissionLevel(user, 'hellocrenn_scan', roleTemplates),
+      history: getPermissionLevel(user, 'hellocrenn_history', roleTemplates),
+      settings: getPermissionLevel(user, 'hellocrenn_settings', roleTemplates),
+    };
+    const hasAnyHelloCrennTab =
+      helloCrennTabPerms.dashboard !== 'hidden' ||
+      helloCrennTabPerms.scan !== 'hidden' ||
+      helloCrennTabPerms.history !== 'hidden' ||
+      helloCrennTabPerms.settings !== 'hidden';
+
+    if (!canViewPage(user, 'hellocrenn', roleTemplates) || !hasAnyHelloCrennTab) {
       return (
         <div className="min-h-screen bg-[#F0F5F4] flex flex-col items-center justify-center p-4">
           <div className="bg-white p-6 rounded-2xl shadow-md border border-[#D4E4E3] max-w-md w-full text-center space-y-4">
@@ -2588,10 +2622,7 @@ export default function App() {
         </div>
       );
     }
-    const roleUpper = String(user.role || '').toUpperCase().trim();
-    const canEditGeofence =
-      canEditPage(user, 'userSettings', roleTemplates) ||
-      ['ADMIN', 'OWNER', 'CO-FOUNDER', 'COFOUNDER', 'BRANCH MANAGER', 'BRANCHMANAGER'].includes(roleUpper);
+    const canEditGeofence = canEditPage(user, 'hellocrenn_settings', roleTemplates);
 
     return (
       <HelloCrennApp
@@ -2602,8 +2633,9 @@ export default function App() {
         }}
         canEditGeofence={canEditGeofence}
         isReadOnly={isReadOnlyPage(user, 'hellocrenn', roleTemplates)}
+        tabPermissions={helloCrennTabPerms}
         onSwitchToCafe={() => setCurrentApp('cafe')}
-        onSwitchToProdCalc={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+        onSwitchToProdCalc={canAccessProdCalc(user, roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
         onLogout={() => {
           setUser(null);
           setCurrentApp('cafe');
@@ -2633,7 +2665,7 @@ export default function App() {
             onLogoClick={() => handleTabNavigate('home')}
             onAvatarClick={() => handleTabNavigate('userSettings')}
             onLogout={handleLogout}
-            onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+            onSwitchApp={canAccessProdCalc(user, roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
             outCount={stockSummary.outOfStock}
             lowCount={stockSummary.lowStock}
             needPurchasing={stockSummary.outOfStock + stockSummary.lowStock}
@@ -2641,8 +2673,8 @@ export default function App() {
           />
           <SupabaseStatusBar 
             dbStatus={dbStatus} 
-            onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
-            onSwitchToHelloCrenn={canViewPage(user, 'hellocrenn', roleTemplates) ? () => setCurrentApp('hellocrenn') : undefined}
+            onSwitchApp={canAccessProdCalc(user, roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+            onSwitchToHelloCrenn={canAccessHelloCrenn(user, roleTemplates) ? () => setCurrentApp('hellocrenn') : undefined}
           />
         </>
       )}
@@ -2668,7 +2700,11 @@ export default function App() {
               onSwitchApp={
                 (app?: 'prodcalc' | 'hellocrenn') => {
                   const target = app || 'prodcalc';
-                  if (canViewPage(user, target, roleTemplates)) {
+                  const allowed =
+                    target === 'prodcalc'
+                      ? canAccessProdCalc(user, roleTemplates)
+                      : canAccessHelloCrenn(user, roleTemplates);
+                  if (allowed) {
                     setCurrentApp(target);
                   }
                 }
@@ -2848,7 +2884,7 @@ export default function App() {
             />
           )
         ) : activeTab === 'orderedItems' ? (
-          !canViewPage(user, 'purchasing', roleTemplates) ? (
+          !canViewPage(user, 'orderedItems', roleTemplates) ? (
             <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="รายการที่สั่งซื้อแล้ว" />
           ) : (
             <OrderedItemsReport
@@ -2859,7 +2895,7 @@ export default function App() {
               ingredients={ingredients}
               stockRecord={stockRecord}
               allowedDepartments={allowedStockDepartments}
-              isReadOnly={isReadOnlyPage(user, 'purchasing', roleTemplates)}
+              isReadOnly={isReadOnlyPage(user, 'orderedItems', roleTemplates)}
             />
           )
         ) : activeTab === 'barPurchasing' ? (
