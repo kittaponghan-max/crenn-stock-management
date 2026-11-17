@@ -5,12 +5,14 @@ import {
   Settings2,
   Coffee,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Loader2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { sendDiscordNotification } from '../../lib/discordNotify';
 import { generateUUID } from '../../lib/utils';
+import { PagePermission } from '../../utils/permissions';
 import {
   AttendanceMode,
   AttendanceRecord,
@@ -26,6 +28,7 @@ import {
   normalizeGeofenceConfig,
 } from '../../utils/gpsUtils';
 import { toLocalDateStr, formatThaiNumericDate } from '../ui';
+import { AttendanceDashboard } from './AttendanceDashboard';
 import { AttendanceScanner } from './AttendanceScanner';
 import { AttendanceHistory } from './AttendanceHistory';
 import { GeofenceSettings } from './GeofenceSettings';
@@ -41,6 +44,12 @@ interface HelloCrennAppProps {
   onLogout: () => void;
   canEditGeofence?: boolean;
   isReadOnly?: boolean;
+  tabPermissions?: {
+    dashboard?: PagePermission;
+    scan: PagePermission;
+    history: PagePermission;
+    settings: PagePermission;
+  };
 }
 
 const getGeofenceStorageKey = (branch: string) => `hellocrenn-geofence-${branch}`;
@@ -53,13 +62,96 @@ export function HelloCrennApp({
   onLogout,
   canEditGeofence = false,
   isReadOnly = false,
+  tabPermissions,
 }: HelloCrennAppProps) {
-  const [currentTab, setCurrentTab] = useState<'scan' | 'history' | 'settings'>('scan');
+  const roleUpper = (currentUser.role || '').toUpperCase().trim();
+  const isDefaultAdminRole =
+    roleUpper === 'CO-FOUNDER' ||
+    roleUpper === 'COFOUNDER' ||
+    roleUpper === 'ADMIN' ||
+    roleUpper === 'OWNER';
+
+  const effectivePerms = {
+    dashboard: tabPermissions?.dashboard ?? (isDefaultAdminRole ? 'edit' : 'hidden'),
+    scan: tabPermissions?.scan ?? 'edit',
+    history: tabPermissions?.history ?? 'edit',
+    settings: tabPermissions?.settings ?? (canEditGeofence ? 'edit' : 'read'),
+  };
+
+  type HelloCrennTab = 'dashboard' | 'scan' | 'history' | 'settings';
+
+  const [currentTab, setCurrentTab] = useState<HelloCrennTab>(() => {
+    if (effectivePerms.dashboard !== 'hidden') return 'dashboard';
+    if (effectivePerms.scan !== 'hidden') return 'scan';
+    if (effectivePerms.history !== 'hidden') return 'history';
+    return 'settings';
+  });
+
+  useEffect(() => {
+    if (currentTab === 'dashboard' && effectivePerms.dashboard === 'hidden') {
+      setCurrentTab(
+        effectivePerms.scan !== 'hidden'
+          ? 'scan'
+          : effectivePerms.history !== 'hidden'
+            ? 'history'
+            : 'settings'
+      );
+    } else if (currentTab === 'scan' && effectivePerms.scan === 'hidden') {
+      setCurrentTab(
+        effectivePerms.dashboard !== 'hidden'
+          ? 'dashboard'
+          : effectivePerms.history !== 'hidden'
+            ? 'history'
+            : 'settings'
+      );
+    } else if (currentTab === 'history' && effectivePerms.history === 'hidden') {
+      setCurrentTab(
+        effectivePerms.dashboard !== 'hidden'
+          ? 'dashboard'
+          : effectivePerms.scan !== 'hidden'
+            ? 'scan'
+            : 'settings'
+      );
+    } else if (currentTab === 'settings' && effectivePerms.settings === 'hidden') {
+      setCurrentTab(
+        effectivePerms.dashboard !== 'hidden'
+          ? 'dashboard'
+          : effectivePerms.scan !== 'hidden'
+            ? 'scan'
+            : 'history'
+      );
+    }
+  }, [
+    currentTab,
+    effectivePerms.dashboard,
+    effectivePerms.scan,
+    effectivePerms.history,
+    effectivePerms.settings,
+  ]);
   const [dbStatus, setDbStatus] = useState<'connected' | 'checking' | 'offline'>(
     supabase ? 'checking' : 'offline'
   );
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [scanMenuOpen, setScanMenuOpen] = useState(false);
+  const [mobileScanMenuOpen, setMobileScanMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const scanMenuRef = useRef<HTMLDivElement>(null);
+  const mobileScanMenuRef = useRef<HTMLDivElement>(null);
+  const scanHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearScanHoverTimer = () => {
+    if (scanHoverTimerRef.current) {
+      clearTimeout(scanHoverTimerRef.current);
+      scanHoverTimerRef.current = null;
+    }
+  };
+
+  const scheduleCloseScanMenu = () => {
+    clearScanHoverTimer();
+    scanHoverTimerRef.current = setTimeout(() => {
+      setScanMenuOpen(false);
+    }, 160);
+  };
 
   const [geofenceConfig, setGeofenceConfig] = useState<BranchGeofenceConfig>(() => {
     try {
@@ -85,11 +177,21 @@ export function HelloCrennApp({
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
       }
+      if (scanMenuRef.current && !scanMenuRef.current.contains(e.target as Node)) {
+        setScanMenuOpen(false);
+      }
+      if (mobileScanMenuRef.current && !mobileScanMenuRef.current.contains(e.target as Node)) {
+        setMobileScanMenuOpen(false);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUserMenuOpen(false);
+      if (e.key === 'Escape') {
+        setUserMenuOpen(false);
+        setScanMenuOpen(false);
+        setMobileScanMenuOpen(false);
+      }
     };
-    if (userMenuOpen) {
+    if (userMenuOpen || scanMenuOpen || mobileScanMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -97,7 +199,7 @@ export function HelloCrennApp({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [userMenuOpen]);
+  }, [userMenuOpen, scanMenuOpen, mobileScanMenuOpen]);
 
   // Load geofence config and attendance logs from dedicated Supabase tables (with app_settings fallback)
   useEffect(() => {
@@ -238,7 +340,7 @@ export function HelloCrennApp({
       accuracyMeters: number;
       note?: string;
     }): Promise<AttendanceRecord | null> => {
-      if (isReadOnly) return null;
+      if (isReadOnly || effectivePerms.scan !== 'edit') return null;
 
       const now = new Date();
       const dateStr = toLocalDateStr(now);
@@ -355,11 +457,11 @@ export function HelloCrennApp({
 
       return newRecord;
     },
-    [attendanceRecords, currentUser.branch, currentUser.name, currentUser.role, geofenceConfig, isReadOnly]
+    [attendanceRecords, currentUser.branch, currentUser.name, currentUser.role, effectivePerms.scan, geofenceConfig, isReadOnly]
   );
 
   const handleSaveGeofenceConfig = async (nextConfig: BranchGeofenceConfig) => {
-    if (!canEditGeofence) return;
+    if (isReadOnly || effectivePerms.settings !== 'edit') return;
     const enriched: BranchGeofenceConfig = {
       ...nextConfig,
       branch: currentUser.branch,
@@ -436,15 +538,63 @@ export function HelloCrennApp({
 
   const userInitial = (currentUser.name || 'U').charAt(0).toUpperCase();
 
-  const navItems: Array<{
-    id: 'scan' | 'history' | 'settings';
+  const scanSubItems: Array<{
+    id: 'dashboard' | 'scan';
+    label: string;
+    description: string;
+    emoji: string;
+  }> = [
+    ...(effectivePerms.dashboard !== 'hidden'
+      ? [
+          {
+            id: 'dashboard' as const,
+            label: 'สแกนเวลา (ภาพรวมพนักงาน · Admin)',
+            description: 'ดูสถานะเข้า-ออกงานและโอทีของพนักงานทุกคน',
+            emoji: '📊',
+          },
+        ]
+      : []),
+    ...(effectivePerms.scan !== 'hidden'
+      ? [
+          {
+            id: 'scan' as const,
+            label: 'สแกนเวลาตนเอง (My GPS Check-in)',
+            description: 'สแกน GPS และดูสรุปเวลาทำงานเฉพาะของคุณ',
+            emoji: '📍',
+          },
+        ]
+      : []),
+  ];
+
+  const isScanGroupActive = currentTab === 'dashboard' || currentTab === 'scan';
+
+  const singleNavItems: Array<{
+    id: 'history' | 'settings';
     label: string;
     icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   }> = [
-    { id: 'scan', label: 'สแกนลงเวลา', icon: MapPin },
-    { id: 'history', label: 'ประวัติเข้า-ออก', icon: History },
-    { id: 'settings', label: 'ตั้งค่าพิกัดสาขา', icon: Settings2 },
+    ...(effectivePerms.history !== 'hidden'
+      ? [{ id: 'history' as const, label: 'ประวัติเข้า-ออก', icon: History }]
+      : []),
+    ...(effectivePerms.settings !== 'hidden'
+      ? [{ id: 'settings' as const, label: 'ตั้งค่าพิกัดสาขา', icon: Settings2 }]
+      : []),
   ];
+
+  const defaultHomeTab: HelloCrennTab =
+    effectivePerms.dashboard !== 'hidden'
+      ? 'dashboard'
+      : effectivePerms.scan !== 'hidden'
+        ? 'scan'
+        : effectivePerms.history !== 'hidden'
+          ? 'history'
+          : 'settings';
+
+  const isScanReadOnly = isReadOnly || effectivePerms.scan === 'read';
+  const canModifyGeofence =
+    !isReadOnly &&
+    (canEditGeofence || effectivePerms.settings === 'edit') &&
+    effectivePerms.settings === 'edit';
 
   return (
     <div className="min-h-screen bg-[#F0F5F4] text-[#2D4A49] font-sans pb-24 md:pb-12">
@@ -457,9 +607,9 @@ export function HelloCrennApp({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => setCurrentTab('scan')}
+              onClick={() => setCurrentTab(defaultHomeTab)}
               className="text-left group focus:outline-none cursor-pointer"
-              title="กลับหน้าสแกนลงเวลา (Hello, Crenn)"
+              title="กลับหน้าหลัก (Hello, Crenn)"
             >
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-[0.22em] uppercase leading-none font-sans">
                 CRENN
@@ -475,14 +625,114 @@ export function HelloCrennApp({
             aria-label="เมนูหลัก Hello, Crenn"
             className="hidden md:flex items-center justify-center gap-1 flex-1 px-2"
           >
-            {navItems.map((item) => {
+            {scanSubItems.length > 0 && (
+              <div
+                ref={scanMenuRef}
+                className="relative overflow-visible"
+                onMouseEnter={() => {
+                  clearScanHoverTimer();
+                  setScanMenuOpen(true);
+                }}
+                onMouseLeave={scheduleCloseScanMenu}
+              >
+                <button
+                  type="button"
+                  onClick={() => setScanMenuOpen((prev) => !prev)}
+                  className={`flex flex-col items-center justify-center gap-[2px] px-[12px] py-[6px] rounded-lg min-w-[68px] cursor-pointer relative transition-all duration-150 ${
+                    isScanGroupActive || scanMenuOpen
+                      ? 'bg-[#E8F3F2] text-[#5A8A88]'
+                      : 'text-[#A8BCBB] hover:bg-[#F0F5F4] hover:text-[#5A8A88]'
+                  }`}
+                  title="สแกนเวลา"
+                  aria-expanded={scanMenuOpen}
+                  aria-haspopup="menu"
+                  aria-current={isScanGroupActive ? 'page' : undefined}
+                >
+                  <MapPin size={18} strokeWidth={1.5} />
+                  <span
+                    className={`text-[9px] leading-none whitespace-nowrap mt-[1px] flex items-center gap-[2px] ${
+                      isScanGroupActive || scanMenuOpen ? 'font-semibold text-[#5A8A88]' : 'font-normal'
+                    }`}
+                  >
+                    สแกนเวลา
+                    <ChevronDown
+                      size={7}
+                      className={`transition-transform duration-150 shrink-0 ${
+                        scanMenuOpen ? 'rotate-180 text-[#5A8A88]' : 'text-current opacity-60'
+                      }`}
+                    />
+                  </span>
+                </button>
+
+                {scanMenuOpen && (
+                  <div
+                    role="menu"
+                    onMouseEnter={clearScanHoverTimer}
+                    onMouseLeave={scheduleCloseScanMenu}
+                    className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 min-w-[270px] bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-2 z-[100] animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    {/* Invisible hover bridge */}
+                    <div className="absolute -top-3 left-0 right-0 h-3 bg-transparent" aria-hidden="true" />
+                    <div className="px-3 pt-1 pb-1.5 text-[10px] font-bold text-[#5A8A88] uppercase tracking-wider select-none">
+                      ระบบลงเวลา (Attendance)
+                    </div>
+                    <div className="space-y-1">
+                      {scanSubItems.map((sub) => {
+                        const isSubActive = currentTab === sub.id;
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setCurrentTab(sub.id);
+                              setScanMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all duration-150 cursor-pointer text-left group select-none ${
+                              isSubActive
+                                ? 'bg-[#E8F3F2] text-[#2D4A49] font-bold shadow-xs'
+                                : 'text-slate-700 hover:bg-[#F0F5F4] hover:text-[#1E3A3A] font-medium'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 flex-1 min-w-0 pr-1">
+                              <span className="text-sm shrink-0 leading-none mt-0.5">{sub.emoji}</span>
+                              <div className="min-w-0 flex-1">
+                                <span className="block text-[12px] text-[#2D4A49] leading-tight">
+                                  {sub.label}
+                                </span>
+                                <span className="block text-[10px] font-normal text-[#6B8F8E] mt-0.5 leading-tight">
+                                  {sub.description}
+                                </span>
+                              </div>
+                            </div>
+                            {isSubActive ? (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0 ml-2" />
+                            ) : (
+                              <ChevronRight
+                                size={13}
+                                className="text-slate-300 group-hover:text-[#5A8A88] transition-colors shrink-0 ml-2"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {singleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setCurrentTab(item.id)}
+                  onClick={() => {
+                    setCurrentTab(item.id);
+                    setScanMenuOpen(false);
+                  }}
                   className={`flex flex-col items-center justify-center gap-[2px] px-[12px] py-[6px] rounded-lg min-w-[68px] cursor-pointer relative transition-all duration-150 ${
                     isActive
                       ? 'bg-[#E8F3F2] text-[#5A8A88]'
@@ -668,26 +918,42 @@ export function HelloCrennApp({
       {/* MAIN CONTAINER (Aligned to max-w-6xl grid) */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <main className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8">
-        {currentTab === 'scan' && (
+        {currentTab === 'dashboard' && effectivePerms.dashboard !== 'hidden' && (
+          <AttendanceDashboard
+            currentBranch={currentUser.branch}
+            geofenceConfig={geofenceConfig}
+            attendanceRecords={attendanceRecords}
+            canScanSelf={effectivePerms.scan !== 'hidden'}
+            onOpenSelfScan={() => setCurrentTab('scan')}
+            canEditGeofence={canModifyGeofence}
+            onOpenGeofenceSettings={
+              effectivePerms.settings !== 'hidden' ? () => setCurrentTab('settings') : undefined
+            }
+          />
+        )}
+
+        {currentTab === 'scan' && effectivePerms.scan !== 'hidden' && (
           <AttendanceScanner
             currentUser={currentUser}
             geofenceConfig={geofenceConfig}
             attendanceRecords={attendanceRecords}
             onRecordAttendance={handleRecordAttendance}
-            onOpenGeofenceSettings={() => setCurrentTab('settings')}
-            canEditGeofence={canEditGeofence}
-            isReadOnly={isReadOnly}
+            onOpenGeofenceSettings={
+              effectivePerms.settings !== 'hidden' ? () => setCurrentTab('settings') : undefined
+            }
+            canEditGeofence={canModifyGeofence}
+            isReadOnly={isScanReadOnly}
           />
         )}
 
-        {currentTab === 'history' && (
+        {currentTab === 'history' && effectivePerms.history !== 'hidden' && (
           <AttendanceHistory records={attendanceRecords} currentBranch={currentUser.branch} />
         )}
 
-        {currentTab === 'settings' && (
+        {currentTab === 'settings' && effectivePerms.settings !== 'hidden' && (
           <GeofenceSettings
             config={geofenceConfig}
-            canEdit={canEditGeofence}
+            canEdit={canModifyGeofence}
             onSaveConfig={handleSaveGeofenceConfig}
           />
         )}
@@ -696,16 +962,93 @@ export function HelloCrennApp({
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* MOBILE BOTTOM NAVIGATION */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div className="md:hidden fixed bottom-3 left-4 right-4 z-40">
-        <div className="bg-white/95 border border-[#D4E4E3] backdrop-blur-md shadow-[0_8px_24px_rgba(45,74,73,0.16)] rounded-2xl p-1 flex items-center justify-around gap-1">
-          {navItems.map((item) => {
+      <div className="md:hidden fixed bottom-3 left-4 right-4 z-40" ref={mobileScanMenuRef}>
+        <div className="relative bg-white/95 border border-[#D4E4E3] backdrop-blur-md shadow-[0_8px_24px_rgba(45,74,73,0.16)] rounded-2xl p-1 flex items-center justify-around gap-1">
+          {scanSubItems.length > 0 && (
+            <div className="relative flex-1">
+              <button
+                type="button"
+                onClick={() => setMobileScanMenuOpen((prev) => !prev)}
+                className={`w-full py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer whitespace-nowrap ${
+                  isScanGroupActive || mobileScanMenuOpen
+                    ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                    : 'text-[#A8BCBB] hover:text-[#5A8A88]'
+                }`}
+                aria-expanded={mobileScanMenuOpen}
+                aria-haspopup="menu"
+              >
+                <MapPin size={16} strokeWidth={1.5} />
+                <span className="flex items-center gap-0.5">
+                  สแกนเวลา
+                  <ChevronUp
+                    size={9}
+                    className={`transition-transform duration-150 ${
+                      mobileScanMenuOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </span>
+              </button>
+
+              {mobileScanMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute bottom-[calc(100%+10px)] left-0 w-[265px] bg-white rounded-2xl shadow-xl border border-[#D4E4E3] p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+                >
+                  <div className="px-3 pt-1 pb-1.5 text-[10px] font-bold text-[#5A8A88] uppercase tracking-wider select-none">
+                    ระบบลงเวลา (Attendance)
+                  </div>
+                  <div className="space-y-1">
+                    {scanSubItems.map((sub) => {
+                      const isSubActive = currentTab === sub.id;
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setCurrentTab(sub.id);
+                            setMobileScanMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                            isSubActive
+                              ? 'bg-[#E8F3F2] text-[#2D4A49] font-bold'
+                              : 'text-slate-700 hover:bg-[#F0F5F4] font-medium'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2 min-w-0 pr-1">
+                            <span className="text-sm shrink-0 leading-none mt-0.5">{sub.emoji}</span>
+                            <div className="min-w-0">
+                              <span className="block text-[12px] leading-tight">{sub.label}</span>
+                              <span className="block text-[10px] font-normal text-[#6B8F8E] mt-0.5 leading-tight">
+                                {sub.description}
+                              </span>
+                            </div>
+                          </div>
+                          {isSubActive ? (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#5A8A88] shrink-0 ml-2" />
+                          ) : (
+                            <ChevronRight size={13} className="text-slate-300 shrink-0 ml-2" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {singleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setCurrentTab(item.id)}
+                onClick={() => {
+                  setCurrentTab(item.id);
+                  setMobileScanMenuOpen(false);
+                }}
                 className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
