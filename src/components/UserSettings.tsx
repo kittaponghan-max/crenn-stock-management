@@ -105,7 +105,8 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'reports',
     name: 'GROUP 4: 📊 รายงานรวม (Reports)',
     items: [
-      { key: 'purchasing', name: 'Purchasing (สั่งซื้อวัตถุดิบ)', icon: '🛒' },
+      { key: 'purchasing', name: 'Purchasing (รายการวัตถุดิบที่ต้องสั่งซื้อ)', icon: '🛒' },
+      { key: 'orderedItems', name: 'Ordered Items (รายการวัตถุดิบที่สั่งซื้อแล้ว)', icon: '✅' },
       { key: 'rndReport', name: 'R&D Report (เทสเมนูใหม่)', icon: '🔬' },
       { key: 'maintenanceReport', name: 'รายงานบำรุงรักษาเครื่องมือ (Maintenance)', icon: '🔧' },
     ]
@@ -123,11 +124,30 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'admin',
-    name: 'GROUP 6: ⚙️ Admin & Add-on Apps',
+    name: 'GROUP 6: ⚙️ Admin & Security',
     items: [
       { key: 'userSettings', name: 'User Security Settings (ตั้งค่าสิทธิ์และบัญชีผู้ใช้)', icon: '👤' },
-      { key: 'prodcalc', name: 'คำนวณต้นทุนการผลิต (ProdCalc)', icon: '🧮' },
-      { key: 'hellocrenn', name: 'ลงเวลาเข้า-ออกงาน (Hello, Crenn GPS)', icon: '📍' },
+    ]
+  },
+  {
+    id: 'prodcalc',
+    name: 'GROUP 7: 🧮 Sub-app: ProdCalc (คำนวณต้นทุนการผลิต)',
+    items: [
+      { key: 'prodcalc', name: 'เปิดใช้งาน Sub-app ProdCalc (Master Switch)', icon: '🧮' },
+      { key: 'prodcalc_ingredients', name: 'วัตถุดิบ & Yield (Ingredient Pricing)', icon: '🧪' },
+      { key: 'prodcalc_recipes', name: 'สูตรอาหาร / สินค้า & คำนวณราคา (Recipes)', icon: '📖' },
+      { key: 'prodcalc_reports', name: 'รายงานต้นทุนการผลิต (Cost Reports)', icon: '📊' },
+    ]
+  },
+  {
+    id: 'hellocrenn',
+    name: 'GROUP 8: 📍 Sub-app: Hello, Crenn (GPS Time & Attendance)',
+    items: [
+      { key: 'hellocrenn', name: 'เปิดใช้งาน Sub-app Hello, Crenn (Master Switch)', icon: '📍' },
+      { key: 'hellocrenn_dashboard', name: 'สแกนเวลา: ภาพรวมพนักงานทุกคน (Admin Dashboard)', icon: '📊' },
+      { key: 'hellocrenn_scan', name: 'สแกนเวลาตนเอง (My GPS Auto Check-in)', icon: '📡' },
+      { key: 'hellocrenn_history', name: 'ประวัติเข้า-ออกงาน (Attendance History)', icon: '🕒' },
+      { key: 'hellocrenn_settings', name: 'ตั้งค่าพิกัดสาขาและกะงาน (Geofence & Shift Config)', icon: '🛰️' },
     ]
   }
 ];
@@ -146,6 +166,7 @@ const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'checklistsBakery', name: 'เช็คลิสต์เตรียมความพร้อม ครัว' },
   { id: 'rndReport', name: 'R&D Report (เทสเมนูใหม่)' },
   { id: 'purchasingReport', name: 'สรุปยอดสั่งซื้อ (Purchasing)' },
+  { id: 'orderedItems', name: 'รายการวัตถุดิบที่สั่งซื้อแล้ว (Ordered Items)' },
   { id: 'historyLogs', name: 'ประวัติการแก้ไขข้อมูล (Audit Logs)' },
   { id: 'historyChecklist', name: 'ประวัติ Check-in & Check-out' },
   { id: 'historyWaste', name: 'รายงาน Waste เมล็ดกาแฟ' },
@@ -153,7 +174,14 @@ const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'manageIngredients', name: 'จัดการรายการวัตถุดิบ' },
   { id: 'adminTools', name: 'ตั้งค่าผู้ดูแลระบบ (Admin Only)' },
   { id: 'prodcalc' as any, name: 'คำนวณต้นทุนการผลิต (ProdCalc)' },
-  { id: 'hellocrenn' as any, name: 'ลงเวลาเข้า-ออกงาน (Hello, Crenn GPS)' }
+  { id: 'prodcalc_ingredients' as any, name: 'ProdCalc: วัตถุดิบ & Yield' },
+  { id: 'prodcalc_recipes' as any, name: 'ProdCalc: สูตรอาหาร / สินค้า' },
+  { id: 'prodcalc_reports' as any, name: 'ProdCalc: รายงานต้นทุน' },
+  { id: 'hellocrenn' as any, name: 'ลงเวลาเข้า-ออกงาน (Hello, Crenn GPS)' },
+  { id: 'hellocrenn_dashboard' as any, name: 'Hello, Crenn: ภาพรวมการลงเวลาพนักงาน (Admin)' },
+  { id: 'hellocrenn_scan' as any, name: 'Hello, Crenn: สแกนเวลาตนเอง' },
+  { id: 'hellocrenn_history' as any, name: 'Hello, Crenn: ประวัติเข้า-ออกงาน' },
+  { id: 'hellocrenn_settings' as any, name: 'Hello, Crenn: ตั้งค่าพิกัดสาขาและกะงาน' }
 ];
 
 const DEFAULT_PERMISSIONS: AppPermissions = {
@@ -170,6 +198,7 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   checklistsBakery: 'Edit',
   rndReport: 'Edit',
   purchasingReport: 'Edit',
+  orderedItems: 'Edit',
   historyLogs: 'Edit',
   historyChecklist: 'Edit',
   historyWaste: 'Edit',
@@ -177,7 +206,14 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   manageIngredients: 'Edit',
   adminTools: 'Hidden',
   prodcalc: 'Hidden',
-  hellocrenn: 'Edit'
+  prodcalc_ingredients: 'Hidden',
+  prodcalc_recipes: 'Hidden',
+  prodcalc_reports: 'Hidden',
+  hellocrenn: 'Edit',
+  hellocrenn_dashboard: 'Hidden',
+  hellocrenn_scan: 'Edit',
+  hellocrenn_history: 'Review',
+  hellocrenn_settings: 'Hidden'
 };
 
 // Helper for sorting users by official position hierarchy
@@ -724,9 +760,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
       'dashboard', 'leaveDashboard', 'personnelLeave', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
-      'purchasing', 'rndReport', 'maintenanceReport',
+      'purchasing', 'orderedItems', 'rndReport', 'maintenanceReport',
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
-      'userSettings', 'prodcalc'
+      'userSettings',
+      'prodcalc', 'prodcalc_ingredients', 'prodcalc_recipes', 'prodcalc_reports',
+      'hellocrenn', 'hellocrenn_dashboard', 'hellocrenn_scan', 'hellocrenn_history', 'hellocrenn_settings'
     ];
     const updated: any = { ...formData.permissions };
     allKeys.forEach(k => {
@@ -783,9 +821,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
       'dashboard', 'leaveDashboard', 'personnelLeave', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
-      'purchasing', 'rndReport', 'maintenanceReport',
+      'purchasing', 'orderedItems', 'rndReport', 'maintenanceReport',
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
-      'userSettings', 'prodcalc'
+      'userSettings',
+      'prodcalc', 'prodcalc_ingredients', 'prodcalc_recipes', 'prodcalc_reports',
+      'hellocrenn', 'hellocrenn_dashboard', 'hellocrenn_scan', 'hellocrenn_history', 'hellocrenn_settings'
     ];
     const updated: any = { ...templateForm };
     allKeys.forEach(k => { updated[k] = level; });
