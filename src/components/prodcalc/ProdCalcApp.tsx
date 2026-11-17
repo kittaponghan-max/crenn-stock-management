@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { sendDiscordNotification } from '../../lib/discordNotify';
+import { PagePermission } from '../../utils/permissions';
 import { Recipe, ProdcalcIngredientPrice } from '../../types/prodcalc';
 import { IngredientPricing } from './IngredientPricing';
 import { RecipeList } from './RecipeList';
@@ -25,11 +26,43 @@ interface ProdCalcAppProps {
   onSwitchToCafe: () => void;
   onLogout: () => void;
   isReadOnly?: boolean;
+  tabPermissions?: {
+    ingredients: PagePermission;
+    recipes: PagePermission;
+    reports: PagePermission;
+  };
 }
 
-export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly = false }: ProdCalcAppProps) {
+export function ProdCalcApp({
+  currentUser,
+  onSwitchToCafe,
+  onLogout,
+  isReadOnly = false,
+  tabPermissions,
+}: ProdCalcAppProps) {
+  const effectivePerms = {
+    ingredients: tabPermissions?.ingredients ?? 'edit',
+    recipes: tabPermissions?.recipes ?? 'edit',
+    reports: tabPermissions?.reports ?? 'edit',
+  };
+
   // Navigation tabs: 'ingredients' | 'recipes' | 'recipeEditor' | 'reports'
-  const [currentTab, setCurrentTab] = useState<'ingredients' | 'recipes' | 'recipeEditor' | 'reports'>('recipes');
+  const [currentTab, setCurrentTab] = useState<'ingredients' | 'recipes' | 'recipeEditor' | 'reports'>(() => {
+    if (effectivePerms.recipes !== 'hidden') return 'recipes';
+    if (effectivePerms.ingredients !== 'hidden') return 'ingredients';
+    return 'reports';
+  });
+
+  useEffect(() => {
+    if (currentTab === 'ingredients' && effectivePerms.ingredients === 'hidden') {
+      setCurrentTab(effectivePerms.recipes !== 'hidden' ? 'recipes' : 'reports');
+    } else if ((currentTab === 'recipes' || currentTab === 'recipeEditor') && effectivePerms.recipes === 'hidden') {
+      setEditingRecipe(null);
+      setCurrentTab(effectivePerms.ingredients !== 'hidden' ? 'ingredients' : 'reports');
+    } else if (currentTab === 'reports' && effectivePerms.reports === 'hidden') {
+      setCurrentTab(effectivePerms.recipes !== 'hidden' ? 'recipes' : 'ingredients');
+    }
+  }, [currentTab, effectivePerms.ingredients, effectivePerms.recipes, effectivePerms.reports]);
 
   // Recipe editing state
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
@@ -249,25 +282,47 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
     icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
     isActive: boolean;
   }> = [
-    {
-      id: 'ingredients',
-      label: 'วัตถุดิบ & Yield',
-      icon: FlaskConical,
-      isActive: currentTab === 'ingredients',
-    },
-    {
-      id: 'recipes',
-      label: `สูตรอาหาร (${recipes.length})`,
-      icon: BookOpen,
-      isActive: currentTab === 'recipes' || currentTab === 'recipeEditor',
-    },
-    {
-      id: 'reports',
-      label: 'รายงานต้นทุน',
-      icon: BarChart2,
-      isActive: currentTab === 'reports',
-    },
+    ...(effectivePerms.ingredients !== 'hidden'
+      ? [
+          {
+            id: 'ingredients' as const,
+            label: 'วัตถุดิบ & Yield',
+            icon: FlaskConical,
+            isActive: currentTab === 'ingredients',
+          },
+        ]
+      : []),
+    ...(effectivePerms.recipes !== 'hidden'
+      ? [
+          {
+            id: 'recipes' as const,
+            label: `สูตรอาหาร (${recipes.length})`,
+            icon: BookOpen,
+            isActive: currentTab === 'recipes' || currentTab === 'recipeEditor',
+          },
+        ]
+      : []),
+    ...(effectivePerms.reports !== 'hidden'
+      ? [
+          {
+            id: 'reports' as const,
+            label: 'รายงานต้นทุน',
+            icon: BarChart2,
+            isActive: currentTab === 'reports',
+          },
+        ]
+      : []),
   ];
+
+  const defaultHomeTab: 'ingredients' | 'recipes' | 'reports' =
+    effectivePerms.recipes !== 'hidden'
+      ? 'recipes'
+      : effectivePerms.ingredients !== 'hidden'
+        ? 'ingredients'
+        : 'reports';
+
+  const isIngredientsReadOnly = isReadOnly || effectivePerms.ingredients === 'read';
+  const isRecipesReadOnly = isReadOnly || effectivePerms.recipes === 'read';
 
   return (
     <div className="min-h-screen bg-[#F0F5F4] text-[#2D4A49] font-sans pb-24 md:pb-12">
@@ -280,9 +335,9 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => { setCurrentTab('recipes'); setEditingRecipe(null); }}
+              onClick={() => { setCurrentTab(defaultHomeTab); setEditingRecipe(null); }}
               className="text-left group focus:outline-none cursor-pointer"
-              title="กลับหน้าสูตรอาหาร (ProdCalc)"
+              title="กลับหน้าหลัก ProdCalc"
             >
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-[0.22em] uppercase leading-none font-sans">
                 CRENN
@@ -467,30 +522,30 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
       {/* MAIN CONTAINER (Aligned to max-w-6xl grid) */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <main className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8">
-        {currentTab === 'ingredients' && (
-          <IngredientPricing currentBranch={currentUser.branch} isReadOnly={isReadOnly} />
+        {currentTab === 'ingredients' && effectivePerms.ingredients !== 'hidden' && (
+          <IngredientPricing currentBranch={currentUser.branch} isReadOnly={isIngredientsReadOnly} />
         )}
 
-        {currentTab === 'recipes' && (
+        {currentTab === 'recipes' && effectivePerms.recipes !== 'hidden' && (
           <RecipeList
             recipes={recipes}
             onNewRecipe={() => {
-              if (isReadOnly) return;
+              if (isRecipesReadOnly) return;
               setEditingRecipe(null);
               setCurrentTab('recipeEditor');
             }}
             onEditRecipe={(r) => {
-              if (isReadOnly) return;
+              if (isRecipesReadOnly) return;
               setEditingRecipe(r);
               setCurrentTab('recipeEditor');
             }}
             onDeleteRecipe={handleDeleteRecipe}
             currentBranch={currentUser.branch}
-            isReadOnly={isReadOnly}
+            isReadOnly={isRecipesReadOnly}
           />
         )}
 
-        {currentTab === 'recipeEditor' && (
+        {currentTab === 'recipeEditor' && effectivePerms.recipes !== 'hidden' && (
           <RecipeEditor
             initialRecipe={editingRecipe}
             availableIngredients={availableIngredients}
@@ -500,11 +555,11 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
               setCurrentTab('recipes');
             }}
             currentBranch={currentUser.branch}
-            isReadOnly={isReadOnly}
+            isReadOnly={isRecipesReadOnly}
           />
         )}
 
-        {currentTab === 'reports' && (
+        {currentTab === 'reports' && effectivePerms.reports !== 'hidden' && (
           <CostReport recipes={recipes} currentBranch={currentUser.branch} />
         )}
       </main>
@@ -514,44 +569,50 @@ export function ProdCalcApp({ currentUser, onSwitchToCafe, onLogout, isReadOnly 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="md:hidden fixed bottom-3 left-4 right-4 z-40">
         <div className="bg-white/95 border border-[#D4E4E3] backdrop-blur-md shadow-[0_8px_24px_rgba(45,74,73,0.16)] rounded-2xl p-1 flex items-center justify-around gap-1">
-          <button
-            type="button"
-            onClick={() => { setCurrentTab('ingredients'); setEditingRecipe(null); }}
-            className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
-              currentTab === 'ingredients'
-                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
-                : 'text-[#A8BCBB] hover:text-[#5A8A88]'
-            }`}
-          >
-            <FlaskConical size={16} strokeWidth={1.5} />
-            <span>วัตถุดิบ</span>
-          </button>
+          {effectivePerms.ingredients !== 'hidden' && (
+            <button
+              type="button"
+              onClick={() => { setCurrentTab('ingredients'); setEditingRecipe(null); }}
+              className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                currentTab === 'ingredients'
+                  ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                  : 'text-[#A8BCBB] hover:text-[#5A8A88]'
+              }`}
+            >
+              <FlaskConical size={16} strokeWidth={1.5} />
+              <span>วัตถุดิบ</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => { setCurrentTab('recipes'); setEditingRecipe(null); }}
-            className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
-              currentTab === 'recipes' || currentTab === 'recipeEditor'
-                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
-                : 'text-[#A8BCBB] hover:text-[#5A8A88]'
-            }`}
-          >
-            <BookOpen size={16} strokeWidth={1.5} />
-            <span>สูตร ({recipes.length})</span>
-          </button>
+          {effectivePerms.recipes !== 'hidden' && (
+            <button
+              type="button"
+              onClick={() => { setCurrentTab('recipes'); setEditingRecipe(null); }}
+              className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                currentTab === 'recipes' || currentTab === 'recipeEditor'
+                  ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                  : 'text-[#A8BCBB] hover:text-[#5A8A88]'
+              }`}
+            >
+              <BookOpen size={16} strokeWidth={1.5} />
+              <span>สูตร ({recipes.length})</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => { setCurrentTab('reports'); setEditingRecipe(null); }}
-            className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
-              currentTab === 'reports'
-                ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
-                : 'text-[#A8BCBB] hover:text-[#5A8A88]'
-            }`}
-          >
-            <BarChart2 size={16} strokeWidth={1.5} />
-            <span>รายงาน</span>
-          </button>
+          {effectivePerms.reports !== 'hidden' && (
+            <button
+              type="button"
+              onClick={() => { setCurrentTab('reports'); setEditingRecipe(null); }}
+              className={`flex-1 py-1.5 rounded-xl text-[9.5px] flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
+                currentTab === 'reports'
+                  ? 'bg-[#E8F3F2] text-[#5A8A88] font-semibold'
+                  : 'text-[#A8BCBB] hover:text-[#5A8A88]'
+              }`}
+            >
+              <BarChart2 size={16} strokeWidth={1.5} />
+              <span>รายงาน</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
