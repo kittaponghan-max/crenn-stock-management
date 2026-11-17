@@ -19,6 +19,7 @@ export type PagePermKey =
   | 'kitchen_checkin'
   | 'bakeryPlan'
   | 'purchasing'
+  | 'orderedItems'
   | 'rndReport'
   | 'maintenanceReport'
   | 'history_edit'
@@ -28,7 +29,14 @@ export type PagePermKey =
   | 'history_bakery'
   | 'userSettings'
   | 'prodcalc'
-  | 'hellocrenn';
+  | 'prodcalc_ingredients'
+  | 'prodcalc_recipes'
+  | 'prodcalc_reports'
+  | 'hellocrenn'
+  | 'hellocrenn_dashboard'
+  | 'hellocrenn_scan'
+  | 'hellocrenn_history'
+  | 'hellocrenn_settings';
 
 export interface UserPermissions {
   // General
@@ -56,6 +64,7 @@ export interface UserPermissions {
 
   // รายงานรวม
   purchasing: PagePermission;
+  orderedItems: PagePermission;
   rndReport: PagePermission;
   maintenanceReport: PagePermission;
 
@@ -70,9 +79,16 @@ export interface UserPermissions {
   userSettings: PagePermission;
   canEditDateRange: boolean;
 
-  // Add-ons / Applications
+  // Add-ons / Sub-apps (ProdCalc & Hello, Crenn)
   prodcalc: PagePermission;
+  prodcalc_ingredients: PagePermission;
+  prodcalc_recipes: PagePermission;
+  prodcalc_reports: PagePermission;
   hellocrenn: PagePermission;
+  hellocrenn_dashboard: PagePermission;
+  hellocrenn_scan: PagePermission;
+  hellocrenn_history: PagePermission;
+  hellocrenn_settings: PagePermission;
 
   [key: string]: any;
 }
@@ -101,6 +117,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       kitchen_checkin: 'edit',
       bakeryPlan: 'edit',
       purchasing: 'edit',
+      orderedItems: 'edit',
       rndReport: 'edit',
       maintenanceReport: 'edit',
       history_edit: 'edit',
@@ -111,7 +128,14 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'edit',
       canEditDateRange: true,
       prodcalc: 'edit',
+      prodcalc_ingredients: 'edit',
+      prodcalc_recipes: 'edit',
+      prodcalc_reports: 'edit',
       hellocrenn: 'edit',
+      hellocrenn_dashboard: 'edit',
+      hellocrenn_scan: 'edit',
+      hellocrenn_history: 'edit',
+      hellocrenn_settings: 'edit',
     };
   }
   if (r === 'BRANCH MANAGER' || r === 'BRANCHMANAGER') {
@@ -134,6 +158,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       kitchen_checkin: 'edit',
       bakeryPlan: 'edit',
       purchasing: 'edit',
+      orderedItems: 'edit',
       rndReport: 'edit',
       maintenanceReport: 'edit',
       history_edit: 'edit',
@@ -144,7 +169,14 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'hidden',
       canEditDateRange: false,
       prodcalc: 'hidden',
+      prodcalc_ingredients: 'hidden',
+      prodcalc_recipes: 'hidden',
+      prodcalc_reports: 'hidden',
       hellocrenn: 'edit',
+      hellocrenn_dashboard: 'hidden',
+      hellocrenn_scan: 'edit',
+      hellocrenn_history: 'edit',
+      hellocrenn_settings: 'edit',
     };
   }
   if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
@@ -167,6 +199,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       kitchen_checkin: 'edit',
       bakeryPlan: 'edit',
       purchasing: 'read',
+      orderedItems: 'read',
       rndReport: 'edit',
       maintenanceReport: 'read',
       history_edit: 'read',
@@ -177,7 +210,14 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'hidden',
       canEditDateRange: false,
       prodcalc: 'hidden',
+      prodcalc_ingredients: 'hidden',
+      prodcalc_recipes: 'hidden',
+      prodcalc_reports: 'hidden',
       hellocrenn: 'edit',
+      hellocrenn_dashboard: 'hidden',
+      hellocrenn_scan: 'edit',
+      hellocrenn_history: 'read',
+      hellocrenn_settings: 'hidden',
     };
   }
   if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE' || r === 'BARISTA ASSISTANT') {
@@ -200,6 +240,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       kitchen_checkin: 'hidden',
       bakeryPlan: 'hidden',
       purchasing: 'read',
+      orderedItems: 'read',
       rndReport: 'read',
       maintenanceReport: 'read',
       history_edit: 'read',
@@ -210,7 +251,14 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'hidden',
       canEditDateRange: false,
       prodcalc: 'hidden',
+      prodcalc_ingredients: 'hidden',
+      prodcalc_recipes: 'hidden',
+      prodcalc_reports: 'hidden',
       hellocrenn: 'edit',
+      hellocrenn_dashboard: 'hidden',
+      hellocrenn_scan: 'edit',
+      hellocrenn_history: 'read',
+      hellocrenn_settings: 'hidden',
     };
   }
   // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER / custom roles fallback:
@@ -233,6 +281,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     kitchen_checkin: 'read',
     bakeryPlan: 'read',
     purchasing: 'hidden',
+    orderedItems: 'hidden',
     rndReport: 'hidden',
     maintenanceReport: 'read',
     history_edit: 'read',
@@ -243,7 +292,14 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     userSettings: 'hidden',
     canEditDateRange: false,
     prodcalc: 'hidden',
+    prodcalc_ingredients: 'hidden',
+    prodcalc_recipes: 'hidden',
+    prodcalc_reports: 'hidden',
     hellocrenn: 'edit',
+    hellocrenn_dashboard: 'hidden',
+    hellocrenn_scan: 'edit',
+    hellocrenn_history: 'read',
+    hellocrenn_settings: 'hidden',
   };
 };
 
@@ -282,6 +338,10 @@ export const normalizePermissions = (
         kitchen_checkin: toLevel(customDefaults.kitchen_checkin, baseDefaults.kitchen_checkin),
         bakeryPlan: toLevel(customDefaults.bakeryPlan, baseDefaults.bakeryPlan),
         purchasing: toLevel(customDefaults.purchasing, baseDefaults.purchasing),
+        orderedItems: toLevel(
+          customDefaults.orderedItems !== undefined ? customDefaults.orderedItems : customDefaults.purchasing,
+          baseDefaults.orderedItems
+        ),
         rndReport: toLevel(customDefaults.rndReport, baseDefaults.rndReport),
         maintenanceReport: toLevel(customDefaults.maintenanceReport, baseDefaults.maintenanceReport),
         history_edit: toLevel(customDefaults.history_edit, baseDefaults.history_edit),
@@ -295,7 +355,47 @@ export const normalizePermissions = (
             ? customDefaults.canEditDateRange
             : baseDefaults.canEditDateRange,
         prodcalc: toLevel(customDefaults.prodcalc, baseDefaults.prodcalc),
+        prodcalc_ingredients: toLevel(
+          customDefaults.prodcalc_ingredients !== undefined ? customDefaults.prodcalc_ingredients : customDefaults.prodcalc,
+          baseDefaults.prodcalc_ingredients
+        ),
+        prodcalc_recipes: toLevel(
+          customDefaults.prodcalc_recipes !== undefined ? customDefaults.prodcalc_recipes : customDefaults.prodcalc,
+          baseDefaults.prodcalc_recipes
+        ),
+        prodcalc_reports: toLevel(
+          customDefaults.prodcalc_reports !== undefined ? customDefaults.prodcalc_reports : customDefaults.prodcalc,
+          baseDefaults.prodcalc_reports
+        ),
         hellocrenn: toLevel(customDefaults.hellocrenn, baseDefaults.hellocrenn),
+        hellocrenn_dashboard: toLevel(
+          customDefaults.hellocrenn_dashboard !== undefined
+            ? customDefaults.hellocrenn_dashboard
+            : customDefaults.hellocrenn === 'hidden'
+              ? 'hidden'
+              : undefined,
+          baseDefaults.hellocrenn_dashboard
+        ),
+        hellocrenn_scan: toLevel(
+          customDefaults.hellocrenn_scan !== undefined ? customDefaults.hellocrenn_scan : customDefaults.hellocrenn,
+          baseDefaults.hellocrenn_scan
+        ),
+        hellocrenn_history: toLevel(
+          customDefaults.hellocrenn_history !== undefined
+            ? customDefaults.hellocrenn_history
+            : customDefaults.hellocrenn === 'hidden'
+              ? 'hidden'
+              : undefined,
+          baseDefaults.hellocrenn_history
+        ),
+        hellocrenn_settings: toLevel(
+          customDefaults.hellocrenn_settings !== undefined
+            ? customDefaults.hellocrenn_settings
+            : customDefaults.hellocrenn === 'hidden'
+              ? 'hidden'
+              : undefined,
+          baseDefaults.hellocrenn_settings
+        ),
       }
     : baseDefaults;
 
@@ -377,6 +477,14 @@ export const normalizePermissions = (
       parsed.purchasing !== undefined ? parsed.purchasing : parsed.purchasingReport,
       defaults.purchasing
     ),
+    orderedItems: toLevel(
+      parsed.orderedItems !== undefined
+        ? parsed.orderedItems
+        : parsed.purchasing !== undefined
+          ? parsed.purchasing
+          : parsed.purchasingReport,
+      defaults.orderedItems
+    ),
     rndReport: toLevel(parsed.rndReport, defaults.rndReport),
     maintenanceReport: toLevel(parsed.maintenanceReport, defaults.maintenanceReport),
 
@@ -411,9 +519,67 @@ export const normalizePermissions = (
       parsed.prodcalc !== undefined ? parsed.prodcalc : parsed.ProdCalc || parsed.prodCalc,
       defaults.prodcalc || 'hidden'
     ),
+    prodcalc_ingredients: toLevel(
+      parsed.prodcalc_ingredients !== undefined
+        ? parsed.prodcalc_ingredients
+        : parsed.prodcalc !== undefined
+          ? parsed.prodcalc
+          : parsed.ProdCalc || parsed.prodCalc,
+      defaults.prodcalc_ingredients || 'hidden'
+    ),
+    prodcalc_recipes: toLevel(
+      parsed.prodcalc_recipes !== undefined
+        ? parsed.prodcalc_recipes
+        : parsed.prodcalc !== undefined
+          ? parsed.prodcalc
+          : parsed.ProdCalc || parsed.prodCalc,
+      defaults.prodcalc_recipes || 'hidden'
+    ),
+    prodcalc_reports: toLevel(
+      parsed.prodcalc_reports !== undefined
+        ? parsed.prodcalc_reports
+        : parsed.prodcalc !== undefined
+          ? parsed.prodcalc
+          : parsed.ProdCalc || parsed.prodCalc,
+      defaults.prodcalc_reports || 'hidden'
+    ),
     hellocrenn: toLevel(
       parsed.hellocrenn !== undefined ? parsed.hellocrenn : parsed.helloCrenn,
       defaults.hellocrenn || 'edit'
+    ),
+    hellocrenn_dashboard: toLevel(
+      parsed.hellocrenn_dashboard !== undefined
+        ? parsed.hellocrenn_dashboard
+        : parsed.hellocrenn === 'hidden' || parsed.helloCrenn === 'hidden'
+          ? 'hidden'
+          : undefined,
+      defaults.hellocrenn_dashboard || 'hidden'
+    ),
+    hellocrenn_scan: toLevel(
+      parsed.hellocrenn_scan !== undefined
+        ? parsed.hellocrenn_scan
+        : parsed.hellocrenn !== undefined
+          ? parsed.hellocrenn
+          : parsed.helloCrenn,
+      defaults.hellocrenn_scan || 'edit'
+    ),
+    hellocrenn_history: toLevel(
+      parsed.hellocrenn_history !== undefined
+        ? parsed.hellocrenn_history
+        : parsed.hellocrenn === 'hidden' || parsed.helloCrenn === 'hidden'
+          ? 'hidden'
+          : parsed.hellocrenn === 'read' || parsed.helloCrenn === 'read'
+            ? 'read'
+            : undefined,
+      defaults.hellocrenn_history || 'read'
+    ),
+    hellocrenn_settings: toLevel(
+      parsed.hellocrenn_settings !== undefined
+        ? parsed.hellocrenn_settings
+        : parsed.hellocrenn === 'hidden' || parsed.helloCrenn === 'hidden'
+          ? 'hidden'
+          : undefined,
+      defaults.hellocrenn_settings || 'hidden'
     ),
   };
 };
@@ -441,6 +607,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     kitchen_checkin: perms.kitchen_checkin,
     bakeryPlan: perms.bakeryPlan,
     purchasing: perms.purchasing,
+    orderedItems: perms.orderedItems ?? perms.purchasing,
     rndReport: perms.rndReport,
     maintenanceReport: perms.maintenanceReport,
     history_edit: perms.history_edit,
@@ -451,7 +618,14 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     userSettings: perms.userSettings,
     canEditDateRange: !!perms.canEditDateRange,
     prodcalc: perms.prodcalc || 'hidden',
+    prodcalc_ingredients: perms.prodcalc_ingredients ?? perms.prodcalc ?? 'hidden',
+    prodcalc_recipes: perms.prodcalc_recipes ?? perms.prodcalc ?? 'hidden',
+    prodcalc_reports: perms.prodcalc_reports ?? perms.prodcalc ?? 'hidden',
     hellocrenn: perms.hellocrenn || 'edit',
+    hellocrenn_dashboard: perms.hellocrenn_dashboard ?? 'hidden',
+    hellocrenn_scan: perms.hellocrenn_scan ?? perms.hellocrenn ?? 'edit',
+    hellocrenn_history: perms.hellocrenn_history ?? 'read',
+    hellocrenn_settings: perms.hellocrenn_settings ?? 'hidden',
 
     // Legacy fields for backward compatibility
     dailyRecord: perms.dailySales,
@@ -612,7 +786,7 @@ export const TAB_TO_PERMISSION: Record<string, PagePermKey> = {
   bakeryChecklist: 'kitchen_checkin',
   bakeryPlan: 'bakeryPlan',
   barPurchasing: 'purchasing',
-  orderedItems: 'purchasing',
+  orderedItems: 'orderedItems',
   rndReport: 'rndReport',
   maintenanceReport: 'maintenanceReport',
   logs: 'history_edit',
@@ -622,7 +796,14 @@ export const TAB_TO_PERMISSION: Record<string, PagePermKey> = {
   bakeryPlanHistory: 'history_bakery',
   userSettings: 'userSettings',
   prodcalc: 'prodcalc',
+  prodcalc_ingredients: 'prodcalc_ingredients',
+  prodcalc_recipes: 'prodcalc_recipes',
+  prodcalc_reports: 'prodcalc_reports',
   hellocrenn: 'hellocrenn',
+  hellocrenn_dashboard: 'hellocrenn_dashboard',
+  hellocrenn_scan: 'hellocrenn_scan',
+  hellocrenn_history: 'hellocrenn_history',
+  hellocrenn_settings: 'hellocrenn_settings',
 };
 
 export const canAccessTab = (
