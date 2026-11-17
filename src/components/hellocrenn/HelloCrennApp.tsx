@@ -20,6 +20,7 @@ import {
 import {
   evaluateAttendanceStatus,
   formatDistanceMeters,
+  formatOtDuration,
   getDefaultGeofenceConfig,
   getStatusLabelTH,
   normalizeGeofenceConfig,
@@ -153,6 +154,8 @@ export function HelloCrennApp({
               shiftStartTime: r.shift_start_time,
               shiftEndTime: r.shift_end_time,
               graceMinutes: r.grace_minutes,
+              otStepMinutes: r.ot_step_minutes,
+              employeeShifts: r.employee_shifts,
               autoCheckinEnabled: r.auto_checkin_enabled,
               autoCheckoutEnabled: r.auto_checkout_enabled,
               isConfigured: r.is_configured,
@@ -195,6 +198,7 @@ export function HelloCrennApp({
             accuracyMeters: Number(r.accuracy_meters || 0),
             status: r.status,
             mode: r.mode,
+            otMinutes: Number(r.ot_minutes || 0),
             note: r.note || undefined,
           }));
           setAttendanceRecords(mapped);
@@ -253,7 +257,12 @@ export function HelloCrennApp({
       );
       if (alreadyRecorded) return null;
 
-      const evalResult = evaluateAttendanceStatus(payload.type, now, geofenceConfig);
+      const evalResult = evaluateAttendanceStatus(
+        payload.type,
+        now,
+        geofenceConfig,
+        currentUser.name
+      );
 
       const newRecord: AttendanceRecord = {
         id: generateUUID(),
@@ -270,6 +279,7 @@ export function HelloCrennApp({
         accuracyMeters: payload.accuracyMeters,
         status: evalResult.status,
         mode: payload.mode,
+        otMinutes: evalResult.otMinutes,
         note: payload.note,
       };
 
@@ -302,6 +312,7 @@ export function HelloCrennApp({
               accuracy_meters: newRecord.accuracyMeters,
               status: newRecord.status,
               mode: newRecord.mode,
+              ot_minutes: newRecord.otMinutes ?? 0,
               note: newRecord.note || null,
             },
             { onConflict: 'branch,date,user_name,type' }
@@ -327,12 +338,17 @@ export function HelloCrennApp({
       // Non-blocking Discord Notification synced 1:1 with User Security Setting
       const typeLabel = payload.type === 'check_in' ? 'เข้างาน (Check-in)' : 'ออกงาน (Check-out)';
       const modeLabel = payload.mode === 'auto' ? 'Auto GPS' : 'Manual GPS';
+      const otLine =
+        payload.type === 'check_out' && evalResult.otMinutes > 0
+          ? `\n⏱️ โอที (OT): ${formatOtDuration(evalResult.otMinutes)}`
+          : '';
       sendDiscordNotification(
         `📍 **[Hello, Crenn — ลงเวลา${typeLabel} · สาขา ${currentUser.branch}]**\n` +
           `👤 พนักงาน: ${currentUser.name} (${currentUser.role})\n` +
           `🗓️ วันที่: ${formatThaiNumericDate(dateStr)} เวลา ${timeDisplay}\n` +
           `📡 รูปแบบ: ${modeLabel} | ระยะห่างร้าน: ${formatDistanceMeters(payload.distanceMeters)} (±${payload.accuracyMeters} ม.)\n` +
           `✅ สถานะ: ${getStatusLabelTH(evalResult.status)}` +
+          otLine +
           (payload.note ? `\n📝 หมายเหตุ: ${payload.note}` : ''),
         'notifyOnHelloCrennCheckin'
       );
@@ -369,6 +385,8 @@ export function HelloCrennApp({
             shift_start_time: enriched.shiftStartTime,
             shift_end_time: enriched.shiftEndTime,
             grace_minutes: enriched.graceMinutes,
+            ot_step_minutes: enriched.otStepMinutes ?? 30,
+            employee_shifts: enriched.employeeShifts || {},
             auto_checkin_enabled: enriched.autoCheckinEnabled,
             auto_checkout_enabled: enriched.autoCheckoutEnabled,
             is_configured: enriched.isConfigured,
@@ -391,12 +409,19 @@ export function HelloCrennApp({
       );
     }
 
+    const customStaffCount = Object.keys(enriched.employeeShifts || {}).length;
+    const otRuleLabel =
+      enriched.otStepMinutes && enriched.otStepMinutes > 0
+        ? `คิดโอทีทุก ${enriched.otStepMinutes} นาที`
+        : 'ไม่คิดโอทีอัตโนมัติ';
+
     // Non-blocking Discord Notification synced 1:1 with User Security Setting
     sendDiscordNotification(
       `🛰️ **[Hello, Crenn — อัปเดตพิกัดสาขาและกะงาน · สาขา ${currentUser.branch}]**\n` +
         `👤 ผู้ตั้งค่า: ${currentUser.name}\n` +
         `📌 พิกัดร้าน: ${enriched.latitude.toFixed(6)}, ${enriched.longitude.toFixed(6)} (รัศมี ${enriched.radiusMeters} ม.)\n` +
-        `⏰ กะงาน: ${enriched.shiftStartTime} – ${enriched.shiftEndTime} น. (อนุโลมสาย ${enriched.graceMinutes} นาที)\n` +
+        `⏰ กะงานมาตรฐาน: ${enriched.shiftStartTime} – ${enriched.shiftEndTime} น. (อนุโลมสาย ${enriched.graceMinutes} นาที | ${otRuleLabel})\n` +
+        `👥 กะงานเฉพาะรายบุคคล: ${customStaffCount} คน\n` +
         `🤖 Auto Check-in: ${enriched.autoCheckinEnabled ? 'เปิด' : 'ปิด'} | Auto Check-out: ${enriched.autoCheckoutEnabled ? 'เปิด' : 'ปิด'}`,
       'notifyOnHelloCrennGeofence'
     );
