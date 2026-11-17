@@ -4,6 +4,16 @@ export type AttendanceStatus = 'on_time' | 'late' | 'early_out' | 'completed';
 
 export type AttendanceMode = 'auto' | 'manual';
 
+export interface EmployeeShiftConfig {
+  userId?: string;
+  userName: string;
+  userRole?: string;
+  shiftStartTime: string; // HH:mm
+  shiftEndTime: string;   // HH:mm
+  graceMinutes: number;
+  otStepMinutes: number;  // คิดโอที ทุกๆ กี่นาที (0 = ไม่คิดโอที)
+}
+
 export interface BranchGeofenceConfig {
   branch: string;
   branchLabel: string;
@@ -11,9 +21,11 @@ export interface BranchGeofenceConfig {
   longitude: number;
   radiusMeters: number;
   maxAccuracyMeters: number;
-  shiftStartTime: string; // HH:mm
-  shiftEndTime: string;   // HH:mm
-  graceMinutes: number;
+  shiftStartTime: string; // HH:mm (branch default)
+  shiftEndTime: string;   // HH:mm (branch default)
+  graceMinutes: number;   // branch default
+  otStepMinutes: number;  // branch default (คิดโอที ทุกๆ กี่นาที)
+  employeeShifts?: Record<string, EmployeeShiftConfig>;
   autoCheckinEnabled: boolean;
   autoCheckoutEnabled: boolean;
   isConfigured: boolean;
@@ -36,6 +48,7 @@ export interface AttendanceRecord {
   accuracyMeters: number;
   status: AttendanceStatus;
   mode: AttendanceMode;
+  otMinutes?: number;   // จำนวนนาที OT ที่คำนวณได้ตอนออกงาน
   note?: string;
 }
 
