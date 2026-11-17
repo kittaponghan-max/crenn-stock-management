@@ -20,6 +20,7 @@ import {
 } from '../../types/hellocrenn';
 import {
   calculateHaversineDistanceMeters,
+  calculateOtMinutes,
   formatDistanceMeters,
   formatMinutesDuration,
   formatOtDuration,
@@ -107,21 +108,45 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
 
   const todayStr = toLocalDateStr(now);
 
-  const myTodayRecords = attendanceRecords.filter(
-    (r) =>
-      r.date === todayStr &&
-      r.branch === currentUser.branch &&
-      r.userName.toLowerCase() === currentUser.name.toLowerCase()
-  );
+  const myTodayRecords = attendanceRecords
+    .filter(
+      (r) =>
+        r.date === todayStr &&
+        r.branch === currentUser.branch &&
+        r.userName.toLowerCase() === currentUser.name.toLowerCase()
+    )
+    .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
 
   const todayCheckIn = myTodayRecords.find((r) => r.type === 'check_in') || null;
   const todayCheckOut = myTodayRecords.find((r) => r.type === 'check_out') || null;
 
   const employeeShift = resolveEmployeeShift(geofenceConfig, currentUser.name);
 
-  const branchTodayRecords = attendanceRecords
-    .filter((r) => r.date === todayStr && r.branch === currentUser.branch)
-    .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  // Dynamically calculate OT aligned with this employee's configured shiftEndTime & otStepMinutes
+  const isOtEnabled = employeeShift.otStepMinutes > 0;
+  const otReferenceDate = todayCheckOut
+    ? new Date(todayCheckOut.recordedAt)
+    : todayCheckIn
+      ? now
+      : null;
+  const computedOtMinutes =
+    todayCheckIn &&
+    isOtEnabled &&
+    otReferenceDate &&
+    !Number.isNaN(otReferenceDate.getTime())
+      ? calculateOtMinutes(
+          otReferenceDate,
+          employeeShift.shiftEndTime,
+          employeeShift.otStepMinutes
+        )
+      : 0;
+  const isLiveOtAccruing = Boolean(todayCheckIn && !todayCheckOut && isOtEnabled);
+  const workDurationText = todayCheckIn
+    ? formatMinutesDuration(
+        todayCheckIn.recordedAt,
+        todayCheckOut?.recordedAt ?? now.toISOString()
+      )
+    : '—';
 
   const updateGpsFromCoords = (coords: GeolocationCoordinates) => {
     const distanceMeters = calculateHaversineDistanceMeters(
@@ -396,7 +421,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
       <PageHeaderBanner
         variant="sub"
         icon={<Navigation size={18} />}
-        title="สแกนเวลาเข้า-ออกงาน (GPS Auto Check-in)"
+        title="สแกนเวลาตนเอง (GPS Auto Check-in)"
         branchLabel={geofenceConfig.branchLabel}
         subtitle={`กะ${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'มาตรฐาน'} ${employeeShift.shiftStartTime} – ${employeeShift.shiftEndTime} น. · อนุโลมสาย ${employeeShift.graceMinutes} นาที · ${
           employeeShift.otStepMinutes > 0
@@ -742,23 +767,55 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs font-semibold text-[#6B8F8E]">ระยะเวลาทำงานรวมวันนี้</span>
+              <div className="flex items-center justify-between pt-1 pb-2 border-b border-[#F0F5F4]">
+                <div>
+                  <span className="text-xs font-semibold text-[#6B8F8E] block">ระยะเวลาทำงานรวมวันนี้</span>
+                  {todayCheckIn && !todayCheckOut && (
+                    <span className="text-[10px] text-[#6B8F8E]">กำลังนับเวลาทำงานแบบ Real-time</span>
+                  )}
+                </div>
                 <span className="text-sm font-bold text-[#2D4A49] tabular-nums font-mono">
-                  {formatMinutesDuration(todayCheckIn?.recordedAt, todayCheckOut?.recordedAt)}
+                  {workDurationText}
                 </span>
               </div>
 
-              {todayCheckOut && typeof todayCheckOut.otMinutes === 'number' && todayCheckOut.otMinutes > 0 && (
-                <div className="flex items-center justify-between pt-1 border-t border-[#F0F5F4]">
-                  <span className="text-xs font-semibold text-[#5A8A88]">
-                    โอที (OT · คิดทุก {employeeShift.otStepMinutes} นาที)
-                  </span>
-                  <span className="text-sm font-bold text-emerald-700 tabular-nums font-mono">
-                    +{formatOtDuration(todayCheckOut.otMinutes)}
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <span className="text-xs font-semibold text-[#5A8A88] block">โอที (OT)</span>
+                  <span className="text-[10.5px] text-[#6B8F8E]">
+                    {isOtEnabled
+                      ? `เกณฑ์${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'สาขา'} · เลิก ${employeeShift.shiftEndTime} น. · คิดทุก ${employeeShift.otStepMinutes} นาที`
+                      : `เกณฑ์${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'สาขา'} · ไม่คิดโอที`}
                   </span>
                 </div>
-              )}
+                <div className="text-right">
+                  {!todayCheckIn ? (
+                    <span className="text-sm font-bold text-slate-400 tabular-nums font-mono">—</span>
+                  ) : !isOtEnabled ? (
+                    <span className="text-xs font-medium text-slate-400">ไม่คิดโอที</span>
+                  ) : computedOtMinutes > 0 ? (
+                    <>
+                      <span className="text-sm font-bold text-emerald-700 tabular-nums font-mono block">
+                        +{formatOtDuration(computedOtMinutes)}
+                      </span>
+                      <span className="text-[10px] text-[#6B8F8E]">
+                        {isLiveOtAccruing ? 'สะสมขณะปฏิบัติงาน' : 'คำนวณตามเกณฑ์ของพนักงาน'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm font-bold text-[#6B8F8E] tabular-nums font-mono block">
+                        0 นาที
+                      </span>
+                      <span className="text-[10px] text-[#6B8F8E]">
+                        {isLiveOtAccruing
+                          ? `เริ่มนับหลัง ${employeeShift.shiftEndTime} น.`
+                          : 'ไม่เข้าเกณฑ์โอที'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -768,14 +825,14 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
         </section>
       </div>
 
-      {/* Today's Branch Check-in Log Table */}
+      {/* Today's Personal Check-in Log Table (Strictly filtered to currentUser) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-bold text-[#2D4A49]">
-            ความเคลื่อนไหวการลงเวลาวันนี้ — {geofenceConfig.branchLabel}
+            ประวัติการสแกนเวลาของคุณวันนี้ — {currentUser.name}
           </h3>
           <span className="text-[11px] text-[#6B8F8E] tabular-nums">
-            ทั้งหมด {branchTodayRecords.length} รายการ
+            ทั้งหมด {myTodayRecords.length} รายการ
           </span>
         </div>
 
@@ -784,58 +841,81 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
             <StandardThead>
               <StandardHeaderRow>
                 <StandardTh>เวลา</StandardTh>
-                <StandardTh>พนักงาน</StandardTh>
-                <StandardTh>ตำแหน่ง</StandardTh>
                 <StandardTh>ประเภท</StandardTh>
                 <StandardTh>วิธีสแกน</StandardTh>
                 <StandardTh align="right">ระยะห่าง</StandardTh>
                 <StandardTh>สถานะ</StandardTh>
+                <StandardTh align="right">โอที (OT)</StandardTh>
               </StandardHeaderRow>
             </StandardThead>
             <StandardTbody>
-              {branchTodayRecords.length === 0 ? (
+              {myTodayRecords.length === 0 ? (
                 <StandardTableEmpty
-                  colSpan={7}
+                  colSpan={6}
                   icon={<MapPin size={20} />}
-                  title="ยังไม่มีรายการลงเวลาเข้า-ออกงานในวันนี้"
-                  description="เมื่อพนักงานเข้าสู่พื้นที่สาขา ระบบ Auto GPS หรือการกดสแกนจะแสดงผลที่นี่ทันที"
+                  title="คุณยังไม่มีรายการสแกนเวลาในวันนี้"
+                  description="เมื่อคุณเข้าสู่พื้นที่สาขา ระบบ Auto GPS หรือการกดสแกนจะบันทึกและแสดงผลเฉพาะของคุณที่นี่"
                 />
               ) : (
-                branchTodayRecords.map((rec) => (
-                  <StandardTr key={rec.id}>
-                    <StandardTd className="font-mono tabular-nums font-semibold">
-                      {rec.timeDisplay}
-                    </StandardTd>
-                    <StandardTd className="font-semibold">{rec.userName}</StandardTd>
-                    <StandardTd className="text-[#6B8F8E]">{rec.userRole}</StandardTd>
-                    <StandardTd>
-                      <span
-                        className={`font-semibold ${
-                          rec.type === 'check_in' ? 'text-[#2D4A49]' : 'text-[#5A8A88]'
-                        }`}
-                      >
-                        {rec.type === 'check_in' ? 'เข้างาน' : 'ออกงาน'}
-                      </span>
-                    </StandardTd>
-                    <StandardTd className="text-[#6B8F8E]">
-                      {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
-                    </StandardTd>
-                    <StandardTd align="right" className="font-mono tabular-nums">
-                      {formatDistanceMeters(rec.distanceMeters)}
-                    </StandardTd>
-                    <StandardTd>
-                      <span
-                        className={`font-semibold ${
-                          rec.status === 'on_time' || rec.status === 'completed'
-                            ? 'text-emerald-700'
-                            : 'text-amber-700'
-                        }`}
-                      >
-                        {getStatusLabelTH(rec.status)}
-                      </span>
-                    </StandardTd>
-                  </StandardTr>
-                ))
+                myTodayRecords.map((rec) => {
+                  const recDate = new Date(rec.recordedAt);
+                  const recOtMinutes =
+                    rec.type === 'check_out' && isOtEnabled && !Number.isNaN(recDate.getTime())
+                      ? calculateOtMinutes(
+                          recDate,
+                          employeeShift.shiftEndTime,
+                          employeeShift.otStepMinutes
+                        )
+                      : 0;
+                  return (
+                    <StandardTr key={rec.id}>
+                      <StandardTd className="font-mono tabular-nums font-semibold">
+                        {rec.timeDisplay}
+                      </StandardTd>
+                      <StandardTd>
+                        <span
+                          className={`font-semibold ${
+                            rec.type === 'check_in' ? 'text-[#2D4A49]' : 'text-[#5A8A88]'
+                          }`}
+                        >
+                          {rec.type === 'check_in' ? 'เข้างาน' : 'ออกงาน'}
+                        </span>
+                      </StandardTd>
+                      <StandardTd className="text-[#6B8F8E]">
+                        {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums">
+                        {formatDistanceMeters(rec.distanceMeters)}
+                      </StandardTd>
+                      <StandardTd>
+                        <span
+                          className={`font-semibold ${
+                            rec.status === 'on_time' || rec.status === 'completed'
+                              ? 'text-emerald-700'
+                              : 'text-amber-700'
+                          }`}
+                        >
+                          {getStatusLabelTH(rec.status)}
+                        </span>
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums">
+                        {rec.type === 'check_out' ? (
+                          !isOtEnabled ? (
+                            <span className="text-slate-400">ไม่คิดโอที</span>
+                          ) : recOtMinutes > 0 ? (
+                            <span className="font-bold text-emerald-700">
+                              +{formatOtDuration(recOtMinutes)}
+                            </span>
+                          ) : (
+                            <span className="text-[#6B8F8E]">0 นาที</span>
+                          )
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </StandardTd>
+                    </StandardTr>
+                  );
+                })
               )}
             </StandardTbody>
           </StandardTable>
