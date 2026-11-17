@@ -1,4 +1,9 @@
-import { AttendanceStatus, AttendanceType, BranchGeofenceConfig } from '../types/hellocrenn';
+import {
+  AttendanceStatus,
+  AttendanceType,
+  BranchGeofenceConfig,
+  EmployeeShiftConfig,
+} from '../types/hellocrenn';
 
 const EARTH_RADIUS_METERS = 6371000;
 
@@ -44,9 +49,45 @@ export const getDefaultGeofenceConfig = (branch: string): BranchGeofenceConfig =
     shiftStartTime: '08:00',
     shiftEndTime: '17:00',
     graceMinutes: 15,
+    otStepMinutes: 30,
+    employeeShifts: {},
     autoCheckinEnabled: true,
     autoCheckoutEnabled: false,
     isConfigured: false,
+  };
+};
+
+const normalizeEmployeeShiftEntry = (
+  raw: any,
+  keyName: string,
+  defaults: {
+    shiftStartTime: string;
+    shiftEndTime: string;
+    graceMinutes: number;
+    otStepMinutes: number;
+  }
+): EmployeeShiftConfig => {
+  const grace = Number(raw?.graceMinutes);
+  const otStep = Number(raw?.otStepMinutes);
+  return {
+    userId: typeof raw?.userId === 'string' ? raw.userId : undefined,
+    userName:
+      typeof raw?.userName === 'string' && raw.userName.trim()
+        ? raw.userName.trim()
+        : keyName,
+    userRole: typeof raw?.userRole === 'string' ? raw.userRole : undefined,
+    shiftStartTime:
+      typeof raw?.shiftStartTime === 'string' && /^\d{2}:\d{2}$/.test(raw.shiftStartTime)
+        ? raw.shiftStartTime
+        : defaults.shiftStartTime,
+    shiftEndTime:
+      typeof raw?.shiftEndTime === 'string' && /^\d{2}:\d{2}$/.test(raw.shiftEndTime)
+        ? raw.shiftEndTime
+        : defaults.shiftEndTime,
+    graceMinutes:
+      Number.isFinite(grace) && grace >= 0 ? grace : defaults.graceMinutes,
+    otStepMinutes:
+      Number.isFinite(otStep) && otStep >= 0 ? otStep : defaults.otStepMinutes,
   };
 };
 
@@ -62,26 +103,108 @@ export const normalizeGeofenceConfig = (
   const rad = Number(raw.radiusMeters);
   const maxAcc = Number(raw.maxAccuracyMeters);
   const grace = Number(raw.graceMinutes);
+  const otStep = Number(raw.otStepMinutes);
+
+  const shiftStartTime =
+    typeof raw.shiftStartTime === 'string' && /^\d{2}:\d{2}$/.test(raw.shiftStartTime)
+      ? raw.shiftStartTime
+      : base.shiftStartTime;
+  const shiftEndTime =
+    typeof raw.shiftEndTime === 'string' && /^\d{2}:\d{2}$/.test(raw.shiftEndTime)
+      ? raw.shiftEndTime
+      : base.shiftEndTime;
+  const graceMinutes =
+    Number.isFinite(grace) && grace >= 0 ? grace : base.graceMinutes;
+  const otStepMinutes =
+    Number.isFinite(otStep) && otStep >= 0 ? otStep : base.otStepMinutes;
+
+  const normalizedShifts: Record<string, EmployeeShiftConfig> = {};
+  if (raw.employeeShifts && typeof raw.employeeShifts === 'object' && !Array.isArray(raw.employeeShifts)) {
+    Object.entries(raw.employeeShifts).forEach(([k, val]) => {
+      if (!k || !val || typeof val !== 'object') return;
+      const entry = normalizeEmployeeShiftEntry(val, k, {
+        shiftStartTime,
+        shiftEndTime,
+        graceMinutes,
+        otStepMinutes,
+      });
+      normalizedShifts[entry.userName] = entry;
+    });
+  }
 
   return {
     branch: raw.branch || branch,
-    branchLabel: typeof raw.branchLabel === 'string' && raw.branchLabel.trim() ? raw.branchLabel : base.branchLabel,
+    branchLabel:
+      typeof raw.branchLabel === 'string' && raw.branchLabel.trim()
+        ? raw.branchLabel
+        : base.branchLabel,
     latitude: Number.isFinite(lat) ? lat : base.latitude,
     longitude: Number.isFinite(lng) ? lng : base.longitude,
     radiusMeters: Number.isFinite(rad) && rad >= 10 ? rad : base.radiusMeters,
-    maxAccuracyMeters: Number.isFinite(maxAcc) && maxAcc >= 20 ? maxAcc : base.maxAccuracyMeters,
-    shiftStartTime: typeof raw.shiftStartTime === 'string' && /^\d{2}:\d{2}$/.test(raw.shiftStartTime)
-      ? raw.shiftStartTime
-      : base.shiftStartTime,
-    shiftEndTime: typeof raw.shiftEndTime === 'string' && /^\d{2}:\d{2}$/.test(raw.shiftEndTime)
-      ? raw.shiftEndTime
-      : base.shiftEndTime,
-    graceMinutes: Number.isFinite(grace) && grace >= 0 ? grace : base.graceMinutes,
-    autoCheckinEnabled: typeof raw.autoCheckinEnabled === 'boolean' ? raw.autoCheckinEnabled : base.autoCheckinEnabled,
-    autoCheckoutEnabled: typeof raw.autoCheckoutEnabled === 'boolean' ? raw.autoCheckoutEnabled : base.autoCheckoutEnabled,
+    maxAccuracyMeters:
+      Number.isFinite(maxAcc) && maxAcc >= 20 ? maxAcc : base.maxAccuracyMeters,
+    shiftStartTime,
+    shiftEndTime,
+    graceMinutes,
+    otStepMinutes,
+    employeeShifts: normalizedShifts,
+    autoCheckinEnabled:
+      typeof raw.autoCheckinEnabled === 'boolean'
+        ? raw.autoCheckinEnabled
+        : base.autoCheckinEnabled,
+    autoCheckoutEnabled:
+      typeof raw.autoCheckoutEnabled === 'boolean'
+        ? raw.autoCheckoutEnabled
+        : base.autoCheckoutEnabled,
     isConfigured: typeof raw.isConfigured === 'boolean' ? raw.isConfigured : true,
     updatedBy: raw.updatedBy,
     updatedAt: raw.updatedAt,
+  };
+};
+
+/**
+ * Resolves effective shift & OT settings for a specific employee, falling back to branch defaults.
+ */
+export const resolveEmployeeShift = (
+  config: BranchGeofenceConfig,
+  userName?: string
+): {
+  shiftStartTime: string;
+  shiftEndTime: string;
+  graceMinutes: number;
+  otStepMinutes: number;
+  isCustom: boolean;
+} => {
+  const fallback = {
+    shiftStartTime: config.shiftStartTime || '08:00',
+    shiftEndTime: config.shiftEndTime || '17:00',
+    graceMinutes: config.graceMinutes ?? 15,
+    otStepMinutes: config.otStepMinutes ?? 30,
+    isCustom: false,
+  };
+
+  if (!userName || !config.employeeShifts) return fallback;
+  const target = userName.trim().toLowerCase();
+  const matched =
+    config.employeeShifts[userName] ||
+    Object.values(config.employeeShifts).find(
+      (s) => s.userName.trim().toLowerCase() === target
+    );
+
+  if (!matched) return fallback;
+
+  return {
+    shiftStartTime: matched.shiftStartTime || fallback.shiftStartTime,
+    shiftEndTime: matched.shiftEndTime || fallback.shiftEndTime,
+    graceMinutes:
+      typeof matched.graceMinutes === 'number' && matched.graceMinutes >= 0
+        ? matched.graceMinutes
+        : fallback.graceMinutes,
+    otStepMinutes:
+      typeof matched.otStepMinutes === 'number' && matched.otStepMinutes >= 0
+        ? matched.otStepMinutes
+        : fallback.otStepMinutes,
+    isCustom: true,
   };
 };
 
@@ -92,26 +215,61 @@ const parseHHMMToMinutes = (hhmm: string): number => {
   return h * 60 + m;
 };
 
+/**
+ * Calculates floored OT minutes based on otStepMinutes (e.g. every 30 mins).
+ */
+export const calculateOtMinutes = (
+  now: Date,
+  shiftEndTime: string,
+  otStepMinutes: number
+): number => {
+  if (!otStepMinutes || otStepMinutes <= 0) return 0;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const endMinutes = parseHHMMToMinutes(shiftEndTime);
+  const extraMinutes = currentMinutes - endMinutes;
+  if (extraMinutes < otStepMinutes) return 0;
+  return Math.floor(extraMinutes / otStepMinutes) * otStepMinutes;
+};
+
+export const formatOtDuration = (otMinutes?: number): string => {
+  if (!otMinutes || otMinutes <= 0) return '—';
+  if (otMinutes < 60) return `${otMinutes} นาที`;
+  const hrs = Math.floor(otMinutes / 60);
+  const mins = otMinutes % 60;
+  return mins > 0 ? `${hrs} ชม. ${mins} นาที (${otMinutes} น.)` : `${hrs} ชม. (${otMinutes} น.)`;
+};
+
 export const evaluateAttendanceStatus = (
   type: AttendanceType,
   now: Date,
-  config: BranchGeofenceConfig
-): { status: AttendanceStatus; diffMinutes: number } => {
+  config: BranchGeofenceConfig,
+  userName?: string
+): { status: AttendanceStatus; diffMinutes: number; otMinutes: number } => {
+  const shift = resolveEmployeeShift(config, userName);
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   if (type === 'check_in') {
-    const startMinutes = parseHHMMToMinutes(config.shiftStartTime) + (config.graceMinutes || 0);
+    const startMinutes = parseHHMMToMinutes(shift.shiftStartTime) + (shift.graceMinutes || 0);
     if (currentMinutes > startMinutes) {
-      return { status: 'late', diffMinutes: currentMinutes - parseHHMMToMinutes(config.shiftStartTime) };
+      return {
+        status: 'late',
+        diffMinutes: currentMinutes - parseHHMMToMinutes(shift.shiftStartTime),
+        otMinutes: 0,
+      };
     }
-    return { status: 'on_time', diffMinutes: 0 };
+    return { status: 'on_time', diffMinutes: 0, otMinutes: 0 };
   }
 
-  const endMinutes = parseHHMMToMinutes(config.shiftEndTime);
+  const endMinutes = parseHHMMToMinutes(shift.shiftEndTime);
   if (currentMinutes < endMinutes) {
-    return { status: 'early_out', diffMinutes: endMinutes - currentMinutes };
+    return {
+      status: 'early_out',
+      diffMinutes: endMinutes - currentMinutes,
+      otMinutes: 0,
+    };
   }
-  return { status: 'completed', diffMinutes: 0 };
+  const otMinutes = calculateOtMinutes(now, shift.shiftEndTime, shift.otStepMinutes);
+  return { status: 'completed', diffMinutes: 0, otMinutes };
 };
 
 export const formatMinutesDuration = (startIso?: string, endIso?: string): string => {
