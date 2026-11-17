@@ -26,7 +26,7 @@ import {
   ShieldCheck,
   ArrowUpRight
 } from 'lucide-react';
-import { Ingredient, StockRecord, Branch, AppPermissions, canAccessProdCalc } from '../types';
+import { Ingredient, StockRecord, Branch, AppPermissions, canAccessProdCalc, canAccessHelloCrenn } from '../types';
 import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
 import { UserDropdownMenu } from './UserDropdownMenu';
@@ -49,7 +49,7 @@ export interface HomeScreenProps {
   dbStatus: 'connected' | 'checking' | 'offline';
   onChangeBranch?: (branch: Branch) => void;
   hasPermission?: (funcId: keyof AppPermissions) => boolean;
-  onSwitchApp?: (app: 'prodcalc') => void;
+  onSwitchApp?: (app: 'prodcalc' | 'hellocrenn') => void;
 }
 
 export function HomeScreen({
@@ -1372,6 +1372,7 @@ export function HomeScreen({
       <SupabaseStatusBar 
         dbStatus={dbStatus}
         onSwitchApp={onSwitchApp && canAccessProdCalc(user) ? () => onSwitchApp('prodcalc') : undefined}
+        onSwitchToHelloCrenn={onSwitchApp && canAccessHelloCrenn(user) ? () => onSwitchApp('hellocrenn') : undefined}
       />
 
       {/* Main Container */}
