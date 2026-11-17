@@ -27,7 +27,8 @@ export type PagePermKey =
   | 'history_receiving'
   | 'history_bakery'
   | 'userSettings'
-  | 'prodcalc';
+  | 'prodcalc'
+  | 'hellocrenn';
 
 export interface UserPermissions {
   // General
@@ -71,6 +72,7 @@ export interface UserPermissions {
 
   // Add-ons / Applications
   prodcalc: PagePermission;
+  hellocrenn: PagePermission;
 
   [key: string]: any;
 }
@@ -109,6 +111,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'edit',
       canEditDateRange: true,
       prodcalc: 'edit',
+      hellocrenn: 'edit',
     };
   }
   if (r === 'BRANCH MANAGER' || r === 'BRANCHMANAGER') {
@@ -141,6 +144,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'hidden',
       canEditDateRange: false,
       prodcalc: 'hidden',
+      hellocrenn: 'edit',
     };
   }
   if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
@@ -173,6 +177,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'hidden',
       canEditDateRange: false,
       prodcalc: 'hidden',
+      hellocrenn: 'edit',
     };
   }
   if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE' || r === 'BARISTA ASSISTANT') {
@@ -205,6 +210,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       userSettings: 'hidden',
       canEditDateRange: false,
       prodcalc: 'hidden',
+      hellocrenn: 'edit',
     };
   }
   // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER / custom roles fallback:
@@ -237,6 +243,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     userSettings: 'hidden',
     canEditDateRange: false,
     prodcalc: 'hidden',
+    hellocrenn: 'edit',
   };
 };
 
@@ -288,6 +295,7 @@ export const normalizePermissions = (
             ? customDefaults.canEditDateRange
             : baseDefaults.canEditDateRange,
         prodcalc: toLevel(customDefaults.prodcalc, baseDefaults.prodcalc),
+        hellocrenn: toLevel(customDefaults.hellocrenn, baseDefaults.hellocrenn),
       }
     : baseDefaults;
 
@@ -403,6 +411,10 @@ export const normalizePermissions = (
       parsed.prodcalc !== undefined ? parsed.prodcalc : parsed.ProdCalc || parsed.prodCalc,
       defaults.prodcalc || 'hidden'
     ),
+    hellocrenn: toLevel(
+      parsed.hellocrenn !== undefined ? parsed.hellocrenn : parsed.helloCrenn,
+      defaults.hellocrenn || 'edit'
+    ),
   };
 };
 
@@ -439,6 +451,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     userSettings: perms.userSettings,
     canEditDateRange: !!perms.canEditDateRange,
     prodcalc: perms.prodcalc || 'hidden',
+    hellocrenn: perms.hellocrenn || 'edit',
 
     // Legacy fields for backward compatibility
     dailyRecord: perms.dailySales,
@@ -609,6 +622,7 @@ export const TAB_TO_PERMISSION: Record<string, PagePermKey> = {
   bakeryPlanHistory: 'history_bakery',
   userSettings: 'userSettings',
   prodcalc: 'prodcalc',
+  hellocrenn: 'hellocrenn',
 };
 
 export const canAccessTab = (
