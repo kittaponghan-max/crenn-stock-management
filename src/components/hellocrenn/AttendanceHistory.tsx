@@ -1,7 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { History, Search, Filter, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { AttendanceRecord } from '../../types/hellocrenn';
-import { formatDistanceMeters, getStatusLabelTH } from '../../utils/gpsUtils';
+import {
+  formatDistanceMeters,
+  formatOtDuration,
+  getStatusLabelTH,
+} from '../../utils/gpsUtils';
 import {
   PageHeaderBanner,
   DateRangeFilter,
@@ -114,6 +118,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
       ประเภท: r.type === 'check_in' ? 'เข้างาน' : 'ออกงาน',
       วิธีสแกน: r.mode === 'auto' ? 'Auto GPS' : 'Manual',
       สถานะ: getStatusLabelTH(r.status),
+      'OT (นาที)': r.type === 'check_out' ? (r.otMinutes ?? 0) : 0,
       'ระยะห่าง (ม.)': r.distanceMeters,
       'ความคลาดเคลื่อน GPS (ม.)': r.accuracyMeters,
       พิกัด: `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
@@ -222,13 +227,14 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
               <StandardTh align="right">ระยะห่าง</StandardTh>
               <StandardTh>พิกัด GPS</StandardTh>
               <StandardTh>สถานะ</StandardTh>
+              <StandardTh align="right">OT</StandardTh>
               <StandardTh>หมายเหตุ</StandardTh>
             </StandardHeaderRow>
           </StandardThead>
           <StandardTbody>
             {filteredRecords.length === 0 ? (
               <StandardTableEmpty
-                colSpan={9}
+                colSpan={10}
                 icon={<Clock size={20} />}
                 title="ไม่พบประวัติการลงเวลาในช่วงที่เลือก"
                 description="ลองปรับช่วงวันที่หรือคำค้นหาเพื่อดูรายการย้อนหลัง"
@@ -275,6 +281,13 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                       )}
                       {getStatusLabelTH(rec.status)}
                     </span>
+                  </StandardTd>
+                  <StandardTd align="right" className="font-mono tabular-nums font-semibold">
+                    {rec.type === 'check_out' && rec.otMinutes && rec.otMinutes > 0 ? (
+                      <span className="text-emerald-700">+{formatOtDuration(rec.otMinutes)}</span>
+                    ) : (
+                      <span className="text-[#A8BCBB]">—</span>
+                    )}
                   </StandardTd>
                   <StandardTd className="text-[#6B8F8E] max-w-[180px] truncate">
                     {rec.note || '—'}
