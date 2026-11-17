@@ -50,6 +50,7 @@ import { BottomNav } from './components/BottomNav';
 import { TopNav } from './components/TopNav';
 import { SupabaseStatusBar } from './components/SupabaseStatusBar';
 import { ProdCalcApp } from './components/prodcalc/ProdCalcApp';
+import { HelloCrennApp } from './components/hellocrenn/HelloCrennApp';
 import { LeaveRequestModal } from './components/LeaveRequestModal';
 import { LeaveDashboard } from './components/LeaveDashboard';
 
@@ -340,7 +341,7 @@ function AccessDeniedPage({
 export default function App() {
   const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok'; app?: string } | null>(null);
   const [roleTemplates, setRoleTemplates] = useState<RoleTemplateMap>(() => getCachedRoleTemplates());
-  const [currentApp, setCurrentApp] = useState<'cafe' | 'prodcalc'>('cafe');
+  const [currentApp, setCurrentApp] = useState<'cafe' | 'prodcalc' | 'hellocrenn'>('cafe');
 
   // Sync user object to cafe-user in localStorage so all components share the active branch
   useEffect(() => {
@@ -2506,6 +2507,13 @@ export default function App() {
               alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน ProdCalc (ต้องได้รับสิทธิ์ใน User Security Settings)');
               setCurrentApp('cafe');
             }
+          } else if (userData.app === 'hellocrenn') {
+            if (canViewPage(userData, 'hellocrenn', latestTemplates)) {
+              setCurrentApp('hellocrenn');
+            } else {
+              alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน Hello, Crenn (ต้องได้รับสิทธิ์ใน User Security Settings)');
+              setCurrentApp('cafe');
+            }
           } else {
             setCurrentApp('cafe');
           }
@@ -2561,6 +2569,49 @@ export default function App() {
     );
   }
 
+  // Hello, Crenn Standalone Sub-app Mode (GPS Auto Check-in)
+  if (currentApp === 'hellocrenn') {
+    if (!canViewPage(user, 'hellocrenn', roleTemplates)) {
+      return (
+        <div className="min-h-screen bg-[#F0F5F4] flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-md border border-[#D4E4E3] max-w-md w-full text-center space-y-4">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl">⚠️</div>
+            <h2 className="text-base font-bold text-[#2D4A49]">ไม่มีสิทธิ์เข้าถึง Hello, Crenn</h2>
+            <p className="text-xs text-[#6B8F8E]">ฟังก์ชันนี้สงวนไว้สำหรับผู้ที่ได้รับอนุญาตใน User Security Settings เท่านั้น</p>
+            <button
+              onClick={() => setCurrentApp('cafe')}
+              className="w-full py-2.5 px-4 bg-[#5A8A88] hover:bg-[#497573] text-white rounded-xl font-bold text-xs transition cursor-pointer"
+            >
+              กลับสู่ Cafe Management
+            </button>
+          </div>
+        </div>
+      );
+    }
+    const roleUpper = String(user.role || '').toUpperCase().trim();
+    const canEditGeofence =
+      canEditPage(user, 'userSettings', roleTemplates) ||
+      ['ADMIN', 'OWNER', 'CO-FOUNDER', 'COFOUNDER', 'BRANCH MANAGER', 'BRANCHMANAGER'].includes(roleUpper);
+
+    return (
+      <HelloCrennApp
+        currentUser={{
+          name: user.name,
+          role: user.role,
+          branch: user.branch || 'Rayong'
+        }}
+        canEditGeofence={canEditGeofence}
+        isReadOnly={isReadOnlyPage(user, 'hellocrenn', roleTemplates)}
+        onSwitchToCafe={() => setCurrentApp('cafe')}
+        onSwitchToProdCalc={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+        onLogout={() => {
+          setUser(null);
+          setCurrentApp('cafe');
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F0F5F4] text-[#2D4A49] font-sans">
       {/* Print Header */}
@@ -2591,6 +2642,7 @@ export default function App() {
           <SupabaseStatusBar 
             dbStatus={dbStatus} 
             onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+            onSwitchToHelloCrenn={canViewPage(user, 'hellocrenn', roleTemplates) ? () => setCurrentApp('hellocrenn') : undefined}
           />
         </>
       )}
@@ -2613,7 +2665,14 @@ export default function App() {
               stockRecord={stockRecord}
               onNavigate={(tab) => setActiveTab(tab)}
               onLogout={() => setUser(null)}
-              onSwitchApp={canViewPage(user, 'prodcalc', roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+              onSwitchApp={
+                (app?: 'prodcalc' | 'hellocrenn') => {
+                  const target = app || 'prodcalc';
+                  if (canViewPage(user, target, roleTemplates)) {
+                    setCurrentApp(target);
+                  }
+                }
+              }
               dbStatus={dbStatus === 'offline' ? 'offline' : dbStatus === 'connected' ? 'connected' : 'checking'}
               onChangeBranch={(newBranch) => {
                 setUser(prev => prev ? { ...prev, branch: newBranch } : null);
