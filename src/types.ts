@@ -202,6 +202,7 @@ export interface AppPermissions {
   checklistsBakery: PermissionLevel;
   // Reports & History
   purchasingReport: PermissionLevel;
+  orderedItems?: PermissionLevel;
   rndReport: PermissionLevel;
   maintenanceReport?: PermissionLevel;
   historyLogs: PermissionLevel;
@@ -214,19 +215,39 @@ export interface AppPermissions {
   canEditDateRange?: boolean;
   prodcalc?: PermissionLevel;
   ProdCalc?: PermissionLevel;
+  prodcalc_ingredients?: PermissionLevel;
+  prodcalc_recipes?: PermissionLevel;
+  prodcalc_reports?: PermissionLevel;
   hellocrenn?: PermissionLevel;
+  hellocrenn_dashboard?: PermissionLevel;
+  hellocrenn_scan?: PermissionLevel;
+  hellocrenn_history?: PermissionLevel;
+  hellocrenn_settings?: PermissionLevel;
 }
 
 export const canAccessProdCalc = (
-  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined,
+  roleTemplates?: Record<string, any> | null
 ): boolean => {
-  return canViewPage(user, 'prodcalc');
+  if (!canViewPage(user, 'prodcalc', roleTemplates)) return false;
+  return (
+    canViewPage(user, 'prodcalc_ingredients', roleTemplates) ||
+    canViewPage(user, 'prodcalc_recipes', roleTemplates) ||
+    canViewPage(user, 'prodcalc_reports', roleTemplates)
+  );
 };
 
 export const canAccessHelloCrenn = (
-  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined,
+  roleTemplates?: Record<string, any> | null
 ): boolean => {
-  return canViewPage(user, 'hellocrenn');
+  if (!canViewPage(user, 'hellocrenn', roleTemplates)) return false;
+  return (
+    canViewPage(user, 'hellocrenn_dashboard', roleTemplates) ||
+    canViewPage(user, 'hellocrenn_scan', roleTemplates) ||
+    canViewPage(user, 'hellocrenn_history', roleTemplates) ||
+    canViewPage(user, 'hellocrenn_settings', roleTemplates)
+  );
 };
 
 export const canAccessLeaveDashboard = (
