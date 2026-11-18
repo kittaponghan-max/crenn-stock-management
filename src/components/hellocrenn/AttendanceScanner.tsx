@@ -252,7 +252,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
 
   // Auto GPS Check-in / Check-out Effect
   useEffect(() => {
-    if (isReadOnly || isSubmitting || !autoModeActive) return;
+    if (isReadOnly || isSubmitting || !autoModeActive || employeeShift.ignored) return;
     if (gps.status !== 'ready' || gps.latitude === null || gps.longitude === null) return;
     if (!gps.withinGeofence || !gps.accuracyAcceptable) return;
 
@@ -315,6 +315,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
     geofenceConfig.autoCheckinEnabled,
     geofenceConfig.autoCheckoutEnabled,
     employeeShift.shiftEndTime,
+    employeeShift.ignored,
     todayStr,
     currentUser.name,
     now,
@@ -465,6 +466,13 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                 {autoModeActive ? 'เปิดใช้งานอยู่' : 'ปิดไว้ (สแกนด้วยตนเอง)'}
               </button>
             </div>
+
+            {employeeShift.ignored && (
+              <div className="flex items-center gap-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                <AlertTriangle size={13} className="shrink-0" />
+                <span>บัญชีนี้ถูกตั้งค่าเป็น Ignore (ปิด Auto GPS และไม่ต้อง Monitor เวลาเข้า-ออกงาน)</span>
+              </div>
+            )}
 
             {!geofenceConfig.isConfigured && (
               <div className="flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
