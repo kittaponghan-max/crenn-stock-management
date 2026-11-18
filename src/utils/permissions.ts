@@ -4,6 +4,7 @@ export type PagePermKey =
   | 'dashboard'
   | 'leaveDashboard'
   | 'personnelLeave'
+  | 'leaveHistory'
   | 'dailySales'
   | 'dailyBakery'
   | 'bar_stock'
@@ -44,6 +45,7 @@ export interface UserPermissions {
   dashboard: PagePermission;
   leaveDashboard: PagePermission;
   personnelLeave: PagePermission;
+  leaveHistory: PagePermission;
   dailySales: PagePermission;
   dailyBakery: PagePermission;
 
@@ -104,6 +106,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       dashboard: 'edit',
       leaveDashboard: 'edit',
       personnelLeave: 'edit',
+      leaveHistory: 'edit',
       dailySales: 'edit',
       dailyBakery: 'edit',
       bar_stock: 'edit',
@@ -146,6 +149,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       dashboard: 'edit',
       leaveDashboard: 'edit',
       personnelLeave: 'edit',
+      leaveHistory: 'edit',
       dailySales: 'edit',
       dailyBakery: 'edit',
       bar_stock: 'edit',
@@ -188,6 +192,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       dashboard: 'read',
       leaveDashboard: 'read',
       personnelLeave: 'edit',
+      leaveHistory: 'read',
       dailySales: 'hidden',
       dailyBakery: 'edit',
       bar_stock: 'hidden',
@@ -230,6 +235,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       dashboard: 'read',
       leaveDashboard: 'read',
       personnelLeave: 'edit',
+      leaveHistory: 'read',
       dailySales: 'hidden',
       dailyBakery: 'read',
       bar_stock: 'edit',
@@ -272,6 +278,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     dashboard: 'read',
     leaveDashboard: 'read',
     personnelLeave: 'edit',
+    leaveHistory: 'read',
     dailySales: 'hidden',
     dailyBakery: 'read',
     bar_stock: 'hidden',
@@ -330,6 +337,12 @@ export const normalizePermissions = (
         dashboard: toLevel(customDefaults.dashboard, baseDefaults.dashboard),
         leaveDashboard: toLevel(customDefaults.leaveDashboard, baseDefaults.leaveDashboard),
         personnelLeave: toLevel(customDefaults.personnelLeave, baseDefaults.personnelLeave),
+        leaveHistory: toLevel(
+          customDefaults.leaveHistory !== undefined
+            ? customDefaults.leaveHistory
+            : customDefaults.leaveDashboard,
+          baseDefaults.leaveHistory
+        ),
         dailySales: toLevel(customDefaults.dailySales, baseDefaults.dailySales),
         dailyBakery: toLevel(customDefaults.dailyBakery, baseDefaults.dailyBakery),
         bar_stock: toLevel(customDefaults.bar_stock, baseDefaults.bar_stock),
@@ -432,6 +445,12 @@ export const normalizePermissions = (
     ),
     leaveDashboard: toLevel(parsed.leaveDashboard, defaults.leaveDashboard),
     personnelLeave: toLevel(parsed.personnelLeave, defaults.personnelLeave),
+    leaveHistory: toLevel(
+      parsed.leaveHistory !== undefined
+        ? parsed.leaveHistory
+        : parsed.leaveDashboard,
+      defaults.leaveHistory
+    ),
     dailySales: toLevel(
       parsed.dailySales !== undefined ? parsed.dailySales : parsed.dailyRecord,
       defaults.dailySales
@@ -617,6 +636,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     dashboard: perms.dashboard,
     leaveDashboard: perms.leaveDashboard,
     personnelLeave: perms.personnelLeave,
+    leaveHistory: perms.leaveHistory,
     dailySales: perms.dailySales,
     dailyBakery: perms.dailyBakery,
     bar_stock: perms.bar_stock,
@@ -797,6 +817,7 @@ export const TAB_TO_PERMISSION: Record<string, PagePermKey> = {
   dashboard: 'dashboard',
   leaveDashboard: 'leaveDashboard',
   personnelLeave: 'personnelLeave',
+  leaveHistory: 'leaveHistory',
   dailySales: 'dailySales',
   dailyBakery: 'dailyBakery',
   barStock: 'bar_stock',
