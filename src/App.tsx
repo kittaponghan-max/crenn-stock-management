@@ -2516,6 +2516,13 @@ export default function App() {
               alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน Hello, Crenn (ต้องได้รับสิทธิ์ใน User Security Settings)');
               setCurrentApp('cafe');
             }
+          } else if (userData.app === 'leaveportal') {
+            if (canAccessLeavePortal(userData, latestTemplates)) {
+              setCurrentApp('leaveportal');
+            } else {
+              alert('ขออภัย คุณไม่มีสิทธิ์เข้าใช้งาน Leave Portal (ต้องได้รับสิทธิ์ใน User Security Settings)');
+              setCurrentApp('cafe');
+            }
           } else {
             setCurrentApp('cafe');
           }
