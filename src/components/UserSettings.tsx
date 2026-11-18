@@ -71,8 +71,6 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
     name: 'GROUP 1: ทั่วไป (GENERAL)',
     items: [
       { key: 'dashboard', name: 'หน้าหลัก / Dashboard', icon: '🏠' },
-      { key: 'leaveDashboard', name: 'Leave Dashboard (ภาพรวมการลา)', icon: '📊' },
-      { key: 'personnelLeave', name: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', icon: '👤' },
       { key: 'dailySales', name: 'บันทึกยอดขายประจำวัน (Daily Sales)', icon: '📖' },
       { key: 'dailyBakery', name: 'บันทึกจำนวนขนมประจำวัน (Daily Bakery)', icon: '🧁' },
     ]
@@ -149,6 +147,15 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'hellocrenn_history', name: 'ประวัติเข้า-ออกงาน (Attendance History)', icon: '🕒' },
       { key: 'hellocrenn_settings', name: 'ตั้งค่าพิกัดสาขาและกะงาน (Geofence & Shift Config)', icon: '🛰️' },
     ]
+  },
+  {
+    id: 'leaveportal',
+    name: 'GROUP 9: 🗓️ Sub-app: Leave Portal (ระบบบริหารจัดการการลา)',
+    items: [
+      { key: 'leaveportal', name: 'เปิดใช้งาน Sub-app Leave Portal (Master Switch)', icon: '🗓️' },
+      { key: 'leaveDashboard', name: 'Leave Dashboard (ภาพรวมการลาทุกคน)', icon: '📊' },
+      { key: 'personnelLeave', name: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', icon: '👤' },
+    ]
   }
 ];
 
@@ -181,7 +188,8 @@ const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'hellocrenn_dashboard' as any, name: 'Hello, Crenn: ภาพรวมการลงเวลาพนักงาน (Admin)' },
   { id: 'hellocrenn_scan' as any, name: 'Hello, Crenn: สแกนเวลาตนเอง' },
   { id: 'hellocrenn_history' as any, name: 'Hello, Crenn: ประวัติเข้า-ออกงาน' },
-  { id: 'hellocrenn_settings' as any, name: 'Hello, Crenn: ตั้งค่าพิกัดสาขาและกะงาน' }
+  { id: 'hellocrenn_settings' as any, name: 'Hello, Crenn: ตั้งค่าพิกัดสาขาและกะงาน' },
+  { id: 'leaveportal' as any, name: 'ระบบบริหารจัดการการลา (Leave Portal)' }
 ];
 
 const DEFAULT_PERMISSIONS: AppPermissions = {
@@ -213,7 +221,8 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   hellocrenn_dashboard: 'Hidden',
   hellocrenn_scan: 'Edit',
   hellocrenn_history: 'Review',
-  hellocrenn_settings: 'Hidden'
+  hellocrenn_settings: 'Hidden',
+  leaveportal: 'Edit'
 };
 
 // Helper for sorting users by official position hierarchy
@@ -764,7 +773,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
       'userSettings',
       'prodcalc', 'prodcalc_ingredients', 'prodcalc_recipes', 'prodcalc_reports',
-      'hellocrenn', 'hellocrenn_dashboard', 'hellocrenn_scan', 'hellocrenn_history', 'hellocrenn_settings'
+      'hellocrenn', 'hellocrenn_dashboard', 'hellocrenn_scan', 'hellocrenn_history', 'hellocrenn_settings',
+      'leaveportal'
     ];
     const updated: any = { ...formData.permissions };
     allKeys.forEach(k => {
@@ -825,7 +835,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
       'history_edit', 'history_checkin', 'history_stock', 'history_receiving', 'history_bakery',
       'userSettings',
       'prodcalc', 'prodcalc_ingredients', 'prodcalc_recipes', 'prodcalc_reports',
-      'hellocrenn', 'hellocrenn_dashboard', 'hellocrenn_scan', 'hellocrenn_history', 'hellocrenn_settings'
+      'hellocrenn', 'hellocrenn_dashboard', 'hellocrenn_scan', 'hellocrenn_history', 'hellocrenn_settings',
+      'leaveportal'
     ];
     const updated: any = { ...templateForm };
     allKeys.forEach(k => { updated[k] = level; });
@@ -3134,7 +3145,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
             <div>
               <h3 className="text-[14px] font-bold text-white">Discord Webhook Integration Settings</h3>
               <p className="text-white/70 text-[11px] max-w-2xl mt-0.5">
-                ตั้งค่าระบบการแจ้งเตือนรายงานจากทุกเครื่องมือบน Top Navigation Bar และ Sub-app (ProdCalc) ไปยังเซิร์ฟเวอร์ Discord
+                ตั้งค่าระบบการแจ้งเตือนรายงานจากทุกเครื่องมือบน Top Navigation Bar และ Sub-app (ProdCalc, Hello, Crenn, Leave Portal) ไปยังเซิร์ฟเวอร์ Discord
               </p>
             </div>
           </div>
@@ -3206,19 +3217,11 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 หัวข้อรายงานที่ต้องการส่งไป Discord แยกตามเครื่องมือและหน้าบน Top Navigation Bar (1:1 Mapping)
               </h4>
               <span className="text-[10px] font-semibold text-[#5A8A88] bg-[#E8F3F2] px-2 py-0.5 rounded-[5px] border border-[#D4E4E3] tabular-nums">
-                22 รายการ (20 ระบบหลัก + 2 Sub-app)
+                24 รายการ (18 ระบบหลัก + 6 Sub-app)
               </span>
             </div>
 
             {[
-              {
-                groupTitle: '1. หน้าหลัก (Home)',
-                isSubApp: false,
-                items: [
-                  { id: 'notifyOnLeaveApproval', title: '📊 Leave Dashboard (ภาพรวมและอนุมัติการลา)', desc: 'ส่งแจ้งเตือนเมื่อผู้จัดการหรือแอดมิน อนุมัติ / ไม่อนุมัติคำขอลาหยุดพนักงาน' },
-                  { id: 'notifyOnLeaveRequest', title: '👤 Personnel Leave (ยื่นคำขอลาหยุดส่วนตัว)', desc: 'ส่งแจ้งเตือนเมื่อพนักงานส่งคำขอลาหยุดใหม่เข้าระบบ' },
-                ],
-              },
               {
                 groupTitle: '2. Daily Rec.',
                 isSubApp: false,
@@ -3287,6 +3290,14 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 items: [
                   { id: 'notifyOnHelloCrennCheckin', title: '📍 สแกนเวลาเข้า-ออกงาน (Auto/Manual GPS Check-in)', desc: 'Hello, Crenn → แจ้งเตือนเมื่อพนักงานสแกนเข้างานหรือออกงานด้วยพิกัด GPS' },
                   { id: 'notifyOnHelloCrennGeofence', title: '🛰️ ตั้งค่าพิกัดสาขาและกะงาน (Branch Geofence)', desc: 'Hello, Crenn → แจ้งเตือนเมื่อผู้ดูแลอัปเดตพิกัด GPS ร้าน รัศมี หรือเวลากะงาน' },
+                ],
+              },
+              {
+                groupTitle: '11. Sub-app: Leave Portal (ระบบบริหารจัดการการลา)',
+                isSubApp: true,
+                items: [
+                  { id: 'notifyOnLeaveApproval', title: '📊 Leave Dashboard (ภาพรวมและอนุมัติการลา)', desc: 'Leave Portal → ส่งแจ้งเตือนเมื่อผู้จัดการหรือแอดมิน อนุมัติ / ไม่อนุมัติคำขอลาหยุดพนักงาน' },
+                  { id: 'notifyOnLeaveRequest', title: '👤 Personnel Leave (ยื่นคำขอลาหยุดส่วนตัว)', desc: 'Leave Portal → ส่งแจ้งเตือนเมื่อพนักงานส่งคำขอลาหยุดใหม่เข้าระบบ' },
                 ],
               },
             ].map((group) => (
