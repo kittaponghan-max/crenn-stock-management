@@ -36,7 +36,8 @@ export type PagePermKey =
   | 'hellocrenn_dashboard'
   | 'hellocrenn_scan'
   | 'hellocrenn_history'
-  | 'hellocrenn_settings';
+  | 'hellocrenn_settings'
+  | 'leaveportal';
 
 export interface UserPermissions {
   // General
@@ -89,6 +90,7 @@ export interface UserPermissions {
   hellocrenn_scan: PagePermission;
   hellocrenn_history: PagePermission;
   hellocrenn_settings: PagePermission;
+  leaveportal: PagePermission;
 
   [key: string]: any;
 }
@@ -136,6 +138,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       hellocrenn_scan: 'edit',
       hellocrenn_history: 'edit',
       hellocrenn_settings: 'edit',
+      leaveportal: 'edit',
     };
   }
   if (r === 'BRANCH MANAGER' || r === 'BRANCHMANAGER') {
@@ -177,6 +180,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       hellocrenn_scan: 'edit',
       hellocrenn_history: 'edit',
       hellocrenn_settings: 'edit',
+      leaveportal: 'edit',
     };
   }
   if (r === 'SENIOR BAKER' || r === 'HEAD BAKER') {
@@ -218,6 +222,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       hellocrenn_scan: 'edit',
       hellocrenn_history: 'read',
       hellocrenn_settings: 'hidden',
+      leaveportal: 'edit',
     };
   }
   if (r === 'BARISTA' || r === 'BARISTA ASSISTANCE' || r === 'BARISTA ASSISTANT') {
@@ -259,6 +264,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
       hellocrenn_scan: 'edit',
       hellocrenn_history: 'read',
       hellocrenn_settings: 'hidden',
+      leaveportal: 'edit',
     };
   }
   // BAKER / JUNIOR BAKER / STAFF / CASHIER / SERVER / CLEANER / custom roles fallback:
@@ -300,6 +306,7 @@ export const applyRoleDefaults = (role: string): UserPermissions => {
     hellocrenn_scan: 'edit',
     hellocrenn_history: 'read',
     hellocrenn_settings: 'hidden',
+    leaveportal: 'edit',
   };
 };
 
@@ -395,6 +402,14 @@ export const normalizePermissions = (
               ? 'hidden'
               : undefined,
           baseDefaults.hellocrenn_settings
+        ),
+        leaveportal: toLevel(
+          customDefaults.leaveportal !== undefined
+            ? customDefaults.leaveportal
+            : customDefaults.leaveDashboard === 'hidden' && customDefaults.personnelLeave === 'hidden'
+              ? 'hidden'
+              : undefined,
+          baseDefaults.leaveportal
         ),
       }
     : baseDefaults;
@@ -581,6 +596,16 @@ export const normalizePermissions = (
           : undefined,
       defaults.hellocrenn_settings || 'hidden'
     ),
+    leaveportal: toLevel(
+      parsed.leaveportal !== undefined
+        ? parsed.leaveportal
+        : parsed.leavePortal !== undefined
+          ? parsed.leavePortal
+          : parsed.leaveDashboard === 'hidden' && parsed.personnelLeave === 'hidden'
+            ? 'hidden'
+            : undefined,
+      defaults.leaveportal || 'edit'
+    ),
   };
 };
 
@@ -626,6 +651,7 @@ export const buildSavePermissions = (perms: UserPermissions) => {
     hellocrenn_scan: perms.hellocrenn_scan ?? perms.hellocrenn ?? 'edit',
     hellocrenn_history: perms.hellocrenn_history ?? 'read',
     hellocrenn_settings: perms.hellocrenn_settings ?? 'hidden',
+    leaveportal: perms.leaveportal || 'edit',
 
     // Legacy fields for backward compatibility
     dailyRecord: perms.dailySales,
@@ -804,6 +830,7 @@ export const TAB_TO_PERMISSION: Record<string, PagePermKey> = {
   hellocrenn_scan: 'hellocrenn_scan',
   hellocrenn_history: 'hellocrenn_history',
   hellocrenn_settings: 'hellocrenn_settings',
+  leaveportal: 'leaveportal',
 };
 
 export const canAccessTab = (
@@ -825,8 +852,6 @@ export const canAccessTab = (
 
 const ROUTE_PRIORITY: string[] = [
   'home',
-  'personnelLeave',
-  'leaveDashboard',
   'barStock',
   'bakeryStock',
   'barDailyCount',
