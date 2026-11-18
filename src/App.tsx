@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessHelloCrenn, canAccessLeaveDashboard, canAccessPersonnelLeave } from './types';
+import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessHelloCrenn, canAccessLeavePortal } from './types';
 import {
   PagePermission,
   RoleTemplateMap,
@@ -53,8 +53,8 @@ import { TopNav } from './components/TopNav';
 import { SupabaseStatusBar } from './components/SupabaseStatusBar';
 import { ProdCalcApp } from './components/prodcalc/ProdCalcApp';
 import { HelloCrennApp } from './components/hellocrenn/HelloCrennApp';
+import { LeavePortalApp } from './components/leaveportal/LeavePortalApp';
 import { LeaveRequestModal } from './components/LeaveRequestModal';
-import { LeaveDashboard } from './components/LeaveDashboard';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -343,7 +343,7 @@ function AccessDeniedPage({
 export default function App() {
   const [user, setUser] = useState<{ name: string; role: UserRole; permissions?: AppPermissions; branch?: 'Rayong' | 'Bangkok'; app?: string } | null>(null);
   const [roleTemplates, setRoleTemplates] = useState<RoleTemplateMap>(() => getCachedRoleTemplates());
-  const [currentApp, setCurrentApp] = useState<'cafe' | 'prodcalc' | 'hellocrenn'>('cafe');
+  const [currentApp, setCurrentApp] = useState<'cafe' | 'prodcalc' | 'hellocrenn' | 'leaveportal'>('cafe');
 
   // Sync user object to cafe-user in localStorage so all components share the active branch
   useEffect(() => {
@@ -432,7 +432,7 @@ export default function App() {
   }, [stockViewMode, stockWeek, stockActiveChunkIdx]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings' | 'leaveRequest' | 'leaveDashboard' | 'personnelLeave'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'barStock' | 'bakeryStock' | 'bakeryPlan' | 'barReceiving' | 'bakeryReceiving' | 'barDailyCount' | 'bakeryDailyCount' | 'logs' | 'barChecklist' | 'bakeryChecklist' | 'barWaste' | 'barWasteLog' | 'bakeryWasteLog' | 'checklistHistory' | 'barPurchasing' | 'rndReport' | 'orderedItems' | 'maintenanceReport' | 'userSettings' | 'leaveRequest'>('home');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
@@ -2578,6 +2578,8 @@ export default function App() {
         isReadOnly={isReadOnlyPage(user, 'prodcalc', roleTemplates)}
         tabPermissions={prodcalcTabPerms}
         onSwitchToCafe={() => setCurrentApp('cafe')}
+        onSwitchToHelloCrenn={canAccessHelloCrenn(user, roleTemplates) ? () => setCurrentApp('hellocrenn') : undefined}
+        onSwitchToLeavePortal={canAccessLeavePortal(user, roleTemplates) ? () => setCurrentApp('leaveportal') : undefined}
         onLogout={() => {
           setUser(null);
           setCurrentApp('cafe');
@@ -2636,6 +2638,59 @@ export default function App() {
         tabPermissions={helloCrennTabPerms}
         onSwitchToCafe={() => setCurrentApp('cafe')}
         onSwitchToProdCalc={canAccessProdCalc(user, roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+        onSwitchToLeavePortal={canAccessLeavePortal(user, roleTemplates) ? () => setCurrentApp('leaveportal') : undefined}
+        onLogout={() => {
+          setUser(null);
+          setCurrentApp('cafe');
+        }}
+      />
+    );
+  }
+
+  // Leave Portal Standalone Sub-app Mode
+  if (currentApp === 'leaveportal') {
+    const leavePortalTabPerms: {
+      leaveDashboard: PagePermission;
+      personnelLeave: PagePermission;
+    } = {
+      leaveDashboard: getPermissionLevel(user, 'leaveDashboard', roleTemplates),
+      personnelLeave: getPermissionLevel(user, 'personnelLeave', roleTemplates),
+    };
+    const hasAnyLeavePortalTab =
+      leavePortalTabPerms.leaveDashboard !== 'hidden' ||
+      leavePortalTabPerms.personnelLeave !== 'hidden';
+
+    if (!canViewPage(user, 'leaveportal', roleTemplates) || !hasAnyLeavePortalTab) {
+      return (
+        <div className="min-h-screen bg-[#F0F5F4] flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-md border border-[#D4E4E3] max-w-md w-full text-center space-y-4">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl">⚠️</div>
+            <h2 className="text-base font-bold text-[#2D4A49]">ไม่มีสิทธิ์เข้าถึง Leave Portal</h2>
+            <p className="text-xs text-[#6B8F8E]">ฟังก์ชันนี้สงวนไว้สำหรับผู้ที่ได้รับอนุญาตใน User Security Settings เท่านั้น</p>
+            <button
+              onClick={() => setCurrentApp('cafe')}
+              className="w-full py-2.5 px-4 bg-[#5A8A88] hover:bg-[#497573] text-white rounded-xl font-bold text-xs transition cursor-pointer"
+            >
+              กลับสู่ Cafe Management
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <LeavePortalApp
+        currentUser={{
+          name: user.name,
+          role: user.role,
+          branch: user.branch || 'Rayong',
+          permissions: user.permissions,
+        }}
+        isReadOnly={isReadOnlyPage(user, 'leaveportal', roleTemplates)}
+        tabPermissions={leavePortalTabPerms}
+        onSwitchToCafe={() => setCurrentApp('cafe')}
+        onSwitchToProdCalc={canAccessProdCalc(user, roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
+        onSwitchToHelloCrenn={canAccessHelloCrenn(user, roleTemplates) ? () => setCurrentApp('hellocrenn') : undefined}
         onLogout={() => {
           setUser(null);
           setCurrentApp('cafe');
@@ -2675,6 +2730,7 @@ export default function App() {
             dbStatus={dbStatus} 
             onSwitchApp={canAccessProdCalc(user, roleTemplates) ? () => setCurrentApp('prodcalc') : undefined}
             onSwitchToHelloCrenn={canAccessHelloCrenn(user, roleTemplates) ? () => setCurrentApp('hellocrenn') : undefined}
+            onSwitchToLeavePortal={canAccessLeavePortal(user, roleTemplates) ? () => setCurrentApp('leaveportal') : undefined}
           />
         </>
       )}
@@ -2698,12 +2754,14 @@ export default function App() {
               onNavigate={(tab) => setActiveTab(tab)}
               onLogout={() => setUser(null)}
               onSwitchApp={
-                (app?: 'prodcalc' | 'hellocrenn') => {
+                (app?: 'prodcalc' | 'hellocrenn' | 'leaveportal') => {
                   const target = app || 'prodcalc';
                   const allowed =
                     target === 'prodcalc'
                       ? canAccessProdCalc(user, roleTemplates)
-                      : canAccessHelloCrenn(user, roleTemplates);
+                      : target === 'hellocrenn'
+                        ? canAccessHelloCrenn(user, roleTemplates)
+                        : canAccessLeavePortal(user, roleTemplates);
                   if (allowed) {
                     setCurrentApp(target);
                   }
@@ -2714,30 +2772,6 @@ export default function App() {
                 setUser(prev => prev ? { ...prev, branch: newBranch } : null);
               }}
               hasPermission={hasPermission}
-            />
-          )
-        ) : activeTab === 'leaveDashboard' ? (
-          !canViewPage(user, 'leaveDashboard', roleTemplates) ? (
-            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Leave Dashboard" />
-          ) : (
-            <LeaveDashboard
-              user={user}
-              mode="team"
-              onNavigate={handleTabNavigate}
-              onOpenLeaveModal={() => setActiveTab('leaveRequest')}
-              isReadOnly={isReadOnlyPage(user, 'leaveDashboard', roleTemplates)}
-            />
-          )
-        ) : activeTab === 'personnelLeave' ? (
-          !canViewPage(user, 'personnelLeave', roleTemplates) ? (
-            <AccessDeniedPage onNavigate={handleTabNavigate} fallbackRoute={fallbackRoute} pageName="Personnel Leave" />
-          ) : (
-            <LeaveDashboard
-              user={user}
-              mode="personal"
-              onNavigate={handleTabNavigate}
-              onOpenLeaveModal={() => setActiveTab('leaveRequest')}
-              isReadOnly={isReadOnlyPage(user, 'personnelLeave', roleTemplates)}
             />
           )
         ) : activeTab === 'dashboard' ? (
