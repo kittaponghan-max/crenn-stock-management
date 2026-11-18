@@ -12,6 +12,7 @@ export interface EmployeeShiftConfig {
   shiftEndTime: string;   // HH:mm
   graceMinutes: number;
   otStepMinutes: number;  // คิดโอที ทุกๆ กี่นาที (0 = ไม่คิดโอที)
+  ignored?: boolean;      // ไม่ต้อง monitor เวลาเข้า-ออกงาน
 }
 
 export interface BranchGeofenceConfig {
