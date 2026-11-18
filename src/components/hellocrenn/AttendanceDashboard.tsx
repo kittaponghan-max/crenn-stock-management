@@ -46,7 +46,7 @@ interface BranchStaffMember {
   role: string;
 }
 
-type StatusFilter = 'ALL' | 'CHECKED_IN' | 'LATE' | 'NOT_SCANNED' | 'HAS_OT';
+type StatusFilter = 'ALL' | 'CHECKED_IN' | 'LATE' | 'NOT_SCANNED' | 'HAS_OT' | 'IGNORED';
 
 interface AttendanceDashboardProps {
   currentBranch: string;
@@ -258,15 +258,24 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
     });
   }, [staffMembers, geofenceConfig, todayBranchRecords, now]);
 
+  const monitoredRows = useMemo(
+    () => employeeRows.filter((r) => !r.shift.ignored),
+    [employeeRows]
+  );
+  const ignoredRows = useMemo(
+    () => employeeRows.filter((r) => r.shift.ignored),
+    [employeeRows]
+  );
+
   const summary = useMemo(() => {
-    const totalStaff = employeeRows.length;
-    const checkedInRows = employeeRows.filter((r) => r.checkIn !== null);
+    const totalStaff = monitoredRows.length;
+    const checkedInRows = monitoredRows.filter((r) => r.checkIn !== null);
     const onTimeCount = checkedInRows.filter((r) => r.checkIn?.status === 'on_time').length;
     const lateCount = checkedInRows.filter((r) => r.checkIn?.status === 'late').length;
-    const workingCount = employeeRows.filter((r) => r.statusGroup === 'working').length;
-    const checkedOutCount = employeeRows.filter((r) => r.statusGroup === 'checked_out').length;
-    const notScannedCount = employeeRows.filter((r) => r.statusGroup === 'not_scanned').length;
-    const otRows = employeeRows.filter((r) => r.otMinutes > 0);
+    const workingCount = monitoredRows.filter((r) => r.statusGroup === 'working').length;
+    const checkedOutCount = monitoredRows.filter((r) => r.statusGroup === 'checked_out').length;
+    const notScannedCount = monitoredRows.filter((r) => r.statusGroup === 'not_scanned').length;
+    const otRows = monitoredRows.filter((r) => r.otMinutes > 0);
     const totalOtMinutes = otRows.reduce((acc, r) => acc + r.otMinutes, 0);
 
     return {
@@ -279,12 +288,15 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
       notScannedCount,
       otStaffCount: otRows.length,
       totalOtMinutes,
+      ignoredCount: ignoredRows.length,
     };
-  }, [employeeRows]);
+  }, [monitoredRows, ignoredRows.length]);
 
   const filteredRows = useMemo(() => {
     return employeeRows
       .filter((r) => {
+        if (statusFilter === 'IGNORED') return r.shift.ignored;
+        if (r.shift.ignored) return false;
         if (statusFilter === 'CHECKED_IN') return r.checkIn !== null;
         if (statusFilter === 'LATE') return r.checkIn?.status === 'late';
         if (statusFilter === 'NOT_SCANNED') return r.checkIn === null;
@@ -302,11 +314,14 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
   }, [employeeRows, statusFilter, searchTerm]);
 
   const filterOptions: Array<{ value: StatusFilter; label: string; count?: number }> = [
-    { value: 'ALL', label: 'พนักงานทั้งหมด', count: summary.totalStaff },
+    { value: 'ALL', label: 'พนักงานที่ Monitor ทั้งหมด', count: summary.totalStaff },
     { value: 'CHECKED_IN', label: 'สแกนเข้างานแล้ว', count: summary.checkedInCount },
     { value: 'LATE', label: 'มาสายวันนี้', count: summary.lateCount },
     { value: 'NOT_SCANNED', label: 'ยังไม่สแกนเข้างาน', count: summary.notScannedCount },
     { value: 'HAS_OT', label: 'มีโอทีวันนี้', count: summary.otStaffCount },
+    ...(summary.ignoredCount > 0
+      ? [{ value: 'IGNORED' as const, label: 'ไม่ต้อง Monitor (Ignore)', count: summary.ignoredCount }]
+      : []),
   ];
 
   return (
@@ -388,6 +403,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
           </p>
           <p className="text-[10.5px] text-[#6B8F8E] mt-1 tabular-nums">
             ยังไม่สแกน {summary.notScannedCount} คน
+            {summary.ignoredCount > 0 ? ` · Ignore ${summary.ignoredCount} คน` : ''}
           </p>
         </div>
 
@@ -436,7 +452,9 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             ตารางสรุปเวลาเข้า-ออกงานและโอทีพนักงานวันนี้ — {geofenceConfig.branchLabel}
           </h3>
           <span className="text-[11px] text-[#6B8F8E] tabular-nums">
-            {loadingStaff ? 'กำลังโหลดรายชื่อพนักงาน...' : `แสดง ${filteredRows.length} จาก ${employeeRows.length} คน`}
+            {loadingStaff
+              ? 'กำลังโหลดรายชื่อพนักงาน...'
+              : `แสดง ${filteredRows.length} จาก ${statusFilter === 'IGNORED' ? summary.ignoredCount : summary.totalStaff} คน`}
           </span>
         </div>
 
@@ -474,19 +492,22 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                     </StandardTd>
 
                     <StandardTd>
-                      {statusGroup === 'not_scanned' && (
+                      {shift.ignored ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          ไม่ต้อง Monitor (Ignore)
+                        </span>
+                      ) : statusGroup === 'not_scanned' ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
                           <span className="w-2 h-2 rounded-full bg-slate-300" />
                           ยังไม่สแกนเข้างาน
                         </span>
-                      )}
-                      {statusGroup === 'working' && (
+                      ) : statusGroup === 'working' ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                           กำลังปฏิบัติงาน
                         </span>
-                      )}
-                      {statusGroup === 'checked_out' && (
+                      ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5A8A88]">
                           <span className="w-2 h-2 rounded-full bg-[#5A8A88]" />
                           ออกงานแล้ว
