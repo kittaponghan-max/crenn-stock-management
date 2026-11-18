@@ -92,7 +92,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
   }, []);
 
   const isItemActive = (id: string, currentTab: string) => {
-    if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard' || currentTab === 'leaveDashboard' || currentTab === 'personnelLeave';
+    if (id === 'home') return currentTab === 'home' || currentTab === 'dashboard';
     if (id === 'dailyrecord') {
       return ['dailySales', 'dailyBakery'].includes(currentTab);
     }
@@ -128,30 +128,7 @@ export const TopNavCenterIcons: React.FC<TopNavCenterIconsProps> = ({
       icon: Home,
       route: 'home',
       showBadge: false,
-      hasDropdown: true,
-      dropdownWidth: 'min-w-[280px] w-auto',
-      dropdownAlignment: 'left',
-      groups: [
-        {
-          items: [
-            {
-              route: 'home',
-              label: 'หน้าหลัก (Inventory Dashboard)',
-              emoji: '🏠'
-            },
-            {
-              route: 'leaveDashboard',
-              label: 'Leave Dashboard (ภาพรวมการลา)',
-              emoji: '📊'
-            },
-            {
-              route: 'personnelLeave',
-              label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)',
-              emoji: '👤'
-            },
-          ],
-        },
-      ],
+      hasDropdown: false,
     },
     {
       id: 'dailyrecord',
