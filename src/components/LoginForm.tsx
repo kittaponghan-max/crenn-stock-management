@@ -10,7 +10,7 @@ import {
   normalizePermissions,
 } from '../utils/permissions';
 
-export type AppOption = 'cafe' | 'sop' | 'prodcalc' | 'hellocrenn';
+export type AppOption = 'cafe' | 'sop' | 'prodcalc' | 'hellocrenn' | 'leaveportal';
 
 export const APP_OPTIONS = [
   {
@@ -27,6 +27,14 @@ export const APP_OPTIONS = [
     description : 'สแกนเวลาเข้า-ออกงานอัตโนมัติด้วย GPS',
     icon        : '📍',
     color       : '#5A8A88',
+    isExisting  : true,
+  },
+  {
+    id          : 'leaveportal',
+    label       : 'Leave Portal - Leave & Time Off',
+    description : 'บริหารจัดการการลา วันหยุด และยื่นคำขอลา',
+    icon        : '🗓️',
+    color       : '#3D7A6E',
     isExisting  : true,
   },
   {
@@ -114,11 +122,12 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   // STEP 6 — Dynamic Login button label
   const getLoginButtonText = () => {
     switch (selectedApp) {
-      case 'cafe'      : return 'เข้าสู่ระบบ';
-      case 'hellocrenn': return 'เข้าสู่ Hello, Crenn';
-      case 'sop'       : return 'เข้าสู่ SOP';
-      case 'prodcalc'  : return 'เข้าสู่ ProdCalc';
-      default          : return 'Login';
+      case 'cafe'       : return 'เข้าสู่ระบบ';
+      case 'hellocrenn' : return 'เข้าสู่ Hello, Crenn';
+      case 'leaveportal': return 'เข้าสู่ Leave Portal';
+      case 'sop'        : return 'เข้าสู่ SOP';
+      case 'prodcalc'   : return 'เข้าสู่ ProdCalc';
+      default           : return 'Login';
     }
   };
 
@@ -405,6 +414,16 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             permissions: resolvedPerms,
             branch: selectedBranch,
             app: 'hellocrenn'
+          });
+          break;
+
+        case 'leaveportal':
+          onLogin({
+            name: matchedUser.name,
+            role: matchedUser.role,
+            permissions: resolvedPerms,
+            branch: selectedBranch,
+            app: 'leaveportal'
           });
           break;
 
