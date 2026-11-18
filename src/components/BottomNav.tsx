@@ -97,7 +97,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
   }, []);
 
   const isTabActive = (tabId: string) => {
-    if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard' || activeTab === 'leaveDashboard' || activeTab === 'personnelLeave';
+    if (tabId === 'home') return activeTab === 'home' || activeTab === 'dashboard';
     if (tabId === 'dailyrecord') {
       return activeTab === 'dailySales' || activeTab === 'dailyBakery';
     }
@@ -125,18 +125,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
       id: 'home', 
       label: 'หน้าหลัก', 
       icon: Home, 
-      hasDropdown: true,
-      dropdownWidth: 'w-[280px]',
-      alignmentClass: 'left-0 sm:left-1/2 sm:-translate-x-1/2',
-      groups: [
-        {
-          items: [
-            { route: 'home', label: 'หน้าหลัก (Inventory)', emoji: '🏠' },
-            { route: 'leaveDashboard', label: 'Leave Dashboard (ภาพรวมการลา)', emoji: '📊' },
-            { route: 'personnelLeave', label: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', emoji: '👤' },
-          ],
-        },
-      ],
+      hasDropdown: false,
     },
     {
       id: 'dailyrecord',
@@ -306,6 +295,7 @@ export function BottomNav({ activeTab, onNavigate, onLogout, user }: BottomNavPr
 
   const visibleNavTabs: NavTabConfig[] = NAV_TABS.map((tab) => {
     if (!tab.hasDropdown) {
+      if (tab.id === 'home' && !canAccessTab(user, 'home')) return null;
       if (tab.id === 'rnd' && !canAccessTab(user, 'rndReport')) return null;
       return tab;
     }
