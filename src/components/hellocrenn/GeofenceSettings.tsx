@@ -12,6 +12,7 @@ import {
   Plus,
   Trash2,
   CopyCheck,
+  EyeOff,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BranchGeofenceConfig, EmployeeShiftConfig } from '../../types/hellocrenn';
@@ -190,6 +191,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
       shiftEndTime: draft.shiftEndTime,
       graceMinutes: draft.graceMinutes,
       otStepMinutes: draft.otStepMinutes ?? 30,
+      ignored: false,
     };
   };
 
@@ -222,6 +224,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
           shiftEndTime: prev.shiftEndTime,
           graceMinutes: prev.graceMinutes,
           otStepMinutes: prev.otStepMinutes ?? 30,
+          ignored: false,
         };
 
       prevMap[existingKey || emp.name] = {
@@ -252,6 +255,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
           shiftEndTime: prev.shiftEndTime,
           graceMinutes: prev.graceMinutes,
           otStepMinutes: prev.otStepMinutes ?? 30,
+          ignored: false,
         };
       } else if (existingKey) {
         delete prevMap[existingKey];
@@ -286,6 +290,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
     setDraft((prev) => {
       const nextMap: Record<string, EmployeeShiftConfig> = {};
       combinedEmployees.forEach((emp) => {
+        const prevEntry = prev.employeeShifts?.[emp.name];
         nextMap[emp.name] = {
           userId: emp.id,
           userName: emp.name,
@@ -294,6 +299,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
           shiftEndTime: prev.shiftEndTime,
           graceMinutes: prev.graceMinutes,
           otStepMinutes: prev.otStepMinutes ?? 30,
+          ignored: Boolean(prevEntry?.ignored),
         };
       });
       return {
@@ -369,17 +375,18 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
   const handleSave = async () => {
     if (!canEdit || !isDirty) return;
     await runSave(async () => {
-      // Ensure every employee shown has an explicit persisted shift entry if customized,
+      // Ensure every employee shown has an explicit persisted shift entry if customized or ignored,
       // while keeping all manual staff entries intact
       const cleanedMap: Record<string, EmployeeShiftConfig> = {};
       combinedEmployees.forEach((emp) => {
         const row = getRowShift(emp);
-        if (emp.isManual || isRowCustomized(row) || draft.employeeShifts?.[emp.name]) {
+        if (emp.isManual || isRowCustomized(row) || Boolean(row.ignored) || draft.employeeShifts?.[emp.name]) {
           cleanedMap[emp.name] = {
             ...row,
             userId: emp.id ?? row.userId,
             userName: emp.name,
             userRole: emp.role || row.userRole,
+            ignored: Boolean(row.ignored),
           };
         }
       });
@@ -392,6 +399,20 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
       });
     });
   };
+
+  const ignoredCount = useMemo(
+    () =>
+      combinedEmployees.filter((emp) => {
+        const shiftEntries = Object.values(draft.employeeShifts ?? {}) as EmployeeShiftConfig[];
+        const found =
+          draft.employeeShifts?.[emp.name] ||
+          shiftEntries.find(
+            (s) => s && s.userName && s.userName.trim().toLowerCase() === emp.name.trim().toLowerCase()
+          );
+        return Boolean(found?.ignored);
+      }).length,
+    [combinedEmployees, draft.employeeShifts]
+  );
 
   return (
     <div className="space-y-4">
@@ -655,12 +676,15 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
         <div className="pt-4 border-t border-[#E8F3F2] space-y-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
             <div>
-              <h3 className="text-[13px] font-bold text-[#2D4A49] flex items-center gap-1.5">
+              <h3 className="text-[13px] font-bold text-[#2D4A49] flex items-center gap-1.5 flex-wrap">
                 <Users size={15} className="text-[#5A8A88]" />
-                <span>กำหนดเวลากะงานและเกณฑ์โอทีรายบุคคล ({combinedEmployees.length} คน)</span>
+                <span>
+                  กำหนดเวลากะงานและเกณฑ์โอทีรายบุคคล ({combinedEmployees.length} คน
+                  {ignoredCount > 0 ? ` · Ignore ${ignoredCount} คน` : ''})
+                </span>
               </h3>
               <p className="text-[11px] text-[#6B8F8E] mt-0.5">
-                กำหนดเวลาเข้า-ออกงาน, อนุโลมสาย และรอบคิดโอทีของพนักงานแต่ละคนใน {draft.branchLabel}
+                กำหนดเวลาเข้า-ออกงาน, อนุโลมสาย, รอบคิดโอที หรือกด Ignore สำหรับพนักงานที่ไม่ต้อง Monitor เวลาเข้า-ออกงานใน {draft.branchLabel}
               </p>
             </div>
 
@@ -745,17 +769,31 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
             </div>
           )}
 
-          <StandardTableCard>
-            <StandardTable>
+          <StandardTableCard className="md:[&>div]:overflow-x-hidden">
+            <StandardTable fixedLayout className="w-full">
               <StandardThead>
                 <StandardHeaderRow>
-                  <StandardTh className="w-10 text-center">#</StandardTh>
-                  <StandardTh>รายชื่อพนักงาน / ตำแหน่ง</StandardTh>
-                  <StandardTh>เวลาเข้างานมาตรฐาน</StandardTh>
-                  <StandardTh>เวลาเลิกงานมาตรฐาน</StandardTh>
-                  <StandardTh>อนุโลมสายได้ (นาที)</StandardTh>
-                  <StandardTh>คิดโอที ทุกๆ (นาที)</StandardTh>
-                  {canEdit && <StandardTh align="right">จัดการ</StandardTh>}
+                  <StandardTh className="w-[5%] text-center !px-1">#</StandardTh>
+                  <StandardTh className={canEdit ? 'w-[19%] !px-2' : 'w-[25%] !px-2'}>
+                    พนักงาน / ตำแหน่ง
+                  </StandardTh>
+                  <StandardTh className={canEdit ? 'w-[14%] !px-1 text-center' : 'w-[18%] !px-2 text-center'}>
+                    เวลาเข้างาน
+                  </StandardTh>
+                  <StandardTh className={canEdit ? 'w-[14%] !px-1 text-center' : 'w-[18%] !px-2 text-center'}>
+                    เวลาเลิกงาน
+                  </StandardTh>
+                  <StandardTh className={canEdit ? 'w-[13%] !px-1 text-center' : 'w-[16%] !px-2 text-center'}>
+                    อนุโลมสาย
+                  </StandardTh>
+                  <StandardTh className={canEdit ? 'w-[14%] !px-1 text-center' : 'w-[18%] !px-2 text-center'}>
+                    คิดโอทีทุก
+                  </StandardTh>
+                  {canEdit && (
+                    <StandardTh align="right" className="w-[21%] !px-1.5">
+                      จัดการ
+                    </StandardTh>
+                  )}
                 </StandardHeaderRow>
               </StandardThead>
               <StandardTbody>
@@ -776,54 +814,70 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                   filteredEmployees.map((emp, idx) => {
                     const row = getRowShift(emp);
                     const customized = isRowCustomized(row);
+                    const isIgnored = Boolean(row.ignored);
 
                     return (
-                      <StandardTr key={`${emp.name}-${idx}`}>
-                        <StandardTd className="text-center text-[#6B8F8E] tabular-nums">
+                      <StandardTr
+                        key={`${emp.name}-${idx}`}
+                        className={isIgnored ? 'bg-slate-50/75 opacity-80' : undefined}
+                      >
+                        <StandardTd className="text-center text-[#6B8F8E] tabular-nums !px-1">
                           {idx + 1}
                         </StandardTd>
-                        <StandardTd>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-[#2D4A49]">{emp.name}</span>
-                            {customized && (
-                              <span className="text-[10px] font-semibold text-[#5A8A88]">
-                                · กำหนดเฉพาะคน
+                        <StandardTd className="!px-2">
+                          <div className="flex flex-wrap items-center gap-1 leading-tight">
+                            <span
+                              className={`font-semibold truncate ${
+                                isIgnored ? 'text-slate-500 line-through' : 'text-[#2D4A49]'
+                              }`}
+                            >
+                              {emp.name}
+                            </span>
+                            {isIgnored ? (
+                              <span className="text-[9.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                Ignore
                               </span>
+                            ) : (
+                              customized && (
+                                <span className="text-[9.5px] font-semibold text-[#5A8A88] whitespace-nowrap">
+                                  · เฉพาะคน
+                                </span>
+                              )
                             )}
                           </div>
-                          <div className="text-[10.5px] text-[#6B8F8E]">{emp.role}</div>
+                          <div className="text-[10px] text-[#6B8F8E] truncate mt-0.5">{emp.role}</div>
                         </StandardTd>
-                        <StandardTd>
+                        <StandardTd className="!px-1 text-center">
                           <input
                             type="time"
-                            disabled={!canEdit}
+                            disabled={!canEdit || isIgnored}
                             value={row.shiftStartTime}
                             onChange={(e) =>
                               updateEmployeeShiftField(emp, 'shiftStartTime', e.target.value)
                             }
                             aria-label={`เวลาเข้างานมาตรฐานของ ${emp.name}`}
-                            className="h-[30px] w-[112px] px-2 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                            className="h-[30px] w-full max-w-[92px] mx-auto block px-1.5 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-45 [&::-webkit-calendar-picker-indicator]:ml-0 [&::-webkit-calendar-picker-indicator]:pl-0.5"
                           />
                         </StandardTd>
-                        <StandardTd>
+                        <StandardTd className="!px-1 text-center">
                           <input
                             type="time"
-                            disabled={!canEdit}
+                            disabled={!canEdit || isIgnored}
                             value={row.shiftEndTime}
                             onChange={(e) =>
                               updateEmployeeShiftField(emp, 'shiftEndTime', e.target.value)
                             }
                             aria-label={`เวลาเลิกงานมาตรฐานของ ${emp.name}`}
-                            className="h-[30px] w-[112px] px-2 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                            className="h-[30px] w-full max-w-[92px] mx-auto block px-1.5 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-45 [&::-webkit-calendar-picker-indicator]:ml-0 [&::-webkit-calendar-picker-indicator]:pl-0.5"
                           />
                         </StandardTd>
-                        <StandardTd>
-                          <div className="flex items-center gap-1.5">
+                        <StandardTd className="!px-1 text-center">
+                          <div className="inline-flex items-center justify-center gap-1">
                             <input
                               type="number"
                               min={0}
                               max={120}
-                              disabled={!canEdit}
+                              disabled={!canEdit || isIgnored}
                               value={row.graceMinutes}
                               onChange={(e) =>
                                 updateEmployeeShiftField(
@@ -833,19 +887,19 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                                 )
                               }
                               aria-label={`อนุโลมสายของ ${emp.name}`}
-                              className="h-[30px] w-[72px] px-2 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                              className="h-[30px] w-[46px] px-1 text-center rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-45"
                             />
-                            <span className="text-[10.5px] text-[#6B8F8E] whitespace-nowrap">นาที</span>
+                            <span className="text-[10px] text-[#6B8F8E] whitespace-nowrap">น.</span>
                           </div>
                         </StandardTd>
-                        <StandardTd>
-                          <div className="flex items-center gap-1.5">
+                        <StandardTd className="!px-1 text-center">
+                          <div className="inline-flex items-center justify-center gap-1">
                             <input
                               type="number"
                               min={0}
                               max={240}
                               step={5}
-                              disabled={!canEdit}
+                              disabled={!canEdit || isIgnored}
                               value={row.otStepMinutes}
                               onChange={(e) =>
                                 updateEmployeeShiftField(
@@ -855,34 +909,51 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
                                 )
                               }
                               aria-label={`คิดโอทีทุกๆ กี่นาทีของ ${emp.name}`}
-                              className="h-[30px] w-[72px] px-2 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                              className="h-[30px] w-[46px] px-1 text-center rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-45"
                             />
-                            <span className="text-[10.5px] text-[#6B8F8E] whitespace-nowrap">
-                              {row.otStepMinutes > 0 ? 'นาที' : 'ไม่คิด OT'}
+                            <span className="text-[10px] text-[#6B8F8E] whitespace-nowrap">
+                              {row.otStepMinutes > 0 ? 'น.' : 'ปิด'}
                             </span>
                           </div>
                         </StandardTd>
                         {canEdit && (
-                          <StandardTd align="right">
-                            <div className="inline-flex items-center gap-1">
+                          <StandardTd align="right" className="!px-1.5">
+                            <div className="inline-flex items-center justify-end gap-1 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => updateEmployeeShiftField(emp, 'ignored', !isIgnored)}
+                                className={`h-[26px] px-1.5 rounded-[6px] border text-[10px] font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap ${
+                                  isIgnored
+                                    ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                    : 'border-[#D4E4E3] bg-white text-[#6B8F8E] hover:bg-[#F0F5F4] hover:text-[#2D4A49]'
+                                }`}
+                                title={
+                                  isIgnored
+                                    ? 'คลิกเพื่อกลับมา Monitor เวลาเข้า-ออกงาน'
+                                    : 'ไม่ต้อง Monitor เวลาเข้า-ออกงาน (Ignore)'
+                                }
+                              >
+                                <EyeOff size={11} />
+                                <span>{isIgnored ? 'Ignored' : 'Ignore'}</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => resetEmployeeToBranchDefault(emp)}
-                                disabled={!customized}
-                                className="h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#2D4A49] text-[10.5px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                disabled={!customized && !isIgnored}
+                                className="h-[26px] px-1.5 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#2D4A49] text-[10px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed whitespace-nowrap"
                                 title="รีเซ็ตกลับเป็นค่ามาตรฐานสาขา"
                               >
-                                <RotateCcw size={11} />
+                                <RotateCcw size={10} />
                                 <span>ค่าสาขา</span>
                               </button>
                               {emp.isManual && (
                                 <button
                                   type="button"
                                   onClick={() => removeManualEmployee(emp)}
-                                  className="h-[28px] w-[28px] rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center transition-colors cursor-pointer"
+                                  className="h-[26px] w-[26px] rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center transition-colors cursor-pointer shrink-0"
                                   title="ลบรายชื่อที่เพิ่มเอง"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={11} />
                                 </button>
                               )}
                             </div>
