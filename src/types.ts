@@ -223,6 +223,7 @@ export interface AppPermissions {
   hellocrenn_scan?: PermissionLevel;
   hellocrenn_history?: PermissionLevel;
   hellocrenn_settings?: PermissionLevel;
+  leaveportal?: PermissionLevel;
 }
 
 export const canAccessProdCalc = (
@@ -247,6 +248,17 @@ export const canAccessHelloCrenn = (
     canViewPage(user, 'hellocrenn_scan', roleTemplates) ||
     canViewPage(user, 'hellocrenn_history', roleTemplates) ||
     canViewPage(user, 'hellocrenn_settings', roleTemplates)
+  );
+};
+
+export const canAccessLeavePortal = (
+  user: { name?: string; role?: any; permissions?: any; branch?: string } | null | undefined,
+  roleTemplates?: Record<string, any> | null
+): boolean => {
+  if (!canViewPage(user, 'leaveportal', roleTemplates)) return false;
+  return (
+    canViewPage(user, 'leaveDashboard', roleTemplates) ||
+    canViewPage(user, 'personnelLeave', roleTemplates)
   );
 };
 
