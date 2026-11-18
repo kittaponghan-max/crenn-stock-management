@@ -2659,13 +2659,16 @@ export default function App() {
     const leavePortalTabPerms: {
       leaveDashboard: PagePermission;
       personnelLeave: PagePermission;
+      leaveHistory: PagePermission;
     } = {
       leaveDashboard: getPermissionLevel(user, 'leaveDashboard', roleTemplates),
       personnelLeave: getPermissionLevel(user, 'personnelLeave', roleTemplates),
+      leaveHistory: getPermissionLevel(user, 'leaveHistory', roleTemplates),
     };
     const hasAnyLeavePortalTab =
       leavePortalTabPerms.leaveDashboard !== 'hidden' ||
-      leavePortalTabPerms.personnelLeave !== 'hidden';
+      leavePortalTabPerms.personnelLeave !== 'hidden' ||
+      leavePortalTabPerms.leaveHistory !== 'hidden';
 
     if (!canViewPage(user, 'leaveportal', roleTemplates) || !hasAnyLeavePortalTab) {
       return (
