@@ -1472,7 +1472,8 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
 
       </div>
 
-      {/* ── 4. ALL TEAM LEAVE REQUESTS TABLE (HISTORY & APPROVAL) ── */}
+      {/* ── 4. PERSONAL LEAVE REQUESTS TABLE (Personal Leave mode only — Team history moved to dedicated Navigation Bar page) ── */}
+      {isPersonalActive && (
       <div className="bg-white rounded-2xl p-4 md:p-5 border border-[#D4E4E3] shadow-xs space-y-4">
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -1611,6 +1612,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         </div>
 
       </div>
+      )}
 
     </div>
   );
