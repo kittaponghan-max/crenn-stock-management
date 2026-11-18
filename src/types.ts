@@ -187,6 +187,7 @@ export interface AppPermissions {
   dashboardBakery: PermissionLevel;
   leaveDashboard?: PermissionLevel;
   personnelLeave?: PermissionLevel;
+  leaveHistory?: PermissionLevel;
   // Stock Table
   stockTableBar: PermissionLevel;
   stockTableBakery: PermissionLevel;
@@ -258,7 +259,8 @@ export const canAccessLeavePortal = (
   if (!canViewPage(user, 'leaveportal', roleTemplates)) return false;
   return (
     canViewPage(user, 'leaveDashboard', roleTemplates) ||
-    canViewPage(user, 'personnelLeave', roleTemplates)
+    canViewPage(user, 'personnelLeave', roleTemplates) ||
+    canViewPage(user, 'leaveHistory', roleTemplates)
   );
 };
 
