@@ -5,12 +5,14 @@ export interface SupabaseStatusBarProps {
   dbStatus?: 'connected' | 'checking' | 'offline';
   onSwitchApp?: () => void;
   onSwitchToHelloCrenn?: () => void;
+  onSwitchToLeavePortal?: () => void;
 }
 
 export const SupabaseStatusBar: React.FC<SupabaseStatusBarProps> = ({
   dbStatus = 'connected',
   onSwitchApp,
   onSwitchToHelloCrenn,
+  onSwitchToLeavePortal,
 }) => {
   return (
     <section className="w-full relative bg-white/80 backdrop-blur-xs border-b border-[#D4E4E3] shadow-xs px-4 md:px-6 lg:px-8 py-2 z-10 shrink-0">
@@ -37,6 +39,17 @@ export const SupabaseStatusBar: React.FC<SupabaseStatusBarProps> = ({
             >
               <span className="text-sm">📍</span>
               <span>Hello, Crenn</span>
+            </button>
+          )}
+          {onSwitchToLeavePortal && (
+            <button
+              type="button"
+              onClick={onSwitchToLeavePortal}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F4FBF9] hover:bg-[#E1F3EE] border border-[#3D7A6E] text-[#1F4E45] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer whitespace-nowrap"
+              title="เปิดแอปพลิเคชัน Leave Portal (ระบบบริหารจัดการการลา)"
+            >
+              <span className="text-sm">🗓️</span>
+              <span>Leave Portal</span>
             </button>
           )}
         </div>
