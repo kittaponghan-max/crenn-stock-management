@@ -24,6 +24,8 @@ interface ProdCalcAppProps {
     branch: string;
   };
   onSwitchToCafe: () => void;
+  onSwitchToHelloCrenn?: () => void;
+  onSwitchToLeavePortal?: () => void;
   onLogout: () => void;
   isReadOnly?: boolean;
   tabPermissions?: {
@@ -36,6 +38,8 @@ interface ProdCalcAppProps {
 export function ProdCalcApp({
   currentUser,
   onSwitchToCafe,
+  onSwitchToHelloCrenn,
+  onSwitchToLeavePortal,
   onLogout,
   isReadOnly = false,
   tabPermissions,
@@ -445,6 +449,42 @@ export function ProdCalcApp({
                     <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
                   </button>
 
+                  {onSwitchToHelloCrenn && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        onSwitchToHelloCrenn();
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-[9px] rounded-lg text-xs text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] font-normal transition-all duration-100 cursor-pointer text-left group select-none"
+                    >
+                      <div className="flex items-center gap-[10px] min-w-0">
+                        <span className="text-[14px] shrink-0 leading-none">📍</span>
+                        <span className="truncate text-[12px]">สลับไป Hello, Crenn</span>
+                      </div>
+                      <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
+                    </button>
+                  )}
+
+                  {onSwitchToLeavePortal && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        onSwitchToLeavePortal();
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-[9px] rounded-lg text-xs text-[#2D4A49] hover:bg-[#E8F3F2] hover:text-[#5A8A88] font-normal transition-all duration-100 cursor-pointer text-left group select-none"
+                    >
+                      <div className="flex items-center gap-[10px] min-w-0">
+                        <span className="text-[14px] shrink-0 leading-none">🗓️</span>
+                        <span className="truncate text-[12px]">สลับไป Leave Portal</span>
+                      </div>
+                      <ChevronRight size={13} className="text-[#A8BCBB] group-hover:text-[#5A8A88] shrink-0 ml-2 transition-colors" />
+                    </button>
+                  )}
+
                   {/* Divider */}
                   <div className="h-[1px] bg-[#D4E4E3] mx-2 my-1" />
 
@@ -477,16 +517,38 @@ export function ProdCalcApp({
       <section className="w-full relative bg-white/80 backdrop-blur-xs border-b border-[#D4E4E3] shadow-xs px-4 md:px-6 lg:px-8 py-2 z-10 shrink-0">
         <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex items-center justify-between text-xs min-h-[32px]">
           {/* Left: Switch back to Main App Pill */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={onSwitchToCafe}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#5A8A88] text-[#2D4A49] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#5A8A88] text-[#2D4A49] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer whitespace-nowrap"
               title="สลับไปยังระบบ Cafe Management System"
             >
               <Coffee size={13} className="text-[#5A8A88]" />
               <span>Cafe Management</span>
             </button>
+            {onSwitchToHelloCrenn && (
+              <button
+                type="button"
+                onClick={onSwitchToHelloCrenn}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#5A8A88] text-[#2D4A49] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer whitespace-nowrap"
+                title="เปิดแอปพลิเคชัน Hello, Crenn (GPS ลงเวลาเข้า-ออกงานอัตโนมัติ)"
+              >
+                <span className="text-sm">📍</span>
+                <span>Hello, Crenn</span>
+              </button>
+            )}
+            {onSwitchToLeavePortal && (
+              <button
+                type="button"
+                onClick={onSwitchToLeavePortal}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F4FBF9] hover:bg-[#E1F3EE] border border-[#3D7A6E] text-[#1F4E45] transition-colors focus:outline-none shadow-xs text-xs font-bold cursor-pointer whitespace-nowrap"
+                title="เปิดแอปพลิเคชัน Leave Portal (ระบบบริหารจัดการการลา)"
+              >
+                <span className="text-sm">🗓️</span>
+                <span>Leave Portal</span>
+              </button>
+            )}
           </div>
 
           {/* Right: Supabase Status Indicator */}
