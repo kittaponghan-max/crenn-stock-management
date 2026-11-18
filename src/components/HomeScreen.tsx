@@ -26,7 +26,7 @@ import {
   ShieldCheck,
   ArrowUpRight
 } from 'lucide-react';
-import { Ingredient, StockRecord, Branch, AppPermissions, canAccessProdCalc, canAccessHelloCrenn } from '../types';
+import { Ingredient, StockRecord, Branch, AppPermissions, canAccessProdCalc, canAccessHelloCrenn, canAccessLeavePortal } from '../types';
 import { UserRole } from './LoginForm';
 import { TopNavCenterIcons } from './TopNavCenterIcons';
 import { UserDropdownMenu } from './UserDropdownMenu';
@@ -49,7 +49,7 @@ export interface HomeScreenProps {
   dbStatus: 'connected' | 'checking' | 'offline';
   onChangeBranch?: (branch: Branch) => void;
   hasPermission?: (funcId: keyof AppPermissions) => boolean;
-  onSwitchApp?: (app: 'prodcalc' | 'hellocrenn') => void;
+  onSwitchApp?: (app: 'prodcalc' | 'hellocrenn' | 'leaveportal') => void;
 }
 
 export function HomeScreen({
@@ -1373,6 +1373,7 @@ export function HomeScreen({
         dbStatus={dbStatus}
         onSwitchApp={onSwitchApp && canAccessProdCalc(user) ? () => onSwitchApp('prodcalc') : undefined}
         onSwitchToHelloCrenn={onSwitchApp && canAccessHelloCrenn(user) ? () => onSwitchApp('hellocrenn') : undefined}
+        onSwitchToLeavePortal={onSwitchApp && canAccessLeavePortal(user) ? () => onSwitchApp('leaveportal') : undefined}
       />
 
       {/* Main Container */}
