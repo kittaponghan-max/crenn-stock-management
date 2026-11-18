@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   BarChart3,
   UserCheck,
+  ClipboardList,
   CalendarPlus,
   Coffee,
   ChevronDown,
@@ -12,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { PagePermission } from '../../utils/permissions';
 import { LeaveDashboard } from '../LeaveDashboard';
 import { LeaveRequestModal } from '../LeaveRequestModal';
+import { TeamLeaveHistory } from './TeamLeaveHistory';
 
 interface LeavePortalAppProps {
   currentUser: {
@@ -28,6 +30,7 @@ interface LeavePortalAppProps {
   tabPermissions?: {
     leaveDashboard: PagePermission;
     personnelLeave: PagePermission;
+    leaveHistory: PagePermission;
   };
 }
 
@@ -43,28 +46,38 @@ export function LeavePortalApp({
   const effectivePerms = {
     leaveDashboard: tabPermissions?.leaveDashboard ?? 'edit',
     personnelLeave: tabPermissions?.personnelLeave ?? 'edit',
+    leaveHistory: tabPermissions?.leaveHistory ?? 'edit',
   };
 
-  type LeavePortalTab = 'leaveDashboard' | 'personnelLeave';
+  type LeavePortalTab = 'leaveDashboard' | 'personnelLeave' | 'leaveHistory';
 
   const defaultTab: LeavePortalTab =
-    effectivePerms.leaveDashboard !== 'hidden' ? 'leaveDashboard' : 'personnelLeave';
+    effectivePerms.leaveDashboard !== 'hidden'
+      ? 'leaveDashboard'
+      : effectivePerms.personnelLeave !== 'hidden'
+        ? 'personnelLeave'
+        : 'leaveHistory';
 
   const [currentTab, setCurrentTab] = useState<LeavePortalTab>(defaultTab);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (currentTab === 'leaveDashboard' && effectivePerms.leaveDashboard === 'hidden') {
-      if (effectivePerms.personnelLeave !== 'hidden') {
-        setCurrentTab('personnelLeave');
-      }
-    } else if (currentTab === 'personnelLeave' && effectivePerms.personnelLeave === 'hidden') {
-      if (effectivePerms.leaveDashboard !== 'hidden') {
-        setCurrentTab('leaveDashboard');
-      }
+    const firstVisibleTab: LeavePortalTab =
+      effectivePerms.leaveDashboard !== 'hidden'
+        ? 'leaveDashboard'
+        : effectivePerms.personnelLeave !== 'hidden'
+          ? 'personnelLeave'
+          : 'leaveHistory';
+
+    if (
+      (currentTab === 'leaveDashboard' && effectivePerms.leaveDashboard === 'hidden') ||
+      (currentTab === 'personnelLeave' && effectivePerms.personnelLeave === 'hidden') ||
+      (currentTab === 'leaveHistory' && effectivePerms.leaveHistory === 'hidden')
+    ) {
+      setCurrentTab(firstVisibleTab);
     }
-  }, [currentTab, effectivePerms.leaveDashboard, effectivePerms.personnelLeave]);
+  }, [currentTab, effectivePerms.leaveDashboard, effectivePerms.personnelLeave, effectivePerms.leaveHistory]);
 
   const [dbStatus, setDbStatus] = useState<'connected' | 'checking' | 'offline'>(
     supabase ? 'checking' : 'offline'
@@ -129,13 +142,17 @@ export function LeavePortalApp({
 
   const canSubmitLeave =
     !isReadOnly &&
-    (effectivePerms.leaveDashboard === 'edit' || effectivePerms.personnelLeave === 'edit');
+    (effectivePerms.leaveDashboard === 'edit' ||
+      effectivePerms.personnelLeave === 'edit' ||
+      effectivePerms.leaveHistory === 'edit');
 
   const isCurrentTabReadOnly =
     isReadOnly ||
     (currentTab === 'leaveDashboard'
       ? effectivePerms.leaveDashboard !== 'edit'
-      : effectivePerms.personnelLeave !== 'edit');
+      : currentTab === 'personnelLeave'
+        ? effectivePerms.personnelLeave !== 'edit'
+        : effectivePerms.leaveHistory !== 'edit');
 
   const navItems: Array<{
     id: LeavePortalTab;
@@ -160,6 +177,16 @@ export function LeavePortalApp({
             label: 'Personnel Leave',
             mobileLabel: 'การลาของฉัน',
             icon: UserCheck,
+          },
+        ]
+      : []),
+    ...(effectivePerms.leaveHistory !== 'hidden'
+      ? [
+          {
+            id: 'leaveHistory' as const,
+            label: 'ประวัติการลาทั้งหมดของทีม',
+            mobileLabel: 'ประวัติทีม',
+            icon: ClipboardList,
           },
         ]
       : []),
@@ -449,6 +476,15 @@ export function LeavePortalApp({
             mode="personal"
             isReadOnly={isCurrentTabReadOnly}
             onOpenLeaveModal={() => setShowLeaveModal(true)}
+          />
+        )}
+
+        {currentTab === 'leaveHistory' && effectivePerms.leaveHistory !== 'hidden' && (
+          <TeamLeaveHistory
+            key={`team-history-${refreshKey}`}
+            user={currentUser}
+            isReadOnly={isCurrentTabReadOnly}
+            onOpenLeaveModal={canSubmitLeave ? () => setShowLeaveModal(true) : undefined}
           />
         )}
       </main>
