@@ -1,21 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar, 
   Clock, 
-  UserCheck, 
-  FileText, 
   CheckCircle2, 
   X, 
   AlertCircle, 
   ChevronDown, 
-  Sparkles,
   History,
-  Send,
-  Info,
-  Building,
-  Code,
-  Copy,
-  Check
+  Send
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { sendDiscordNotification } from '../lib/discordNotify';
@@ -24,6 +16,7 @@ import {
   fetchAnnualLeaveQuotas,
   getEmployeeQuotaForYear,
 } from '../utils/leaveQuotas';
+import { SaveButton, useSaveState, useUnsavedChangesGuard } from './ui/SaveButton';
 
 export interface LeaveRequestModalProps {
   isOpen: boolean;
@@ -123,44 +116,8 @@ const DEFAULT_QUOTAS: Record<string, LeaveQuota> = {
 };
 
 const MANAGERS = [
-  'Sunny Kumar Singh (ผู้จัดการสาขา)',
   'Admin (ผู้ดูแลระบบ)',
-  'HR Manager (ฝ่ายบุคคล)',
-  'Kittapong (ผู้จัดการทั่วไป)',
 ];
-
-const SQL_SCRIPT_STRING = `-- คำสั่ง SQL สำหรับสร้างตาราง leave_requests บน Supabase SQL Editor
-CREATE TABLE IF NOT EXISTS public.leave_requests (
-    id VARCHAR(100) PRIMARY KEY,
-    branch VARCHAR(100) NOT NULL DEFAULT 'Rayong',
-    user_name VARCHAR(200) NOT NULL,
-    leave_type VARCHAR(50) NOT NULL,
-    leave_type_name VARCHAR(150) NOT NULL,
-    from_date DATE NOT NULL,
-    to_date DATE NOT NULL,
-    total_days INTEGER NOT NULL DEFAULT 1,
-    manager VARCHAR(200),
-    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
-    description TEXT,
-    submitted_at VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS & Policies
-ALTER TABLE public.leave_requests ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public read access on leave_requests" 
-ON public.leave_requests FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert access on leave_requests" 
-ON public.leave_requests FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Allow public update access on leave_requests" 
-ON public.leave_requests FOR UPDATE USING (true);
-
-CREATE POLICY "Allow public delete access on leave_requests" 
-ON public.leave_requests FOR DELETE USING (true);`;
 
 export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   isOpen,
@@ -169,7 +126,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   userRole = 'Staff',
   userBranch = 'Rayong',
 }) => {
-  const [activeTab, setActiveTab] = useState<'form' | 'history' | 'sql'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [leaveType, setLeaveType] = useState<string>('vacation');
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
@@ -181,11 +138,29 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   });
   const [manager, setManager] = useState<string>(MANAGERS[0]);
   const [description, setDescription] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [historyList, setHistoryList] = useState<LeaveRecord[]>([]);
   const [quotasByYear, setQuotasByYear] = useState<AnnualLeaveQuotasByYear>({});
-  const [copiedSql, setCopiedSql] = useState<boolean>(false);
+
+  const {
+    isDirty,
+    setIsDirty,
+    isSaving,
+    justSaved,
+    markDirty,
+    runSave,
+  } = useSaveState({ enableUnloadGuard: false });
+
+  useUnsavedChangesGuard(isOpen && isDirty);
+
+  const personalHistoryList = useMemo(() => {
+    const targetName = (userName || '').trim().toLowerCase();
+    if (!targetName) return [];
+    return historyList.filter(
+      (rec) => (rec.userName || '').trim().toLowerCase() === targetName
+    );
+  }, [historyList, userName]);
 
   // Load records from Supabase (with LocalStorage fallback)
   useEffect(() => {
@@ -250,6 +225,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     };
 
     fetchRecords();
+    setFormError(null);
 
     return () => {
       isMounted = false;
@@ -311,94 +287,89 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     remaining: Math.max(0, configuredTotal - usedDays),
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isSaving) return;
+
     if (!description.trim()) {
-      alert('กรุณากรอกเหตุผลการลา (Description)');
+      setFormError('กรุณากรอกเหตุผลการลา (Description)');
       return;
     }
 
-    setIsSubmitting(true);
+    setFormError(null);
 
-    const now = new Date();
-    const formattedDateStr = `${now.toLocaleDateString('th-TH', {
-      day: '2-digit',
-      month: 'short',
-      year: '2-digit',
-    })} ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+    await runSave(async () => {
+      const now = new Date();
+      const formattedDateStr = `${now.toLocaleDateString('th-TH', {
+        day: '2-digit',
+        month: 'short',
+        year: '2-digit',
+      })} ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
 
-    const newRecord: LeaveRecord = {
-      id: `LEAVE-${Date.now()}`,
-      leaveType,
-      leaveTypeName: currentQuota.nameTh,
-      fromDate,
-      toDate,
-      totalDays: totalRequestedDays,
-      manager,
-      status: 'Pending',
-      description: description.trim(),
-      submittedAt: formattedDateStr,
-      userName,
-      userBranch: userBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ',
-    };
+      const newRecord: LeaveRecord = {
+        id: `LEAVE-${Date.now()}`,
+        leaveType,
+        leaveTypeName: currentQuota.nameTh,
+        fromDate,
+        toDate,
+        totalDays: totalRequestedDays,
+        manager,
+        status: 'Pending',
+        description: description.trim(),
+        submittedAt: formattedDateStr,
+        userName,
+        userBranch: userBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ',
+      };
 
-    // 1. Save to Supabase if connected
-    if (supabase) {
-      try {
-        await supabase.from('leave_requests').insert([{
-          id: newRecord.id,
-          branch: userBranch,
-          user_name: userName,
-          leave_type: leaveType,
-          leave_type_name: currentQuota.nameTh,
-          from_date: fromDate,
-          to_date: toDate,
-          total_days: totalRequestedDays,
-          manager: manager,
-          status: 'Pending',
-          description: description.trim(),
-          submitted_at: formattedDateStr,
-        }]);
-      } catch (err) {
-        console.warn('Supabase insert warning (saved locally):', err);
+      // 1. Save to Supabase if connected
+      if (supabase) {
+        try {
+          await supabase.from('leave_requests').insert([{
+            id: newRecord.id,
+            branch: userBranch,
+            user_name: userName,
+            leave_type: leaveType,
+            leave_type_name: currentQuota.nameTh,
+            from_date: fromDate,
+            to_date: toDate,
+            total_days: totalRequestedDays,
+            manager: manager,
+            status: 'Pending',
+            description: description.trim(),
+            submitted_at: formattedDateStr,
+          }]);
+        } catch (err) {
+          console.warn('Supabase insert warning (saved locally):', err);
+        }
       }
-    }
 
-    // 2. Save to LocalStorage
-    const updatedList = [newRecord, ...historyList];
-    setHistoryList(updatedList);
-    try {
-      localStorage.setItem('crenn_leave_requests', JSON.stringify(updatedList));
-    } catch (err) {
-      console.error(err);
-    }
+      // 2. Save to LocalStorage
+      const updatedList = [newRecord, ...historyList];
+      setHistoryList(updatedList);
+      try {
+        localStorage.setItem('crenn_leave_requests', JSON.stringify(updatedList));
+      } catch (err) {
+        console.error(err);
+      }
 
-    // Send Discord Notification (non-blocking)
-    sendDiscordNotification(
-      `🏖️ **[คำขอลาหยุดใหม่ - ${newRecord.userBranch}]**\n` +
-      `👤 พนักงาน: ${newRecord.userName}\n` +
-      `🏷️ ประเภท: ${newRecord.leaveTypeName}\n` +
-      `📅 วันที่: ${newRecord.fromDate} ถึง ${newRecord.toDate} (${newRecord.totalDays} วัน)\n` +
-      `👔 ผู้อนุมัติ: ${newRecord.manager}\n` +
-      `📝 เหตุผล: ${newRecord.description}`,
-      'notifyOnLeaveRequest'
-    );
+      // Send Discord Notification (non-blocking)
+      sendDiscordNotification(
+        `🏖️ **[คำขอลาหยุดใหม่ - ${newRecord.userBranch}]**\n` +
+        `👤 พนักงาน: ${newRecord.userName}\n` +
+        `🏷️ ประเภท: ${newRecord.leaveTypeName}\n` +
+        `📅 วันที่: ${newRecord.fromDate} ถึง ${newRecord.toDate} (${newRecord.totalDays} วัน)\n` +
+        `👔 ผู้อนุมัติ: ${newRecord.manager}\n` +
+        `📝 เหตุผล: ${newRecord.description}`,
+        'notifyOnLeaveRequest'
+      );
 
-    setIsSubmitting(false);
-    setShowSuccessToast(true);
-    setDescription('');
-    
-    setTimeout(() => {
-      setShowSuccessToast(false);
-    }, 3000);
-  };
+      setShowSuccessToast(true);
+      setDescription('');
 
-  const handleCopySql = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(SQL_SCRIPT_STRING);
-      setCopiedSql(true);
-      setTimeout(() => setCopiedSql(false), 2000);
-    }
+      setTimeout(() => {
+        setShowSuccessToast(false);
+      }, 3000);
+    });
   };
 
   return (
@@ -424,7 +395,10 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              setIsDirty(false);
+              onClose();
+            }}
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
             title="ปิดหน้าต่าง"
           >
@@ -457,23 +431,11 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           >
             <History size={14} />
             ประวัติการลา
-            {historyList.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-[#5A8A88] text-white font-bold">
-                {historyList.length}
+            {personalHistoryList.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-[#5A8A88] text-white font-bold tabular-nums">
+                {personalHistoryList.length}
               </span>
             )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sql')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-t-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'sql'
-                ? 'bg-white text-[#2D4A49] border-t-2 border-[#5A8A88] shadow-xs'
-                : 'text-[#6B8F8E] hover:text-[#2D4A49]'
-            }`}
-          >
-            <Code size={14} />
-            คำสั่ง SQL (Supabase)
           </button>
         </div>
 
@@ -495,6 +457,22 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
             </div>
           )}
 
+          {formError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={15} className="text-rose-500 shrink-0" />
+                <span>{formError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormError(null)}
+                className="text-rose-500 hover:text-rose-800 cursor-pointer text-xs"
+              >
+                ปิด
+              </button>
+            </div>
+          )}
+
           {activeTab === 'form' ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               
@@ -506,7 +484,10 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                 <div className="relative">
                   <select
                     value={leaveType}
-                    onChange={(e) => setLeaveType(e.target.value)}
+                    onChange={(e) => {
+                      setLeaveType(e.target.value);
+                      markDirty();
+                    }}
                     className="w-full bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 appearance-none cursor-pointer pr-10"
                   >
                     {Object.values(DEFAULT_QUOTAS).map((quota) => (
@@ -576,7 +557,12 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                       <input
                         type="date"
                         value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
+                        onChange={(e) => {
+                          const nextFrom = e.target.value;
+                          setFromDate(nextFrom);
+                          if (toDate && nextFrom > toDate) setToDate(nextFrom);
+                          markDirty();
+                        }}
                         className="w-full bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
                         required
                       />
@@ -589,7 +575,10 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                         type="date"
                         value={toDate}
                         min={fromDate}
-                        onChange={(e) => setToDate(e.target.value)}
+                        onChange={(e) => {
+                          setToDate(e.target.value);
+                          markDirty();
+                        }}
                         className="w-full bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#5A8A88] cursor-pointer"
                         required
                       />
@@ -606,7 +595,10 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                 <div className="relative">
                   <select
                     value={manager}
-                    onChange={(e) => setManager(e.target.value)}
+                    onChange={(e) => {
+                      setManager(e.target.value);
+                      markDirty();
+                    }}
                     className="w-full bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#5A8A88] appearance-none cursor-pointer pr-10"
                   >
                     {MANAGERS.map((m, idx) => (
@@ -636,55 +628,57 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                 <textarea
                   rows={3}
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (formError) setFormError(null);
+                    markDirty();
+                  }}
                   placeholder="Enter description (ระบุเหตุผลการลา เช่น มีไข้สูงหมอนัดตรวจ, ติดภารกิจทางครอบครัว)..."
                   className="w-full bg-[#F8FCFC] border border-[#D4E4E3] rounded-xl p-3 text-xs text-slate-800 font-normal focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 placeholder:text-slate-400 resize-none"
                   required
                 />
               </div>
 
-              {/* Submit Buttons */}
-              <div className="pt-2 flex items-center justify-end gap-3 border-t border-[#D4E4E3]">
+              {/* Submit Buttons (4-State SaveButton Standard per DESIGN_STANDARD §5) */}
+              <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-[#D4E4E3]">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setIsDirty(false);
+                    onClose();
+                  }}
+                  className="h-[32px] px-3.5 rounded-[8px] text-[11px] sm:text-[12px] font-medium text-[#6B8F8E] bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] transition-colors cursor-pointer"
                 >
                   ยกเลิก (Cancel)
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#2D4A49] hover:bg-[#203635] text-white shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      กำลังบันทึก...
-                    </>
-                  ) : (
-                    <>
-                      <Send size={14} />
-                      ยื่นคำขอลา (Submit)
-                    </>
-                  )}
-                </button>
+                <SaveButton
+                  onClick={() => {
+                    void handleSubmit();
+                  }}
+                  isSaving={isSaving}
+                  isDirty={isDirty}
+                  justSaved={justSaved}
+                  label="ยื่นคำขอลา (Submit)"
+                  savingLabel="กำลังบันทึก..."
+                  savedLabel="บันทึกสำเร็จ"
+                  dirtyTooltip="มีข้อมูลคำขอลาที่ยังไม่ได้ยื่นบันทึก"
+                />
               </div>
 
             </form>
-          ) : activeTab === 'history' ? (
-            /* History Tab */
+          ) : (
+            /* Personal Leave History Tab (Scoped to Logged-in Employee Only) */
             <div className="space-y-3">
-              {historyList.length === 0 ? (
+              {personalHistoryList.length === 0 ? (
                 <div className="text-center py-10 bg-[#F8FCFC] rounded-2xl border border-dashed border-[#D4E4E3] p-6">
                   <div className="w-12 h-12 rounded-full bg-[#E8F3F2] text-[#5A8A88] flex items-center justify-center mx-auto mb-2">
                     <History size={20} />
                   </div>
-                  <p className="text-xs font-bold text-slate-700">ยังไม่มีประวัติการยื่นคำขอลา</p>
+                  <p className="text-xs font-bold text-slate-700">ยังไม่มีประวัติการยื่นคำขอลาของ {userName}</p>
                   <p className="text-[11px] text-slate-400 mt-1">คุณสามารถยื่นคำขอลาใหม่ได้ที่แท็บ "ยื่นคำขอลา"</p>
                 </div>
               ) : (
-                historyList.map((record) => (
+                personalHistoryList.map((record) => (
                   <div key={record.id} className="bg-white border border-[#D4E4E3] rounded-2xl p-3.5 shadow-2xs hover:shadow-xs transition-shadow space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -709,7 +703,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                         <Calendar size={13} className="text-[#5A8A88]" />
                         <span>{record.fromDate} ถึง {record.toDate}</span>
                       </div>
-                      <span className="text-[11px] font-bold text-[#5A8A88]">
+                      <span className="text-[11px] font-bold text-[#5A8A88] tabular-nums">
                         ({record.totalDays} วัน)
                       </span>
                     </div>
@@ -727,42 +721,6 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                   </div>
                 ))
               )}
-            </div>
-          ) : (
-            /* SQL Script Tab */
-            <div className="space-y-4">
-              <div className="p-3 bg-[#E8F3F2] border border-[#D4E4E3] rounded-2xl flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5">
-                  <Code size={18} className="text-[#5A8A88] shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-xs font-bold text-[#2D4A49]">โครงสร้างตาราง `leave_requests`</h3>
-                    <p className="text-[11px] text-[#5A8A88] mt-0.5">
-                      คัดลอกคำสั่ง SQL ด้านล่างไปรันใน <strong>Supabase Dashboard &gt; SQL Editor</strong> เพื่อสร้างตารางเก็บข้อมูลการลา
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopySql}
-                  className="px-3 py-1.5 rounded-xl bg-[#5A8A88] hover:bg-[#476E6C] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs"
-                >
-                  {copiedSql ? (
-                    <>
-                      <Check size={14} />
-                      คัดลอกแล้ว
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} />
-                      Copy SQL
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-900 text-emerald-400 p-4 font-mono text-[11px] leading-relaxed max-h-[320px] overflow-y-auto">
-                <pre className="whitespace-pre-wrap select-all">{SQL_SCRIPT_STRING}</pre>
-              </div>
             </div>
           )}
         </div>
