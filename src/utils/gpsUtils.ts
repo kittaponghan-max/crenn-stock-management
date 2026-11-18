@@ -88,6 +88,7 @@ const normalizeEmployeeShiftEntry = (
       Number.isFinite(grace) && grace >= 0 ? grace : defaults.graceMinutes,
     otStepMinutes:
       Number.isFinite(otStep) && otStep >= 0 ? otStep : defaults.otStepMinutes,
+    ignored: Boolean(raw?.ignored),
   };
 };
 
@@ -174,6 +175,7 @@ export const resolveEmployeeShift = (
   graceMinutes: number;
   otStepMinutes: number;
   isCustom: boolean;
+  ignored: boolean;
 } => {
   const fallback = {
     shiftStartTime: config.shiftStartTime || '08:00',
@@ -181,6 +183,7 @@ export const resolveEmployeeShift = (
     graceMinutes: config.graceMinutes ?? 15,
     otStepMinutes: config.otStepMinutes ?? 30,
     isCustom: false,
+    ignored: false,
   };
 
   if (!userName || !config.employeeShifts) return fallback;
@@ -205,6 +208,7 @@ export const resolveEmployeeShift = (
         ? matched.otStepMinutes
         : fallback.otStepMinutes,
     isCustom: true,
+    ignored: Boolean(matched.ignored),
   };
 };
 
