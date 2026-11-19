@@ -1620,7 +1620,7 @@ export function DailyBakeryRecord({
           <table className={`w-full text-left border-collapse ${viewMode === '1day' ? 'table-fixed' : ''}`}>
             {viewMode === '1day' && (
               <colgroup>
-                <col className="w-[132px]" />
+                <col className="w-[136px]" />
                 <col className="w-[68px]" />
                 <col className="w-[68px]" />
                 <col className="w-[68px]" />
@@ -1633,7 +1633,7 @@ export function DailyBakeryRecord({
             {/* Top Header with Date Groups */}
             <thead>
               <tr className="bg-[#2D4A49] text-white text-[11px] font-bold border-b border-[#1E3A39]">
-                <th className="py-2.5 px-2 w-[132px] min-w-[132px] max-w-[132px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69] whitespace-nowrap">
+                <th className="py-2.5 px-2 w-[136px] min-w-[136px] max-w-[136px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69] whitespace-nowrap">
                   <div className="flex items-center justify-between gap-1">
                     <span>รายการขนม</span>
                     {!isReadOnly && (
@@ -1662,7 +1662,7 @@ export function DailyBakeryRecord({
 
               {/* Sub Header for Columns in each Date Group */}
               <tr className="bg-[#3D6B69] text-white text-[10px] font-semibold border-b border-[#2D4A49]">
-                <th className="py-2 px-2 w-[132px] min-w-[132px] max-w-[132px] sticky left-0 z-20 bg-[#3D6B69] border-r border-[#2D4A49] whitespace-nowrap">
+                <th className="py-2 px-2 w-[136px] min-w-[136px] max-w-[136px] sticky left-0 z-20 bg-[#3D6B69] border-r border-[#2D4A49] whitespace-nowrap">
                   เมนู / หมวดหมู่
                 </th>
                 {displayedDays.map(day => {
@@ -1749,9 +1749,9 @@ export function DailyBakeryRecord({
                       }`}
                     >
                       {/* Item Name (Sticky Left with Action Buttons — full words, wraps cleanly up to 2 lines) */}
-                      <td className="py-1.5 px-2 w-[132px] min-w-[132px] max-w-[132px] font-semibold text-[#2D4A49] bg-[#F0F5F4] border-r border-[#D4E4E3] sticky left-0 z-10 text-[11px] align-middle">
+                      <td className="py-1.5 px-2 w-[136px] min-w-[136px] max-w-[136px] font-semibold text-[#2D4A49] bg-[#F0F5F4] border-r border-[#D4E4E3] sticky left-0 z-10 text-[11px] align-middle">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="min-w-[75px] flex-1 whitespace-normal break-words leading-snug" title={item.name}>
+                          <span className="min-w-[85px] flex-1 whitespace-normal break-words leading-snug" title={item.name}>
                             {item.name}
                           </span>
 
@@ -1791,6 +1791,7 @@ export function DailyBakeryRecord({
                                 (rec.storeQty === '' ? 0 : Number(rec.storeQty)) -
                                 (rec.soldQty === '' ? 0 : Number(rec.soldQty))
                               : '');
+                        const isPositiveRemain = remainValue !== '' && Number(remainValue) > 0;
                         const isNegativeRemain = remainValue !== '' && Number(remainValue) < 0;
                         
                         // Parse note items list
@@ -1858,8 +1859,8 @@ export function DailyBakeryRecord({
                               />
                             </td>
 
-                            {/* 5. เหลือ (Auto: ยอดจริง + เบิก - ขายได้ / Editable & Saved to Supabase) */}
-                            <td className="py-1 px-1 text-center align-top bg-[#F6FAF9]">
+                            {/* 5. เหลือ (Auto: ยอดจริง + เบิก - ขายได้ / Highlight red when > 0 / Saved to Supabase) */}
+                            <td className={`py-1 px-1 text-center align-top ${isPositiveRemain ? 'bg-rose-50/50' : 'bg-[#F6FAF9]'}`}>
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -1867,13 +1868,13 @@ export function DailyBakeryRecord({
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'remainingQty', e.target.value)}
                                 placeholder="0"
                                 className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
-                                  isNegativeRemain
-                                    ? 'bg-rose-50 border-rose-300 text-rose-700 focus:border-rose-500'
-                                    : remainValue !== '' && Number(remainValue) > 0
-                                    ? 'bg-[#E8F3F2]/70 border-[#B8D4D2] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
+                                  isPositiveRemain
+                                    ? 'bg-rose-50 border-rose-300 text-rose-700 font-bold focus:border-rose-500'
+                                    : isNegativeRemain
+                                    ? 'bg-amber-50 border-amber-300 text-amber-800 focus:border-amber-500'
                                     : 'bg-white border-[#D4E4E3] text-[#5A8A88] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
                                 }`}
-                                title="เหลือ (คำนวณอัตโนมัติจาก ยอดจริง + เบิก - ขายได้ หรือกรอกแก้ไขเองได้ และบันทึกลง Supabase)"
+                                title={isPositiveRemain ? 'มีขนมเหลือ (> 0)' : 'เหลือ (คำนวณอัตโนมัติจาก ยอดจริง + เบิก - ขายได้ หรือกรอกแก้ไขเองได้ และบันทึกลง Supabase)'}
                               />
                             </td>
 
@@ -2046,7 +2047,7 @@ export function DailyBakeryRecord({
 
               {/* SUMMARY ROW */}
               <tr className="bg-[#E8F3F2] text-[#2D4A49] text-[11px] font-bold border-t-2 border-[#B8D4D2]">
-                <td className="py-2.5 px-2 w-[132px] min-w-[132px] max-w-[132px] sticky left-0 z-10 bg-[#E8F3F2] border-r border-[#D4E4E3] font-bold">
+                <td className="py-2.5 px-2 w-[136px] min-w-[136px] max-w-[136px] sticky left-0 z-10 bg-[#E8F3F2] border-r border-[#D4E4E3] font-bold">
                   รวมจำนวนขนม
                 </td>
                 {displayedDays.map(day => {
