@@ -309,15 +309,16 @@ export function DailyBakeryRecord({
             const item = rec.item_name;
             const d = rec.date;
             if (!loaded[item]) loaded[item] = {};
+            const lineVal = rec.line_qty ?? '';
             const storeVal = rec.store_qty ?? '';
             const soldVal = rec.sold_qty ?? '';
             const fallbackRemain =
-              storeVal !== '' || soldVal !== ''
-                ? Number(storeVal || 0) - Number(soldVal || 0)
+              lineVal !== '' || storeVal !== '' || soldVal !== ''
+                ? Number(lineVal || 0) + Number(storeVal || 0) - Number(soldVal || 0)
                 : '';
             loaded[item][d] = {
               totalQty: rec.total_qty ?? '',
-              lineQty: rec.line_qty ?? '',
+              lineQty: lineVal,
               storeQty: storeVal,
               soldQty: soldVal,
               remainingQty:
@@ -371,13 +372,16 @@ export function DailyBakeryRecord({
           }
         }
 
-        // Auto calculate remainingQty (เหลือ = เบิก - ขายได้) when เบิก/ขายได้ or upstream fields change
+        // Auto calculate remainingQty (เหลือ = ยอดจริง + เบิก - ขายได้) when upstream fields change
         if (field === 'totalQty' || field === 'lineQty' || field === 'storeQty' || field === 'soldQty') {
+          const lineVal = currentDayRec.lineQty;
           const storeVal = currentDayRec.storeQty;
           const soldVal = currentDayRec.soldQty;
-          if (storeVal !== '' || soldVal !== '') {
+          if (lineVal !== '' || storeVal !== '' || soldVal !== '') {
             currentDayRec.remainingQty =
-              (storeVal === '' ? 0 : Number(storeVal)) - (soldVal === '' ? 0 : Number(soldVal));
+              (lineVal === '' ? 0 : Number(lineVal)) +
+              (storeVal === '' ? 0 : Number(storeVal)) -
+              (soldVal === '' ? 0 : Number(soldVal));
           } else {
             currentDayRec.remainingQty = '';
           }
@@ -817,8 +821,8 @@ export function DailyBakeryRecord({
 
             const resolveRemainVal = (r: BakeryDayRecord) => {
               if (r.remainingQty !== undefined) return r.remainingQty;
-              if (r.storeQty !== '' || r.soldQty !== '') {
-                return Number(r.storeQty || 0) - Number(r.soldQty || 0);
+              if (r.lineQty !== '' || r.storeQty !== '' || r.soldQty !== '') {
+                return Number(r.lineQty || 0) + Number(r.storeQty || 0) - Number(r.soldQty || 0);
               }
               return '';
             };
@@ -849,8 +853,8 @@ export function DailyBakeryRecord({
             if (!recordsMap.has(key)) {
               const remainVal = rec.remainingQty !== undefined
                 ? rec.remainingQty
-                : (rec.storeQty !== '' || rec.soldQty !== ''
-                    ? Number(rec.storeQty || 0) - Number(rec.soldQty || 0)
+                : (rec.lineQty !== '' || rec.storeQty !== '' || rec.soldQty !== ''
+                    ? Number(rec.lineQty || 0) + Number(rec.storeQty || 0) - Number(rec.soldQty || 0)
                     : '');
               recordsMap.set(key, {
                 date: dateStr,
@@ -1271,13 +1275,14 @@ export function DailyBakeryRecord({
       };
       weekDays.forEach(w => {
         const rec = records[item.name]?.[w.dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
+        const lineVal = rec.lineQty !== '' ? Number(rec.lineQty) : 0;
         const storeVal = rec.storeQty !== '' ? Number(rec.storeQty) : 0;
         const soldVal = rec.soldQty !== '' ? Number(rec.soldQty) : 0;
         const remainVal = rec.remainingQty !== undefined
           ? (rec.remainingQty === '' ? 0 : Number(rec.remainingQty) || 0)
-          : storeVal - soldVal;
+          : lineVal + storeVal - soldVal;
         row[`${w.shortDate} - ยอดวางแผน`] = rec.totalQty !== '' ? Number(rec.totalQty) : 0;
-        row[`${w.shortDate} - ยอดจริง`] = rec.lineQty !== '' ? Number(rec.lineQty) : 0;
+        row[`${w.shortDate} - ยอดจริง`] = lineVal;
         row[`${w.shortDate} - เบิก`] = storeVal;
         row[`${w.shortDate} - ขายได้`] = soldVal;
         row[`${w.shortDate} - เหลือ`] = remainVal;
@@ -1312,8 +1317,11 @@ export function DailyBakeryRecord({
           if (rec.soldQty !== '') sold += Number(rec.soldQty);
           if (rec.remainingQty !== undefined) {
             if (rec.remainingQty !== '') remain += Number(rec.remainingQty);
-          } else if (rec.storeQty !== '' || rec.soldQty !== '') {
-            remain += (rec.storeQty === '' ? 0 : Number(rec.storeQty)) - (rec.soldQty === '' ? 0 : Number(rec.soldQty));
+          } else if (rec.lineQty !== '' || rec.storeQty !== '' || rec.soldQty !== '') {
+            remain +=
+              (rec.lineQty === '' ? 0 : Number(rec.lineQty)) +
+              (rec.storeQty === '' ? 0 : Number(rec.storeQty)) -
+              (rec.soldQty === '' ? 0 : Number(rec.soldQty));
           }
         }
       });
@@ -1608,14 +1616,25 @@ export function DailyBakeryRecord({
 
       {/* TABLE CARD */}
       <div className="bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-[0_2px_8px_rgba(90,138,136,0.06)]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className={viewMode === '1day' ? 'overflow-x-visible md:overflow-x-hidden overflow-y-visible' : 'overflow-x-auto'}>
+          <table className={`w-full text-left border-collapse ${viewMode === '1day' ? 'table-fixed' : ''}`}>
+            {viewMode === '1day' && (
+              <colgroup>
+                <col className="w-[132px]" />
+                <col className="w-[68px]" />
+                <col className="w-[68px]" />
+                <col className="w-[68px]" />
+                <col className="w-[68px]" />
+                <col className="w-[68px]" />
+                <col />
+              </colgroup>
+            )}
             
             {/* Top Header with Date Groups */}
             <thead>
               <tr className="bg-[#2D4A49] text-white text-[11px] font-bold border-b border-[#1E3A39]">
-                <th className="py-2.5 px-3 min-w-[210px] sm:min-w-[240px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69] whitespace-nowrap">
-                  <div className="flex items-center justify-between gap-2">
+                <th className="py-2.5 px-2 w-[132px] min-w-[132px] max-w-[132px] sticky left-0 z-20 bg-[#2D4A49] border-r border-[#3D6B69] whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-1">
                     <span>รายการขนม</span>
                     {!isReadOnly && (
                       <button
@@ -1643,23 +1662,23 @@ export function DailyBakeryRecord({
 
               {/* Sub Header for Columns in each Date Group */}
               <tr className="bg-[#3D6B69] text-white text-[10px] font-semibold border-b border-[#2D4A49]">
-                <th className="py-2 px-3 sticky left-0 z-20 bg-[#3D6B69] border-r border-[#2D4A49] whitespace-nowrap">
+                <th className="py-2 px-2 w-[132px] min-w-[132px] max-w-[132px] sticky left-0 z-20 bg-[#3D6B69] border-r border-[#2D4A49] whitespace-nowrap">
                   เมนู / หมวดหมู่
                 </th>
                 {displayedDays.map(day => {
                   const numColClass = viewMode === '1day'
-                    ? 'w-[76px] sm:w-[86px] min-w-[70px]'
-                    : 'w-[60px] sm:w-[66px] min-w-[56px]';
+                    ? 'w-[68px]'
+                    : 'w-[60px] sm:w-[64px] min-w-[56px]';
                   const noteColClass = viewMode === '1day'
-                    ? 'min-w-[160px]'
-                    : 'min-w-[115px]';
+                    ? ''
+                    : 'min-w-[120px]';
                   return (
                     <React.Fragment key={`sub-${day.dateStr}`}>
-                      <th className={`py-1.5 px-1 text-center whitespace-nowrap ${numColClass}`}>ยอดวางแผน</th>
-                      <th className={`py-1.5 px-1 text-center whitespace-nowrap ${numColClass}`}>ยอดจริง</th>
-                      <th className={`py-1.5 px-1 text-center bg-[#345D5B] whitespace-nowrap ${numColClass}`}>เบิก</th>
-                      <th className={`py-1.5 px-1 text-center bg-[#2A4D4B] whitespace-nowrap ${numColClass}`}>ขายได้</th>
-                      <th className={`py-1.5 px-1 text-center bg-[#244240] whitespace-nowrap ${numColClass}`}>เหลือ</th>
+                      <th className={`py-1.5 px-0.5 text-center whitespace-nowrap ${numColClass}`}>ยอดวางแผน</th>
+                      <th className={`py-1.5 px-0.5 text-center whitespace-nowrap ${numColClass}`}>ยอดจริง</th>
+                      <th className={`py-1.5 px-0.5 text-center bg-[#345D5B] whitespace-nowrap ${numColClass}`}>เบิก</th>
+                      <th className={`py-1.5 px-0.5 text-center bg-[#2A4D4B] whitespace-nowrap ${numColClass}`}>ขายได้</th>
+                      <th className={`py-1.5 px-0.5 text-center bg-[#244240] whitespace-nowrap ${numColClass}`}>เหลือ</th>
                       <th className={`py-1.5 px-2 text-left border-r-2 border-[#2D4A49] whitespace-nowrap ${noteColClass}`}>หมายเหตุ</th>
                     </React.Fragment>
                   );
@@ -1729,31 +1748,31 @@ export function DailyBakeryRecord({
                         itemIdx % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFA]'
                       }`}
                     >
-                      {/* Item Name (Sticky Left with Action Buttons — full name always visible) */}
-                      <td className="py-1.5 px-3 font-semibold text-[#2D4A49] bg-[#F0F5F4] border-r border-[#D4E4E3] sticky left-0 z-10 whitespace-nowrap text-[11px]">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="whitespace-nowrap" title={item.name}>
+                      {/* Item Name (Sticky Left with Action Buttons — full words, wraps cleanly up to 2 lines) */}
+                      <td className="py-1.5 px-2 w-[132px] min-w-[132px] max-w-[132px] font-semibold text-[#2D4A49] bg-[#F0F5F4] border-r border-[#D4E4E3] sticky left-0 z-10 text-[11px] align-middle">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="min-w-[75px] flex-1 whitespace-normal break-words leading-snug" title={item.name}>
                             {item.name}
                           </span>
 
-                          {/* Item Edit & Delete Action Buttons */}
+                          {/* Item Edit & Delete Action Buttons (compact stack to preserve name width) */}
                           {!isReadOnly && (
-                            <div className="flex items-center gap-0.5 opacity-60 group-hover/item:opacity-100 transition-opacity shrink-0">
+                            <div className="flex flex-col items-center gap-0.5 opacity-60 group-hover/item:opacity-100 transition-opacity shrink-0">
                               <button
                                 type="button"
                                 onClick={() => startEditItem(item)}
-                                className="p-1 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
+                                className="p-0.5 hover:bg-white text-[#5A8A88] rounded transition-colors cursor-pointer"
                                 title="แก้ไขชื่อรายการ"
                               >
-                                <Pencil size={11} />
+                                <Pencil size={10} />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteItem(item.id, item.name)}
-                                className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
+                                className="p-0.5 hover:bg-rose-100 text-rose-600 rounded transition-colors cursor-pointer"
                                 title="ลบรายการนี้"
                               >
-                                <Trash2 size={11} />
+                                <Trash2 size={10} />
                               </button>
                             </div>
                           )}
@@ -1764,10 +1783,13 @@ export function DailyBakeryRecord({
                       {displayedDays.map(day => {
                         const rec = records[item.name]?.[day.dateStr] || { totalQty: '', lineQty: '', storeQty: '', soldQty: '', note: '' };
                         const isUnderTarget = rec.soldQty !== '' && rec.storeQty !== '' && Number(rec.soldQty) < Number(rec.storeQty);
+                        const isActualUnderPlan = rec.lineQty !== '' && rec.totalQty !== '' && Number(rec.lineQty) < Number(rec.totalQty);
                         const remainValue: number | '' = rec.remainingQty !== undefined
                           ? rec.remainingQty
-                          : (rec.storeQty !== '' || rec.soldQty !== ''
-                              ? (rec.storeQty === '' ? 0 : Number(rec.storeQty)) - (rec.soldQty === '' ? 0 : Number(rec.soldQty))
+                          : (rec.lineQty !== '' || rec.storeQty !== '' || rec.soldQty !== ''
+                              ? (rec.lineQty === '' ? 0 : Number(rec.lineQty)) +
+                                (rec.storeQty === '' ? 0 : Number(rec.storeQty)) -
+                                (rec.soldQty === '' ? 0 : Number(rec.soldQty))
                               : '');
                         const isNegativeRemain = remainValue !== '' && Number(remainValue) < 0;
                         
@@ -1785,19 +1807,24 @@ export function DailyBakeryRecord({
                                 value={rec.totalQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'totalQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full min-w-[46px] bg-white border border-[#D4E4E3] rounded text-[11px] font-mono tabular-nums text-center px-1 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                                className="w-full min-w-[42px] bg-white border border-[#D4E4E3] rounded text-[11px] font-mono tabular-nums text-center px-1 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                               />
                             </td>
 
-                            {/* 2. ยอดจริง */}
-                            <td className="py-1 px-1 text-center align-top">
+                            {/* 2. ยอดจริง (Highlight matching เหลือ if ยอดจริง < ยอดวางแผน) */}
+                            <td className={`py-1 px-1 text-center align-top ${isActualUnderPlan ? 'bg-rose-50/50' : ''}`}>
                               <input
                                 type="number"
                                 disabled={isReadOnly}
                                 value={rec.lineQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'lineQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full min-w-[46px] bg-white border border-[#D4E4E3] rounded text-[11px] font-mono tabular-nums text-center px-1 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                                className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
+                                  isActualUnderPlan
+                                    ? 'bg-rose-50 border-rose-300 text-rose-700 font-semibold focus:border-rose-500'
+                                    : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
+                                }`}
+                                title={isActualUnderPlan ? 'ยอดจริงน้อยกว่ายอดวางแผน' : 'ยอดจริง'}
                               />
                             </td>
 
@@ -1809,7 +1836,7 @@ export function DailyBakeryRecord({
                                 value={rec.storeQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'storeQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full min-w-[46px] bg-white border border-[#B8D4D2] rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                                className="w-full min-w-[42px] bg-white border border-[#B8D4D2] rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                                 title="เบิก (คำนวณจาก ยอดวางแผน - ยอดจริง หรือกรอกแก้ไขเองได้)"
                               />
                             </td>
@@ -1822,7 +1849,7 @@ export function DailyBakeryRecord({
                                 value={rec.soldQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'soldQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full min-w-[46px] border rounded text-[11px] font-mono tabular-nums font-bold text-center px-1 py-1 focus:outline-none disabled:opacity-80 disabled:cursor-not-allowed ${
+                                className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums font-bold text-center px-1 py-1 focus:outline-none disabled:opacity-80 disabled:cursor-not-allowed ${
                                   isUnderTarget
                                     ? 'bg-[#FEF3C7] border-amber-400 text-amber-900 focus:border-amber-600'
                                     : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
@@ -1831,7 +1858,7 @@ export function DailyBakeryRecord({
                               />
                             </td>
 
-                            {/* 5. เหลือ (Auto: เบิก - ขายได้ / Editable & Saved to Supabase) */}
+                            {/* 5. เหลือ (Auto: ยอดจริง + เบิก - ขายได้ / Editable & Saved to Supabase) */}
                             <td className="py-1 px-1 text-center align-top bg-[#F6FAF9]">
                               <input
                                 type="number"
@@ -1839,19 +1866,19 @@ export function DailyBakeryRecord({
                                 value={remainValue}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'remainingQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full min-w-[46px] border rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
+                                className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
                                   isNegativeRemain
                                     ? 'bg-rose-50 border-rose-300 text-rose-700 focus:border-rose-500'
                                     : remainValue !== '' && Number(remainValue) > 0
                                     ? 'bg-[#E8F3F2]/70 border-[#B8D4D2] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
                                     : 'bg-white border-[#D4E4E3] text-[#5A8A88] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
                                 }`}
-                                title="เหลือ (คำนวณอัตโนมัติจาก เบิก - ขายได้ หรือกรอกแก้ไขเองได้ และบันทึกลง Supabase)"
+                                title="เหลือ (คำนวณอัตโนมัติจาก ยอดจริง + เบิก - ขายได้ หรือกรอกแก้ไขเองได้ และบันทึกลง Supabase)"
                               />
                             </td>
 
                             {/* 6. หมายเหตุ (Identical Note UI & Logic to DailySalesRecord) */}
-                            <td className={`py-1 px-1.5 border-r-2 border-[#D4E4E3] align-top ${viewMode === '1day' ? 'min-w-[160px]' : 'min-w-[115px]'}`}>
+                            <td className={`py-1 px-1.5 border-r-2 border-[#D4E4E3] align-top ${viewMode === '1day' ? '' : 'min-w-[120px]'}`}>
                               <div className="flex flex-col gap-1 min-h-[28px] justify-center">
                                 
                                 {/* Existing notes list */}
@@ -2019,7 +2046,7 @@ export function DailyBakeryRecord({
 
               {/* SUMMARY ROW */}
               <tr className="bg-[#E8F3F2] text-[#2D4A49] text-[11px] font-bold border-t-2 border-[#B8D4D2]">
-                <td className="py-2.5 px-3 sticky left-0 z-10 bg-[#E8F3F2] border-r border-[#D4E4E3] font-bold whitespace-nowrap">
+                <td className="py-2.5 px-2 w-[132px] min-w-[132px] max-w-[132px] sticky left-0 z-10 bg-[#E8F3F2] border-r border-[#D4E4E3] font-bold">
                   รวมจำนวนขนม
                 </td>
                 {displayedDays.map(day => {
