@@ -496,6 +496,9 @@ export function LeavePortalApp({
           setShowLeaveModal(false);
           setRefreshKey((prev) => prev + 1);
         }}
+        onSubmitted={() => {
+          setRefreshKey((prev) => prev + 1);
+        }}
         userName={currentUser.name || 'User'}
         userRole={currentUser.role || 'Staff'}
         userBranch={currentUser.branch || 'Rayong'}
