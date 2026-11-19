@@ -91,6 +91,13 @@ export const TeamLeaveHistory: React.FC<TeamLeaveHistoryProps> = ({
             .order('created_at', { ascending: false });
 
           if (data && !error && data.length > 0) {
+            const normalizeStatus = (val: any): 'Pending' | 'Approved' | 'Rejected' => {
+              const s = String(val || '').trim().toLowerCase();
+              if (s === 'approved') return 'Approved';
+              if (s === 'rejected') return 'Rejected';
+              return 'Pending';
+            };
+
             const fetchedSupabase: LeaveRecord[] = data.map((item: any) => ({
               id: item.id || `LEAVE-${Date.now()}`,
               leaveType: item.leave_type || 'vacation',
@@ -99,7 +106,7 @@ export const TeamLeaveHistory: React.FC<TeamLeaveHistoryProps> = ({
               toDate: item.to_date || '',
               totalDays: item.total_days ?? 1,
               manager: item.manager || 'Admin (ผู้ดูแลระบบ)',
-              status: item.status || 'Pending',
+              status: normalizeStatus(item.status),
               description: item.description || '',
               submittedAt: item.submitted_at || '',
               userName: item.user_name || 'Staff',
@@ -107,7 +114,7 @@ export const TeamLeaveHistory: React.FC<TeamLeaveHistoryProps> = ({
             }));
 
             const map = new Map<string, LeaveRecord>();
-            records.forEach((r) => map.set(r.id, r));
+            records.forEach((r) => map.set(r.id, { ...r, status: normalizeStatus(r.status) }));
             fetchedSupabase.forEach((r) => map.set(r.id, r));
             records = Array.from(map.values());
           }
