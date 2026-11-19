@@ -101,8 +101,9 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date(2026, 10, 1)); // Default Nov 2026
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
 
-  // Helper date calculations
-  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  // Helper date calculations (local date YYYY-MM-DD so UTC+7 matches calendar day)
+  const nowLocal = new Date();
+  const todayStr = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
 
   // Fetch Real Staff Accounts, Real Leave Records & Quotas (No Mock-ups)
   const fetchAllLeaveData = async () => {
@@ -224,6 +225,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           .order('created_at', { ascending: false });
 
         if (data && !error && data.length > 0) {
+          const normalizeStatus = (val: any): 'Pending' | 'Approved' | 'Rejected' => {
+            const s = String(val || '').trim().toLowerCase();
+            if (s === 'approved') return 'Approved';
+            if (s === 'rejected') return 'Rejected';
+            return 'Pending';
+          };
+
           const fetchedSupabase: LeaveRecord[] = data.map((item: any) => ({
             id: item.id || `LEAVE-${Date.now()}`,
             leaveType: item.leave_type || 'vacation',
@@ -232,7 +240,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
             toDate: item.to_date || '',
             totalDays: item.total_days || 1,
             manager: item.manager || 'ผู้จัดการสาขา',
-            status: item.status || 'Pending',
+            status: normalizeStatus(item.status),
             description: item.description || '',
             submittedAt: item.submitted_at || '',
             userName: item.user_name || 'Staff',
@@ -240,7 +248,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           }));
 
           const map = new Map<string, LeaveRecord>();
-          records.forEach(r => map.set(r.id, r));
+          records.forEach(r => map.set(r.id, { ...r, status: normalizeStatus(r.status) }));
           fetchedSupabase.forEach(r => map.set(r.id, r));
           records = Array.from(map.values());
         }
@@ -478,7 +486,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     );
   }, [leaveRecords, todayStr, selectedBranch]);
 
-  // Advance Leaves (การลาล่วงหน้าของทีม) - filter by real employees & selectedBranch & selectedYear
+  // Advance Leaves (การลาล่วงหน้าของทีม) - filter by selectedBranch & selectedYear
   const upcomingLeaves = useMemo(() => {
     return leaveRecords.filter(r => {
       const isFuture = r.fromDate > todayStr && r.status !== 'Rejected';
@@ -493,22 +501,16 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         if (yr !== selectedYear) return false;
       }
 
-      // Ensure employee matches real accounts created in the branch/system
-      const matchesRealEmployee = staffAccounts.length === 0 || staffAccounts.some(s => 
-        s.name?.toLowerCase().trim() === r.userName?.toLowerCase().trim()
-      );
-
-      return matchesRealEmployee;
+      return true;
     });
-  }, [leaveRecords, todayStr, selectedBranch, selectedYear, staffAccounts]);
+  }, [leaveRecords, todayStr, selectedBranch, selectedYear]);
 
   const pendingCount = useMemo(() => {
-    return leaveRecords.filter(r => 
-      r.status === 'Pending' && 
-      isBranchMatch(r.userBranch, selectedBranch) &&
-      (selectedYear === 'all' || (r.fromDate && r.fromDate.startsWith(selectedYear)))
+    return leaveRecords.filter(r =>
+      r.status === 'Pending' &&
+      isBranchMatch(r.userBranch, selectedBranch)
     ).length;
-  }, [leaveRecords, selectedBranch, selectedYear]);
+  }, [leaveRecords, selectedBranch]);
 
   const totalRequestsCount = useMemo(() => {
     return leaveRecords.filter(r => 
@@ -527,19 +529,20 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   }, [upcomingLeaves, user?.name]);
 
   const myPendingCount = useMemo(() => {
-    return leaveRecords.filter(r => 
-      r.status === 'Pending' && 
-      isCurrentUser(r.userName) &&
-      (selectedYear === 'all' || (r.fromDate && r.fromDate.startsWith(selectedYear)))
+    return leaveRecords.filter(r =>
+      r.status === 'Pending' &&
+      isBranchMatch(r.userBranch, selectedBranch) &&
+      isCurrentUser(r.userName)
     ).length;
-  }, [leaveRecords, user?.name, selectedYear]);
+  }, [leaveRecords, selectedBranch, user?.name]);
 
   const myTotalRequestsCount = useMemo(() => {
-    return leaveRecords.filter(r => 
+    return leaveRecords.filter(r =>
+      isBranchMatch(r.userBranch, selectedBranch) &&
       isCurrentUser(r.userName) &&
       (selectedYear === 'all' || (r.fromDate && r.fromDate.startsWith(selectedYear)))
     ).length;
-  }, [leaveRecords, user?.name, selectedYear]);
+  }, [leaveRecords, selectedBranch, user?.name, selectedYear]);
 
   // Active view statistics
   const isPersonalActive = isPersonalMode;
@@ -567,10 +570,12 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
     return list;
   }, [employeeQuotas, selectedBranch, isPersonalMode, user?.name, isCurrentUserIgnored]);
 
-  // Leave Request Approval Queue (คำขออนุมัติวันลา): Pending requests (any date) + upcoming Approved requests
+  // Leave Request Approval Queue (คำขออนุมัติวันลา): All Pending requests (any date/year) + active/upcoming Approved requests
   const approvalQueueLeaves = useMemo(() => {
     const filtered = leaveRecords.filter(r => {
       if (!isBranchMatch(r.userBranch, selectedBranch)) return false;
+
+      if (r.status === 'Pending') return true;
 
       if (selectedYear !== 'all') {
         const matchesYear =
@@ -579,13 +584,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         if (!matchesYear) return false;
       }
 
-      const matchesRealEmployee = staffAccounts.length === 0 || staffAccounts.some(s =>
-        s.name?.toLowerCase().trim() === r.userName?.toLowerCase().trim()
-      );
-      if (!matchesRealEmployee) return false;
-
-      if (r.status === 'Pending') return true;
-      if (r.status === 'Approved' && r.fromDate >= todayStr) return true;
+      if (r.status === 'Approved' && (r.toDate >= todayStr || r.fromDate >= todayStr)) return true;
       return false;
     });
 
@@ -595,9 +594,34 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       if (a.status !== 'Pending' && b.status === 'Pending') return 1;
       return (a.fromDate || '').localeCompare(b.fromDate || '');
     });
-  }, [leaveRecords, todayStr, selectedBranch, selectedYear, staffAccounts]);
+  }, [leaveRecords, todayStr, selectedBranch, selectedYear]);
 
-  const displayApprovalQueueLeaves = isPersonalActive ? myUpcomingLeaves : approvalQueueLeaves;
+  // Personal Leave Status Queue (for Personnel Leave mode): show ALL Pending + active/current-year Approved & Rejected requests for the logged-in user
+  const myApprovalStatusLeaves = useMemo(() => {
+    const filtered = leaveRecords.filter(r => {
+      if (!isBranchMatch(r.userBranch, selectedBranch)) return false;
+      if (!isCurrentUser(r.userName)) return false;
+
+      if (r.status === 'Pending') return true;
+
+      const isActiveOrUpcoming = r.toDate >= todayStr || r.fromDate >= todayStr;
+      if (isActiveOrUpcoming) return true;
+
+      if (selectedYear === 'all') return true;
+      return (
+        (r.fromDate && r.fromDate.startsWith(selectedYear)) ||
+        (r.toDate && r.toDate.startsWith(selectedYear))
+      );
+    });
+
+    return filtered.sort((a, b) => {
+      if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+      if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+      return (b.fromDate || '').localeCompare(a.fromDate || '');
+    });
+  }, [leaveRecords, todayStr, selectedBranch, selectedYear, user?.name]);
+
+  const displayApprovalQueueLeaves = isPersonalActive ? myApprovalStatusLeaves : approvalQueueLeaves;
 
   // Unique branch staff birthdays mapped from Annual Leave Quotas / user profiles
   const branchStaffBirthdays = useMemo(() => {
@@ -1229,9 +1253,9 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               <div className="flex items-center gap-2">
                 <Sparkles size={15} className="text-amber-500 shrink-0" />
                 <h2 className="text-[13px] sm:text-[14px] font-bold text-slate-800 tracking-tight">
-                  คำขออนุมัติวันลา{' '}
+                  {isPersonalActive ? 'สถานะคำขออนุมัติวันลาของคุณ' : 'คำขออนุมัติวันลา'}{' '}
                   <span className="text-[11px] sm:text-[12px] text-slate-400 font-medium">
-                    (Leave Request Approval)
+                    {isPersonalActive ? '(Your Leave Request Status)' : '(Leave Request Approval)'}
                   </span>
                 </h2>
               </div>
@@ -1247,11 +1271,11 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     🏖️
                   </div>
                   <p className="text-[11px] font-bold text-slate-700">
-                    {isPersonalActive ? 'คุณไม่มีรายการลาล่วงหน้า' : 'ไม่มีคำขออนุมัติวันลาในขณะนี้'}
+                    {isPersonalActive ? 'คุณยังไม่มีรายการคำขอลาในระบบ' : 'ไม่มีคำขออนุมัติวันลาในขณะนี้'}
                   </p>
                   <p className="text-[10px] text-[#6B8F8E] mt-1 max-w-xs mx-auto">
                     {isPersonalActive
-                      ? `คุณ (${user?.name || 'พนักงาน'}) ยังไม่มีรายการยื่นคำขอลาล่วงหน้าในระบบ`
+                      ? `คุณ (${user?.name || 'พนักงาน'}) ยังไม่มีรายการยื่นคำขอลาในระบบ`
                       : `พนักงานใน${currentBranchLabel}ยังไม่มีคำขออนุมัติวันลาหรือการลาล่วงหน้าในระบบ`
                     }
                   </p>
@@ -1274,10 +1298,17 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                       </div>
 
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                        record.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                        'bg-amber-50 text-amber-700 border border-amber-200'
+                        record.status === 'Approved'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : record.status === 'Rejected'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
-                        {record.status === 'Approved' ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}
+                        {record.status === 'Approved'
+                          ? '✅ อนุมัติแล้ว'
+                          : record.status === 'Rejected'
+                            ? '❌ ไม่อนุมัติ'
+                            : '⏳ รออนุมัติ'}
                       </span>
                     </div>
 
