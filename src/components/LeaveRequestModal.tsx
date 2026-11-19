@@ -21,10 +21,25 @@ import { SaveButton, useSaveState, useUnsavedChangesGuard } from './ui/SaveButto
 export interface LeaveRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSubmitted?: () => void;
   userName?: string;
   userRole?: string;
   userBranch?: string;
 }
+
+const toLocalDateStr = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeLeaveStatus = (val: any): 'Pending' | 'Approved' | 'Rejected' => {
+  const s = String(val || '').trim().toLowerCase();
+  if (s === 'approved') return 'Approved';
+  if (s === 'rejected') return 'Rejected';
+  return 'Pending';
+};
 
 export interface LeaveRecord {
   id: string;
@@ -122,20 +137,15 @@ const MANAGERS = [
 export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   isOpen,
   onClose,
+  onSubmitted,
   userName = 'User',
   userRole = 'Staff',
   userBranch = 'Rayong',
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [leaveType, setLeaveType] = useState<string>('vacation');
-  const [fromDate, setFromDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
-  const [toDate, setToDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [fromDate, setFromDate] = useState<string>(() => toLocalDateStr());
+  const [toDate, setToDate] = useState<string>(() => toLocalDateStr());
   const [manager, setManager] = useState<string>(MANAGERS[0]);
   const [description, setDescription] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -202,13 +212,21 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
               toDate: item.to_date || '',
               totalDays: item.total_days || 1,
               manager: item.manager || MANAGERS[0],
-              status: item.status || 'Pending',
+              status: normalizeLeaveStatus(item.status),
               description: item.description || '',
               submittedAt: item.submitted_at || '',
               userName: item.user_name || 'User',
               userBranch: item.branch || 'Rayong',
             }));
-            setHistoryList(formatted);
+            const mergedMap = new Map<string, LeaveRecord>();
+            localItems.forEach((r) => {
+              if (r && r.id) mergedMap.set(r.id, { ...r, status: normalizeLeaveStatus(r.status) });
+            });
+            formatted.forEach((r) => mergedMap.set(r.id, r));
+            const merged = Array.from(mergedMap.values()).sort((a, b) =>
+              `${b.fromDate || ''}|${b.submittedAt || ''}`.localeCompare(`${a.fromDate || ''}|${a.submittedAt || ''}`)
+            );
+            setHistoryList(merged);
           }
         } catch (err) {
           console.warn('Supabase fetch notice (using local storage):', err);
@@ -298,35 +316,40 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
 
     setFormError(null);
 
-    await runSave(async () => {
-      const now = new Date();
-      const formattedDateStr = `${now.toLocaleDateString('th-TH', {
-        day: '2-digit',
-        month: 'short',
-        year: '2-digit',
-      })} ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+    try {
+      await runSave(async () => {
+        const now = new Date();
+        const formattedDateStr = `${now.toLocaleDateString('th-TH', {
+          day: '2-digit',
+          month: 'short',
+          year: '2-digit',
+        })} ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
 
-      const newRecord: LeaveRecord = {
-        id: `LEAVE-${Date.now()}`,
-        leaveType,
-        leaveTypeName: currentQuota.nameTh,
-        fromDate,
-        toDate,
-        totalDays: totalRequestedDays,
-        manager,
-        status: 'Pending',
-        description: description.trim(),
-        submittedAt: formattedDateStr,
-        userName,
-        userBranch: userBranch === 'Rayong' ? 'สาขาระยอง' : 'สาขากรุงเทพฯ',
-      };
+        const lowerBranch = String(userBranch || '').toLowerCase();
+        const isRayong = lowerBranch.includes('rayong') || lowerBranch.includes('ระยอง');
+        const canonicalBranch = isRayong ? 'Rayong' : 'Bangkok';
+        const displayBranch = isRayong ? 'สาขาระยอง' : 'สาขากรุงเทพฯ';
 
-      // 1. Save to Supabase if connected
-      if (supabase) {
-        try {
-          await supabase.from('leave_requests').insert([{
+        const newRecord: LeaveRecord = {
+          id: `LEAVE-${Date.now()}`,
+          leaveType,
+          leaveTypeName: currentQuota.nameTh,
+          fromDate,
+          toDate,
+          totalDays: totalRequestedDays,
+          manager,
+          status: 'Pending',
+          description: description.trim(),
+          submittedAt: formattedDateStr,
+          userName,
+          userBranch: displayBranch,
+        };
+
+        // 1. Save to Supabase if connected (explicitly verify error response)
+        if (supabase) {
+          const { error: insertError } = await supabase.from('leave_requests').insert([{
             id: newRecord.id,
-            branch: userBranch,
+            branch: canonicalBranch,
             user_name: userName,
             leave_type: leaveType,
             leave_type_name: currentQuota.nameTh,
@@ -338,38 +361,44 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
             description: description.trim(),
             submitted_at: formattedDateStr,
           }]);
-        } catch (err) {
-          console.warn('Supabase insert warning (saved locally):', err);
+
+          if (insertError) {
+            console.error('Supabase leave_requests insert error:', insertError);
+            throw new Error(insertError.message || 'ไม่สามารถบันทึกคำขอลาลงฐานข้อมูล Supabase ได้');
+          }
         }
-      }
 
-      // 2. Save to LocalStorage
-      const updatedList = [newRecord, ...historyList];
-      setHistoryList(updatedList);
-      try {
-        localStorage.setItem('crenn_leave_requests', JSON.stringify(updatedList));
-      } catch (err) {
-        console.error(err);
-      }
+        // 2. Save to LocalStorage
+        const updatedList = [newRecord, ...historyList];
+        setHistoryList(updatedList);
+        try {
+          localStorage.setItem('crenn_leave_requests', JSON.stringify(updatedList));
+        } catch (err) {
+          console.error(err);
+        }
 
-      // Send Discord Notification (non-blocking)
-      sendDiscordNotification(
-        `🏖️ **[คำขอลาหยุดใหม่ - ${newRecord.userBranch}]**\n` +
-        `👤 พนักงาน: ${newRecord.userName}\n` +
-        `🏷️ ประเภท: ${newRecord.leaveTypeName}\n` +
-        `📅 วันที่: ${newRecord.fromDate} ถึง ${newRecord.toDate} (${newRecord.totalDays} วัน)\n` +
-        `👔 ผู้อนุมัติ: ${newRecord.manager}\n` +
-        `📝 เหตุผล: ${newRecord.description}`,
-        'notifyOnLeaveRequest'
-      );
+        // Send Discord Notification (non-blocking)
+        sendDiscordNotification(
+          `🏖️ **[คำขอลาหยุดใหม่ - ${newRecord.userBranch}]**\n` +
+          `👤 พนักงาน: ${newRecord.userName}\n` +
+          `🏷️ ประเภท: ${newRecord.leaveTypeName}\n` +
+          `📅 วันที่: ${newRecord.fromDate} ถึง ${newRecord.toDate} (${newRecord.totalDays} วัน)\n` +
+          `👔 ผู้อนุมัติ: ${newRecord.manager}\n` +
+          `📝 เหตุผล: ${newRecord.description}`,
+          'notifyOnLeaveRequest'
+        );
 
-      setShowSuccessToast(true);
-      setDescription('');
+        setShowSuccessToast(true);
+        setDescription('');
+        onSubmitted?.();
 
-      setTimeout(() => {
-        setShowSuccessToast(false);
-      }, 3000);
-    });
+        setTimeout(() => {
+          setShowSuccessToast(false);
+        }, 3000);
+      });
+    } catch (err: any) {
+      setFormError(`ไม่สามารถยื่นคำขอลาได้: ${err?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล'}`);
+    }
   };
 
   return (
