@@ -21,7 +21,10 @@ import {
   Globe,
   Calendar,
   Search,
-  EyeOff
+  Eye,
+  EyeOff,
+  Copy,
+  Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_DISCORD_NOTIFY_SETTINGS, normalizeDiscordSettings } from '../lib/discordNotify';
@@ -155,6 +158,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'leaveportal', name: 'เปิดใช้งาน Sub-app Leave Portal (Master Switch)', icon: '🗓️' },
       { key: 'leaveDashboard', name: 'Leave Dashboard (ภาพรวมการลาทุกคน)', icon: '📊' },
       { key: 'personnelLeave', name: 'Personnel Leave (ภาพรวมการลาส่วนตัว)', icon: '👤' },
+      { key: 'leaveHistory', name: 'ประวัติการลาทั้งหมดของทีม (Team Leave History)', icon: '📋' },
     ]
   }
 ];
@@ -189,7 +193,8 @@ const APP_FUNCTIONS: { id: keyof AppPermissions; name: string }[] = [
   { id: 'hellocrenn_scan' as any, name: 'Hello, Crenn: สแกนเวลาตนเอง' },
   { id: 'hellocrenn_history' as any, name: 'Hello, Crenn: ประวัติเข้า-ออกงาน' },
   { id: 'hellocrenn_settings' as any, name: 'Hello, Crenn: ตั้งค่าพิกัดสาขาและกะงาน' },
-  { id: 'leaveportal' as any, name: 'ระบบบริหารจัดการการลา (Leave Portal)' }
+  { id: 'leaveportal' as any, name: 'ระบบบริหารจัดการการลา (Leave Portal)' },
+  { id: 'leaveHistory' as any, name: 'ประวัติการลาทั้งหมดของทีม (Team Leave History)' }
 ];
 
 const DEFAULT_PERMISSIONS: AppPermissions = {
@@ -222,7 +227,8 @@ const DEFAULT_PERMISSIONS: AppPermissions = {
   hellocrenn_scan: 'Edit',
   hellocrenn_history: 'Review',
   hellocrenn_settings: 'Hidden',
-  leaveportal: 'Edit'
+  leaveportal: 'Edit',
+  leaveHistory: 'Review'
 };
 
 // Helper for sorting users by official position hierarchy
@@ -488,6 +494,8 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activeModalTab, setActiveModalTab] = useState<'general' | 'permissions' | 'leaveQuota'>('general');
   const [isChangingPassword, setIsChangingPassword] = useState<string | null>(null);
+  const [revealedPasswordIds, setRevealedPasswordIds] = useState<Record<string, boolean>>({});
+  const [copiedPasswordUserId, setCopiedPasswordUserId] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<{id: string, name: string} | null>(null);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
 
@@ -766,7 +774,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
   const handlePresetAll = (level: PagePermission) => {
     setIsUserFormDirty(true);
     const allKeys: (keyof UserPermissions)[] = [
-      'dashboard', 'leaveDashboard', 'personnelLeave', 'dailySales', 'dailyBakery',
+      'dashboard', 'leaveDashboard', 'personnelLeave', 'leaveHistory', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'orderedItems', 'rndReport', 'maintenanceReport',
@@ -828,7 +836,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
   // ━━━━ QUICK PRESET HANDLERS FOR ROLE TEMPLATE MODAL ━━━━
   const handleTemplatePresetAll = (level: PagePermission) => {
     const allKeys: (keyof UserPermissions)[] = [
-      'dashboard', 'leaveDashboard', 'personnelLeave', 'dailySales', 'dailyBakery',
+      'dashboard', 'leaveDashboard', 'personnelLeave', 'leaveHistory', 'dailySales', 'dailyBakery',
       'bar_stock', 'bar_receiving', 'bar_stockcount', 'bar_waste', 'bar_checkin', 'bar_coffeeWaste',
       'kitchen_stock', 'kitchen_receiving', 'kitchen_stockcount', 'kitchen_waste', 'kitchen_checkin', 'bakeryPlan',
       'purchasing', 'orderedItems', 'rndReport', 'maintenanceReport',
@@ -3057,9 +3065,43 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                     {renderRoleBadge(user.role)}
                   </div>
 
-                  {/* 3. Action Buttons (password, edit, delete) */}
+                  {/* 3. Action Buttons (view password, change password, edit, delete) */}
                   {!effectiveReadOnly && (
-                  <div className="w-full pt-2 border-t border-[#E2EAE9] mt-auto">
+                  <div className="w-full pt-2 border-t border-[#E2EAE9] mt-auto space-y-1.5">
+                    {/* Revealed Current Password Box */}
+                    {revealedPasswordIds[user.id] && (
+                      <div className="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] animate-in fade-in duration-150">
+                        <div className="min-w-0 flex-1 text-left">
+                          <span className="block text-[9px] text-[#5A8A88] font-medium leading-none mb-0.5">รหัสผ่านปัจจุบัน</span>
+                          <span className="block font-mono text-[11px] font-bold truncate select-all" title={user.password || ''}>
+                            {user.password ? user.password : <span className="text-[#6B8F8E] font-normal italic">ไม่มีข้อมูล</span>}
+                          </span>
+                        </div>
+                        {user.password && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (navigator?.clipboard?.writeText) {
+                                navigator.clipboard.writeText(user.password || '').catch(() => {});
+                              }
+                              setCopiedPasswordUserId(user.id);
+                              setTimeout(() => {
+                                setCopiedPasswordUserId(prev => (prev === user.id ? null : prev));
+                              }, 1500);
+                            }}
+                            className="p-1 text-[#5A8A88] hover:text-[#2D4A49] hover:bg-white rounded transition-colors cursor-pointer shrink-0"
+                            title="คัดลอกรหัสผ่าน"
+                          >
+                            {copiedPasswordUserId === user.id ? (
+                              <Check size={12} className="text-emerald-600" />
+                            ) : (
+                              <Copy size={12} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {isChangingPassword === user.id ? (
                       <form onSubmit={(e) => handleSavePassword(e, user.id)} className="flex flex-col gap-1.5 w-full animate-in fade-in zoom-in-95 duration-150">
                         <input
@@ -3090,6 +3132,20 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                       </form>
                     ) : (
                       <div className="flex items-center justify-center gap-1 bg-[#F0F5F4]/70 p-1 rounded-lg border border-[#D4E4E3]/70">
+                        {/* View Current Password Eye Button */}
+                        <button
+                          type="button"
+                          onClick={() => setRevealedPasswordIds(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                          className={`p-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center ${
+                            revealedPasswordIds[user.id]
+                              ? 'bg-white text-[#2D4A49] shadow-2xs'
+                              : 'text-[#5A8A88] hover:bg-white hover:text-[#2D4A49] hover:shadow-2xs'
+                          }`}
+                          title={revealedPasswordIds[user.id] ? 'ซ่อนรหัสผ่านปัจจุบัน' : 'ดูรหัสผ่านปัจจุบัน'}
+                        >
+                          {revealedPasswordIds[user.id] ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
+
                         {/* Password Key Button */}
                         <button 
                           onClick={() => setIsChangingPassword(user.id)}
