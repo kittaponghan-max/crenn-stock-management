@@ -16,7 +16,8 @@ import {
   X, 
   RefreshCw,
   Pencil,
-  Check
+  Check,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format, eachDayOfInterval, parseISO, isAfter, addMonths, subMonths } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -25,7 +26,7 @@ import { sendDiscordNotification } from '../lib/discordNotify';
 import { AppPermissions } from '../types';
 import { canEditDateRangePerm } from '../utils/permissions';
 import { safeLocalStorageGetItem, safeLocalStorageSetItem } from '../utils/safeStorage';
-import { exportRowsToXlsx, normalizeDateRange } from './ui';
+import { exportRowsToXlsx, exportElementToPng, normalizeDateRange } from './ui';
 
 export interface DailySalesRecordProps {
   user?: {
@@ -174,6 +175,7 @@ export function DailySalesRecord({
   // Export dropdown state and outside click
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportAreaRef = useRef<HTMLDivElement>(null);
   const originalRowsRef = useRef<DailySalesRow[]>([]);
 
   useEffect(() => {
@@ -914,6 +916,7 @@ export function DailySalesRecord({
         </div>
       )}
 
+      <div ref={exportAreaRef} className="space-y-3.5">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           PAGE HEADER CARD (FIX 3: Clean 2-row Layout)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -1015,7 +1018,7 @@ export function DailySalesRecord({
           )}
 
           {/* RIGHT: Action Buttons (Save + Export Dropdown) */}
-          <div className="flex items-center gap-1.5 ml-auto relative">
+          <div className="flex items-center gap-1.5 ml-auto relative" data-export-ignore="true">
             {!isReadOnly && (
               <button
                 type="button"
@@ -1054,13 +1057,13 @@ export function DailySalesRecord({
               </button>
             )}
 
-            {/* Export Dropdown (Excel + PDF) */}
+            {/* Export Dropdown (Excel + PNG + PDF) */}
             <div className="relative" ref={exportMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsExportOpen(!isExportOpen)}
                 className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                title="ส่งออกข้อมูล (Excel, PDF)"
+                title="ส่งออกข้อมูล (Excel, รูปภาพ .png, PDF)"
               >
                 <Download size={13} className="text-[#5A8A88]" />
                 <span>ส่งออก</span>
@@ -1068,7 +1071,7 @@ export function DailySalesRecord({
               </button>
 
               {isExportOpen && (
-                <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <button
                     type="button"
                     onClick={() => {
@@ -1079,6 +1082,21 @@ export function DailySalesRecord({
                   >
                     <Download size={13} className="text-[#5A8A88]" />
                     <span>Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      exportElementToPng({
+                        targetRef: exportAreaRef,
+                        fileName: `Daily_Sales_${currentBranch}_${appliedRange.start}_to_${appliedRange.end}`,
+                        backgroundColor: '#F0F5F4',
+                      });
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <ImageIcon size={13} className="text-[#5A8A88]" />
+                    <span>รูปภาพ (.png)</span>
                   </button>
                   <button
                     type="button"
@@ -1516,6 +1534,7 @@ export function DailySalesRecord({
             </tr>
           </tfoot>
         </table>
+      </div>
       </div>
     </div>
   );
