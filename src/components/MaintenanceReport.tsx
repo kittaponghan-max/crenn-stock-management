@@ -33,7 +33,8 @@ import {
   RefreshCw, 
   Loader2,
   AlertCircle,
-  Tag
+  Tag,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format, isAfter, isBefore, addDays, parseISO, isToday, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -52,7 +53,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { sendDiscordNotification } from '../lib/discordNotify';
 import { generateUUID } from '../lib/utils';
-import { normalizeDateRange } from './ui';
+import { normalizeDateRange, exportElementToPng } from './ui';
 
 const DEFAULT_VENDORS: MaintenanceVendorMaster[] = [
   { id: 'v-1', branch: 'Rayong', name: 'ทีมงานภายในร้าน (Internal)', serviceDetails: 'ดูแลรักษาและซ่อมบำรุงทั่วไป', phone: '-' },
@@ -228,6 +229,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
   // Export dropdown state (matches DailyBakeryRecord)
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportAreaRef = useRef<HTMLDivElement>(null);
 
   // Close export dropdown when clicking outside
   useEffect(() => {
@@ -1543,7 +1545,7 @@ WITH CHECK (true);`;
 
   return (
     <div className="min-h-screen bg-[#F4F8F7] text-slate-800 pb-16 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-4">
+      <div ref={exportAreaRef} className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-4">
         
         {/* ── 1. HEADER CARD (Matches DailyBakeryRecord Layout, Design & Typography) ── */}
         <div className="bg-white rounded-2xl border border-[#D4E4E3] p-4 sm:p-5 shadow-[0_2px_8px_rgba(90,138,136,0.08)]">
@@ -1580,7 +1582,7 @@ WITH CHECK (true);`;
             </div>
 
             {/* RIGHT: Action Buttons (Matches DailyBakeryRecord Layout & Function) */}
-            <div className="flex items-center gap-1.5 self-start md:self-auto shrink-0 flex-wrap">
+            <div className="flex items-center gap-1.5 self-start md:self-auto shrink-0 flex-wrap" data-export-ignore="true">
               {/* Refresh Button */}
               <button
                 type="button"
@@ -1599,7 +1601,7 @@ WITH CHECK (true);`;
                   onClick={() => setIsExportOpen(!isExportOpen)}
                   disabled={filteredRecords.length === 0}
                   className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="ส่งออกข้อมูล (Excel, PDF / พิมพ์)"
+                  title="ส่งออกข้อมูล (Excel, รูปภาพ .png, PDF / พิมพ์)"
                 >
                   <Download size={13} className="text-[#5A8A88]" />
                   <span>ส่งออก</span>
@@ -1607,7 +1609,7 @@ WITH CHECK (true);`;
                 </button>
 
                 {isExportOpen && (
-                  <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                     <button
                       type="button"
                       onClick={() => {
@@ -1618,6 +1620,21 @@ WITH CHECK (true);`;
                     >
                       <Download size={13} className="text-[#5A8A88]" />
                       <span>Excel (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExportOpen(false);
+                        exportElementToPng({
+                          targetRef: exportAreaRef,
+                          fileName: `CRENN_Maintenance_${selectedBranch}_${format(new Date(), 'yyyyMMdd_HHmm')}`,
+                          backgroundColor: '#F4F8F7',
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <ImageIcon size={13} className="text-[#5A8A88]" />
+                      <span>รูปภาพ (.png)</span>
                     </button>
                     <button
                       type="button"
