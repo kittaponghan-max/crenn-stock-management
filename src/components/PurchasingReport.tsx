@@ -20,13 +20,15 @@ import {
   AlertTriangle,
   Truck,
   Pencil,
-  Undo2
+  Undo2,
+  Image as ImageIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Ingredient } from '../types';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { sendDiscordNotification } from '../lib/discordNotify';
+import { exportElementToPng } from './ui';
 
 export interface OrderRecord {
   id?: string;
@@ -75,6 +77,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportAreaRef = useRef<HTMLDivElement>(null);
 
   // ─── PENDING DELIVERY STATE & HELPERS (STEP 1) ───
   const [pendingOrderMap, setPendingOrderMap] = useState<Record<string, {
@@ -1334,6 +1337,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-[#F0F5F4] space-y-4 animate-in fade-in duration-300">
+      <div ref={exportAreaRef} className="space-y-4">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           PAGE HEADER CARD (Matches DailyBakeryRecord Layout & Style)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -1346,6 +1350,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           <div className="flex items-center gap-2.5">
             <button 
               onClick={handleBackClick}
+              data-export-ignore="true"
               title="ย้อนกลับ"
               className="w-[32px] h-[32px] rounded-[8px] bg-white border border-[#D4E4E3] flex items-center justify-center text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
@@ -1523,13 +1528,13 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
           </div>
 
           {/* RIGHT: Export Dropdown (Matches DailyBakeryRecord design and function) */}
-          <div className="relative ml-auto shrink-0" ref={exportMenuRef}>
+          <div className="relative ml-auto shrink-0" ref={exportMenuRef} data-export-ignore="true">
             <button
               type="button"
               onClick={() => setIsExportOpen(!isExportOpen)}
               disabled={purchasesToMake.length === 0}
               className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-              title="ส่งออกข้อมูล (Excel, PDF)"
+              title="ส่งออกข้อมูล (Excel, รูปภาพ .png, PDF)"
             >
               <Download size={13} className="text-[#5A8A88]" />
               <span>ส่งออก</span>
@@ -1537,7 +1542,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             </button>
 
             {isExportOpen && (
-              <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -1548,6 +1553,21 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
                 >
                   <Download size={13} className="text-[#5A8A88]" />
                   <span>Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExportOpen(false);
+                    exportElementToPng({
+                      targetRef: exportAreaRef,
+                      fileName: `Purchasing_${selectedDate}`,
+                      backgroundColor: '#F0F5F4',
+                    });
+                  }}
+                  className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <ImageIcon size={13} className="text-[#5A8A88]" />
+                  <span>รูปภาพ (.png)</span>
                 </button>
                 <button
                   type="button"
@@ -2194,6 +2214,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
             </div>
           )}
         </div>
+      </div>
       {/* Image Preview Modal */}
       {previewImage && (
         <div 
