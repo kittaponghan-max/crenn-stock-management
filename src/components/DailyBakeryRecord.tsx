@@ -21,7 +21,8 @@ import {
   Check,
   Upload,
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -32,7 +33,7 @@ import {
   safeLocalStorageGetItem, 
   safeLocalStorageSetItem 
 } from '../utils/safeStorage';
-import { exportRowsToXlsx } from './ui';
+import { exportRowsToXlsx, exportElementToPng } from './ui';
 
 export interface DailyBakeryRecordProps {
   user?: {
@@ -204,6 +205,7 @@ export function DailyBakeryRecord({
   // Export dropdown state
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportAreaRef = useRef<HTMLDivElement>(null);
 
   // Close export dropdown on click outside
   useEffect(() => {
@@ -1369,6 +1371,7 @@ export function DailyBakeryRecord({
         </div>
       )}
 
+      <div ref={exportAreaRef} className="space-y-4">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           PAGE HEADER CARD (Matches DailySalesRecord Layout & Style)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -1507,7 +1510,7 @@ export function DailyBakeryRecord({
           </div>
 
           {/* RIGHT: Action Buttons (Import + Save + Export Dropdown - On SAME ROW) */}
-          <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
+          <div className="flex items-center gap-1.5 ml-auto relative shrink-0" data-export-ignore="true">
             {!isReadOnly && (
               <>
                 {/* Import Button & Hidden File Input */}
@@ -1573,7 +1576,7 @@ export function DailyBakeryRecord({
                 type="button"
                 onClick={() => setIsExportOpen(!isExportOpen)}
                 className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                title="ส่งออกข้อมูล (Excel, PDF)"
+                title="ส่งออกข้อมูล (Excel, รูปภาพ .png, PDF)"
               >
                 <Download size={13} className="text-[#5A8A88]" />
                 <span>ส่งออก</span>
@@ -1581,7 +1584,7 @@ export function DailyBakeryRecord({
               </button>
 
               {isExportOpen && (
-                <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <button
                     type="button"
                     onClick={() => {
@@ -1592,6 +1595,21 @@ export function DailyBakeryRecord({
                   >
                     <Download size={13} className="text-[#5A8A88]" />
                     <span>Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      exportElementToPng({
+                        targetRef: exportAreaRef,
+                        fileName: `Daily_Bakery_${currentBranch}_${format(currentWeek, 'yyyyMMdd')}`,
+                        backgroundColor: '#F0F5F4',
+                      });
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <ImageIcon size={13} className="text-[#5A8A88]" />
+                    <span>รูปภาพ (.png)</span>
                   </button>
                   <button
                     type="button"
@@ -2081,6 +2099,7 @@ export function DailyBakeryRecord({
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
