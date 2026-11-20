@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Ingredient, StockRecord, ReceivingRecord, LogEntry, AppPermissions, WasteLogEntry, RnDReportEntry, Branch, canAccessProdCalc, canAccessHelloCrenn, canAccessLeavePortal } from './types';
 import {
@@ -37,7 +37,7 @@ import { OrderedItemsReport } from './components/OrderedItemsReport';
 import { UserSettings } from './components/UserSettings';
 import { DailySalesRecord } from './components/DailySalesRecord';
 import { DailyBakeryRecord } from './components/DailyBakeryRecord';
-import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload, Save, CheckCircle2, Loader2, UtensilsCrossed } from 'lucide-react';
+import { Plus, AlertCircle, X, MapPin, Calendar, ChevronLeft, ChevronRight, Download, Coffee, Check, LogOut, Undo, Redo, LayoutDashboard, TableProperties, FileUp, FileDown, Printer, ChevronDown, PackageCheck, ClipboardCheck, Home, RotateCcw, History, ClipboardList, Trash2, FileText, ShoppingCart, ChefHat, Settings, Package, ChevronUp, Pencil, Bell, Upload, Save, CheckCircle2, Loader2, UtensilsCrossed, Image as ImageIcon } from 'lucide-react';
 import { startOfWeek, addWeeks, subWeeks, subDays, addDays, format, differenceInDays } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { cn, generateUUID, isValidUUID } from './lib/utils';
@@ -55,6 +55,7 @@ import { ProdCalcApp } from './components/prodcalc/ProdCalcApp';
 import { HelloCrennApp } from './components/hellocrenn/HelloCrennApp';
 import { LeavePortalApp } from './components/leaveportal/LeavePortalApp';
 import { LeaveRequestModal } from './components/LeaveRequestModal';
+import { exportElementToPng } from './components/ui';
 
 // Initial data from user request
 const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -1639,6 +1640,7 @@ export default function App() {
   };
 
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const stockExportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -3007,7 +3009,7 @@ export default function App() {
             pageName={activeTab === 'barStock' ? 'สรุป Stock บาร์' : 'สรุป Stock ครัว'}
           />
         ) : (
-          <>
+          <div ref={stockExportRef}>
             {/* ── HEADER CARD (Matches DailyBakeryRecord Layout & Style) ── */}
             <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(90,138,136,0.08)] border border-[#D4E4E3] p-4 sm:p-5 mb-3">
               {/* ROW 1: Title (left) + Period Navigation (right) */}
@@ -3185,7 +3187,7 @@ export default function App() {
                 </div>
 
                 {/* RIGHT: Action Buttons */}
-                <div className="flex items-center gap-1.5 ml-auto relative shrink-0 flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-1.5 ml-auto relative shrink-0 flex-wrap sm:flex-nowrap" data-export-ignore="true">
                   {canEditPage(user, activeTab === 'barStock' ? 'bar_stock' : 'kitchen_stock', roleTemplates) && (
                     <>
                       <input 
@@ -3258,7 +3260,7 @@ export default function App() {
                         setIsExportDropdownOpen(!isExportDropdownOpen);
                       }}
                       className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                      title="ส่งออกข้อมูล (Excel, PDF)"
+                      title="ส่งออกข้อมูล (Excel, รูปภาพ .png, PDF)"
                     >
                       <Download size={13} className="text-[#5A8A88]" />
                       <span>ส่งออก</span>
@@ -3266,7 +3268,7 @@ export default function App() {
                     </button>
                     
                     {isExportDropdownOpen && (
-                      <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
+                      <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-[#2D4A49]">
                         <button
                           type="button"
                           onClick={() => {
@@ -3277,6 +3279,21 @@ export default function App() {
                         >
                           <Download size={13} className="text-[#5A8A88]" />
                           <span>Excel (.xlsx)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsExportDropdownOpen(false);
+                            exportElementToPng({
+                              targetRef: stockExportRef,
+                              fileName: `CRENN_${activeTab === 'barStock' ? 'Bar' : 'Kitchen'}_Stock_${user?.branch || 'Rayong'}_${format(stockWeek, 'yyyyMMdd')}`,
+                              backgroundColor: '#F0F5F4',
+                            });
+                          }}
+                          className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <ImageIcon size={13} className="text-[#5A8A88]" />
+                          <span>รูปภาพ (.png)</span>
                         </button>
                         <button
                           type="button"
@@ -3360,7 +3377,7 @@ export default function App() {
               isReadOnly={isReadOnlyPage(user, activeTab === 'barStock' ? 'bar_stock' : 'kitchen_stock', roleTemplates)}
               
             />
-          </>
+          </div>
         )}
 
         {/* Bottom Actions Zone */}
