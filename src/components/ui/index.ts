@@ -25,8 +25,8 @@ export { StandardDropdown, STANDARD_NATIVE_SELECT_CLASS } from './StandardDropdo
 export type { StandardDropdownProps, DropdownOption } from './StandardDropdown';
 export { SaveButton, useSaveState, useUnsavedChangesGuard } from './SaveButton';
 export type { SaveButtonProps } from './SaveButton';
-export { ExportButton, exportRowsToXlsx } from './ExportButton';
-export type { ExportButtonProps, ExcelExportConfig } from './ExportButton';
+export { ExportButton, exportRowsToXlsx, exportElementToPng } from './ExportButton';
+export type { ExportButtonProps, ExcelExportConfig, PngExportConfig } from './ExportButton';
 export {
   DateRangeFilter,
   PeriodNavigator,
