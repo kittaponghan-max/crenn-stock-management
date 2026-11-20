@@ -24,10 +24,12 @@ import {
   RefreshCw, 
   AlertCircle,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Image as ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { canViewPage, isReadOnlyPage, PagePermKey, RoleTemplateMap } from '../utils/permissions';
+import { exportElementToPng } from './ui';
 
 interface AuditLogProps {
   logs: LogEntry[];
@@ -435,6 +437,7 @@ export function AuditLog({
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setSelectedRecord(null)}
+              data-export-ignore="true"
               className="p-1.5 hover:bg-[#E8F3F2] rounded-lg transition-colors text-[#5A8A88] border border-[#D4E4E3] bg-white cursor-pointer"
               title="ย้อนกลับ"
             >
@@ -488,7 +491,7 @@ export function AuditLog({
                       exportExcel();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium cursor-pointer"
                   >
                     <FileDown size={14} className="text-[#5A8A88]" />
                     Excel (.xlsx)
@@ -496,10 +499,26 @@ export function AuditLog({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      setIsExportDropdownOpen(false);
+                      const dateStr = format(new Date(selectedRecord.reportDate || selectedRecord.timestamp), 'yyyyMMdd');
+                      exportElementToPng({
+                        elementId: 'audit-report',
+                        fileName: `Audit_${selectedRecord.type}_${dateStr}`,
+                        backgroundColor: '#FFFFFF',
+                      });
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium cursor-pointer"
+                  >
+                    <ImageIcon size={14} className="text-[#5A8A88]" />
+                    รูปภาพ (.png)
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       exportPDF();
                       setIsExportDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[11px] text-[#2D4A49] hover:bg-[#F0F5F4] transition-colors font-medium cursor-pointer"
                   >
                     <Printer size={14} className="text-[#7A9E9C]" />
                     PDF / Print
