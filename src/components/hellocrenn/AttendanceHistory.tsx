@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { History, Search, Filter, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { AttendanceRecord } from '../../types/hellocrenn';
 import {
@@ -49,6 +49,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   const [endDate, setEndDate] = useState<string>(todayStr);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const exportAreaRef = useRef<HTMLDivElement>(null);
 
   const handleRangeChange = (rangeId: RangeId) => {
     setActiveRange(rangeId);
@@ -132,17 +133,22 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div ref={exportAreaRef} className="space-y-4">
       <PageHeaderBanner
         variant="sub"
         icon={<History size={18} />}
         title="ประวัติเวลาเข้า-ออกงาน (Attendance History)"
         branchLabel={`สาขา: ${currentBranch}`}
-        subtitle="ตรวจสอบบันทึกเวลาเข้า-ออกงานด้วยพิกัด GPS ย้อนหลัง พร้อมส่งออกเป็นไฟล์ Excel / PDF"
+        subtitle="ตรวจสอบบันทึกเวลาเข้า-ออกงานด้วยพิกัด GPS ย้อนหลัง พร้อมส่งออกเป็นไฟล์ Excel / รูปภาพ .png / PDF"
         actions={
           <ExportButton
             disabled={filteredRecords.length === 0}
             onExportExcel={handleExportExcel}
+            pngConfig={{
+              targetRef: exportAreaRef,
+              fileName: `Hello_Crenn_Attendance_${currentBranch}_${startDate}_to_${endDate}`,
+              backgroundColor: '#F0F5F4',
+            }}
             onExportPrint={() => window.print()}
           />
         }
