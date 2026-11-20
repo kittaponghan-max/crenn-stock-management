@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { CheckCircle2, Circle, Clock, MapPin, Coffee, Sparkles, AlertCircle, Calendar, User, Printer, LogOut, ChevronDown, FileDown, Check, ShieldCheck, Thermometer, Gauge, Droplets, Download } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, MapPin, Coffee, Sparkles, AlertCircle, Calendar, User, Printer, LogOut, ChevronDown, FileDown, Check, ShieldCheck, Thermometer, Gauge, Droplets, Download, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { Ingredient } from '../types';
 import * as XLSX from 'xlsx';
 import { useObsoleteIngredients, isIngredientActive } from '../utils/obsoleteIngredients';
+import { exportElementToPng } from './ui';
 
 interface ChecklistItem {
   id: string;
@@ -567,7 +568,7 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
                   setIsExportDropdownOpen(!isExportDropdownOpen);
                 }}
                 className="flex items-center gap-1 bg-white border border-[#D4E4E3] hover:bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-[500] rounded-[8px] px-2.5 py-[6px] h-[32px] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-                title="ส่งออกข้อมูล (Excel, PDF)"
+                title="ส่งออกข้อมูล (Excel, รูปภาพ .png, PDF)"
               >
                 <Download size={13} className="text-[#5A8A88]" />
                 <span>ส่งออก</span>
@@ -575,7 +576,7 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
               </button>
 
               {isExportDropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-lg border border-[#D4E4E3] py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -587,6 +588,22 @@ export function BarChecklist({ ingredients, onSave, user, checklistRecords = [],
                   >
                     <Download size={13} className="text-[#5A8A88]" />
                     <span>Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExportDropdownOpen(false);
+                      exportElementToPng({
+                        elementId: 'checklist-report',
+                        fileName: `Bar_${type}_${format(new Date(reportDate), 'yyyyMMdd')}`,
+                        backgroundColor: '#F0F5F4',
+                      });
+                    }}
+                    className="w-full px-3 py-2 text-left text-[11px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <ImageIcon size={13} className="text-[#5A8A88]" />
+                    <span>รูปภาพ (.png)</span>
                   </button>
                   <button
                     type="button"
