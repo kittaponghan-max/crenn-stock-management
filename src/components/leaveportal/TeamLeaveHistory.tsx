@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -53,6 +53,7 @@ export const TeamLeaveHistory: React.FC<TeamLeaveHistoryProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedLeaveType, setSelectedLeaveType] = useState<string>('all');
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const exportAreaRef = useRef<HTMLDivElement>(null);
 
   const selectedBranch = user?.branch || 'Rayong';
 
@@ -304,7 +305,7 @@ export const TeamLeaveHistory: React.FC<TeamLeaveHistoryProps> = ({
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20">
+    <div ref={exportAreaRef} className="w-full max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20">
       {/* Header Banner */}
       <PageHeaderBanner
         variant="main"
@@ -340,11 +341,17 @@ export const TeamLeaveHistory: React.FC<TeamLeaveHistoryProps> = ({
                 fileName: `team-leave-history-${selectedBranch}-${selectedYear}.xlsx`,
                 sheetName: 'Team Leave History',
               }}
+              pngConfig={{
+                targetRef: exportAreaRef,
+                fileName: `team-leave-history-${selectedBranch}-${selectedYear}`,
+                backgroundColor: '#F0F5F4',
+              }}
             />
 
             {onOpenLeaveModal && !isReadOnly && (
               <button
                 type="button"
+                data-export-ignore="true"
                 onClick={onOpenLeaveModal}
                 className="px-3.5 py-1.5 rounded-full bg-[#2D4A49] hover:bg-[#203635] text-white text-[11px] font-semibold shadow-xs hover:shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98]"
               >
