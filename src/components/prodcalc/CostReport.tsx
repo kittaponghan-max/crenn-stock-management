@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Recipe } from '../../types/prodcalc';
 import {
   BarChart3,
@@ -36,6 +36,7 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('profit_pct');
   const [sortAsc, setSortAsc] = useState(false);
+  const exportAreaRef = useRef<HTMLDivElement>(null);
 
   const sortOptions = useMemo(() => [
     { value: 'profit_pct' as SortField, label: 'อัตรากำไร %' },
@@ -112,7 +113,7 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div ref={exportAreaRef} className="space-y-4">
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* HEADER BANNER */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
@@ -125,6 +126,11 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
         actions={
           <ExportButton
             onExportExcel={handleExportExcel}
+            pngConfig={{
+              targetRef: exportAreaRef,
+              fileName: `ProdCalc_Cost_Report_${currentBranch}_${new Date().toISOString().split('T')[0]}`,
+              backgroundColor: '#F0F5F4',
+            }}
             onExportPrint={handlePrint}
             disabled={recipes.length === 0}
           />
