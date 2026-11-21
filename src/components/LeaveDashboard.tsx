@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { sendDiscordNotification } from '../lib/discordNotify';
-import { LeaveRecord } from './LeaveRequestModal';
+import { LeaveRecord, mapSupabaseLeaveRow, normalizeLocalLeaveRecord } from './LeaveRequestModal';
 import { AppUser } from '../types';
 import {
   AnnualLeaveQuotasByYear,
@@ -208,7 +208,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            records = parsed;
+            records = parsed.map(normalizeLocalLeaveRecord);
           }
         }
       } catch (e) {
@@ -225,30 +225,12 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
           .order('created_at', { ascending: false });
 
         if (data && !error && data.length > 0) {
-          const normalizeStatus = (val: any): 'Pending' | 'Approved' | 'Rejected' => {
-            const s = String(val || '').trim().toLowerCase();
-            if (s === 'approved') return 'Approved';
-            if (s === 'rejected') return 'Rejected';
-            return 'Pending';
-          };
-
-          const fetchedSupabase: LeaveRecord[] = data.map((item: any) => ({
-            id: item.id || `LEAVE-${Date.now()}`,
-            leaveType: item.leave_type || 'vacation',
-            leaveTypeName: item.leave_type_name || 'ลาพักร้อน (Annual Leave)',
-            fromDate: item.from_date || '',
-            toDate: item.to_date || '',
-            totalDays: item.total_days || 1,
-            manager: item.manager || 'ผู้จัดการสาขา',
-            status: normalizeStatus(item.status),
-            description: item.description || '',
-            submittedAt: item.submitted_at || '',
-            userName: item.user_name || 'Staff',
-            userBranch: item.branch || 'Rayong',
-          }));
+          const fetchedSupabase: LeaveRecord[] = data.map((item: any) =>
+            mapSupabaseLeaveRow(item, 'ผู้จัดการสาขา', 'Staff')
+          );
 
           const map = new Map<string, LeaveRecord>();
-          records.forEach(r => map.set(r.id, { ...r, status: normalizeStatus(r.status) }));
+          records.forEach(r => map.set(r.id, normalizeLocalLeaveRecord(r)));
           fetchedSupabase.forEach(r => map.set(r.id, r));
           records = Array.from(map.values());
         }
@@ -489,7 +471,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
   // Advance Leaves (การลาล่วงหน้าของทีม) - filter by selectedBranch & selectedYear
   const upcomingLeaves = useMemo(() => {
     return leaveRecords.filter(r => {
-      const isFuture = r.fromDate > todayStr && r.status !== 'Rejected';
+      const isFuture = r.fromDate > todayStr && r.status !== 'Rejected' && r.status !== 'Cancelled';
       if (!isFuture) return false;
 
       // Filter by branch
@@ -687,6 +669,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
         r.fromDate <= dateStr &&
         r.toDate >= dateStr &&
         r.status !== 'Rejected' &&
+        r.status !== 'Cancelled' &&
         isBranchMatch(r.userBranch, selectedBranch)
       );
       const birthdaysOnThisDay = branchStaffBirthdays.filter(b =>
@@ -728,6 +711,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
       r.fromDate <= selectedDateFilter &&
       r.toDate >= selectedDateFilter &&
       r.status !== 'Rejected' &&
+      r.status !== 'Cancelled' &&
       isBranchMatch(r.userBranch, selectedBranch)
     );
     const birthdayItems = !isNaN(moNum) && !isNaN(dyNum)
@@ -1302,13 +1286,17 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : record.status === 'Rejected'
                             ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : record.status === 'Cancelled'
+                              ? 'bg-slate-100 text-slate-600 border border-slate-300'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
                         {record.status === 'Approved'
                           ? '✅ อนุมัติแล้ว'
                           : record.status === 'Rejected'
                             ? '❌ ไม่อนุมัติ'
-                            : '⏳ รออนุมัติ'}
+                            : record.status === 'Cancelled'
+                              ? '🚫 ยกเลิกแล้ว'
+                              : '⏳ รออนุมัติ'}
                       </span>
                     </div>
 
@@ -1324,6 +1312,13 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     <p className="text-[10px] sm:text-[11px] text-slate-600 truncate bg-slate-50 px-2 py-1 rounded">
                       <span className="font-semibold text-slate-700">{record.leaveTypeName}:</span> {record.description || '-'}
                     </p>
+
+                    {record.status === 'Cancelled' && (
+                      <p className="text-[10px] text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                        <span className="font-bold text-slate-700">🚫 ยกเลิกโดย {record.cancelledBy || 'Admin'}:</span>{' '}
+                        {record.cancelReason || '-'}
+                      </p>
+                    )}
 
                     {/* Approve / Reject Controls for Authorized Roles Only (Admin, Owner, Co-founder, Branch Manager) */}
                     {!isPersonalActive && record.status === 'Pending' && (
@@ -1565,6 +1560,7 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
               <option value="Pending">รออนุมัติ</option>
               <option value="Approved">อนุมัติแล้ว</option>
               <option value="Rejected">ไม่อนุมัติ</option>
+              <option value="Cancelled">ยกเลิกแล้ว</option>
             </select>
           </div>
         </div>
@@ -1623,16 +1619,34 @@ export const LeaveDashboard: React.FC<LeaveDashboardProps> = ({
                     <td className="p-2.5 sm:p-3 text-center font-bold text-[#5A8A88] whitespace-nowrap tabular-nums">
                       {item.totalDays} วัน
                     </td>
-                    <td className="p-2.5 sm:p-3 text-slate-600 max-w-xs truncate" title={item.description}>
-                      {item.description || '-'}
+                    <td className="p-2.5 sm:p-3 text-slate-600 max-w-xs" title={item.description}>
+                      <div className="truncate">{item.description || '-'}</div>
+                      {item.status === 'Cancelled' && (
+                        <div className="mt-1 text-[10px] text-slate-500 space-y-0.5">
+                          <div className="truncate font-semibold text-rose-700">
+                            เหตุผลยกเลิก: {item.cancelReason || '-'}
+                          </div>
+                          <div className="truncate">
+                            โดย {item.cancelledBy || 'Admin'}
+                            {item.cancelledAt ? ` · ${item.cancelledAt}` : ''}
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="p-2.5 sm:p-3 text-center whitespace-nowrap">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-2xs ${
                         item.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         item.status === 'Rejected' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        item.status === 'Cancelled' ? 'bg-slate-100 text-slate-600 border border-slate-300' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
-                        {item.status === 'Pending' ? '⏳ รออนุมัติ' : item.status === 'Approved' ? '✅ อนุมัติแล้ว' : '❌ ไม่อนุมัติ'}
+                        {item.status === 'Pending'
+                          ? '⏳ รออนุมัติ'
+                          : item.status === 'Approved'
+                            ? '✅ อนุมัติแล้ว'
+                            : item.status === 'Cancelled'
+                              ? '🚫 ยกเลิกแล้ว'
+                              : '❌ ไม่อนุมัติ'}
                       </span>
                     </td>
                   </tr>
