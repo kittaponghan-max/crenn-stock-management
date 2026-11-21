@@ -13,12 +13,12 @@ import {
   Check,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   Info,
   FolderPlus,
   CalendarDays,
   ChevronDown,
-  Search
+  Search,
+  Pencil
 } from 'lucide-react';
 import { format, startOfWeek, addWeeks, subWeeks, addDays } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -26,6 +26,14 @@ import { BAKERY_PLAN_INITIAL_DATA } from '../bakeryPlanData';
 import { supabase } from '../lib/supabase';
 import { sendLineNotification } from '../lib/lineNotify';
 import { sendDiscordNotification } from '../lib/discordNotify';
+import { SaveButton, useSaveState, useUnsavedChangesGuard } from './ui/SaveButton';
+
+type DropdownOptionKey =
+  | 'mixingUnits'
+  | 'mixingSizes'
+  | 'cuttingTargets'
+  | 'cuttingUnits'
+  | 'itemMenus';
 
 interface BakeryDropdownOptions {
   mixingUnits: string[];
@@ -33,6 +41,7 @@ interface BakeryDropdownOptions {
   cuttingTargets: string[];
   cuttingUnits: string[];
   itemMenus: string[];
+  excluded?: Partial<Record<DropdownOptionKey, string[]>>;
 }
 
 const EMPTY_DROPDOWN_OPTIONS: BakeryDropdownOptions = {
@@ -41,6 +50,7 @@ const EMPTY_DROPDOWN_OPTIONS: BakeryDropdownOptions = {
   cuttingTargets: [],
   cuttingUnits: [],
   itemMenus: [],
+  excluded: {},
 };
 
 const dedupeOptions = (items: Array<string | undefined | null>): string[] => {
@@ -55,11 +65,31 @@ const dedupeOptions = (items: Array<string | undefined | null>): string[] => {
   return result;
 };
 
+const normalizeDropdownOptions = (raw: any): BakeryDropdownOptions => {
+  const excludedRaw = raw?.excluded && typeof raw.excluded === 'object' ? raw.excluded : {};
+  const excluded: Partial<Record<DropdownOptionKey, string[]>> = {};
+  (['mixingUnits', 'mixingSizes', 'cuttingTargets', 'cuttingUnits', 'itemMenus'] as DropdownOptionKey[]).forEach((k) => {
+    if (Array.isArray(excludedRaw[k]) && excludedRaw[k].length > 0) {
+      excluded[k] = dedupeOptions(excludedRaw[k]);
+    }
+  });
+  return {
+    mixingUnits: Array.isArray(raw?.mixingUnits) ? dedupeOptions(raw.mixingUnits) : [],
+    mixingSizes: Array.isArray(raw?.mixingSizes) ? dedupeOptions(raw.mixingSizes) : [],
+    cuttingTargets: Array.isArray(raw?.cuttingTargets) ? dedupeOptions(raw.cuttingTargets) : [],
+    cuttingUnits: Array.isArray(raw?.cuttingUnits) ? dedupeOptions(raw.cuttingUnits) : [],
+    itemMenus: Array.isArray(raw?.itemMenus) ? dedupeOptions(raw.itemMenus) : [],
+    excluded,
+  };
+};
+
 interface CreatableSelectCellProps {
   value: string;
   options: string[];
   onChange: (value: string) => void;
   onAddOption: (newValue: string) => void;
+  onEditOption?: (oldValue: string, newValue: string) => void;
+  onDeleteOption?: (optionValue: string) => void;
   placeholder?: string;
   align?: 'left' | 'center';
   addPlaceholder?: string;
@@ -70,6 +100,8 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
   options,
   onChange,
   onAddOption,
+  onEditOption,
+  onDeleteOption,
   placeholder = 'เลือกหรือเพิ่มรายการ...',
   align = 'left',
   addPlaceholder = 'พิมพ์ชื่อรายการใหม่...',
@@ -77,10 +109,12 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [newItemInput, setNewItemInput] = useState('');
+  const [editingOption, setEditingOption] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
   const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; openUp: boolean }>({
     top: 0,
     left: 0,
-    width: 220,
+    width: 240,
     openUp: false,
   });
 
@@ -88,8 +122,8 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const allOptions = useMemo(
-    () => dedupeOptions([...options, value]),
-    [options, value]
+    () => dedupeOptions(options),
+    [options]
   );
 
   const filteredOptions = useMemo(() => {
@@ -102,7 +136,7 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const menuWidth = Math.max(rect.width, 210);
+    const menuWidth = Math.max(rect.width, 240);
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < 260 && rect.top > spaceBelow;
     const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - menuWidth - 8));
@@ -126,12 +160,19 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
       ) {
         return;
       }
+      setEditingOption(null);
+      setEditingValue('');
       setIsOpen(false);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsOpen(false);
+        if (editingOption !== null) {
+          setEditingOption(null);
+          setEditingValue('');
+        } else {
+          setIsOpen(false);
+        }
       }
     };
 
@@ -148,19 +189,26 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
       window.removeEventListener('resize', handleReposition);
       window.removeEventListener('scroll', handleReposition, true);
     };
-  }, [isOpen]);
+  }, [isOpen, editingOption]);
 
   const handleToggle = () => {
     if (!isOpen) {
       setSearchQuery('');
       setNewItemInput('');
+      setEditingOption(null);
+      setEditingValue('');
       updateMenuPosition();
+    } else {
+      setEditingOption(null);
+      setEditingValue('');
     }
     setIsOpen((prev) => !prev);
   };
 
   const handleSelectOption = (opt: string) => {
     onChange(opt);
+    setEditingOption(null);
+    setEditingValue('');
     setIsOpen(false);
     setSearchQuery('');
     setNewItemInput('');
@@ -171,9 +219,44 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
     if (!trimmed) return;
     onAddOption(trimmed);
     onChange(trimmed);
+    setEditingOption(null);
+    setEditingValue('');
     setIsOpen(false);
     setSearchQuery('');
     setNewItemInput('');
+  };
+
+  const handleStartEdit = (opt: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOption(opt);
+    setEditingValue(opt);
+  };
+
+  const handleCancelEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingOption(null);
+    setEditingValue('');
+  };
+
+  const handleConfirmEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!editingOption) return;
+    const trimmed = editingValue.trim();
+    if (!trimmed) return;
+    if (trimmed !== editingOption) {
+      onEditOption?.(editingOption, trimmed);
+    }
+    setEditingOption(null);
+    setEditingValue('');
+  };
+
+  const handleDeleteOption = (opt: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editingOption === opt) {
+      setEditingOption(null);
+      setEditingValue('');
+    }
+    onDeleteOption?.(opt);
   };
 
   const trimmedSearch = searchQuery.trim();
@@ -254,24 +337,100 @@ const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
             </div>
 
             {/* Option List */}
-            <div className="max-h-[168px] overflow-y-auto py-1 divide-y divide-[#F0F5F4]/60">
+            <div className="max-h-[180px] overflow-y-auto py-1 divide-y divide-[#F0F5F4]/60">
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((opt) => {
                   const isSelected = opt === value;
+                  const isEditingThis = editingOption === opt;
+
+                  if (isEditingThis) {
+                    return (
+                      <div
+                        key={opt}
+                        className="px-2 py-1.5 bg-[#F4F9F8] flex items-center gap-1"
+                      >
+                        <input
+                          type="text"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleConfirmEdit();
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleCancelEdit();
+                            }
+                          }}
+                          className="flex-1 min-w-0 h-[26px] px-2 text-[11px] text-[#2D4A49] bg-white border border-[#5A8A88] rounded-md outline-none"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => handleConfirmEdit(e)}
+                          disabled={!editingValue.trim()}
+                          className="p-1 rounded bg-[#2D4A49] hover:bg-[#203635] text-white disabled:opacity-40 cursor-pointer shrink-0"
+                          title="บันทึกการแก้ไข"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleCancelEdit(e)}
+                          className="p-1 rounded bg-white border border-[#D4E4E3] text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#F0F5F4] cursor-pointer shrink-0"
+                          title="ยกเลิก"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <button
+                    <div
                       key={opt}
-                      type="button"
-                      onClick={() => handleSelectOption(opt)}
-                      className={`w-full px-2.5 py-1.5 text-left text-[11px] flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                      className={`group flex items-center justify-between gap-1 px-2 py-1 transition-colors ${
                         isSelected
                           ? 'bg-[#E8F3F2] text-[#2D4A49] font-bold'
                           : 'text-[#2D4A49] hover:bg-[#F4F9F8]'
                       }`}
                     >
-                      <span className="truncate">{opt}</span>
-                      {isSelected && <Check size={12} className="text-[#5A8A88] shrink-0" />}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectOption(opt)}
+                        className="flex-1 min-w-0 flex items-center gap-1.5 text-left text-[11px] py-0.5 cursor-pointer"
+                      >
+                        <span className="truncate">{opt}</span>
+                        {isSelected && <Check size={12} className="text-[#5A8A88] shrink-0" />}
+                      </button>
+
+                      {(onEditOption || onDeleteOption) && (
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {onEditOption && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleStartEdit(opt, e)}
+                              className="p-1 rounded text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] transition-colors cursor-pointer"
+                              title={`แก้ไข "${opt}"`}
+                            >
+                              <Pencil size={11} />
+                            </button>
+                          )}
+                          {onDeleteOption && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteOption(opt, e)}
+                              className="p-1 rounded text-[#6B8F8E] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title={`ลบ "${opt}"`}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })
               ) : (
@@ -437,18 +596,13 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     return [];
   });
 
+  const effectiveBranch = branch || 'Rayong';
+
   const [dropdownOptions, setDropdownOptions] = useState<BakeryDropdownOptions>(() => {
     const saved = localStorage.getItem('bakeryDropdownOptions');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        return {
-          mixingUnits: Array.isArray(parsed?.mixingUnits) ? parsed.mixingUnits : [],
-          mixingSizes: Array.isArray(parsed?.mixingSizes) ? parsed.mixingSizes : [],
-          cuttingTargets: Array.isArray(parsed?.cuttingTargets) ? parsed.cuttingTargets : [],
-          cuttingUnits: Array.isArray(parsed?.cuttingUnits) ? parsed.cuttingUnits : [],
-          itemMenus: Array.isArray(parsed?.itemMenus) ? parsed.itemMenus : [],
-        };
+        return normalizeDropdownOptions(JSON.parse(saved));
       } catch (e) {}
     }
     return EMPTY_DROPDOWN_OPTIONS;
@@ -459,77 +613,178 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
   const [tempItemSettings, setTempItemSettings] = useState(itemSettings);
   const [tempDropdownOptions, setTempDropdownOptions] = useState<BakeryDropdownOptions>(dropdownOptions);
 
-  const mixingUnitOptions = useMemo(
-    () =>
-      dedupeOptions([
-        ...mixingSettings.map((s) => s.unit),
-        ...tempMixingSettings.map((s) => s.unit),
-        ...tempDropdownOptions.mixingUnits,
-      ]),
-    [mixingSettings, tempMixingSettings, tempDropdownOptions.mixingUnits]
-  );
-
-  const mixingSizeOptions = useMemo(
-    () =>
-      dedupeOptions([
-        ...mixingSettings.map((s) => s.size),
-        ...tempMixingSettings.map((s) => s.size),
-        ...tempDropdownOptions.mixingSizes,
-      ]),
-    [mixingSettings, tempMixingSettings, tempDropdownOptions.mixingSizes]
-  );
-
-  const cuttingTargetOptions = useMemo(
-    () =>
-      dedupeOptions([
-        ...cuttingSettings.map((s) => s.target),
-        ...tempCuttingSettings.map((s) => s.target),
-        ...itemSettings.map((s) => s.targetItem),
-        ...tempItemSettings.map((s) => s.targetItem),
-        ...tempDropdownOptions.cuttingTargets,
-      ]),
-    [cuttingSettings, tempCuttingSettings, itemSettings, tempItemSettings, tempDropdownOptions.cuttingTargets]
-  );
-
-  const cuttingUnitOptions = useMemo(
-    () =>
-      dedupeOptions([
-        ...cuttingSettings.map((s) => s.unit),
-        ...tempCuttingSettings.map((s) => s.unit),
-        ...tempDropdownOptions.cuttingUnits,
-      ]),
-    [cuttingSettings, tempCuttingSettings, tempDropdownOptions.cuttingUnits]
-  );
-
-  const itemMenuOptions = useMemo(
-    () =>
-      dedupeOptions([
-        ...itemSettings.map((s) => s.menu),
-        ...tempItemSettings.map((s) => s.menu),
-        ...(Array.isArray(data?.sales) ? data.sales.map((s: any) => s?.name) : []),
-        ...tempDropdownOptions.itemMenus,
-      ]),
-    [itemSettings, tempItemSettings, data?.sales, tempDropdownOptions.itemMenus]
-  );
-
-  const addCustomDropdownOption = (key: keyof BakeryDropdownOptions, newValue: string) => {
-    const trimmed = newValue.trim();
-    if (!trimmed) return;
-    setTempDropdownOptions((prev) => ({
-      ...prev,
-      [key]: dedupeOptions([...(prev[key] || []), trimmed]),
-    }));
-  };
-
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const {
+    isDirty: isSettingsDirty,
+    setIsDirty: setIsSettingsDirty,
+    isSaving: isSavingSettings,
+    justSaved: justSavedSettings,
+    markDirty: markSettingsDirtyRaw,
+    runSave: runSettingsSave,
+  } = useSaveState({ enableUnloadGuard: false });
 
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  useUnsavedChangesGuard(!isSettingsOpen && isDirty);
+  useUnsavedChangesGuard(isSettingsOpen && isSettingsDirty);
+
   const [saveSettingsError, setSaveSettingsError] = useState<string | null>(null);
+  const [saveSettingsSuccess, setSaveSettingsSuccess] = useState<string | null>(null);
+  const closeSettingsTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeSettingsTimerRef.current !== null) {
+        window.clearTimeout(closeSettingsTimerRef.current);
+      }
+    };
+  }, []);
+
+  const markSettingsDirty = () => {
+    setSaveSettingsError(null);
+    setSaveSettingsSuccess(null);
+    markSettingsDirtyRaw();
+  };
+
+  const getExcludedSet = (key: DropdownOptionKey) =>
+    new Set(tempDropdownOptions.excluded?.[key] || []);
+
+  const mixingUnitOptions = useMemo(() => {
+    const excluded = getExcludedSet('mixingUnits');
+    return dedupeOptions([
+      ...mixingSettings.map((s) => s.unit),
+      ...tempMixingSettings.map((s) => s.unit),
+      ...tempDropdownOptions.mixingUnits,
+    ]).filter((opt) => !excluded.has(opt));
+  }, [mixingSettings, tempMixingSettings, tempDropdownOptions.mixingUnits, tempDropdownOptions.excluded]);
+
+  const mixingSizeOptions = useMemo(() => {
+    const excluded = getExcludedSet('mixingSizes');
+    return dedupeOptions([
+      ...mixingSettings.map((s) => s.size),
+      ...tempMixingSettings.map((s) => s.size),
+      ...tempDropdownOptions.mixingSizes,
+    ]).filter((opt) => !excluded.has(opt));
+  }, [mixingSettings, tempMixingSettings, tempDropdownOptions.mixingSizes, tempDropdownOptions.excluded]);
+
+  const cuttingTargetOptions = useMemo(() => {
+    const excluded = getExcludedSet('cuttingTargets');
+    return dedupeOptions([
+      ...cuttingSettings.map((s) => s.target),
+      ...tempCuttingSettings.map((s) => s.target),
+      ...itemSettings.map((s) => s.targetItem),
+      ...tempItemSettings.map((s) => s.targetItem),
+      ...tempDropdownOptions.cuttingTargets,
+    ]).filter((opt) => !excluded.has(opt));
+  }, [cuttingSettings, tempCuttingSettings, itemSettings, tempItemSettings, tempDropdownOptions.cuttingTargets, tempDropdownOptions.excluded]);
+
+  const cuttingUnitOptions = useMemo(() => {
+    const excluded = getExcludedSet('cuttingUnits');
+    return dedupeOptions([
+      ...cuttingSettings.map((s) => s.unit),
+      ...tempCuttingSettings.map((s) => s.unit),
+      ...tempDropdownOptions.cuttingUnits,
+    ]).filter((opt) => !excluded.has(opt));
+  }, [cuttingSettings, tempCuttingSettings, tempDropdownOptions.cuttingUnits, tempDropdownOptions.excluded]);
+
+  const itemMenuOptions = useMemo(() => {
+    const excluded = getExcludedSet('itemMenus');
+    return dedupeOptions([
+      ...itemSettings.map((s) => s.menu),
+      ...tempItemSettings.map((s) => s.menu),
+      ...(Array.isArray(data?.sales) ? data.sales.map((s: any) => s?.name) : []),
+      ...tempDropdownOptions.itemMenus,
+    ]).filter((opt) => !excluded.has(opt));
+  }, [itemSettings, tempItemSettings, data?.sales, tempDropdownOptions.itemMenus, tempDropdownOptions.excluded]);
+
+  const addCustomDropdownOption = (key: DropdownOptionKey, newValue: string) => {
+    const trimmed = newValue.trim();
+    if (!trimmed) return;
+    setTempDropdownOptions((prev) => {
+      const nextExcluded = { ...(prev.excluded || {}) };
+      if (Array.isArray(nextExcluded[key])) {
+        nextExcluded[key] = nextExcluded[key]!.filter((item) => item !== trimmed);
+      }
+      return {
+        ...prev,
+        [key]: dedupeOptions([...(prev[key] || []), trimmed]),
+        excluded: nextExcluded,
+      };
+    });
+    markSettingsDirty();
+  };
+
+  const editCustomDropdownOption = (key: DropdownOptionKey, oldValue: string, newValue: string) => {
+    const trimmedNew = newValue.trim();
+    if (!trimmedNew || trimmedNew === oldValue) return;
+
+    setTempDropdownOptions((prev) => {
+      const prevList = prev[key] || [];
+      const replacedList = prevList.some((item) => item === oldValue)
+        ? prevList.map((item) => (item === oldValue ? trimmedNew : item))
+        : [...prevList, trimmedNew];
+
+      const prevExcl = prev.excluded?.[key] || [];
+      const nextExclForKey = dedupeOptions([
+        ...prevExcl.filter((item) => item !== trimmedNew),
+        oldValue,
+      ]);
+
+      return {
+        ...prev,
+        [key]: dedupeOptions(replacedList),
+        excluded: {
+          ...(prev.excluded || {}),
+          [key]: nextExclForKey,
+        },
+      };
+    });
+
+    if (key === 'mixingUnits') {
+      setTempMixingSettings((prev) =>
+        prev.map((s) => (s.unit === oldValue ? { ...s, unit: trimmedNew } : s))
+      );
+    } else if (key === 'mixingSizes') {
+      setTempMixingSettings((prev) =>
+        prev.map((s) => (s.size === oldValue ? { ...s, size: trimmedNew } : s))
+      );
+    } else if (key === 'cuttingTargets') {
+      setTempCuttingSettings((prev) =>
+        prev.map((s) => (s.target === oldValue ? { ...s, target: trimmedNew } : s))
+      );
+      setTempItemSettings((prev) =>
+        prev.map((s) => (s.targetItem === oldValue ? { ...s, targetItem: trimmedNew } : s))
+      );
+    } else if (key === 'cuttingUnits') {
+      setTempCuttingSettings((prev) =>
+        prev.map((s) => (s.unit === oldValue ? { ...s, unit: trimmedNew } : s))
+      );
+    } else if (key === 'itemMenus') {
+      setTempItemSettings((prev) =>
+        prev.map((s) => (s.menu === oldValue ? { ...s, menu: trimmedNew } : s))
+      );
+    }
+
+    markSettingsDirty();
+  };
+
+  const deleteCustomDropdownOption = (key: DropdownOptionKey, optionValue: string) => {
+    setTempDropdownOptions((prev) => {
+      const prevList = prev[key] || [];
+      const prevExcl = prev.excluded?.[key] || [];
+      return {
+        ...prev,
+        [key]: prevList.filter((item) => item !== optionValue),
+        excluded: {
+          ...(prev.excluded || {}),
+          [key]: dedupeOptions([...prevExcl, optionValue]),
+        },
+      };
+    });
+    markSettingsDirty();
+  };
 
   const [doughTemplates, setDoughTemplates] = useState<{ id: string, name: string, mixingData: any[] }[]>(() => {
     const saved = localStorage.getItem('bakeryDoughTemplates');
@@ -630,7 +885,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     const fetchLatestSettings = async () => {
       if (!supabase) return;
       try {
-        const { data: dbSettings, error } = await supabase.from('app_settings').select('*').eq('branch', branch);
+        const { data: dbSettings, error } = await supabase.from('app_settings').select('*').eq('branch', effectiveBranch);
         if (error) throw error;
         if (dbSettings && dbSettings.length > 0) {
           dbSettings.forEach((setting: any) => {
@@ -654,14 +909,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
               setDoughTemplates(parsed);
               localStorage.setItem('bakeryDoughTemplates', JSON.stringify(parsed));
             } else if (setting.setting_key === 'bakery_dropdown_options') {
-              const parsed = setting.setting_value;
-              const normalized: BakeryDropdownOptions = {
-                mixingUnits: Array.isArray(parsed?.mixingUnits) ? parsed.mixingUnits : [],
-                mixingSizes: Array.isArray(parsed?.mixingSizes) ? parsed.mixingSizes : [],
-                cuttingTargets: Array.isArray(parsed?.cuttingTargets) ? parsed.cuttingTargets : [],
-                cuttingUnits: Array.isArray(parsed?.cuttingUnits) ? parsed.cuttingUnits : [],
-                itemMenus: Array.isArray(parsed?.itemMenus) ? parsed.itemMenus : [],
-              };
+              const normalized = normalizeDropdownOptions(setting.setting_value);
               setDropdownOptions(normalized);
               setTempDropdownOptions(normalized);
               localStorage.setItem('bakeryDropdownOptions', JSON.stringify(normalized));
@@ -674,7 +922,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     };
 
     fetchLatestSettings();
-  }, [branch]);
+  }, [effectiveBranch]);
 
   const saveDoughTemplates = async (newTemplates: { id: string, name: string, mixingData: any[] }[]) => {
     if (newTemplates.length > 20) {
@@ -686,7 +934,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     if (supabase) {
       await supabase.from('app_settings').upsert([
         { 
-          branch, setting_key: 'bakery_dough_templates', 
+          branch: effectiveBranch, setting_key: 'bakery_dough_templates', 
           setting_value: newTemplates,
           updated_at: new Date().toISOString() 
         }
@@ -871,14 +1119,17 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
       } catch (e) {}
 
       if (supabase) {
-        await supabase.from('bakery_plan_records').upsert({ 
-          branch,
+        const { error: upsertError } = await supabase.from('bakery_plan_records').upsert({ 
+          branch: effectiveBranch,
           week_key: newRecord.weekKey,
           week_label: newRecord.weekLabel,
           saved_at: newRecord.savedAt,
           user_name: newRecord.user,
           plan_data: newRecord.data
         }, { onConflict: 'week_key,branch' });
+        if (upsertError) {
+          throw upsertError;
+        }
       }
 
       // LINE Notification
@@ -905,7 +1156,6 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
 
       setIsDirty(false);
       setJustSaved(true);
-      setShowSaveSuccess(true);
       setSaveStatus({
         type: 'success',
         message: `บันทึกข้อมูลแผนงาน Bakery สัปดาห์ ${newRecord.weekLabel} เรียบร้อยแล้ว`
@@ -913,8 +1163,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
 
       setTimeout(() => {
         setJustSaved(false);
-        setShowSaveSuccess(false);
-      }, 3000);
+      }, 2500);
       setTimeout(() => setSaveStatus(null), 4000);
     } catch (err: any) {
       console.warn('Failed to save bakery plan:', err);
@@ -928,85 +1177,147 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     }
   };
 
-  const executeSave = handleSave;
-
   const openSettings = () => {
+    if (closeSettingsTimerRef.current !== null) {
+      window.clearTimeout(closeSettingsTimerRef.current);
+      closeSettingsTimerRef.current = null;
+    }
     setTempMixingSettings(mixingSettings);
     setTempCuttingSettings(cuttingSettings);
     setTempItemSettings(itemSettings);
     setTempDropdownOptions(dropdownOptions);
+    setSaveSettingsError(null);
+    setSaveSettingsSuccess(null);
+    setIsSettingsDirty(false);
     setIsSettingsOpen(true);
   };
 
-  const handleSaveSettings = async () => {
-    setIsSavingSettings(true);
+  const closeSettings = () => {
+    if (isSavingSettings) return;
+    if (closeSettingsTimerRef.current !== null) {
+      window.clearTimeout(closeSettingsTimerRef.current);
+      closeSettingsTimerRef.current = null;
+    }
     setSaveSettingsError(null);
+    setSaveSettingsSuccess(null);
+    setIsSettingsDirty(false);
+    setIsSettingsOpen(false);
+  };
+
+  const handleSaveSettings = async () => {
+    if (isSavingSettings) return;
+    if (closeSettingsTimerRef.current !== null) {
+      window.clearTimeout(closeSettingsTimerRef.current);
+      closeSettingsTimerRef.current = null;
+    }
+    setSaveSettingsError(null);
+    setSaveSettingsSuccess(null);
+
     try {
-      const mergedDropdownOptions: BakeryDropdownOptions = {
-        mixingUnits: dedupeOptions([...tempDropdownOptions.mixingUnits, ...tempMixingSettings.map((s) => s.unit)]),
-        mixingSizes: dedupeOptions([...tempDropdownOptions.mixingSizes, ...tempMixingSettings.map((s) => s.size)]),
-        cuttingTargets: dedupeOptions([...tempDropdownOptions.cuttingTargets, ...tempCuttingSettings.map((s) => s.target)]),
-        cuttingUnits: dedupeOptions([...tempDropdownOptions.cuttingUnits, ...tempCuttingSettings.map((s) => s.unit)]),
-        itemMenus: dedupeOptions([...tempDropdownOptions.itemMenus, ...tempItemSettings.map((s) => s.menu)]),
-      };
+      await runSettingsSave(async () => {
+        const excludedMap = tempDropdownOptions.excluded || {};
+        const filterExcluded = (key: DropdownOptionKey, items: string[]) => {
+          const excludedSet = new Set(excludedMap[key] || []);
+          return dedupeOptions(items).filter((opt) => !excludedSet.has(opt));
+        };
 
-      setMixingSettings(tempMixingSettings);
-      setCuttingSettings(tempCuttingSettings);
-      setItemSettings(tempItemSettings);
-      setDropdownOptions(mergedDropdownOptions);
-      setTempDropdownOptions(mergedDropdownOptions);
+        const mergedDropdownOptions: BakeryDropdownOptions = {
+          mixingUnits: filterExcluded('mixingUnits', [
+            ...tempDropdownOptions.mixingUnits,
+            ...tempMixingSettings.map((s) => s.unit),
+          ]),
+          mixingSizes: filterExcluded('mixingSizes', [
+            ...tempDropdownOptions.mixingSizes,
+            ...tempMixingSettings.map((s) => s.size),
+          ]),
+          cuttingTargets: filterExcluded('cuttingTargets', [
+            ...tempDropdownOptions.cuttingTargets,
+            ...tempCuttingSettings.map((s) => s.target),
+          ]),
+          cuttingUnits: filterExcluded('cuttingUnits', [
+            ...tempDropdownOptions.cuttingUnits,
+            ...tempCuttingSettings.map((s) => s.unit),
+          ]),
+          itemMenus: filterExcluded('itemMenus', [
+            ...tempDropdownOptions.itemMenus,
+            ...tempItemSettings.map((s) => s.menu),
+          ]),
+          excluded: excludedMap,
+        };
 
-      localStorage.setItem('bakeryMixingSettings', JSON.stringify(tempMixingSettings));
-      localStorage.setItem('bakeryCuttingSettings', JSON.stringify(tempCuttingSettings));
-      localStorage.setItem('bakeryItemSettings', JSON.stringify(tempItemSettings));
-      localStorage.setItem('bakeryDropdownOptions', JSON.stringify(mergedDropdownOptions));
+        setMixingSettings(tempMixingSettings);
+        setCuttingSettings(tempCuttingSettings);
+        setItemSettings(tempItemSettings);
+        setDropdownOptions(mergedDropdownOptions);
+        setTempDropdownOptions(mergedDropdownOptions);
 
-      if (supabase) {
-        const { error } = await supabase.from('app_settings').upsert([
-          { 
-            branch, setting_key: 'bakery_mixing_settings', 
-            setting_value: tempMixingSettings,
-            updated_at: new Date().toISOString() 
-          },
-          { 
-            branch, setting_key: 'bakery_cutting_settings', 
-            setting_value: tempCuttingSettings,
-            updated_at: new Date().toISOString() 
-          },
-          { 
-            branch, setting_key: 'bakery_item_settings', 
-            setting_value: tempItemSettings,
-            updated_at: new Date().toISOString() 
-          },
-          {
-            branch, setting_key: 'bakery_dropdown_options',
-            setting_value: mergedDropdownOptions,
-            updated_at: new Date().toISOString()
+        localStorage.setItem('bakeryMixingSettings', JSON.stringify(tempMixingSettings));
+        localStorage.setItem('bakeryCuttingSettings', JSON.stringify(tempCuttingSettings));
+        localStorage.setItem('bakeryItemSettings', JSON.stringify(tempItemSettings));
+        localStorage.setItem('bakeryDropdownOptions', JSON.stringify(mergedDropdownOptions));
+
+        if (supabase) {
+          const nowIso = new Date().toISOString();
+          const { error } = await supabase.from('app_settings').upsert([
+            {
+              branch: effectiveBranch,
+              setting_key: 'bakery_mixing_settings',
+              setting_value: tempMixingSettings,
+              updated_at: nowIso,
+            },
+            {
+              branch: effectiveBranch,
+              setting_key: 'bakery_cutting_settings',
+              setting_value: tempCuttingSettings,
+              updated_at: nowIso,
+            },
+            {
+              branch: effectiveBranch,
+              setting_key: 'bakery_item_settings',
+              setting_value: tempItemSettings,
+              updated_at: nowIso,
+            },
+            {
+              branch: effectiveBranch,
+              setting_key: 'bakery_dropdown_options',
+              setting_value: mergedDropdownOptions,
+              updated_at: nowIso,
+            },
+          ], { onConflict: 'branch,setting_key' });
+
+          if (error) {
+            throw new Error(`บันทึกลงเครื่องแล้ว แต่ไม่สามารถซิงก์ขึ้น Supabase ได้: ${error.message}`);
           }
-        ], { onConflict: 'branch,setting_key' });
-        
-        if (error) {
-          console.warn("Failed to save settings to Supabase, but saved locally:", error);
-        } else {
+
           try {
             await supabase.from('audit_logs').insert({
               id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
-              branch,
-              timestamp: new Date().toISOString(),
+              branch: effectiveBranch,
+              timestamp: nowIso,
               user_email: 'Admin',
               user_role: 'Admin',
               action: 'อัปเดตการตั้งค่าสัดส่วนเบเกอรี่',
-              details: `แก้ไขสูตรผสมโด และการตั้งค่า Loss ใน Supabase คลาวด์เรียบร้อย`
+              details: `แก้ไขสูตรผสมโด และการตั้งค่า Loss ใน Supabase คลาวด์เรียบร้อย`,
             });
           } catch (e) {}
         }
-      }
-      setIsSettingsOpen(false);
+      });
+
+      setSaveSettingsSuccess('บันทึกการตั้งค่าเรียบร้อยแล้ว');
+      setSaveStatus({
+        type: 'success',
+        message: 'บันทึกการตั้งค่าระบบแผนงาน Bakery เรียบร้อยแล้ว',
+      });
+      window.setTimeout(() => setSaveStatus(null), 3500);
+
+      closeSettingsTimerRef.current = window.setTimeout(() => {
+        setIsSettingsOpen(false);
+        setSaveSettingsSuccess(null);
+        closeSettingsTimerRef.current = null;
+      }, 900);
     } catch (err: any) {
       console.warn(err);
-      setSaveSettingsError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-    } finally {
-      setIsSavingSettings(false);
+      setSaveSettingsError(err?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     }
   };
 
@@ -1642,41 +1953,16 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
             )}
 
             {!isReadOnly && (
-              <button
-                type="button"
+              <SaveButton
                 onClick={handleSave}
-                disabled={isSaving}
-                className={`flex items-center gap-1.5 text-white text-[11px] sm:text-[12px] font-[600] rounded-[8px] px-3.5 py-[6px] h-[32px] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap ${
-                  justSaved
-                    ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/50'
-                    : isDirty 
-                      ? 'bg-[#1E3A39] hover:bg-[#162D2C] ring-2 ring-amber-400/70' 
-                      : 'bg-[#2D4A49] hover:bg-[#203635]'
-                }`}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin" />
-                    <span>กำลังบันทึก...</span>
-                  </>
-                ) : justSaved ? (
-                  <>
-                    <CheckCircle2 size={13} className="text-white" />
-                    <span>บันทึกสำเร็จ</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={13} />
-                    <span>บันทึกข้อมูล</span>
-                    {isDirty && (
-                      <span 
-                        className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" 
-                        title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" 
-                      />
-                    )}
-                  </>
-                )}
-              </button>
+                isSaving={isSaving}
+                isDirty={isDirty}
+                justSaved={justSaved}
+                label="บันทึกข้อมูล"
+                savingLabel="กำลังบันทึก..."
+                savedLabel="บันทึกสำเร็จ"
+                dirtyTooltip="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก"
+              />
             )}
           </div>
 
@@ -2141,7 +2427,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
 
       {/* ── SETTINGS MODAL ───────────────────────── */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200" onClick={() => setIsSettingsOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200" onClick={closeSettings}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-[#D4E4E3] animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-3.5 border-b border-[#D4E4E3] bg-[#F8FAF9]">
               <h3 className="text-[14px] font-bold text-[#2D4A49] flex items-center gap-2">
@@ -2149,8 +2435,10 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 ตั้งค่าระบบ (Settings)
               </h3>
               <button 
-                onClick={() => setIsSettingsOpen(false)}
-                className="p-1 text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg transition-colors cursor-pointer"
+                type="button"
+                onClick={closeSettings}
+                disabled={isSavingSettings}
+                className="p-1 text-[#6B8F8E] hover:text-[#2D4A49] hover:bg-[#E8F3F2] rounded-lg transition-colors cursor-pointer disabled:opacity-40"
               >
                 <X size={16} />
               </button>
@@ -2162,9 +2450,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 <div className="flex items-center justify-between mb-1.5">
                   <h4 className="text-[13px] font-bold text-[#2D4A49]">1. รายการ ตี Dough (Mixing)</h4>
                   <button 
+                    type="button"
                     onClick={() => {
                       const newId = Date.now().toString();
                       setTempMixingSettings([...tempMixingSettings, { id: newId, name: '', unit: '', size: '' }]);
+                      markSettingsDirty();
                     }}
                     className="text-[#5A8A88] hover:text-[#4A7876] text-[11px] flex items-center gap-1 font-semibold bg-[#E8F3F2] hover:bg-[#B8D4D2] px-2 py-1 rounded-md border border-[#D4E4E3] cursor-pointer"
                   >
@@ -2190,7 +2480,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                         <tr key={setting.id} className="hover:bg-[#F8FAF9]">
                           <td className="px-1.5 py-1.5 text-center">
                             <button 
-                              onClick={() => setTempMixingSettings(prev => prev.filter(s => s.id !== setting.id))}
+                              type="button"
+                              onClick={() => {
+                                setTempMixingSettings(prev => prev.filter(s => s.id !== setting.id));
+                                markSettingsDirty();
+                              }}
                               className="p-1 text-[#EF4444] hover:bg-[#FEE2E2] rounded transition-colors cursor-pointer"
                               title="ลบ"
                             >
@@ -2201,7 +2495,10 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <input 
                               type="text" 
                               value={setting.name}
-                              onChange={(e) => setTempMixingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, name: e.target.value } : s))}
+                              onChange={(e) => {
+                                setTempMixingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, name: e.target.value } : s));
+                                markSettingsDirty();
+                              }}
                               className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 bg-white outline-none"
                               placeholder="เช่น ครัวซองค์"
                             />
@@ -2210,12 +2507,15 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <CreatableSelectCell
                               value={setting.unit}
                               options={mixingUnitOptions}
-                              onChange={(val) =>
+                              onChange={(val) => {
                                 setTempMixingSettings((prev) =>
                                   prev.map((s) => (s.id === setting.id ? { ...s, unit: val } : s))
-                                )
-                              }
+                                );
+                                markSettingsDirty();
+                              }}
                               onAddOption={(newVal) => addCustomDropdownOption('mixingUnits', newVal)}
+                              onEditOption={(oldVal, newVal) => editCustomDropdownOption('mixingUnits', oldVal, newVal)}
+                              onDeleteOption={(opt) => deleteCustomDropdownOption('mixingUnits', opt)}
                               placeholder="เลือกหน่วยต่อสูตร..."
                               addPlaceholder="เช่น Dough, ก้อน, Loaf..."
                             />
@@ -2224,12 +2524,15 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <CreatableSelectCell
                               value={setting.size}
                               options={mixingSizeOptions}
-                              onChange={(val) =>
+                              onChange={(val) => {
                                 setTempMixingSettings((prev) =>
                                   prev.map((s) => (s.id === setting.id ? { ...s, size: val } : s))
-                                )
-                              }
+                                );
+                                markSettingsDirty();
+                              }}
                               onAddOption={(newVal) => addCustomDropdownOption('mixingSizes', newVal)}
+                              onEditOption={(oldVal, newVal) => editCustomDropdownOption('mixingSizes', oldVal, newVal)}
+                              onDeleteOption={(opt) => deleteCustomDropdownOption('mixingSizes', opt)}
                               placeholder="เลือกขนาดต่อสูตร..."
                               addPlaceholder="เช่น 4 kg, 2 ปอนด์..."
                             />
@@ -2253,9 +2556,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 <div className="flex items-center justify-between mb-1.5">
                   <h4 className="text-[13px] font-bold text-[#2D4A49]">2. รายการ ตัด Dough (Cutting Ratios)</h4>
                   <button 
+                    type="button"
                     onClick={() => {
                       const newId = Date.now().toString();
                       setTempCuttingSettings([...tempCuttingSettings, { id: newId, sourceDough: '', target: '', ratio: 1, unit: '' }]);
+                      markSettingsDirty();
                     }}
                     className="text-[#5A8A88] hover:text-[#4A7876] text-[11px] flex items-center gap-1 font-semibold bg-[#E8F3F2] hover:bg-[#B8D4D2] px-2 py-1 rounded-md border border-[#D4E4E3] cursor-pointer"
                   >
@@ -2282,7 +2587,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                         <tr key={setting.id} className="hover:bg-[#F8FAF9]">
                           <td className="px-1.5 py-1.5 text-center">
                             <button 
-                              onClick={() => setTempCuttingSettings(prev => prev.filter(s => s.id !== setting.id))}
+                              type="button"
+                              onClick={() => {
+                                setTempCuttingSettings(prev => prev.filter(s => s.id !== setting.id));
+                                markSettingsDirty();
+                              }}
                               className="p-1 text-[#EF4444] hover:bg-[#FEE2E2] rounded transition-colors cursor-pointer"
                               title="ลบ"
                             >
@@ -2292,7 +2601,10 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                           <td className="px-2 py-1.5">
                             <select 
                               value={setting.sourceDough}
-                              onChange={(e) => setTempCuttingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, sourceDough: e.target.value } : s))}
+                              onChange={(e) => {
+                                setTempCuttingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, sourceDough: e.target.value } : s));
+                                markSettingsDirty();
+                              }}
                               className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 bg-white outline-none"
                             >
                               <option value="">เลือกจากรายการที่ตี...</option>
@@ -2305,12 +2617,15 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <CreatableSelectCell
                               value={setting.target}
                               options={cuttingTargetOptions}
-                              onChange={(val) =>
+                              onChange={(val) => {
                                 setTempCuttingSettings((prev) =>
                                   prev.map((s) => (s.id === setting.id ? { ...s, target: val } : s))
-                                )
-                              }
+                                );
+                                markSettingsDirty();
+                              }}
                               onAddOption={(newVal) => addCustomDropdownOption('cuttingTargets', newVal)}
+                              onEditOption={(oldVal, newVal) => editCustomDropdownOption('cuttingTargets', oldVal, newVal)}
+                              onDeleteOption={(opt) => deleteCustomDropdownOption('cuttingTargets', opt)}
                               placeholder="เลือกหรือเพิ่มรายการ..."
                               addPlaceholder="เช่น ครัวซองค์เนยสด..."
                             />
@@ -2319,7 +2634,10 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <input 
                               type="number" 
                               value={setting.ratio}
-                              onChange={(e) => setTempCuttingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, ratio: Number(e.target.value) } : s))}
+                              onChange={(e) => {
+                                setTempCuttingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, ratio: Number(e.target.value) } : s));
+                                markSettingsDirty();
+                              }}
                               className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 text-center bg-white outline-none"
                               min={1}
                             />
@@ -2328,12 +2646,15 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <CreatableSelectCell
                               value={setting.unit}
                               options={cuttingUnitOptions}
-                              onChange={(val) =>
+                              onChange={(val) => {
                                 setTempCuttingSettings((prev) =>
                                   prev.map((s) => (s.id === setting.id ? { ...s, unit: val } : s))
-                                )
-                              }
+                                );
+                                markSettingsDirty();
+                              }}
                               onAddOption={(newVal) => addCustomDropdownOption('cuttingUnits', newVal)}
+                              onEditOption={(oldVal, newVal) => editCustomDropdownOption('cuttingUnits', oldVal, newVal)}
+                              onDeleteOption={(opt) => deleteCustomDropdownOption('cuttingUnits', opt)}
                               placeholder="เลือกหน่วย..."
                               align="center"
                               addPlaceholder="เช่น ชิ้น, ก้อน, ถาด..."
@@ -2358,9 +2679,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                 <div className="flex items-center justify-between mb-1.5">
                   <h4 className="text-[13px] font-bold text-[#2D4A49]">3. ชิ้น/unit (item output)</h4>
                   <button 
+                    type="button"
                     onClick={() => {
                       const newId = Date.now().toString();
                       setTempItemSettings([...tempItemSettings, { id: newId, targetItem: '', menu: '' }]);
+                      markSettingsDirty();
                     }}
                     className="text-[#5A8A88] hover:text-[#4A7876] text-[11px] flex items-center gap-1 font-semibold bg-[#E8F3F2] hover:bg-[#B8D4D2] px-2 py-1 rounded-md border border-[#D4E4E3] cursor-pointer"
                   >
@@ -2385,7 +2708,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                         <tr key={setting.id} className="hover:bg-[#F8FAF9]">
                           <td className="px-1.5 py-1.5 text-center w-[5%] min-w-[48px]">
                             <button 
-                              onClick={() => setTempItemSettings(prev => prev.filter(s => s.id !== setting.id))}
+                              type="button"
+                              onClick={() => {
+                                setTempItemSettings(prev => prev.filter(s => s.id !== setting.id));
+                                markSettingsDirty();
+                              }}
                               className="p-1 text-[#EF4444] hover:bg-[#FEE2E2] rounded transition-colors cursor-pointer"
                               title="ลบ"
                             >
@@ -2395,7 +2722,10 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                           <td className="px-2 py-1.5">
                             <select 
                               value={setting.targetItem}
-                              onChange={(e) => setTempItemSettings(prev => prev.map(s => s.id === setting.id ? { ...s, targetItem: e.target.value } : s))}
+                              onChange={(e) => {
+                                setTempItemSettings(prev => prev.map(s => s.id === setting.id ? { ...s, targetItem: e.target.value } : s));
+                                markSettingsDirty();
+                              }}
                               className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2.5 bg-white outline-none"
                             >
                               <option value="">เลือกจากรายการที่ตัด...</option>
@@ -2408,12 +2738,15 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             <CreatableSelectCell
                               value={setting.menu}
                               options={itemMenuOptions}
-                              onChange={(val) =>
+                              onChange={(val) => {
                                 setTempItemSettings((prev) =>
                                   prev.map((s) => (s.id === setting.id ? { ...s, menu: val } : s))
-                                )
-                              }
+                                );
+                                markSettingsDirty();
+                              }}
                               onAddOption={(newVal) => addCustomDropdownOption('itemMenus', newVal)}
+                              onEditOption={(oldVal, newVal) => editCustomDropdownOption('itemMenus', oldVal, newVal)}
+                              onDeleteOption={(opt) => deleteCustomDropdownOption('itemMenus', opt)}
                               placeholder="เลือกหรือเพิ่มเมนู..."
                               addPlaceholder="เช่น ครัวซองค์เนยสด..."
                             />
@@ -2440,36 +2773,40 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
             </div>
 
             {saveSettingsError && (
-              <div className="px-4 py-2 bg-[#FEE2E2] text-[#EF4444] text-[11px] font-semibold border-t border-[#D4E4E3] flex items-center gap-1.5">
-                <span>⚠️ {saveSettingsError}</span>
+              <div className="px-4 py-2 bg-rose-50 text-rose-700 text-[11px] font-semibold border-t border-rose-200 flex items-center gap-1.5">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{saveSettingsError}</span>
+              </div>
+            )}
+
+            {saveSettingsSuccess && !saveSettingsError && (
+              <div className="px-4 py-2 bg-[#E8F3F2] text-[#2D4A49] text-[11px] font-semibold border-t border-[#D4E4E3] flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                <span>{saveSettingsSuccess}</span>
               </div>
             )}
 
             <div className="p-3 border-t border-[#D4E4E3] bg-[#F8FAF9] flex justify-end gap-2 items-center">
               <button 
-                onClick={() => setIsSettingsOpen(false)}
+                type="button"
+                onClick={closeSettings}
                 disabled={isSavingSettings}
-                className="px-3 py-1.5 text-[11px] font-semibold text-[#6B8F8E] hover:text-[#2D4A49] bg-white border border-[#D4E4E3] rounded-lg hover:bg-[#F0F5F4] transition-colors disabled:opacity-50 cursor-pointer"
+                className="h-[32px] px-3.5 text-[11px] sm:text-[12px] font-medium text-[#6B8F8E] hover:text-[#2D4A49] bg-white border border-[#D4E4E3] rounded-[8px] hover:bg-[#F0F5F4] transition-colors disabled:opacity-50 cursor-pointer"
               >
                 ปิด
               </button>
-              <button 
-                onClick={handleSaveSettings}
-                disabled={isSavingSettings}
-                className="px-3.5 py-1.5 text-[11px] font-semibold text-white bg-[#2D4A49] hover:bg-[#203635] rounded-lg transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {isSavingSettings ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin text-white" />
-                    <span>กำลังบันทึกและซิงก์ข้อมูล...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={13} />
-                    <span>บันทึกการตั้งค่า</span>
-                  </>
-                )}
-              </button>
+              <SaveButton
+                onClick={() => {
+                  void handleSaveSettings();
+                }}
+                isSaving={isSavingSettings}
+                isDirty={isSettingsDirty}
+                justSaved={justSavedSettings}
+                label="บันทึกการตั้งค่า"
+                savingLabel="กำลังบันทึก..."
+                savedLabel="บันทึกสำเร็จ"
+                dirtyTooltip="มีการแก้ไขการตั้งค่าที่ยังไม่ได้บันทึก"
+              />
             </div>
           </div>
         </div>
