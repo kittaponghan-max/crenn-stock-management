@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Calendar as CalendarIcon, 
   Save, 
@@ -16,7 +17,8 @@ import {
   Info,
   FolderPlus,
   CalendarDays,
-  ChevronDown
+  ChevronDown,
+  Search
 } from 'lucide-react';
 import { format, startOfWeek, addWeeks, subWeeks, addDays } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -24,6 +26,308 @@ import { BAKERY_PLAN_INITIAL_DATA } from '../bakeryPlanData';
 import { supabase } from '../lib/supabase';
 import { sendLineNotification } from '../lib/lineNotify';
 import { sendDiscordNotification } from '../lib/discordNotify';
+
+interface BakeryDropdownOptions {
+  mixingUnits: string[];
+  mixingSizes: string[];
+  cuttingTargets: string[];
+  cuttingUnits: string[];
+  itemMenus: string[];
+}
+
+const EMPTY_DROPDOWN_OPTIONS: BakeryDropdownOptions = {
+  mixingUnits: [],
+  mixingSizes: [],
+  cuttingTargets: [],
+  cuttingUnits: [],
+  itemMenus: [],
+};
+
+const dedupeOptions = (items: Array<string | undefined | null>): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  items.forEach((raw) => {
+    const val = String(raw || '').trim();
+    if (!val || seen.has(val)) return;
+    seen.add(val);
+    result.push(val);
+  });
+  return result;
+};
+
+interface CreatableSelectCellProps {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  onAddOption: (newValue: string) => void;
+  placeholder?: string;
+  align?: 'left' | 'center';
+  addPlaceholder?: string;
+}
+
+const CreatableSelectCell: React.FC<CreatableSelectCellProps> = ({
+  value,
+  options,
+  onChange,
+  onAddOption,
+  placeholder = 'เลือกหรือเพิ่มรายการ...',
+  align = 'left',
+  addPlaceholder = 'พิมพ์ชื่อรายการใหม่...',
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newItemInput, setNewItemInput] = useState('');
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; openUp: boolean }>({
+    top: 0,
+    left: 0,
+    width: 220,
+    openUp: false,
+  });
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const allOptions = useMemo(
+    () => dedupeOptions([...options, value]),
+    [options, value]
+  );
+
+  const filteredOptions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return allOptions;
+    return allOptions.filter((opt) => opt.toLowerCase().includes(q));
+  }, [allOptions, searchQuery]);
+
+  const updateMenuPosition = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const menuWidth = Math.max(rect.width, 210);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < 260 && rect.top > spaceBelow;
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - menuWidth - 8));
+    setMenuPos({
+      top: openUp ? rect.top - 4 : rect.bottom + 4,
+      left,
+      width: menuWidth,
+      openUp,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateMenuPosition();
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    const handleReposition = () => updateMenuPosition();
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [isOpen]);
+
+  const handleToggle = () => {
+    if (!isOpen) {
+      setSearchQuery('');
+      setNewItemInput('');
+      updateMenuPosition();
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  const handleSelectOption = (opt: string) => {
+    onChange(opt);
+    setIsOpen(false);
+    setSearchQuery('');
+    setNewItemInput('');
+  };
+
+  const handleCreateOption = (rawText: string) => {
+    const trimmed = rawText.trim();
+    if (!trimmed) return;
+    onAddOption(trimmed);
+    onChange(trimmed);
+    setIsOpen(false);
+    setSearchQuery('');
+    setNewItemInput('');
+  };
+
+  const trimmedSearch = searchQuery.trim();
+  const canCreateFromSearch =
+    Boolean(trimmedSearch) && !allOptions.some((opt) => opt === trimmedSearch);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={handleToggle}
+        className={`w-full text-[11px] text-[#2D4A49] border rounded-md py-1 px-2 bg-white outline-none flex items-center justify-between gap-1.5 cursor-pointer transition-colors ${
+          isOpen
+            ? 'border-[#5A8A88] ring-2 ring-[#5A8A88]/15'
+            : 'border-[#D4E4E3] hover:border-[#5A8A88]'
+        }`}
+        title={value || placeholder}
+      >
+        <span
+          className={`truncate flex-1 ${
+            align === 'center' ? 'text-center' : 'text-left'
+          } ${value ? 'text-[#2D4A49] font-medium' : 'text-slate-400'}`}
+        >
+          {value || placeholder}
+        </span>
+        <ChevronDown
+          size={13}
+          className={`text-[#5A8A88] shrink-0 transition-transform duration-150 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: menuPos.openUp ? undefined : menuPos.top,
+              bottom: menuPos.openUp ? window.innerHeight - menuPos.top : undefined,
+              left: menuPos.left,
+              width: menuPos.width,
+              zIndex: 200,
+            }}
+            className="bg-white border border-[#D4E4E3] rounded-xl shadow-[0_10px_28px_rgba(45,74,73,0.16)] overflow-hidden flex flex-col animate-in fade-in duration-100"
+          >
+            {/* Search Box */}
+            <div className="p-2 border-b border-[#E8F3F2] bg-[#F8FAF9]">
+              <div className="relative">
+                <Search
+                  size={12}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-[#6B8F8E] pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (canCreateFromSearch) {
+                        handleCreateOption(trimmedSearch);
+                      } else if (filteredOptions.length === 1) {
+                        handleSelectOption(filteredOptions[0]);
+                      }
+                    }
+                  }}
+                  placeholder="ค้นหาในรายการ..."
+                  className="w-full h-[28px] pl-6 pr-2 text-[11px] text-[#2D4A49] bg-white border border-[#D4E4E3] rounded-md outline-none focus:border-[#5A8A88]"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Option List */}
+            <div className="max-h-[168px] overflow-y-auto py-1 divide-y divide-[#F0F5F4]/60">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((opt) => {
+                  const isSelected = opt === value;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => handleSelectOption(opt)}
+                      className={`w-full px-2.5 py-1.5 text-left text-[11px] flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#E8F3F2] text-[#2D4A49] font-bold'
+                          : 'text-[#2D4A49] hover:bg-[#F4F9F8]'
+                      }`}
+                    >
+                      <span className="truncate">{opt}</span>
+                      {isSelected && <Check size={12} className="text-[#5A8A88] shrink-0" />}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="px-2.5 py-2.5 text-center text-[10px] text-[#6B8F8E]">
+                  ไม่พบรายการที่ค้นหา
+                </div>
+              )}
+
+              {canCreateFromSearch && (
+                <button
+                  type="button"
+                  onClick={() => handleCreateOption(trimmedSearch)}
+                  className="w-full px-2.5 py-2 text-left text-[11px] font-bold text-[#2D4A49] bg-[#E8F3F2]/70 hover:bg-[#E8F3F2] flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <PlusCircle size={13} className="text-[#5A8A88] shrink-0" />
+                  <span className="truncate">เพิ่ม &ldquo;{trimmedSearch}&rdquo;</span>
+                </button>
+              )}
+            </div>
+
+            {/* Dedicated Add New Item Bar */}
+            <div className="p-2 border-t border-[#D4E4E3] bg-[#F8FAF9] space-y-1">
+              <div className="text-[9.5px] font-semibold text-[#5A8A88] flex items-center gap-1">
+                <PlusCircle size={11} />
+                <span>เพิ่ม / สร้างรายการใหม่</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={newItemInput}
+                  onChange={(e) => setNewItemInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCreateOption(newItemInput);
+                    }
+                  }}
+                  placeholder={addPlaceholder}
+                  className="flex-1 min-w-0 h-[27px] px-2 text-[11px] text-[#2D4A49] bg-white border border-[#D4E4E3] rounded-md outline-none focus:border-[#5A8A88]"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCreateOption(newItemInput)}
+                  disabled={!newItemInput.trim()}
+                  className="h-[27px] px-2 rounded-md bg-[#2D4A49] hover:bg-[#203635] text-white text-[10px] font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  เพิ่ม
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+};
 
 interface BakeryPlanProps { 
   branch?: string;
@@ -133,9 +437,89 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     return [];
   });
 
+  const [dropdownOptions, setDropdownOptions] = useState<BakeryDropdownOptions>(() => {
+    const saved = localStorage.getItem('bakeryDropdownOptions');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          mixingUnits: Array.isArray(parsed?.mixingUnits) ? parsed.mixingUnits : [],
+          mixingSizes: Array.isArray(parsed?.mixingSizes) ? parsed.mixingSizes : [],
+          cuttingTargets: Array.isArray(parsed?.cuttingTargets) ? parsed.cuttingTargets : [],
+          cuttingUnits: Array.isArray(parsed?.cuttingUnits) ? parsed.cuttingUnits : [],
+          itemMenus: Array.isArray(parsed?.itemMenus) ? parsed.itemMenus : [],
+        };
+      } catch (e) {}
+    }
+    return EMPTY_DROPDOWN_OPTIONS;
+  });
+
   const [tempMixingSettings, setTempMixingSettings] = useState(mixingSettings);
   const [tempCuttingSettings, setTempCuttingSettings] = useState(cuttingSettings);
   const [tempItemSettings, setTempItemSettings] = useState(itemSettings);
+  const [tempDropdownOptions, setTempDropdownOptions] = useState<BakeryDropdownOptions>(dropdownOptions);
+
+  const mixingUnitOptions = useMemo(
+    () =>
+      dedupeOptions([
+        ...mixingSettings.map((s) => s.unit),
+        ...tempMixingSettings.map((s) => s.unit),
+        ...tempDropdownOptions.mixingUnits,
+      ]),
+    [mixingSettings, tempMixingSettings, tempDropdownOptions.mixingUnits]
+  );
+
+  const mixingSizeOptions = useMemo(
+    () =>
+      dedupeOptions([
+        ...mixingSettings.map((s) => s.size),
+        ...tempMixingSettings.map((s) => s.size),
+        ...tempDropdownOptions.mixingSizes,
+      ]),
+    [mixingSettings, tempMixingSettings, tempDropdownOptions.mixingSizes]
+  );
+
+  const cuttingTargetOptions = useMemo(
+    () =>
+      dedupeOptions([
+        ...cuttingSettings.map((s) => s.target),
+        ...tempCuttingSettings.map((s) => s.target),
+        ...itemSettings.map((s) => s.targetItem),
+        ...tempItemSettings.map((s) => s.targetItem),
+        ...tempDropdownOptions.cuttingTargets,
+      ]),
+    [cuttingSettings, tempCuttingSettings, itemSettings, tempItemSettings, tempDropdownOptions.cuttingTargets]
+  );
+
+  const cuttingUnitOptions = useMemo(
+    () =>
+      dedupeOptions([
+        ...cuttingSettings.map((s) => s.unit),
+        ...tempCuttingSettings.map((s) => s.unit),
+        ...tempDropdownOptions.cuttingUnits,
+      ]),
+    [cuttingSettings, tempCuttingSettings, tempDropdownOptions.cuttingUnits]
+  );
+
+  const itemMenuOptions = useMemo(
+    () =>
+      dedupeOptions([
+        ...itemSettings.map((s) => s.menu),
+        ...tempItemSettings.map((s) => s.menu),
+        ...(Array.isArray(data?.sales) ? data.sales.map((s: any) => s?.name) : []),
+        ...tempDropdownOptions.itemMenus,
+      ]),
+    [itemSettings, tempItemSettings, data?.sales, tempDropdownOptions.itemMenus]
+  );
+
+  const addCustomDropdownOption = (key: keyof BakeryDropdownOptions, newValue: string) => {
+    const trimmed = newValue.trim();
+    if (!trimmed) return;
+    setTempDropdownOptions((prev) => ({
+      ...prev,
+      [key]: dedupeOptions([...(prev[key] || []), trimmed]),
+    }));
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -269,6 +653,18 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
               const parsed = setting.setting_value;
               setDoughTemplates(parsed);
               localStorage.setItem('bakeryDoughTemplates', JSON.stringify(parsed));
+            } else if (setting.setting_key === 'bakery_dropdown_options') {
+              const parsed = setting.setting_value;
+              const normalized: BakeryDropdownOptions = {
+                mixingUnits: Array.isArray(parsed?.mixingUnits) ? parsed.mixingUnits : [],
+                mixingSizes: Array.isArray(parsed?.mixingSizes) ? parsed.mixingSizes : [],
+                cuttingTargets: Array.isArray(parsed?.cuttingTargets) ? parsed.cuttingTargets : [],
+                cuttingUnits: Array.isArray(parsed?.cuttingUnits) ? parsed.cuttingUnits : [],
+                itemMenus: Array.isArray(parsed?.itemMenus) ? parsed.itemMenus : [],
+              };
+              setDropdownOptions(normalized);
+              setTempDropdownOptions(normalized);
+              localStorage.setItem('bakeryDropdownOptions', JSON.stringify(normalized));
             }
           });
         }
@@ -538,6 +934,7 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     setTempMixingSettings(mixingSettings);
     setTempCuttingSettings(cuttingSettings);
     setTempItemSettings(itemSettings);
+    setTempDropdownOptions(dropdownOptions);
     setIsSettingsOpen(true);
   };
 
@@ -545,13 +942,24 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
     setIsSavingSettings(true);
     setSaveSettingsError(null);
     try {
+      const mergedDropdownOptions: BakeryDropdownOptions = {
+        mixingUnits: dedupeOptions([...tempDropdownOptions.mixingUnits, ...tempMixingSettings.map((s) => s.unit)]),
+        mixingSizes: dedupeOptions([...tempDropdownOptions.mixingSizes, ...tempMixingSettings.map((s) => s.size)]),
+        cuttingTargets: dedupeOptions([...tempDropdownOptions.cuttingTargets, ...tempCuttingSettings.map((s) => s.target)]),
+        cuttingUnits: dedupeOptions([...tempDropdownOptions.cuttingUnits, ...tempCuttingSettings.map((s) => s.unit)]),
+        itemMenus: dedupeOptions([...tempDropdownOptions.itemMenus, ...tempItemSettings.map((s) => s.menu)]),
+      };
+
       setMixingSettings(tempMixingSettings);
       setCuttingSettings(tempCuttingSettings);
       setItemSettings(tempItemSettings);
+      setDropdownOptions(mergedDropdownOptions);
+      setTempDropdownOptions(mergedDropdownOptions);
 
       localStorage.setItem('bakeryMixingSettings', JSON.stringify(tempMixingSettings));
       localStorage.setItem('bakeryCuttingSettings', JSON.stringify(tempCuttingSettings));
       localStorage.setItem('bakeryItemSettings', JSON.stringify(tempItemSettings));
+      localStorage.setItem('bakeryDropdownOptions', JSON.stringify(mergedDropdownOptions));
 
       if (supabase) {
         const { error } = await supabase.from('app_settings').upsert([
@@ -569,6 +977,11 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
             branch, setting_key: 'bakery_item_settings', 
             setting_value: tempItemSettings,
             updated_at: new Date().toISOString() 
+          },
+          {
+            branch, setting_key: 'bakery_dropdown_options',
+            setting_value: mergedDropdownOptions,
+            updated_at: new Date().toISOString()
           }
         ], { onConflict: 'branch,setting_key' });
         
@@ -1794,21 +2207,31 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input 
-                              type="text" 
+                            <CreatableSelectCell
                               value={setting.unit}
-                              onChange={(e) => setTempMixingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, unit: e.target.value } : s))}
-                              className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 bg-white outline-none"
-                              placeholder="เช่น Dough"
+                              options={mixingUnitOptions}
+                              onChange={(val) =>
+                                setTempMixingSettings((prev) =>
+                                  prev.map((s) => (s.id === setting.id ? { ...s, unit: val } : s))
+                                )
+                              }
+                              onAddOption={(newVal) => addCustomDropdownOption('mixingUnits', newVal)}
+                              placeholder="เลือกหน่วยต่อสูตร..."
+                              addPlaceholder="เช่น Dough, ก้อน, Loaf..."
                             />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input 
-                              type="text" 
+                            <CreatableSelectCell
                               value={setting.size}
-                              onChange={(e) => setTempMixingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, size: e.target.value } : s))}
-                              className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 bg-white outline-none"
-                              placeholder="เช่น 4 kg"
+                              options={mixingSizeOptions}
+                              onChange={(val) =>
+                                setTempMixingSettings((prev) =>
+                                  prev.map((s) => (s.id === setting.id ? { ...s, size: val } : s))
+                                )
+                              }
+                              onAddOption={(newVal) => addCustomDropdownOption('mixingSizes', newVal)}
+                              placeholder="เลือกขนาดต่อสูตร..."
+                              addPlaceholder="เช่น 4 kg, 2 ปอนด์..."
                             />
                           </td>
                         </tr>
@@ -1879,12 +2302,17 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             </select>
                           </td>
                           <td className="px-2 py-1.5">
-                            <input 
-                              type="text" 
+                            <CreatableSelectCell
                               value={setting.target}
-                              onChange={(e) => setTempCuttingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, target: e.target.value } : s))}
-                              className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 bg-white outline-none"
-                              placeholder="เช่น ครัวซองค์เนยสด"
+                              options={cuttingTargetOptions}
+                              onChange={(val) =>
+                                setTempCuttingSettings((prev) =>
+                                  prev.map((s) => (s.id === setting.id ? { ...s, target: val } : s))
+                                )
+                              }
+                              onAddOption={(newVal) => addCustomDropdownOption('cuttingTargets', newVal)}
+                              placeholder="เลือกหรือเพิ่มรายการ..."
+                              addPlaceholder="เช่น ครัวซองค์เนยสด..."
                             />
                           </td>
                           <td className="px-2 py-1.5">
@@ -1897,12 +2325,18 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input 
-                              type="text" 
+                            <CreatableSelectCell
                               value={setting.unit}
-                              onChange={(e) => setTempCuttingSettings(prev => prev.map(s => s.id === setting.id ? { ...s, unit: e.target.value } : s))}
-                              className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2 text-center bg-white outline-none"
-                              placeholder="ชิ้น"
+                              options={cuttingUnitOptions}
+                              onChange={(val) =>
+                                setTempCuttingSettings((prev) =>
+                                  prev.map((s) => (s.id === setting.id ? { ...s, unit: val } : s))
+                                )
+                              }
+                              onAddOption={(newVal) => addCustomDropdownOption('cuttingUnits', newVal)}
+                              placeholder="เลือกหน่วย..."
+                              align="center"
+                              addPlaceholder="เช่น ชิ้น, ก้อน, ถาด..."
                             />
                           </td>
                         </tr>
@@ -1971,12 +2405,17 @@ export function BakeryPlan({ isReadOnly = false, historyData, historyWeek, onSav
                             </select>
                           </td>
                           <td className="px-2 py-1.5">
-                            <input 
-                              type="text" 
+                            <CreatableSelectCell
                               value={setting.menu}
-                              onChange={(e) => setTempItemSettings(prev => prev.map(s => s.id === setting.id ? { ...s, menu: e.target.value } : s))}
-                              className="w-full text-[11px] text-[#2D4A49] border border-[#D4E4E3] rounded-md focus:border-[#5A8A88] py-1 px-2.5 bg-white outline-none"
-                              placeholder="เช่น ครัวซองค์เนยสด"
+                              options={itemMenuOptions}
+                              onChange={(val) =>
+                                setTempItemSettings((prev) =>
+                                  prev.map((s) => (s.id === setting.id ? { ...s, menu: val } : s))
+                                )
+                              }
+                              onAddOption={(newVal) => addCustomDropdownOption('itemMenus', newVal)}
+                              placeholder="เลือกหรือเพิ่มเมนู..."
+                              addPlaceholder="เช่น ครัวซองค์เนยสด..."
                             />
                           </td>
                         </tr>
