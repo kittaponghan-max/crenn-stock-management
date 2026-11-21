@@ -34,11 +34,64 @@ const toLocalDateStr = (d: Date = new Date()): string => {
   return `${year}-${month}-${day}`;
 };
 
-const normalizeLeaveStatus = (val: any): 'Pending' | 'Approved' | 'Rejected' => {
+export type LeaveStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+
+export const normalizeLeaveStatus = (val: any): LeaveStatus => {
   const s = String(val || '').trim().toLowerCase();
   if (s === 'approved') return 'Approved';
   if (s === 'rejected') return 'Rejected';
+  if (s === 'cancelled' || s === 'canceled') return 'Cancelled';
   return 'Pending';
+};
+
+const CANCEL_META_MARKER = '[CANCEL_META]';
+
+export const extractCancelMetaFromDescription = (
+  rawDesc?: string
+): {
+  cleanDescription: string;
+  cancelReason?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+} => {
+  const text = String(rawDesc || '');
+  const idx = text.indexOf(CANCEL_META_MARKER);
+  if (idx === -1) {
+    return { cleanDescription: text };
+  }
+  const jsonPart = text.slice(idx + CANCEL_META_MARKER.length).trim();
+  try {
+    const parsed = JSON.parse(jsonPart);
+    if (parsed && typeof parsed === 'object') {
+      const cleanDescription = text.slice(0, idx).trim();
+      return {
+        cleanDescription,
+        cancelReason: typeof parsed.reason === 'string' ? parsed.reason : undefined,
+        cancelledBy: typeof parsed.by === 'string' ? parsed.by : undefined,
+        cancelledAt: typeof parsed.at === 'string' ? parsed.at : undefined,
+      };
+    }
+  } catch {
+    // Ignore malformed marker and keep original text intact
+  }
+  return { cleanDescription: text };
+};
+
+export const encodeCancelledDescription = (
+  originalDesc: string,
+  cancelReason: string,
+  cancelledBy: string,
+  cancelledAt: string
+): string => {
+  const { cleanDescription } = extractCancelMetaFromDescription(originalDesc);
+  const metaPayload = JSON.stringify({
+    reason: cancelReason,
+    by: cancelledBy,
+    at: cancelledAt,
+  });
+  return cleanDescription
+    ? `${cleanDescription}\n${CANCEL_META_MARKER}${metaPayload}`
+    : `${CANCEL_META_MARKER}${metaPayload}`;
 };
 
 export interface LeaveRecord {
@@ -49,12 +102,52 @@ export interface LeaveRecord {
   toDate: string;
   totalDays: number;
   manager: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: LeaveStatus;
   description: string;
   submittedAt: string;
   userName: string;
   userBranch: string;
+  cancelReason?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
 }
+
+export const mapSupabaseLeaveRow = (
+  item: any,
+  defaultManager = 'Admin (ผู้ดูแลระบบ)',
+  defaultUserName = 'Staff'
+): LeaveRecord => {
+  const meta = extractCancelMetaFromDescription(item?.description);
+  return {
+    id: item?.id || `LEAVE-${Date.now()}`,
+    leaveType: item?.leave_type || 'vacation',
+    leaveTypeName: item?.leave_type_name || 'ลาพักร้อน (Annual Leave)',
+    fromDate: item?.from_date || '',
+    toDate: item?.to_date || '',
+    totalDays: item?.total_days ?? 1,
+    manager: item?.manager || defaultManager,
+    status: normalizeLeaveStatus(item?.status),
+    description: meta.cleanDescription,
+    submittedAt: item?.submitted_at || '',
+    userName: item?.user_name || defaultUserName,
+    userBranch: item?.branch || 'Rayong',
+    cancelReason: item?.cancel_reason || meta.cancelReason || undefined,
+    cancelledBy: item?.cancelled_by || meta.cancelledBy || undefined,
+    cancelledAt: item?.cancelled_at || meta.cancelledAt || undefined,
+  };
+};
+
+export const normalizeLocalLeaveRecord = (r: any): LeaveRecord => {
+  const meta = extractCancelMetaFromDescription(r?.description);
+  return {
+    ...r,
+    status: normalizeLeaveStatus(r?.status),
+    description: meta.cleanDescription,
+    cancelReason: r?.cancelReason || meta.cancelReason || undefined,
+    cancelledBy: r?.cancelledBy || meta.cancelledBy || undefined,
+    cancelledAt: r?.cancelledAt || meta.cancelledAt || undefined,
+  };
+};
 
 interface LeaveQuota {
   id: string;
@@ -186,8 +279,8 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed)) {
-              localItems = parsed;
-              if (isMounted) setHistoryList(parsed);
+              localItems = parsed.map(normalizeLocalLeaveRecord);
+              if (isMounted) setHistoryList(localItems);
             }
           }
         } catch (e) {
@@ -204,23 +297,12 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
             .order('created_at', { ascending: false });
 
           if (data && !error && data.length > 0 && isMounted) {
-            const formatted: LeaveRecord[] = data.map((item: any) => ({
-              id: item.id || `LEAVE-${Date.now()}`,
-              leaveType: item.leave_type || 'vacation',
-              leaveTypeName: item.leave_type_name || 'ลาพักร้อน (Annual Leave)',
-              fromDate: item.from_date || '',
-              toDate: item.to_date || '',
-              totalDays: item.total_days || 1,
-              manager: item.manager || MANAGERS[0],
-              status: normalizeLeaveStatus(item.status),
-              description: item.description || '',
-              submittedAt: item.submitted_at || '',
-              userName: item.user_name || 'User',
-              userBranch: item.branch || 'Rayong',
-            }));
+            const formatted: LeaveRecord[] = data.map((item: any) =>
+              mapSupabaseLeaveRow(item, MANAGERS[0], 'User')
+            );
             const mergedMap = new Map<string, LeaveRecord>();
             localItems.forEach((r) => {
-              if (r && r.id) mergedMap.set(r.id, { ...r, status: normalizeLeaveStatus(r.status) });
+              if (r && r.id) mergedMap.set(r.id, normalizeLocalLeaveRecord(r));
             });
             formatted.forEach((r) => mergedMap.set(r.id, r));
             const merged = Array.from(mergedMap.values()).sort((a, b) =>
@@ -721,9 +803,16 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         record.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                         record.status === 'Rejected' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                        record.status === 'Cancelled' ? 'bg-slate-100 text-slate-600 border border-slate-300' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
-                        {record.status === 'Pending' ? '⏳ รออนุมัติ' : record.status === 'Approved' ? '✅ อนุมัติแล้ว' : '❌ ไม่อนุมัติ'}
+                        {record.status === 'Pending'
+                          ? '⏳ รออนุมัติ'
+                          : record.status === 'Approved'
+                            ? '✅ อนุมัติแล้ว'
+                            : record.status === 'Cancelled'
+                              ? '🚫 ยกเลิกแล้ว'
+                              : '❌ ไม่อนุมัติ'}
                       </span>
                     </div>
 
@@ -741,6 +830,23 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                       <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                         <span className="font-semibold text-slate-700">เหตุผล: </span> {record.description}
                       </p>
+                    )}
+
+                    {record.status === 'Cancelled' && (
+                      <div className="text-[11px] text-slate-600 bg-slate-100/80 p-2.5 rounded-xl border border-slate-200 space-y-0.5">
+                        <p className="font-bold text-slate-700">
+                          🚫 ยกเลิกโดย: {record.cancelledBy || 'Admin'}
+                          {record.cancelledAt ? ` (${record.cancelledAt})` : ''}
+                        </p>
+                        {record.cancelReason && (
+                          <p>
+                            <span className="font-semibold">เหตุผลที่ยกเลิก:</span> {record.cancelReason}
+                          </p>
+                        )}
+                        <p className="text-[10px] font-semibold text-emerald-700">
+                          ✓ คืนสิทธิ์วันลา {record.totalDays} วันเรียบร้อยแล้ว
+                        </p>
+                      </div>
                     )}
 
                     <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
