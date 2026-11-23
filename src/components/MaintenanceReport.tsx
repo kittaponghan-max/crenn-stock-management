@@ -279,13 +279,20 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
 
   // Master lists state (for +, dropdowns, and branch database storage)
   const [equipmentMasters, setEquipmentMasters] = useState<MaintenanceEquipmentMaster[]>([]);
+  const [hiddenEquipmentsByBranch, setHiddenEquipmentsByBranch] = useState<Record<string, string[]>>({});
   const [categoryMasters, setCategoryMasters] = useState<MaintenanceCategoryMaster[]>([]);
   const [vendorMasters, setVendorMasters] = useState<MaintenanceVendorMaster[]>([]);
 
   // Modals for "+", "Edit" buttons & tracking active equipment index
   const [showAddEquipmentModal, setShowAddEquipmentModal] = useState(false);
   const [showManageEquipmentModal, setShowManageEquipmentModal] = useState(false);
-  const [editingEquipmentMaster, setEditingEquipmentMaster] = useState<MaintenanceEquipmentMaster | null>(null);
+  const [manageEquipmentSearch, setManageEquipmentSearch] = useState('');
+  const [editingEquipmentMaster, setEditingEquipmentMaster] = useState<
+    (MaintenanceEquipmentMaster & {
+      originalName?: string;
+      sourceType?: 'master' | 'historical' | 'preset';
+    }) | null
+  >(null);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [activeEquipmentModalIndex, setActiveEquipmentModalIndex] = useState<number>(0);
@@ -304,6 +311,81 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     });
     return Array.from(set);
   }, [records, formData.branch]);
+
+  const hiddenEquipmentSet = useMemo(
+    () => new Set((hiddenEquipmentsByBranch[formData.branch] || []).map(s => s.trim())),
+    [hiddenEquipmentsByBranch, formData.branch]
+  );
+
+  // Unified equipment list matching everything available in the dropdown for the active branch
+  const manageEquipmentList = useMemo(() => {
+    const list: (MaintenanceEquipmentMaster & {
+      sourceType: 'master' | 'historical' | 'preset';
+    })[] = [];
+    const seenNames = new Set<string>();
+
+    // 1. Custom / Master equipment in this branch
+    equipmentMasters
+      .filter(m => m.branch === formData.branch && m.name?.trim() && !hiddenEquipmentSet.has(m.name.trim()))
+      .forEach(m => {
+        const trimmed = m.name.trim();
+        if (seenNames.has(trimmed)) return;
+        seenNames.add(trimmed);
+        list.push({ ...m, name: trimmed, sourceType: 'master' });
+      });
+
+    // 2. Currently selected items in the open form (if not already in master/preset)
+    formData.equipments.forEach(eq => {
+      const trimmed = (eq.equipmentName || '').trim();
+      if (!trimmed || seenNames.has(trimmed) || hiddenEquipmentSet.has(trimmed)) return;
+      if (PRESET_EQUIPMENT.some(p => p.name.trim() === trimmed)) return;
+      seenNames.add(trimmed);
+      list.push({
+        id: `current-${trimmed}`,
+        branch: formData.branch,
+        name: trimmed,
+        code: eq.equipmentCode || '',
+        category: eq.category || 'General',
+        department: eq.department || formData.department || 'Bar',
+        sourceType: 'historical',
+      });
+    });
+
+    // 3. Historical equipment names from saved records in this branch
+    branchHistoricalEquipments.forEach(rawName => {
+      const trimmed = rawName.trim();
+      if (!trimmed || seenNames.has(trimmed) || hiddenEquipmentSet.has(trimmed)) return;
+      if (PRESET_EQUIPMENT.some(p => p.name.trim() === trimmed)) return;
+      seenNames.add(trimmed);
+      list.push({
+        id: `hist-${trimmed}`,
+        branch: formData.branch,
+        name: trimmed,
+        code: '',
+        category: 'General',
+        department: formData.department || 'Bar',
+        sourceType: 'historical',
+      });
+    });
+
+    // 4. Built-in preset equipment items
+    PRESET_EQUIPMENT.forEach((p, idx) => {
+      const trimmed = p.name.trim();
+      if (!trimmed || seenNames.has(trimmed) || hiddenEquipmentSet.has(trimmed)) return;
+      seenNames.add(trimmed);
+      list.push({
+        id: `preset-${idx}-${trimmed}`,
+        branch: formData.branch,
+        name: trimmed,
+        code: p.codePrefix,
+        category: p.category,
+        department: p.department,
+        sourceType: 'preset',
+      });
+    });
+
+    return list;
+  }, [equipmentMasters, formData.branch, formData.equipments, formData.department, branchHistoricalEquipments, hiddenEquipmentSet]);
 
   // Equipment Row Handlers for Form
   const handleAddEquipmentRow = () => {
@@ -530,35 +612,63 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     phone: ''
   });
 
+  const persistHiddenEquipments = async (targetBranch: Branch, nextList: string[]) => {
+    const deduped = Array.from(new Set(nextList.map(s => s.trim()).filter(Boolean)));
+    setHiddenEquipmentsByBranch(prev => ({ ...prev, [targetBranch]: deduped }));
+    try {
+      localStorage.setItem(`cafe-maintenance-hidden-equipment-${targetBranch}`, JSON.stringify(deduped));
+    } catch {}
+    if (supabase) {
+      try {
+        await supabase.from('app_settings').upsert({
+          branch: targetBranch,
+          setting_key: `maint_equip_hidden_${targetBranch}`,
+          setting_value: deduped,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'branch,setting_key' });
+      } catch (err) {
+        console.warn('Save hidden equipment list error:', err);
+      }
+    }
+  };
+
   // Fetch Master Data (Equipment, Categories, Vendors) for active branch
-  const fetchMasterData = useCallback(async () => {
+  const fetchMasterData = useCallback(async (targetBranchArg?: Branch) => {
+    const targetBranch: Branch = targetBranchArg || currentBranch;
+
     // LocalStorage fallbacks
     let localEquip: MaintenanceEquipmentMaster[] = [];
     try {
-      const saved = localStorage.getItem(`cafe-maintenance-equipment-${currentBranch}`);
+      const saved = localStorage.getItem(`cafe-maintenance-equipment-${targetBranch}`);
       if (saved) localEquip = JSON.parse(saved);
+    } catch {}
+
+    let localHiddenEquip: string[] = [];
+    try {
+      const saved = localStorage.getItem(`cafe-maintenance-hidden-equipment-${targetBranch}`);
+      if (saved) localHiddenEquip = JSON.parse(saved);
     } catch {}
 
     let localCat: MaintenanceCategoryMaster[] = [];
     try {
-      const saved = localStorage.getItem(`cafe-maintenance-categories-${currentBranch}`);
+      const saved = localStorage.getItem(`cafe-maintenance-categories-${targetBranch}`);
       if (saved) localCat = JSON.parse(saved);
     } catch {}
 
     let localVen: MaintenanceVendorMaster[] = [];
     try {
-      const saved = localStorage.getItem(`cafe-maintenance-vendors-${currentBranch}`);
+      const saved = localStorage.getItem(`cafe-maintenance-vendors-${targetBranch}`);
       if (saved) localVen = JSON.parse(saved);
     } catch {}
 
     if (localVen.length === 0) {
-      localVen = DEFAULT_VENDORS.filter(v => v.branch === currentBranch);
+      localVen = DEFAULT_VENDORS.filter(v => v.branch === targetBranch);
     }
 
     if (supabase) {
       try {
         // Equipment master fetch
-        const { data: equipData } = await supabase.from('maintenance_equipment').select('*').eq('branch', currentBranch);
+        const { data: equipData } = await supabase.from('maintenance_equipment').select('*').eq('branch', targetBranch);
         if (equipData && equipData.length > 0) {
           localEquip = equipData.map((e: any) => ({
             id: e.id,
@@ -572,7 +682,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           const { data: settingEquip } = await supabase
             .from('app_settings')
             .select('setting_value')
-            .eq('setting_key', `maint_equip_${currentBranch}`)
+            .eq('setting_key', `maint_equip_${targetBranch}`)
             .limit(1)
             .maybeSingle();
           if (settingEquip?.setting_value && Array.isArray(settingEquip.setting_value)) {
@@ -580,8 +690,19 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           }
         }
 
+        // Hidden equipment list fetch
+        const { data: settingHidden } = await supabase
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', `maint_equip_hidden_${targetBranch}`)
+          .limit(1)
+          .maybeSingle();
+        if (settingHidden?.setting_value && Array.isArray(settingHidden.setting_value)) {
+          localHiddenEquip = settingHidden.setting_value;
+        }
+
         // Category master fetch
-        const { data: catData } = await supabase.from('maintenance_categories').select('*').eq('branch', currentBranch);
+        const { data: catData } = await supabase.from('maintenance_categories').select('*').eq('branch', targetBranch);
         if (catData && catData.length > 0) {
           localCat = catData.map((c: any) => ({
             id: c.id,
@@ -592,7 +713,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           const { data: settingCat } = await supabase
             .from('app_settings')
             .select('setting_value')
-            .eq('setting_key', `maint_cat_${currentBranch}`)
+            .eq('setting_key', `maint_cat_${targetBranch}`)
             .limit(1)
             .maybeSingle();
           if (settingCat?.setting_value && Array.isArray(settingCat.setting_value)) {
@@ -601,7 +722,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
         }
 
         // Vendor master fetch
-        const { data: venData } = await supabase.from('maintenance_vendors').select('*').eq('branch', currentBranch);
+        const { data: venData } = await supabase.from('maintenance_vendors').select('*').eq('branch', targetBranch);
         if (venData && venData.length > 0) {
           localVen = venData.map((v: any) => ({
             id: v.id,
@@ -614,7 +735,7 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
           const { data: settingVen } = await supabase
             .from('app_settings')
             .select('setting_value')
-            .eq('setting_key', `maint_vendor_${currentBranch}`)
+            .eq('setting_key', `maint_vendor_${targetBranch}`)
             .limit(1)
             .maybeSingle();
           if (settingVen?.setting_value && Array.isArray(settingVen.setting_value)) {
@@ -626,9 +747,22 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       }
     }
 
-    setEquipmentMasters(localEquip);
-    setCategoryMasters(localCat);
-    setVendorMasters(localVen);
+    setEquipmentMasters(prev => [
+      ...prev.filter(x => x.branch !== targetBranch),
+      ...localEquip
+    ]);
+    setHiddenEquipmentsByBranch(prev => ({
+      ...prev,
+      [targetBranch]: Array.isArray(localHiddenEquip) ? localHiddenEquip : []
+    }));
+    setCategoryMasters(prev => [
+      ...prev.filter(x => x.branch !== targetBranch),
+      ...localCat
+    ]);
+    setVendorMasters(prev => [
+      ...prev.filter(x => x.branch !== targetBranch),
+      ...localVen
+    ]);
   }, [currentBranch]);
 
   // Save Handlers for Masters
@@ -645,6 +779,15 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
       category: newEquipment.category.trim() || 'General',
       department: newEquipment.department
     };
+
+    // If re-creating a previously hidden item name, unhide it
+    const currentHidden = hiddenEquipmentsByBranch[targetBranch] || [];
+    if (currentHidden.includes(newItem.name)) {
+      void persistHiddenEquipments(
+        targetBranch,
+        currentHidden.filter(n => n !== newItem.name)
+      );
+    }
 
     const updated = [newItem, ...equipmentMasters];
     setEquipmentMasters(updated);
@@ -690,27 +833,57 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     setShowAddEquipmentModal(false);
   };
 
-  const handleDeleteEquipmentMaster = async (id: string) => {
+  const handleDeleteEquipmentMaster = async (
+    item: MaintenanceEquipmentMaster & { sourceType?: 'master' | 'historical' | 'preset' }
+  ) => {
     const targetBranch = formData.branch;
-    const updated = equipmentMasters.filter(m => m.id !== id);
-    setEquipmentMasters(updated);
-    try {
-      localStorage.setItem(`cafe-maintenance-equipment-${targetBranch}`, JSON.stringify(updated.filter(x => x.branch === targetBranch)));
-    } catch {}
+    const trimmedName = item.name.trim();
 
-    if (supabase) {
+    if (item.sourceType === 'master' || equipmentMasters.some(m => m.id === item.id)) {
+      const updated = equipmentMasters.filter(m => m.id !== item.id);
+      setEquipmentMasters(updated);
       try {
-        await supabase.from('maintenance_equipment').delete().eq('id', id);
-        await supabase.from('app_settings').upsert({
-          branch: targetBranch,
-          setting_key: `maint_equip_${targetBranch}`,
-          setting_value: updated.filter(x => x.branch === targetBranch),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'branch,setting_key' });
-      } catch (err) {
-        console.warn('Delete equipment master error:', err);
+        localStorage.setItem(`cafe-maintenance-equipment-${targetBranch}`, JSON.stringify(updated.filter(x => x.branch === targetBranch)));
+      } catch {}
+
+      if (supabase) {
+        try {
+          await supabase.from('maintenance_equipment').delete().eq('id', item.id);
+          await supabase.from('app_settings').upsert({
+            branch: targetBranch,
+            setting_key: `maint_equip_${targetBranch}`,
+            setting_value: updated.filter(x => x.branch === targetBranch),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'branch,setting_key' });
+        } catch (err) {
+          console.warn('Delete equipment master error:', err);
+        }
       }
     }
+
+    // Ensure preset / historical / previously-saved items stay hidden from the dropdown list
+    const needsHide =
+      item.sourceType === 'preset' ||
+      item.sourceType === 'historical' ||
+      PRESET_EQUIPMENT.some(p => p.name.trim() === trimmedName) ||
+      branchHistoricalEquipments.some(n => n.trim() === trimmedName);
+
+    if (needsHide && trimmedName) {
+      const currentHidden = hiddenEquipmentsByBranch[targetBranch] || [];
+      if (!currentHidden.includes(trimmedName)) {
+        await persistHiddenEquipments(targetBranch, [...currentHidden, trimmedName]);
+      }
+    }
+
+    // Clear selection on open form cards if it was pointing to the deleted dropdown item
+    setFormData(prev => ({
+      ...prev,
+      equipments: prev.equipments.map(eq =>
+        eq.equipmentName.trim() === trimmedName
+          ? { ...eq, equipmentName: '' }
+          : eq
+      )
+    }));
   };
 
   const handleSaveEditEquipmentMaster = async (e: React.FormEvent) => {
@@ -718,22 +891,57 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     if (!editingEquipmentMaster || !editingEquipmentMaster.name.trim()) return;
 
     const targetBranch = formData.branch;
-    const updated = equipmentMasters.map(m => m.id === editingEquipmentMaster.id ? editingEquipmentMaster : m);
+    const trimmedName = editingEquipmentMaster.name.trim();
+    const originalName = (editingEquipmentMaster.originalName || editingEquipmentMaster.name).trim();
+    const isExistingMaster =
+      editingEquipmentMaster.sourceType === 'master' ||
+      equipmentMasters.some(m => m.id === editingEquipmentMaster.id);
+
+    const savedItem: MaintenanceEquipmentMaster = {
+      id: isExistingMaster ? editingEquipmentMaster.id : generateUUID(),
+      branch: targetBranch,
+      name: trimmedName,
+      code: (editingEquipmentMaster.code || '').trim(),
+      category: (editingEquipmentMaster.category || '').trim() || 'General',
+      department: editingEquipmentMaster.department || 'Bar',
+    };
+
+    const updated = isExistingMaster
+      ? equipmentMasters.map(m => (m.id === savedItem.id ? savedItem : m))
+      : [savedItem, ...equipmentMasters];
+
     setEquipmentMasters(updated);
 
     try {
       localStorage.setItem(`cafe-maintenance-equipment-${targetBranch}`, JSON.stringify(updated.filter(x => x.branch === targetBranch)));
     } catch {}
 
+    // Manage hidden names when renaming an item that also exists in presets or historical records
+    const currentHidden = hiddenEquipmentsByBranch[targetBranch] || [];
+    let nextHidden = currentHidden.filter(n => n !== trimmedName);
+    if (
+      originalName &&
+      originalName !== trimmedName &&
+      (PRESET_EQUIPMENT.some(p => p.name.trim() === originalName) ||
+        branchHistoricalEquipments.some(n => n.trim() === originalName))
+    ) {
+      if (!nextHidden.includes(originalName)) {
+        nextHidden = [...nextHidden, originalName];
+      }
+    }
+    if (nextHidden.length !== currentHidden.length || nextHidden.some((v, i) => v !== currentHidden[i])) {
+      await persistHiddenEquipments(targetBranch, nextHidden);
+    }
+
     if (supabase) {
       try {
         await supabase.from('maintenance_equipment').upsert({
-          id: editingEquipmentMaster.id,
-          branch: editingEquipmentMaster.branch,
-          name: editingEquipmentMaster.name,
-          code: editingEquipmentMaster.code,
-          category: editingEquipmentMaster.category,
-          department: editingEquipmentMaster.department
+          id: savedItem.id,
+          branch: savedItem.branch,
+          name: savedItem.name,
+          code: savedItem.code,
+          category: savedItem.category,
+          department: savedItem.department
         });
         await supabase.from('app_settings').upsert({
           branch: targetBranch,
@@ -749,13 +957,13 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     setFormData(prev => ({
       ...prev,
       equipments: prev.equipments.map(eq => {
-        if (eq.equipmentName === editingEquipmentMaster.name || eq.id === editingEquipmentMaster.id) {
+        if (eq.equipmentName.trim() === originalName) {
           return {
             ...eq,
-            equipmentName: editingEquipmentMaster.name,
-            equipmentCode: editingEquipmentMaster.code || eq.equipmentCode,
-            category: editingEquipmentMaster.category || eq.category,
-            department: editingEquipmentMaster.department || eq.department
+            equipmentName: savedItem.name,
+            equipmentCode: savedItem.code || eq.equipmentCode,
+            category: savedItem.category || eq.category,
+            department: savedItem.department || eq.department
           };
         }
         return eq;
@@ -959,6 +1167,12 @@ export const MaintenanceReport: React.FC<MaintenanceReportProps> = ({
     fetchRecords();
     fetchMasterData();
   }, [fetchRecords, fetchMasterData]);
+
+  useEffect(() => {
+    if (isFormOpen) {
+      fetchMasterData(formData.branch);
+    }
+  }, [isFormOpen, formData.branch, fetchMasterData]);
 
   // Handle Photo compression & upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2310,97 +2524,134 @@ WITH CHECK (true);`;
                             ชื่อเครื่องมือ / อุปกรณ์ *
                           </label>
                           <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveEquipmentModalIndex(eqIdx);
-                                setShowManageEquipmentModal(true);
-                              }}
-                              className="px-1.5 py-0.5 text-[10px] font-bold text-[#2D4A49] bg-[#E8F3F2] hover:bg-[#D4E4E3] border border-[#D4E4E3] rounded flex items-center gap-0.5 transition-colors cursor-pointer"
-                              title="แก้ไขชื่อเดิม"
-                            >
-                              <Edit3 size={10} className="text-[#5A8A88]" />
-                              <span>แก้ไขชื่อเดิม</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveEquipmentModalIndex(eqIdx);
+                                  setManageEquipmentSearch('');
+                                  setEditingEquipmentMaster(null);
+                                  setShowManageEquipmentModal(true);
+                                }}
+                                className="px-1.5 py-0.5 text-[10px] font-bold text-[#2D4A49] bg-[#E8F3F2] hover:bg-[#D4E4E3] border border-[#D4E4E3] rounded flex items-center gap-0.5 transition-colors cursor-pointer"
+                                title="แก้ไขชื่อเดิม"
+                              >
+                                <Edit3 size={10} className="text-[#5A8A88]" />
+                                <span>แก้ไขชื่อเดิม</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveEquipmentModalIndex(eqIdx);
+                                  setNewEquipment({ name: '', code: '', category: eqItem.category || 'Coffee Machine', department: eqItem.department || formData.department || 'Bar' });
+                                  setShowAddEquipmentModal(true);
+                                }}
+                                className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded flex items-center gap-0.5 transition-colors cursor-pointer"
+                                title="สร้างชื่อใหม่"
+                              >
+                                <Plus size={10} />
+                                <span>สร้างใหม่</span>
+                              </button>
+                            </div>
+                          </div>
+                          <select
+                            required
+                            value={eqItem.equipmentName}
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (val === '__CREATE_NEW_EQUIPMENT__') {
                                 setActiveEquipmentModalIndex(eqIdx);
                                 setNewEquipment({ name: '', code: '', category: eqItem.category || 'Coffee Machine', department: eqItem.department || formData.department || 'Bar' });
                                 setShowAddEquipmentModal(true);
-                              }}
-                              className="px-1.5 py-0.5 text-[10px] font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded flex items-center gap-0.5 transition-colors cursor-pointer"
-                              title="สร้างชื่อใหม่"
-                            >
-                              <Plus size={10} />
-                              <span>+ สร้างใหม่</span>
-                            </button>
-                          </div>
-                        </div>
-                        <select
-                          required
-                          value={eqItem.equipmentName}
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === '__CREATE_NEW_EQUIPMENT__') {
-                              setActiveEquipmentModalIndex(eqIdx);
-                              setNewEquipment({ name: '', code: '', category: eqItem.category || 'Coffee Machine', department: eqItem.department || formData.department || 'Bar' });
-                              setShowAddEquipmentModal(true);
-                              return;
-                            }
-                            handleEquipmentChange(eqIdx, 'equipmentName', val);
-                          }}
-                          className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
-                        >
-                          <option value="">-- เลือกชื่อเครื่องมือ / อุปกรณ์ --</option>
-                          {eqItem.equipmentName && 
-                            !equipmentMasters.some(m => m.name === eqItem.equipmentName && m.branch === formData.branch) &&
-                            !PRESET_EQUIPMENT.some(p => p.name === eqItem.equipmentName) && (
-                              <optgroup label="📌 รายการปัจจุบัน">
-                                <option value={eqItem.equipmentName}>{eqItem.equipmentName}</option>
+                                return;
+                              }
+                              handleEquipmentChange(eqIdx, 'equipmentName', val);
+                            }}
+                            className="w-full py-1.5 px-2 text-xs border border-[#D4E4E3] rounded-lg focus:outline-none focus:border-[#5A8A88] bg-white text-[#2D4A49] font-medium"
+                          >
+                            <option value="">-- เลือกชื่อเครื่องมือ / อุปกรณ์ --</option>
+                            {eqItem.equipmentName && 
+                              !hiddenEquipmentSet.has(eqItem.equipmentName.trim()) &&
+                              !equipmentMasters.some(m => m.name === eqItem.equipmentName && m.branch === formData.branch) &&
+                              !PRESET_EQUIPMENT.some(p => p.name === eqItem.equipmentName) && (
+                                <optgroup label="📌 รายการปัจจุบัน">
+                                  <option value={eqItem.equipmentName}>{eqItem.equipmentName}</option>
+                                </optgroup>
+                            )}
+                            {equipmentMasters.filter(m => m.branch === formData.branch && !hiddenEquipmentSet.has(m.name.trim())).length > 0 && (
+                              <optgroup label={`⭐ อุปกรณ์เพิ่มพิเศษ (สาขา ${formData.branch})`}>
+                                {equipmentMasters
+                                  .filter(m => m.branch === formData.branch && !hiddenEquipmentSet.has(m.name.trim()))
+                                  .map(m => (
+                                    <option key={m.id} value={m.name}>{m.name} {m.code ? `[${m.code}]` : ''}</option>
+                                  ))}
                               </optgroup>
-                          )}
-                          {equipmentMasters.filter(m => m.branch === formData.branch).length > 0 && (
-                            <optgroup label={`⭐ อุปกรณ์เพิ่มพิเศษ (สาขา ${formData.branch})`}>
-                              {equipmentMasters.filter(m => m.branch === formData.branch).map(m => (
-                                <option key={m.id} value={m.name}>{m.name} {m.code ? `[${m.code}]` : ''}</option>
-                              ))}
-                            </optgroup>
-                          )}
-                          {branchHistoricalEquipments.filter(name => 
-                            name !== eqItem.equipmentName &&
-                            !equipmentMasters.some(m => m.name === name && m.branch === formData.branch) &&
-                            !PRESET_EQUIPMENT.some(p => p.name === name)
-                          ).length > 0 && (
-                            <optgroup label="📋 อุปกรณ์จากประวัติการบันทึก">
-                              {branchHistoricalEquipments
-                                .filter(name => 
-                                  name !== eqItem.equipmentName &&
-                                  !equipmentMasters.some(m => m.name === name && m.branch === formData.branch) &&
-                                  !PRESET_EQUIPMENT.some(p => p.name === name)
-                                )
-                                .map((name, idx) => (
-                                  <option key={`hist-${idx}`} value={name}>{name}</option>
+                            )}
+                            {branchHistoricalEquipments.filter(name => 
+                              name !== eqItem.equipmentName &&
+                              !hiddenEquipmentSet.has(name.trim()) &&
+                              !equipmentMasters.some(m => m.name === name && m.branch === formData.branch) &&
+                              !PRESET_EQUIPMENT.some(p => p.name === name)
+                            ).length > 0 && (
+                              <optgroup label="📋 อุปกรณ์จากประวัติการบันทึก">
+                                {branchHistoricalEquipments
+                                  .filter(name => 
+                                    name !== eqItem.equipmentName &&
+                                    !hiddenEquipmentSet.has(name.trim()) &&
+                                    !equipmentMasters.some(m => m.name === name && m.branch === formData.branch) &&
+                                    !PRESET_EQUIPMENT.some(p => p.name === name)
+                                  )
+                                  .map((name, idx) => (
+                                    <option key={`hist-${idx}`} value={name}>{name}</option>
+                                  ))}
+                              </optgroup>
+                            )}
+                            {PRESET_EQUIPMENT.filter(p =>
+                              p.department === 'Bar' &&
+                              !hiddenEquipmentSet.has(p.name.trim()) &&
+                              !equipmentMasters.some(m => m.branch === formData.branch && m.name.trim() === p.name.trim())
+                            ).length > 0 && (
+                              <optgroup label="☕ อุปกรณ์โซนบาร์ (Bar)">
+                                {PRESET_EQUIPMENT.filter(p =>
+                                  p.department === 'Bar' &&
+                                  !hiddenEquipmentSet.has(p.name.trim()) &&
+                                  !equipmentMasters.some(m => m.branch === formData.branch && m.name.trim() === p.name.trim())
+                                ).map((p, idx) => (
+                                  <option key={`bar-${idx}`} value={p.name}>{p.name}</option>
                                 ))}
-                            </optgroup>
-                          )}
-                          <optgroup label="☕ อุปกรณ์โซนบาร์ (Bar)">
-                            {PRESET_EQUIPMENT.filter(p => p.department === 'Bar').map((p, idx) => (
-                              <option key={`bar-${idx}`} value={p.name}>{p.name}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="🍳 อุปกรณ์โซนครัว (Bakery)">
-                            {PRESET_EQUIPMENT.filter(p => p.department === 'Bakery').map((p, idx) => (
-                              <option key={`bakery-${idx}`} value={p.name}>{p.name}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="🏢 อุปกรณ์ส่วนกลาง / อาคาร (Facility)">
-                            {PRESET_EQUIPMENT.filter(p => p.department === 'General').map((p, idx) => (
-                              <option key={`gen-${idx}`} value={p.name}>{p.name}</option>
-                            ))}
-                          </optgroup>
-                          <option value="__CREATE_NEW_EQUIPMENT__">➕ + สร้างชื่อเครื่องมือ / อุปกรณ์ใหม่...</option>
-                        </select>
+                              </optgroup>
+                            )}
+                            {PRESET_EQUIPMENT.filter(p =>
+                              p.department === 'Bakery' &&
+                              !hiddenEquipmentSet.has(p.name.trim()) &&
+                              !equipmentMasters.some(m => m.branch === formData.branch && m.name.trim() === p.name.trim())
+                            ).length > 0 && (
+                              <optgroup label="🍳 อุปกรณ์โซนครัว (Bakery)">
+                                {PRESET_EQUIPMENT.filter(p =>
+                                  p.department === 'Bakery' &&
+                                  !hiddenEquipmentSet.has(p.name.trim()) &&
+                                  !equipmentMasters.some(m => m.branch === formData.branch && m.name.trim() === p.name.trim())
+                                ).map((p, idx) => (
+                                  <option key={`bakery-${idx}`} value={p.name}>{p.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {PRESET_EQUIPMENT.filter(p =>
+                              p.department === 'General' &&
+                              !hiddenEquipmentSet.has(p.name.trim()) &&
+                              !equipmentMasters.some(m => m.branch === formData.branch && m.name.trim() === p.name.trim())
+                            ).length > 0 && (
+                              <optgroup label="🏢 อุปกรณ์ส่วนกลาง / อาคาร (Facility)">
+                                {PRESET_EQUIPMENT.filter(p =>
+                                  p.department === 'General' &&
+                                  !hiddenEquipmentSet.has(p.name.trim()) &&
+                                  !equipmentMasters.some(m => m.branch === formData.branch && m.name.trim() === p.name.trim())
+                                ).map((p, idx) => (
+                                  <option key={`gen-${idx}`} value={p.name}>{p.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                            <option value="__CREATE_NEW_EQUIPMENT__">➕ สร้างชื่อเครื่องมือ / อุปกรณ์ใหม่...</option>
+                          </select>
                       </div>
 
                       <div className="sm:col-span-3">
@@ -3324,8 +3575,9 @@ WITH CHECK (true);`;
                 onClick={() => {
                   setShowManageEquipmentModal(false);
                   setEditingEquipmentMaster(null);
+                  setManageEquipmentSearch('');
                 }}
-                className="text-slate-300 hover:text-white p-1 rounded-md"
+                className="text-slate-300 hover:text-white p-1 rounded-md cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -3335,7 +3587,7 @@ WITH CHECK (true);`;
               {editingEquipmentMaster ? (
                 <form onSubmit={handleSaveEditEquipmentMaster} className="bg-[#F4F8F7] p-3.5 rounded-xl border border-[#D4E4E3] space-y-3">
                   <div className="flex items-center justify-between font-bold text-[#2D4A49]">
-                    <span>แก้ไขอุปกรณ์: {editingEquipmentMaster.name}</span>
+                    <span>แก้ไขอุปกรณ์: {editingEquipmentMaster.originalName || editingEquipmentMaster.name}</span>
                     <button
                       type="button"
                       onClick={() => setEditingEquipmentMaster(null)}
@@ -3407,47 +3659,100 @@ WITH CHECK (true);`;
                   </div>
                 </form>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <p className="text-[#6B8F8E] font-medium text-[11px]">
-                    รายการเครื่องมือเพิ่มพิเศษของสาขา {formData.branch} (สามารถแก้ไขชื่อ รหัสเครื่อง และหมวดหมู่ได้ที่นี่):
+                    รายการเครื่องมือ / อุปกรณ์ที่มีอยู่ใน Dropdown ของสาขา {formData.branch} (สามารถแก้ไขชื่อ รหัส หมวดหมู่ หรือลบออกจากรายการได้):
                   </p>
 
-                  {equipmentMasters.filter(m => m.branch === formData.branch).length === 0 ? (
-                    <p className="text-center py-6 text-slate-400">ยังไม่มีรายการเครื่องมือที่สร้างเพิ่มในสาขานี้</p>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {equipmentMasters
-                        .filter(m => m.branch === formData.branch)
-                        .map(m => (
-                          <div key={m.id} className="py-2 flex items-center justify-between gap-2 hover:bg-slate-50 px-2 rounded-lg">
-                            <div>
-                              <p className="font-bold text-[#2D4A49]">{m.name}</p>
-                              <p className="text-[10px] text-slate-400">
-                                {m.code ? `รหัส: ${m.code}` : ''} {m.category ? `| หมวดหมู่: ${m.category}` : ''}
-                              </p>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B8F8E] pointer-events-none" />
+                    <input
+                      type="text"
+                      value={manageEquipmentSearch}
+                      onChange={e => setManageEquipmentSearch(e.target.value)}
+                      placeholder="ค้นหาชื่อเครื่องมือ, รหัส หรือหมวดหมู่..."
+                      className="w-full h-[32px] pl-8 pr-3 text-[11px] bg-[#F8FCFC] border border-[#D4E4E3] rounded-[8px] text-[#2D4A49] outline-none focus:border-[#5A8A88]"
+                    />
+                  </div>
+
+                  {(() => {
+                    const q = manageEquipmentSearch.trim().toLowerCase();
+                    const filteredItems = manageEquipmentList.filter(item =>
+                      !q ||
+                      item.name.toLowerCase().includes(q) ||
+                      (item.code || '').toLowerCase().includes(q) ||
+                      (item.category || '').toLowerCase().includes(q)
+                    );
+
+                    if (filteredItems.length === 0) {
+                      return (
+                        <p className="text-center py-6 text-slate-400">
+                          {manageEquipmentList.length === 0
+                            ? 'ยังไม่มีรายการเครื่องมือในสาขานี้'
+                            : 'ไม่พบรายการอุปกรณ์ที่ตรงกับคำค้นหา'}
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="divide-y divide-slate-100 max-h-[45vh] overflow-y-auto pr-1">
+                        {filteredItems.map(m => {
+                          const badgeLabel =
+                            m.sourceType === 'master'
+                              ? 'กำหนดเอง'
+                              : m.sourceType === 'historical'
+                                ? 'จากประวัติ'
+                                : 'มาตรฐาน';
+                          const badgeClass =
+                            m.sourceType === 'master'
+                              ? 'bg-[#E8F3F2] text-[#2D4A49] border-[#B8D4D2]'
+                              : m.sourceType === 'historical'
+                                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                : 'bg-slate-50 text-slate-600 border-slate-200';
+
+                          return (
+                            <div key={m.id} className="py-2 flex items-center justify-between gap-2 hover:bg-[#F4F9F8] px-2 rounded-lg transition-colors">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="font-bold text-[#2D4A49] break-words">{m.name}</p>
+                                  <span className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded border ${badgeClass}`}>
+                                    {badgeLabel}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  {m.code ? `รหัส: ${m.code}` : 'ไม่ระบุรหัส'}{m.category ? ` | หมวดหมู่: ${m.category}` : ''}{m.department ? ` | แผนก: ${m.department}` : ''}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setEditingEquipmentMaster({
+                                      ...m,
+                                      originalName: m.name,
+                                      sourceType: m.sourceType,
+                                    })
+                                  }
+                                  className="px-2 py-1 text-[11px] font-bold text-[#5A8A88] bg-[#E8F3F2] hover:bg-[#D4E4E3] rounded-md flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Edit3 size={12} />
+                                  <span>แก้ไข</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteEquipmentMaster(m)}
+                                  className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md cursor-pointer"
+                                  title="ลบรายการออกจาก Dropdown"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setEditingEquipmentMaster(m)}
-                                className="px-2 py-1 text-[11px] font-bold text-[#5A8A88] bg-[#E8F3F2] hover:bg-[#D4E4E3] rounded-md flex items-center gap-1 cursor-pointer"
-                              >
-                                <Edit3 size={12} />
-                                <span>แก้ไข</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteEquipmentMaster(m.id)}
-                                className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md cursor-pointer"
-                                title="ลบรายการ"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -3457,6 +3762,7 @@ WITH CHECK (true);`;
                   onClick={() => {
                     setShowManageEquipmentModal(false);
                     setEditingEquipmentMaster(null);
+                    setManageEquipmentSearch('');
                   }}
                   className="px-4 py-1.5 font-bold text-white bg-[#5A8A88] hover:bg-[#476E6C] rounded-lg cursor-pointer"
                 >
