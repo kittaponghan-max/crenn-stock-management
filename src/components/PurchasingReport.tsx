@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { 
   ChevronLeft, 
@@ -29,6 +29,15 @@ import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { sendDiscordNotification } from '../lib/discordNotify';
 import { exportElementToPng } from './ui';
+import {
+  useObsoleteIngredients,
+  isIngredientActive,
+  setLocalObsoleteStatus,
+  getObsoleteMap,
+  OBSOLETE_CHANGE_EVENT,
+  OBSOLETE_STORAGE_KEY,
+  ObsoleteIngredientsMap,
+} from '../utils/obsoleteIngredients';
 
 export interface OrderRecord {
   id?: string;
@@ -78,6 +87,76 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const exportAreaRef = useRef<HTMLDivElement>(null);
+
+  // Obsolete / hidden ingredients synchronization (matches StockTable & HomeScreen)
+  const obsoleteMap = useObsoleteIngredients();
+  const [dbActiveMap, setDbActiveMap] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    if (supabase) {
+      supabase
+        .from('ingredients')
+        .select('id, is_active, inactive_reason')
+        .eq('branch', currentBranch)
+        .then(({ data, error }) => {
+          if (isMounted && !error && data) {
+            const map: Record<string, boolean> = {};
+            const currentLocal = getObsoleteMap();
+            data.forEach(row => {
+              if (row.is_active !== null && row.is_active !== undefined) {
+                const rowId = String(row.id);
+                map[rowId] = Boolean(row.is_active);
+                if (row.is_active === false && currentLocal[rowId]?.is_active !== false) {
+                  setLocalObsoleteStatus(rowId, false, row.inactive_reason);
+                }
+              }
+            });
+            setDbActiveMap(map);
+          }
+        });
+    }
+
+    const syncFromMap = (nextMap: ObsoleteIngredientsMap) => {
+      setDbActiveMap(prev => {
+        const updated = { ...prev };
+        Object.entries(nextMap).forEach(([id, rec]) => {
+          updated[id] = Boolean(rec.is_active);
+        });
+        return updated;
+      });
+    };
+
+    const handleObsoleteChange = (e: Event) => {
+      const detail = (e as CustomEvent<ObsoleteIngredientsMap>).detail;
+      if (detail) syncFromMap(detail);
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === OBSOLETE_STORAGE_KEY && e.newValue) {
+        try {
+          syncFromMap(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+
+    window.addEventListener(OBSOLETE_CHANGE_EVENT, handleObsoleteChange);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(OBSOLETE_CHANGE_EVENT, handleObsoleteChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [currentBranch]);
+
+  const isItemActive = useCallback((item: { id: string; is_active?: boolean }) => {
+    const id = String(item.id);
+    if (dbActiveMap[id] !== undefined) {
+      return dbActiveMap[id];
+    }
+    return isIngredientActive(item, obsoleteMap);
+  }, [dbActiveMap, obsoleteMap]);
 
   // ─── PENDING DELIVERY STATE & HELPERS (STEP 1) ───
   const [pendingOrderMap, setPendingOrderMap] = useState<Record<string, {
@@ -1155,10 +1234,11 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
   }, []);
 
   const allPurchasesToMake = useMemo(() => {
-    // 1. Strict branch isolation: ensure ingredients belong to the active branch
-    const branchIngredients = branch 
+    // 1. Strict branch isolation & exclude obsolete/hidden ingredients
+    const branchIngredients = (branch 
       ? ingredients.filter(ing => !ing.branch || ing.branch === branch)
-      : ingredients;
+      : ingredients
+    ).filter(ing => isItemActive(ing));
 
     // 2. Filter ingredients by department
     const allowedIngs = branchIngredients.filter(ing => allowedDepartments.includes(ing.department as any));
@@ -1221,7 +1301,7 @@ export const PurchasingReport: React.FC<PurchasingReportProps> = ({
       if (a.supplier !== b.supplier) return (a.supplier || '').localeCompare(b.supplier || '');
       return a.name.localeCompare(b.name);
     });
-  }, [ingredients, stockRecord, selectedDate, activeDepartment, allowedDepartments, branch]);
+  }, [ingredients, stockRecord, selectedDate, activeDepartment, allowedDepartments, branch, isItemActive]);
 
   const suppliers = useMemo(() => {
     const supplierSet = new Set<string>();
