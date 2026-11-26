@@ -15,14 +15,18 @@ import {
   AttendanceRecord,
   BranchGeofenceConfig,
   EmployeeShiftConfig,
+  OtMultiplier,
 } from '../../types/hellocrenn';
 import {
-  calculateOtMinutes,
+  calculateShiftOtMinutes,
   formatDistanceMeters,
   formatMinutesDuration,
   formatOtDuration,
+  formatOtHours,
+  getOtTypeLabel,
   getStatusLabelTH,
   resolveEmployeeShift,
+  summarizeOtByMultiplier,
 } from '../../utils/gpsUtils';
 import {
   PageHeaderBanner,
@@ -56,7 +60,14 @@ interface AttendanceDashboardProps {
   onOpenSelfScan?: () => void;
   canEditGeofence?: boolean;
   onOpenGeofenceSettings?: () => void;
+  onOpenShiftSettings?: () => void;
 }
+
+const getOtBadgeClass = (multiplier: OtMultiplier): string => {
+  if (multiplier === 3) return 'bg-rose-50 text-rose-700 border-rose-200';
+  if (multiplier === 2) return 'bg-amber-50 text-amber-800 border-amber-200';
+  return 'bg-[#E8F3F2] text-[#2D4A49] border-[#D4E4E3]';
+};
 
 export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
   currentBranch,
@@ -66,6 +77,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
   onOpenSelfScan,
   canEditGeofence = false,
   onOpenGeofenceSettings,
+  onOpenShiftSettings,
 }) => {
   const [now, setNow] = useState<Date>(() => new Date());
   const [staffMembers, setStaffMembers] = useState<BranchStaffMember[]>([]);
@@ -198,32 +210,39 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
       );
       const checkIn = empRecords.find((r) => r.type === 'check_in') || null;
       const checkOut = empRecords.find((r) => r.type === 'check_out') || null;
-      const shift = resolveEmployeeShift(geofenceConfig, emp.name);
+      const shift = resolveEmployeeShift(geofenceConfig, emp.name, now);
 
-      // Compute OT accurately using the employee's configured shift & OT step rule
+      const checkInDate = checkIn ? new Date(checkIn.recordedAt) : null;
+      const validCheckInDate =
+        checkInDate && !Number.isNaN(checkInDate.getTime()) ? checkInDate : null;
+
+      // Compute OT accurately using the employee's configured shift, OT mode & multiplier
+      const otDisabled = shift.otCalculationMode === 'step' && shift.otStepMinutes <= 0 && !shift.isOvertimeSchedule && !shift.isDayOff;
       let otMinutes = 0;
       let isLiveOt = false;
-      if (shift.otStepMinutes > 0) {
+      if (!otDisabled) {
         if (checkOut) {
           const checkOutDate = new Date(checkOut.recordedAt);
           if (!Number.isNaN(checkOutDate.getTime())) {
-            otMinutes = calculateOtMinutes(
+            otMinutes = calculateShiftOtMinutes({
               checkOutDate,
-              shift.shiftEndTime,
-              shift.otStepMinutes
-            );
+              checkInDate: validCheckInDate,
+              shift,
+            });
           } else {
             otMinutes = checkOut.otMinutes ?? 0;
           }
         } else if (checkIn) {
-          otMinutes = calculateOtMinutes(
-            now,
-            shift.shiftEndTime,
-            shift.otStepMinutes
-          );
+          otMinutes = calculateShiftOtMinutes({
+            checkOutDate: now,
+            checkInDate: validCheckInDate,
+            shift,
+          });
           isLiveOt = true;
         }
       }
+
+      const otMultiplier: OtMultiplier = checkOut?.otMultiplier ?? shift.otMultiplier;
 
       const workDurationDisplay = checkIn
         ? checkOut
@@ -243,6 +262,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
         checkIn,
         checkOut,
         otMinutes,
+        otMultiplier,
+        otDisabled,
         isLiveOt,
         workDurationDisplay,
         statusGroup,
@@ -276,7 +297,9 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
     const checkedOutCount = monitoredRows.filter((r) => r.statusGroup === 'checked_out').length;
     const notScannedCount = monitoredRows.filter((r) => r.statusGroup === 'not_scanned').length;
     const otRows = monitoredRows.filter((r) => r.otMinutes > 0);
-    const totalOtMinutes = otRows.reduce((acc, r) => acc + r.otMinutes, 0);
+    const otByType = summarizeOtByMultiplier(
+      otRows.map((r) => ({ otMinutes: r.otMinutes, otMultiplier: r.otMultiplier }))
+    );
 
     return {
       totalStaff,
@@ -287,7 +310,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
       checkedOutCount,
       notScannedCount,
       otStaffCount: otRows.length,
-      totalOtMinutes,
+      totalOtMinutes: otByType.totalMinutes,
+      otByType,
       ignoredCount: ignoredRows.length,
     };
   }, [monitoredRows, ignoredRows.length]);
@@ -308,7 +332,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
         const q = searchTerm.trim().toLowerCase();
         return (
           r.emp.name.toLowerCase().includes(q) ||
-          r.emp.role.toLowerCase().includes(q)
+          r.emp.role.toLowerCase().includes(q) ||
+          r.shift.shiftName.toLowerCase().includes(q)
         );
       });
   }, [employeeRows, statusFilter, searchTerm]);
@@ -324,6 +349,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
       : []),
   ];
 
+  const shiftBtnHandler = onOpenShiftSettings ?? onOpenGeofenceSettings;
+
   return (
     <div className="space-y-4">
       <PageHeaderBanner
@@ -331,7 +358,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
         icon={<Users size={18} />}
         title="สแกนเวลา · ภาพรวมพนักงานทุกคน (Admin Dashboard)"
         branchLabel={geofenceConfig.branchLabel}
-        subtitle={`ติดตามสถานะเข้า-ออกงาน เวลาทำงานจริง และคำนวณ OT รายบุคคลของพนักงานทุกคนในสาขา`}
+        subtitle={`ติดตามสถานะเข้า-ออกงาน เวลาทำงานจริง และสรุป OT แยกตามชนิด (1.5 เท่า / 2 เท่า / 3 เท่า) รายบุคคล`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <div className="h-[32px] px-3 rounded-[8px] bg-[#E8F3F2] border border-[#D4E4E3] flex items-center gap-1.5 text-[11px] font-bold text-[#2D4A49] tabular-nums">
@@ -350,10 +377,10 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                 <span>สแกนเวลาตนเอง</span>
               </button>
             )}
-            {canEditGeofence && onOpenGeofenceSettings && (
+            {canEditGeofence && shiftBtnHandler && (
               <button
                 type="button"
-                onClick={onOpenGeofenceSettings}
+                onClick={shiftBtnHandler}
                 className="h-[32px] px-3 rounded-[8px] bg-white hover:bg-[#F0F5F4] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
                 <Settings2 size={13} className="text-[#5A8A88]" />
@@ -373,7 +400,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="ค้นหาชื่อพนักงาน หรือตำแหน่ง..."
+                placeholder="ค้นหาชื่อพนักงาน, ตำแหน่ง หรือชื่อกะ..."
                 className="w-full h-[32px] pl-8 pr-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs outline-none focus:border-[#5A8A88]"
               />
             </div>
@@ -437,11 +464,36 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             <Timer size={14} className="text-[#5A8A88]" />
           </div>
           <p className="text-xl font-bold text-[#5A8A88] tabular-nums font-mono mt-1">
-            {summary.totalOtMinutes > 0 ? formatOtDuration(summary.totalOtMinutes) : '0 นาที'}
+            {summary.totalOtMinutes > 0 ? formatOtHours(summary.totalOtMinutes) : '0.00 ชม.'}
           </p>
           <p className="text-[10.5px] text-[#6B8F8E] mt-1 tabular-nums">
             พนักงานที่มี OT {summary.otStaffCount} คน
+            {summary.totalOtMinutes > 0 ? ` · ${formatOtDuration(summary.totalOtMinutes)}` : ''}
           </p>
+        </div>
+      </div>
+
+      {/* Clear OT Type Breakdown Strip */}
+      <div className="bg-white rounded-2xl border border-[#D4E4E3] px-4 py-3 shadow-[0_2px_8px_rgba(90,138,136,0.04)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2 text-xs font-bold text-[#2D4A49]">
+          <Timer size={14} className="text-[#5A8A88]" />
+          <span>สรุปชั่วโมงโอทีวันนี้แยกตามชนิด</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          {summary.otByType.orderedTypes.map((bucket) => (
+            <div
+              key={bucket.multiplier}
+              className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 tabular-nums ${getOtBadgeClass(
+                bucket.multiplier
+              )}`}
+            >
+              <span className="font-bold">{bucket.label}:</span>
+              <span className="font-mono font-bold">{formatOtHours(bucket.minutes)}</span>
+              {bucket.count > 0 && (
+                <span className="text-[10px] opacity-80">({bucket.count} คน)</span>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -467,7 +519,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                 <StandardTh>เวลาเข้างาน (Check-in)</StandardTh>
                 <StandardTh>เวลาออกงาน (Check-out)</StandardTh>
                 <StandardTh>เวลาทำงาน</StandardTh>
-                <StandardTh align="right">โอที (OT)</StandardTh>
+                <StandardTh align="right">โอที (OT) · ชนิด & ชั่วโมง</StandardTh>
               </StandardHeaderRow>
             </StandardThead>
             <StandardTbody>
@@ -479,125 +531,162 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                   description="ลองล้างคำค้นหา หรือเปลี่ยนตัวกรองสถานะเพื่อดูรายชื่อพนักงานทั้งหมดในสาขา"
                 />
               ) : (
-                filteredRows.map(({ emp, shift, checkIn, checkOut, otMinutes, isLiveOt, workDurationDisplay, statusGroup }) => (
-                  <StandardTr key={emp.name}>
-                    <StandardTd>
-                      <div className="font-bold text-[#2D4A49]">{emp.name}</div>
-                      <div className="text-[10.5px] text-[#6B8F8E]">
-                        {emp.role} · กะ {shift.shiftStartTime}–{shift.shiftEndTime} น.{' '}
-                        <span className="text-[#5A8A88]">
-                          ({shift.isCustom ? 'เฉพาะคน' : 'สาขา'})
-                        </span>
-                      </div>
-                    </StandardTd>
-
-                    <StandardTd>
-                      {shift.ignored ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
-                          <span className="w-2 h-2 rounded-full bg-amber-400" />
-                          ไม่ต้อง Monitor (Ignore)
-                        </span>
-                      ) : statusGroup === 'not_scanned' ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                          <span className="w-2 h-2 rounded-full bg-slate-300" />
-                          ยังไม่สแกนเข้างาน
-                        </span>
-                      ) : statusGroup === 'working' ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          กำลังปฏิบัติงาน
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5A8A88]">
-                          <span className="w-2 h-2 rounded-full bg-[#5A8A88]" />
-                          ออกงานแล้ว
-                        </span>
-                      )}
-                    </StandardTd>
-
-                    <StandardTd>
-                      {checkIn ? (
-                        <div>
-                          <div className="font-mono tabular-nums font-bold text-[#2D4A49]">
-                            {checkIn.timeDisplay}
-                          </div>
-                          <div className="text-[10.5px] mt-0.5">
-                            <span
-                              className={`font-semibold ${
-                                checkIn.status === 'late' ? 'text-amber-700' : 'text-emerald-700'
-                              }`}
-                            >
-                              {getStatusLabelTH(checkIn.status)}
+                filteredRows.map(
+                  ({
+                    emp,
+                    shift,
+                    checkIn,
+                    checkOut,
+                    otMinutes,
+                    otMultiplier,
+                    otDisabled,
+                    isLiveOt,
+                    workDurationDisplay,
+                    statusGroup,
+                  }) => (
+                    <StandardTr key={emp.name}>
+                      <StandardTd>
+                        <div className="font-bold text-[#2D4A49]">{emp.name}</div>
+                        <div className="text-[10.5px] text-[#6B8F8E] mt-0.5 flex flex-wrap items-center gap-1">
+                          <span>{emp.role}</span>
+                          <span>·</span>
+                          <span className="font-semibold text-[#5A8A88]">{shift.shiftName}</span>
+                          <span className="font-mono tabular-nums">
+                            ({shift.shiftStartTime}–{shift.shiftEndTime})
+                          </span>
+                          {(shift.isOvertimeSchedule || shift.isDayOff) && (
+                            <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[9.5px] font-semibold">
+                              OT เต็มเวลา
                             </span>
-                            <span className="text-[#6B8F8E]">
-                              {' '}· {checkIn.mode === 'auto' ? 'Auto' : 'Manual'} · {formatDistanceMeters(checkIn.distanceMeters)}
-                            </span>
-                          </div>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </StandardTd>
+                      </StandardTd>
 
-                    <StandardTd>
-                      {checkOut ? (
-                        <div>
-                          <div className="font-mono tabular-nums font-bold text-[#2D4A49]">
-                            {checkOut.timeDisplay}
-                          </div>
-                          <div className="text-[10.5px] mt-0.5">
-                            <span
-                              className={`font-semibold ${
-                                checkOut.status === 'early_out' ? 'text-amber-700' : 'text-emerald-700'
-                              }`}
-                            >
-                              {getStatusLabelTH(checkOut.status)}
-                            </span>
-                            <span className="text-[#6B8F8E]">
-                              {' '}· {checkOut.mode === 'auto' ? 'Auto' : 'Manual'} · {formatDistanceMeters(checkOut.distanceMeters)}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">
-                          {checkIn ? 'รอออกงาน' : '—'}
-                        </span>
-                      )}
-                    </StandardTd>
+                      <StandardTd>
+                        {shift.ignored ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                            ไม่ต้อง Monitor (Ignore)
+                          </span>
+                        ) : statusGroup === 'not_scanned' ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                            <span className="w-2 h-2 rounded-full bg-slate-300" />
+                            ยังไม่สแกนเข้างาน
+                          </span>
+                        ) : statusGroup === 'working' ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            กำลังปฏิบัติงาน
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5A8A88]">
+                            <span className="w-2 h-2 rounded-full bg-[#5A8A88]" />
+                            ออกงานแล้ว
+                          </span>
+                        )}
+                      </StandardTd>
 
-                    <StandardTd>
-                      <div className="font-mono tabular-nums font-semibold text-[#2D4A49]">
-                        {workDurationDisplay}
-                      </div>
-                      {statusGroup === 'working' && (
-                        <div className="text-[10px] text-[#6B8F8E]">กำลังนับเวลา</div>
-                      )}
-                    </StandardTd>
+                      <StandardTd>
+                        {checkIn ? (
+                          <div>
+                            <div className="font-mono tabular-nums font-bold text-[#2D4A49]">
+                              {checkIn.timeDisplay}
+                            </div>
+                            <div className="text-[10.5px] mt-0.5">
+                              <span
+                                className={`font-semibold ${
+                                  checkIn.status === 'late' ? 'text-amber-700' : 'text-emerald-700'
+                                }`}
+                              >
+                                {getStatusLabelTH(checkIn.status)}
+                              </span>
+                              <span className="text-[#6B8F8E]">
+                                {' '}· {checkIn.mode === 'auto' ? 'Auto' : 'Manual'} ·{' '}
+                                {formatDistanceMeters(checkIn.distanceMeters)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </StandardTd>
 
-                    <StandardTd align="right">
-                      {!checkIn ? (
-                        <span className="text-xs text-slate-400">—</span>
-                      ) : shift.otStepMinutes <= 0 ? (
-                        <div>
-                          <span className="text-xs text-slate-400">ไม่คิดโอที</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <div
-                            className={`font-mono tabular-nums font-bold ${
-                              otMinutes > 0 ? 'text-emerald-700' : 'text-[#6B8F8E]'
-                            }`}
-                          >
-                            {otMinutes > 0 ? `+${formatOtDuration(otMinutes)}` : '0 นาที'}
+                      <StandardTd>
+                        {checkOut ? (
+                          <div>
+                            <div className="font-mono tabular-nums font-bold text-[#2D4A49]">
+                              {checkOut.timeDisplay}
+                            </div>
+                            <div className="text-[10.5px] mt-0.5">
+                              <span
+                                className={`font-semibold ${
+                                  checkOut.status === 'early_out'
+                                    ? 'text-amber-700'
+                                    : 'text-emerald-700'
+                                }`}
+                              >
+                                {getStatusLabelTH(checkOut.status)}
+                              </span>
+                              <span className="text-[#6B8F8E]">
+                                {' '}· {checkOut.mode === 'auto' ? 'Auto' : 'Manual'} ·{' '}
+                                {formatDistanceMeters(checkOut.distanceMeters)}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-[10px] text-[#6B8F8E]">
-                            {isLiveOt ? 'สะสมขณะนี้ · ' : ''}ทุก {shift.otStepMinutes} น. (หลัง {shift.shiftEndTime})
-                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            {checkIn ? 'รอออกงาน' : '—'}
+                          </span>
+                        )}
+                      </StandardTd>
+
+                      <StandardTd>
+                        <div className="font-mono tabular-nums font-semibold text-[#2D4A49]">
+                          {workDurationDisplay}
                         </div>
-                      )}
-                    </StandardTd>
-                  </StandardTr>
-                ))
+                        {statusGroup === 'working' && (
+                          <div className="text-[10px] text-[#6B8F8E]">กำลังนับเวลา</div>
+                        )}
+                      </StandardTd>
+
+                      <StandardTd align="right">
+                        {!checkIn ? (
+                          <span className="text-xs text-slate-400">—</span>
+                        ) : otDisabled ? (
+                          <div>
+                            <span className="text-xs text-slate-400">ไม่คิดโอที</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-bold ${getOtBadgeClass(
+                                  otMultiplier
+                                )}`}
+                              >
+                                {getOtTypeLabel(otMultiplier)}
+                              </span>
+                              <span
+                                className={`font-mono tabular-nums font-bold ${
+                                  otMinutes > 0 ? 'text-emerald-700' : 'text-[#6B8F8E]'
+                                }`}
+                              >
+                                {otMinutes > 0 ? `+${formatOtHours(otMinutes)}` : '0.00 ชม.'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-[#6B8F8E] tabular-nums">
+                              {otMinutes > 0 ? `${formatOtDuration(otMinutes)} · ` : ''}
+                              {isLiveOt ? 'สะสมขณะนี้ · ' : ''}
+                              {shift.otCalculationMode === 'actual'
+                                ? 'นาทีจริง'
+                                : `ทุก ${shift.otStepMinutes} น.`}
+                            </div>
+                          </div>
+                        )}
+                      </StandardTd>
+                    </StandardTr>
+                  )
+                )
               )}
             </StandardTbody>
           </StandardTable>
