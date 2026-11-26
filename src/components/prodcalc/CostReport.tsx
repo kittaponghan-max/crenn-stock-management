@@ -299,19 +299,29 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <StandardTable>
+        <StandardTable fixedLayout minWidthClassName="min-w-[760px]">
+          <colgroup>
+            <col className="w-[46px]" />
+            <col className="w-auto" />
+            <col className="w-[124px]" />
+            <col className="w-[58px]" />
+            <col className="w-[82px]" />
+            <col className="w-[76px]" />
+            <col className="w-[74px]" />
+            <col className="w-[82px]" />
+            <col className="w-[78px]" />
+          </colgroup>
             <StandardThead sticky={false}>
               <StandardHeaderRow>
-                <StandardTh align="center" className="w-12">อันดับ</StandardTh>
-                <StandardTh className="min-w-[140px]">ชื่อสินค้า/สูตร</StandardTh>
-                <StandardTh className="min-w-[90px]">หมวดหมู่</StandardTh>
-                <StandardTh align="center">ผลิตได้ (ชิ้น)</StandardTh>
-                <StandardTh align="right">ต้นทุนรวมสูตร</StandardTh>
-                <StandardTh align="right">ต้นทุน/ชิ้น</StandardTh>
-                <StandardTh align="right">ราคาขาย</StandardTh>
-                <StandardTh align="right">กำไร/ชิ้น</StandardTh>
-                <StandardTh align="center">อัตรากำไร (%)</StandardTh>
+                <StandardTh compact align="center">อันดับ</StandardTh>
+                <StandardTh compact>ชื่อสินค้า / สูตร</StandardTh>
+                <StandardTh compact>หมวดหมู่</StandardTh>
+                <StandardTh compact align="center" wrap>ผลิตได้<br/>(ชิ้น)</StandardTh>
+                <StandardTh compact align="right">ต้นทุนรวม</StandardTh>
+                <StandardTh compact align="right">ต้นทุน/ชิ้น</StandardTh>
+                <StandardTh compact align="right">ราคาขาย</StandardTh>
+                <StandardTh compact align="right">กำไร/ชิ้น</StandardTh>
+                <StandardTh compact align="center">อัตรากำไร</StandardTh>
               </StandardHeaderRow>
             </StandardThead>
             <StandardTbody>
@@ -326,34 +336,36 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
                   const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-[#F8FCFC]';
                   return (
                     <StandardTr key={r.id} className={rowBg}>
-                      <StandardTd align="center" numeric className="font-bold text-[#6B8F8E]">
+                      <StandardTd compact align="center" numeric className="font-mono font-bold text-[#6B8F8E]">
                         {idx + 1}
                       </StandardTd>
-                      <StandardTd className="font-semibold text-[#2D4A49]">
-                        {r.name}
-                        <span className="block text-[9.5px] text-[#6B8F8E] font-mono">{r.code}</span>
+                      <StandardTd compact>
+                        <div className="font-semibold text-[#2D4A49] text-[11.5px] sm:text-[12px] leading-[1.35] break-words">
+                          {r.name}
+                        </div>
+                        <span className="block text-[10px] text-[#6B8F8E] font-mono mt-0.5">{r.code}</span>
                       </StandardTd>
-                      <StandardTd className="text-[#6B8F8E] text-[10.5px]">
+                      <StandardTd compact className="text-[#6B8F8E] text-[10.5px] leading-[1.35] break-words">
                         {r.category}
                       </StandardTd>
-                      <StandardTd align="center" numeric>
+                      <StandardTd compact align="center" numeric nowrap className="font-mono font-medium text-[#2D4A49]">
                         {r.yield_qty}
                       </StandardTd>
-                      <StandardTd align="right" numeric className="text-[#6B8F8E]">
+                      <StandardTd compact align="right" numeric nowrap className="font-mono text-[#6B8F8E]">
                         ฿{r.total_batch_cost.toFixed(2)}
                       </StandardTd>
-                      <StandardTd align="right" numeric className="font-semibold text-[#2D4A49]">
+                      <StandardTd compact align="right" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
                         ฿{r.cost_per_piece.toFixed(2)}
                       </StandardTd>
-                      <StandardTd align="right" numeric className="font-bold text-[#2D4A49]">
+                      <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49]">
                         ฿{r.selling_price.toFixed(2)}
                       </StandardTd>
-                      <StandardTd align="right" numeric className="font-bold text-emerald-600">
+                      <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-emerald-600">
                         +฿{r.profit_per_piece.toFixed(2)}
                       </StandardTd>
-                      <StandardTd align="center">
+                      <StandardTd compact align="center" nowrap>
                         <span
-                          className={`px-2 py-0.5 rounded-full font-bold text-[10.5px] tabular-nums inline-block border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-[6px] font-mono font-bold text-[10.5px] tabular-nums whitespace-nowrap shrink-0 border ${
                             r.profit_pct >= 50
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : r.profit_pct >= 30
@@ -370,7 +382,6 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
               )}
             </StandardTbody>
           </StandardTable>
-        </div>
       </StandardTableCard>
     </div>
   );
