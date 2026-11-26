@@ -875,7 +875,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
         </div>
 
         <StandardTableCard>
-          <StandardTable>
+          <StandardTable minWidthClassName="min-w-[680px]">
             <StandardThead>
               <StandardHeaderRow>
                 <StandardTh>เวลา</StandardTh>
@@ -908,10 +908,10 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                   const recOtMult = rec.otMultiplier ?? employeeShift.otMultiplier;
                   return (
                     <StandardTr key={rec.id}>
-                      <StandardTd className="font-mono tabular-nums font-semibold">
+                      <StandardTd nowrap className="font-mono tabular-nums font-semibold">
                         {rec.timeDisplay}
                       </StandardTd>
-                      <StandardTd>
+                      <StandardTd nowrap>
                         <span
                           className={`font-semibold ${
                             rec.type === 'check_in' ? 'text-[#2D4A49]' : 'text-[#5A8A88]'
@@ -920,15 +920,15 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                           {rec.type === 'check_in' ? 'เข้างาน' : 'ออกงาน'}
                         </span>
                       </StandardTd>
-                      <StandardTd className="text-[#6B8F8E]">
+                      <StandardTd nowrap className="text-[#6B8F8E]">
                         {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums">
+                      <StandardTd align="right" nowrap className="font-mono tabular-nums">
                         {formatDistanceMeters(rec.distanceMeters)}
                       </StandardTd>
-                      <StandardTd>
+                      <StandardTd nowrap>
                         <span
-                          className={`font-semibold ${
+                          className={`font-semibold whitespace-nowrap ${
                             rec.status === 'on_time' || rec.status === 'completed'
                               ? 'text-emerald-700'
                               : 'text-amber-700'
@@ -937,12 +937,12 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                           {getStatusLabelTH(rec.status)}
                         </span>
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums">
+                      <StandardTd align="right" nowrap className="font-mono tabular-nums">
                         {rec.type === 'check_out' ? (
                           !isOtEnabled ? (
                             <span className="text-slate-400">ไม่คิดโอที</span>
                           ) : recOtMinutes > 0 ? (
-                            <span className="font-bold text-emerald-700">
+                            <span className="font-bold text-emerald-700 whitespace-nowrap">
                               {getOtTypeLabel(recOtMult)} · +{formatOtHours(recOtMinutes)}
                             </span>
                           ) : (
