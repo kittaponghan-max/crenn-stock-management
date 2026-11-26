@@ -1,10 +1,26 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { History, Search, Filter, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { AttendanceRecord } from '../../types/hellocrenn';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import {
+  History,
+  Search,
+  Filter,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Timer,
+  Users,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import { AttendanceRecord, BranchGeofenceConfig, OtMultiplier } from '../../types/hellocrenn';
 import {
   formatDistanceMeters,
   formatOtDuration,
+  formatOtHours,
+  getOtTypeLabel,
   getStatusLabelTH,
+  normalizeOtMultiplier,
+  resolveEmployeeShift,
+  summarizeOtByMultiplier,
 } from '../../utils/gpsUtils';
 import {
   PageHeaderBanner,
@@ -29,13 +45,21 @@ import {
 interface AttendanceHistoryProps {
   records: AttendanceRecord[];
   currentBranch: string;
+  geofenceConfig?: BranchGeofenceConfig;
 }
 
 type RangeId = 'today' | '7d' | '30d' | 'custom';
 
+const getOtBadgeClass = (multiplier: OtMultiplier): string => {
+  if (multiplier === 3) return 'bg-rose-50 text-rose-700 border-rose-200';
+  if (multiplier === 2) return 'bg-amber-50 text-amber-800 border-amber-200';
+  return 'bg-[#E8F3F2] text-[#2D4A49] border-[#D4E4E3]';
+};
+
 export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   records,
   currentBranch,
+  geofenceConfig,
 }) => {
   const getDaysAgoStr = (daysAgo: number) => {
     const d = new Date();
@@ -49,6 +73,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   const [endDate, setEndDate] = useState<string>(todayStr);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [showStaffOtBreakdown, setShowStaffOtBreakdown] = useState<boolean>(true);
   const exportAreaRef = useRef<HTMLDivElement>(null);
 
   const handleRangeChange = (rangeId: RangeId) => {
@@ -73,6 +98,21 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
     setEndDate(norm.endDate);
   };
 
+  const resolveRecordOtMultiplier = useCallback(
+    (rec: AttendanceRecord): OtMultiplier => {
+      if (rec.otMultiplier !== undefined && rec.otMultiplier !== null) {
+        return normalizeOtMultiplier(rec.otMultiplier);
+      }
+      if (geofenceConfig) {
+        const dt = new Date(rec.recordedAt);
+        const validDate = !Number.isNaN(dt.getTime()) ? dt : new Date();
+        return resolveEmployeeShift(geofenceConfig, rec.userName, validDate).otMultiplier;
+      }
+      return 1.5;
+    },
+    [geofenceConfig]
+  );
+
   const filteredRecords = useMemo(() => {
     return records
       .filter((r) => r.branch === currentBranch)
@@ -84,6 +124,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
         return (
           r.userName.toLowerCase().includes(q) ||
           r.userRole.toLowerCase().includes(q) ||
+          (r.shiftName || '').toLowerCase().includes(q) ||
           (r.note || '').toLowerCase().includes(q)
         );
       })
@@ -103,6 +144,64 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
     };
   }, [filteredRecords]);
 
+  const otRecords = useMemo(
+    () =>
+      filteredRecords.filter(
+        (r) => r.type === 'check_out' && (r.otMinutes ?? 0) > 0
+      ),
+    [filteredRecords]
+  );
+
+  const otSummary = useMemo(
+    () =>
+      summarizeOtByMultiplier(
+        otRecords.map((r) => ({
+          otMinutes: r.otMinutes ?? 0,
+          otMultiplier: resolveRecordOtMultiplier(r),
+        }))
+      ),
+    [otRecords, resolveRecordOtMultiplier]
+  );
+
+  const employeeOtBreakdown = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        userName: string;
+        userRole: string;
+        minutes15: number;
+        minutes2: number;
+        minutes3: number;
+        totalMinutes: number;
+        otDays: number;
+      }
+    >();
+
+    otRecords.forEach((rec) => {
+      const mins = rec.otMinutes ?? 0;
+      if (mins <= 0) return;
+      const key = rec.userName.trim().toLowerCase();
+      const mult = resolveRecordOtMultiplier(rec);
+      const existing = map.get(key) || {
+        userName: rec.userName,
+        userRole: rec.userRole,
+        minutes15: 0,
+        minutes2: 0,
+        minutes3: 0,
+        totalMinutes: 0,
+        otDays: 0,
+      };
+      if (mult === 2) existing.minutes2 += mins;
+      else if (mult === 3) existing.minutes3 += mins;
+      else existing.minutes15 += mins;
+      existing.totalMinutes += mins;
+      existing.otDays += 1;
+      map.set(key, existing);
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalMinutes - a.totalMinutes);
+  }, [otRecords, resolveRecordOtMultiplier]);
+
   const typeOptions = [
     { value: 'ALL', label: 'ทุกประเภท', count: records.filter((r) => r.branch === currentBranch).length },
     { value: 'check_in', label: 'เข้างาน (Check-in)' },
@@ -110,21 +209,28 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   ];
 
   const handleExportExcel = () => {
-    const rows = filteredRecords.map((r) => ({
-      วันที่: formatThaiNumericDate(r.date),
-      เวลา: r.timeDisplay,
-      สาขา: r.branch,
-      พนักงาน: r.userName,
-      ตำแหน่ง: r.userRole,
-      ประเภท: r.type === 'check_in' ? 'เข้างาน' : 'ออกงาน',
-      วิธีสแกน: r.mode === 'auto' ? 'Auto GPS' : 'Manual',
-      สถานะ: getStatusLabelTH(r.status),
-      'OT (นาที)': r.type === 'check_out' ? (r.otMinutes ?? 0) : 0,
-      'ระยะห่าง (ม.)': r.distanceMeters,
-      'ความคลาดเคลื่อน GPS (ม.)': r.accuracyMeters,
-      พิกัด: `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
-      หมายเหตุ: r.note || '',
-    }));
+    const rows = filteredRecords.map((r) => {
+      const hasOt = r.type === 'check_out' && (r.otMinutes ?? 0) > 0;
+      const otMult = hasOt ? resolveRecordOtMultiplier(r) : null;
+      return {
+        วันที่: formatThaiNumericDate(r.date),
+        เวลา: r.timeDisplay,
+        สาขา: r.branch,
+        พนักงาน: r.userName,
+        ตำแหน่ง: r.userRole,
+        กะงาน: r.shiftName || '-',
+        ประเภท: r.type === 'check_in' ? 'เข้างาน' : 'ออกงาน',
+        วิธีสแกน: r.mode === 'auto' ? 'Auto GPS' : 'Manual',
+        สถานะ: getStatusLabelTH(r.status),
+        'ชนิด OT': otMult ? getOtTypeLabel(otMult) : '-',
+        'OT (ชั่วโมง)': r.type === 'check_out' ? Number(((r.otMinutes ?? 0) / 60).toFixed(2)) : 0,
+        'OT (นาที)': r.type === 'check_out' ? (r.otMinutes ?? 0) : 0,
+        'ระยะห่าง (ม.)': r.distanceMeters,
+        'ความคลาดเคลื่อน GPS (ม.)': r.accuracyMeters,
+        พิกัด: `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
+        หมายเหตุ: r.note || '',
+      };
+    });
     exportRowsToXlsx({
       rows,
       fileName: `Hello_Crenn_Attendance_${currentBranch}_${startDate}_to_${endDate}`,
@@ -139,7 +245,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
         icon={<History size={18} />}
         title="ประวัติเวลาเข้า-ออกงาน (Attendance History)"
         branchLabel={`สาขา: ${currentBranch}`}
-        subtitle="ตรวจสอบบันทึกเวลาเข้า-ออกงานด้วยพิกัด GPS ย้อนหลัง พร้อมส่งออกเป็นไฟล์ Excel / รูปภาพ .png / PDF"
+        subtitle="ตรวจสอบบันทึกเวลาเข้า-ออกงานและสรุปชั่วโมง OT แยกตามชนิด (1.5 เท่า / 2 เท่า / 3 เท่า) พร้อมส่งออก Excel / .png / PDF"
         actions={
           <ExportButton
             disabled={filteredRecords.length === 0}
@@ -176,7 +282,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="ค้นหาชื่อพนักงาน หรือตำแหน่ง..."
+                  placeholder="ค้นหาชื่อพนักงาน, ตำแหน่ง หรือกะ..."
                   className="w-full h-[32px] pl-8 pr-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-[11px] outline-none focus:border-[#5A8A88]"
                 />
               </div>
@@ -221,19 +327,141 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
         </div>
       </div>
 
+      {/* Overtime Summary by Multiplier (1.5x / 2x / 3x) */}
+      <section className="bg-white rounded-2xl border border-[#D4E4E3] p-4 shadow-[0_2px_8px_rgba(90,138,136,0.05)] space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Timer size={15} className="text-[#5A8A88]" />
+            <h3 className="text-xs font-bold text-[#2D4A49]">
+              สรุปชั่วโมงโอทีแยกตามชนิด (Overtime Summary)
+            </h3>
+            <span className="text-[11px] text-[#6B8F8E] tabular-nums">
+              · รวมทั้งหมด{' '}
+              <strong className="text-[#2D4A49] font-mono">
+                {formatOtHours(otSummary.totalMinutes)}
+              </strong>{' '}
+              ({otRecords.length} ครั้ง)
+            </span>
+          </div>
+
+          {employeeOtBreakdown.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowStaffOtBreakdown((prev) => !prev)}
+              className="h-[28px] px-2.5 rounded-lg bg-[#F0F5F4] hover:bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <Users size={12} className="text-[#5A8A88]" />
+              <span>สรุปรายพนักงาน ({employeeOtBreakdown.length} คน)</span>
+              {showStaffOtBreakdown ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {otSummary.orderedTypes.map((bucket) => (
+            <div
+              key={bucket.multiplier}
+              className={`rounded-xl border px-3.5 py-2.5 flex items-center justify-between ${getOtBadgeClass(
+                bucket.multiplier
+              )}`}
+            >
+              <div>
+                <div className="text-xs font-bold">{bucket.label}</div>
+                <div className="text-[10.5px] opacity-80 tabular-nums mt-0.5">
+                  {bucket.count > 0
+                    ? `${bucket.count} รายการ · ${formatOtDuration(bucket.minutes)}`
+                    : 'ยังไม่มีรายการในช่วงนี้'}
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-base font-bold font-mono tabular-nums">
+                  {formatOtHours(bucket.minutes)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {showStaffOtBreakdown && employeeOtBreakdown.length > 0 && (
+          <div className="pt-2 border-t border-[#E8F3F2]">
+            <StandardTableCard>
+              <StandardTable>
+                <StandardThead>
+                  <StandardHeaderRow>
+                    <StandardTh>พนักงาน</StandardTh>
+                    <StandardTh align="right">OT 1.5 เท่า</StandardTh>
+                    <StandardTh align="right">OT 2 เท่า</StandardTh>
+                    <StandardTh align="right">OT 3 เท่า</StandardTh>
+                    <StandardTh align="right">รวม OT ทั้งหมด</StandardTh>
+                    <StandardTh align="right">จำนวนวันมี OT</StandardTh>
+                  </StandardHeaderRow>
+                </StandardThead>
+                <StandardTbody>
+                  {employeeOtBreakdown.map((item) => (
+                    <StandardTr key={item.userName}>
+                      <StandardTd>
+                        <span className="font-bold text-[#2D4A49]">{item.userName}</span>
+                        {item.userRole && (
+                          <span className="text-[10.5px] text-[#6B8F8E] ml-1.5">
+                            ({item.userRole})
+                          </span>
+                        )}
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums">
+                        {item.minutes15 > 0 ? (
+                          <span className="font-semibold text-[#2D4A49]">
+                            {formatOtHours(item.minutes15)}
+                          </span>
+                        ) : (
+                          <span className="text-[#A8BCBB]">—</span>
+                        )}
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums">
+                        {item.minutes2 > 0 ? (
+                          <span className="font-semibold text-amber-800">
+                            {formatOtHours(item.minutes2)}
+                          </span>
+                        ) : (
+                          <span className="text-[#A8BCBB]">—</span>
+                        )}
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums">
+                        {item.minutes3 > 0 ? (
+                          <span className="font-semibold text-rose-700">
+                            {formatOtHours(item.minutes3)}
+                          </span>
+                        ) : (
+                          <span className="text-[#A8BCBB]">—</span>
+                        )}
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums font-bold text-emerald-700">
+                        {formatOtHours(item.totalMinutes)}
+                      </StandardTd>
+                      <StandardTd align="right" className="font-mono tabular-nums text-[#6B8F8E]">
+                        {item.otDays} ครั้ง
+                      </StandardTd>
+                    </StandardTr>
+                  ))}
+                </StandardTbody>
+              </StandardTable>
+            </StandardTableCard>
+          </div>
+        )}
+      </section>
+
       <StandardTableCard>
         <StandardTable>
           <StandardThead>
             <StandardHeaderRow>
               <StandardTh>วันที่</StandardTh>
               <StandardTh>เวลา</StandardTh>
-              <StandardTh>พนักงาน</StandardTh>
+              <StandardTh>พนักงาน / กะงาน</StandardTh>
               <StandardTh>ประเภท</StandardTh>
               <StandardTh>รูปแบบ</StandardTh>
               <StandardTh align="right">ระยะห่าง</StandardTh>
               <StandardTh>พิกัด GPS</StandardTh>
               <StandardTh>สถานะ</StandardTh>
-              <StandardTh align="right">OT</StandardTh>
+              <StandardTh align="right">OT (ชนิด & ชั่วโมง)</StandardTh>
               <StandardTh>หมายเหตุ</StandardTh>
             </StandardHeaderRow>
           </StandardThead>
@@ -246,60 +474,89 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                 description="ลองปรับช่วงวันที่หรือคำค้นหาเพื่อดูรายการย้อนหลัง"
               />
             ) : (
-              filteredRecords.map((rec) => (
-                <StandardTr key={rec.id}>
-                  <StandardTd className="tabular-nums font-medium">
-                    {formatThaiNumericDate(rec.date)}
-                  </StandardTd>
-                  <StandardTd className="font-mono tabular-nums font-semibold">
-                    {rec.timeDisplay}
-                  </StandardTd>
-                  <StandardTd>
-                    <div className="font-semibold text-[#2D4A49]">{rec.userName}</div>
-                    <div className="text-[10px] text-[#6B8F8E]">{rec.userRole}</div>
-                  </StandardTd>
-                  <StandardTd>
-                    <span className={rec.type === 'check_in' ? 'font-semibold text-[#2D4A49]' : 'font-semibold text-[#5A8A88]'}>
-                      {rec.type === 'check_in' ? 'เข้างาน' : 'ออกงาน'}
-                    </span>
-                  </StandardTd>
-                  <StandardTd className="text-[#6B8F8E]">
-                    {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
-                  </StandardTd>
-                  <StandardTd align="right" className="font-mono tabular-nums">
-                    {formatDistanceMeters(rec.distanceMeters)}
-                  </StandardTd>
-                  <StandardTd className="font-mono tabular-nums text-[10.5px] text-[#6B8F8E]">
-                    {rec.latitude.toFixed(5)}, {rec.longitude.toFixed(5)}
-                  </StandardTd>
-                  <StandardTd>
-                    <span
-                      className={`inline-flex items-center gap-1 font-semibold ${
-                        rec.status === 'on_time' || rec.status === 'completed'
-                          ? 'text-emerald-700'
-                          : 'text-amber-700'
-                      }`}
-                    >
-                      {rec.status === 'on_time' || rec.status === 'completed' ? (
-                        <CheckCircle2 size={12} />
+              filteredRecords.map((rec) => {
+                const hasOt = rec.type === 'check_out' && (rec.otMinutes ?? 0) > 0;
+                const otMult = hasOt ? resolveRecordOtMultiplier(rec) : null;
+                return (
+                  <StandardTr key={rec.id}>
+                    <StandardTd className="tabular-nums font-medium">
+                      {formatThaiNumericDate(rec.date)}
+                    </StandardTd>
+                    <StandardTd className="font-mono tabular-nums font-semibold">
+                      {rec.timeDisplay}
+                    </StandardTd>
+                    <StandardTd>
+                      <div className="font-semibold text-[#2D4A49]">{rec.userName}</div>
+                      <div className="text-[10px] text-[#6B8F8E]">
+                        {rec.userRole}
+                        {rec.shiftName ? ` · ${rec.shiftName}` : ''}
+                      </div>
+                    </StandardTd>
+                    <StandardTd>
+                      <span
+                        className={
+                          rec.type === 'check_in'
+                            ? 'font-semibold text-[#2D4A49]'
+                            : 'font-semibold text-[#5A8A88]'
+                        }
+                      >
+                        {rec.type === 'check_in' ? 'เข้างาน' : 'ออกงาน'}
+                      </span>
+                    </StandardTd>
+                    <StandardTd className="text-[#6B8F8E]">
+                      {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
+                    </StandardTd>
+                    <StandardTd align="right" className="font-mono tabular-nums">
+                      {formatDistanceMeters(rec.distanceMeters)}
+                    </StandardTd>
+                    <StandardTd className="font-mono tabular-nums text-[10.5px] text-[#6B8F8E]">
+                      {rec.latitude.toFixed(5)}, {rec.longitude.toFixed(5)}
+                    </StandardTd>
+                    <StandardTd>
+                      <span
+                        className={`inline-flex items-center gap-1 font-semibold ${
+                          rec.status === 'on_time' || rec.status === 'completed'
+                            ? 'text-emerald-700'
+                            : 'text-amber-700'
+                        }`}
+                      >
+                        {rec.status === 'on_time' || rec.status === 'completed' ? (
+                          <CheckCircle2 size={12} />
+                        ) : (
+                          <AlertTriangle size={12} />
+                        )}
+                        {getStatusLabelTH(rec.status)}
+                      </span>
+                    </StandardTd>
+                    <StandardTd align="right">
+                      {hasOt && otMult ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-bold ${getOtBadgeClass(
+                                otMult
+                              )}`}
+                            >
+                              {getOtTypeLabel(otMult)}
+                            </span>
+                            <span className="font-mono tabular-nums font-bold text-emerald-700">
+                              +{formatOtHours(rec.otMinutes)}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#6B8F8E] tabular-nums">
+                            {formatOtDuration(rec.otMinutes)}
+                          </span>
+                        </div>
                       ) : (
-                        <AlertTriangle size={12} />
+                        <span className="text-[#A8BCBB]">—</span>
                       )}
-                      {getStatusLabelTH(rec.status)}
-                    </span>
-                  </StandardTd>
-                  <StandardTd align="right" className="font-mono tabular-nums font-semibold">
-                    {rec.type === 'check_out' && rec.otMinutes && rec.otMinutes > 0 ? (
-                      <span className="text-emerald-700">+{formatOtDuration(rec.otMinutes)}</span>
-                    ) : (
-                      <span className="text-[#A8BCBB]">—</span>
-                    )}
-                  </StandardTd>
-                  <StandardTd className="text-[#6B8F8E] max-w-[180px] truncate">
-                    {rec.note || '—'}
-                  </StandardTd>
-                </StandardTr>
-              ))
+                    </StandardTd>
+                    <StandardTd className="text-[#6B8F8E] max-w-[180px] truncate">
+                      {rec.note || '—'}
+                    </StandardTd>
+                  </StandardTr>
+                );
+              })
             )}
           </StandardTbody>
         </StandardTable>
