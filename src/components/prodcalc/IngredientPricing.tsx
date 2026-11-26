@@ -496,176 +496,195 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
       {/* TABLE */}
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <StandardTableCard>
-        <div className="overflow-x-auto">
-          <StandardTable>
-            <StandardThead sticky={false}>
-              <StandardHeaderRow>
-                <StandardTh align="center" className="w-12">รูป</StandardTh>
-                <StandardTh className="min-w-[150px]">ชื่อวัตถุดิบ (CMS)</StandardTh>
-                <StandardTh className="min-w-[90px]">ยี่ห้อ</StandardTh>
-                <StandardTh className="min-w-[120px]">ขนาดต่อหน่วย (CMS)</StandardTh>
-                <StandardTh className="min-w-[240px]">Sourcing (แหล่งราคา)</StandardTh>
-                <StandardTh align="center" className="min-w-[80px]">Yield %</StandardTh>
-                <StandardTh align="right" className="min-w-[120px]">ต้นทุนจริง/หน่วย</StandardTh>
-                {!isReadOnly && <StandardTh align="center" className="w-20">จัดการ</StandardTh>}
-              </StandardHeaderRow>
-            </StandardThead>
-            <StandardTbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#6B8F8E]">
-                    <div className="flex flex-col items-center gap-2">
-                      <RefreshCw size={20} className="animate-spin text-[#5A8A88]" />
-                      <span className="text-[11px]">กำลังโหลดข้อมูลวัตถุดิบ...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredItems.length === 0 ? (
-                <StandardTableEmpty
-                  colSpan={isReadOnly ? 7 : 8}
-                  icon={<Package size={22} />}
-                  title="ไม่พบรายการวัตถุดิบ"
-                  description={!isReadOnly ? 'กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก' : undefined}
-                />
-              ) : (
-                filteredItems.map((item, index) => {
-                  const defaultSource = item.sourcing.find(s => s.is_default) || item.sourcing[0];
-                  const hasPrice = item.effective_cost_per_unit > 0;
-                  const isExpanded = expandedId === item.id;
-                  const rowBg = index % 2 === 0 ? 'bg-white' : 'bg-[#F8FCFC]';
+        <StandardTable fixedLayout minWidthClassName="min-w-[780px]">
+          <colgroup>
+            <col className="w-[44px]" />
+            <col className="w-auto" />
+            <col className="w-[82px]" />
+            <col className="w-[108px]" />
+            <col className="w-[208px]" />
+            <col className="w-[74px]" />
+            <col className="w-[98px]" />
+            {!isReadOnly && <col className="w-[66px]" />}
+          </colgroup>
+          <StandardThead sticky={false}>
+            <StandardHeaderRow>
+              <StandardTh compact align="center">รูป</StandardTh>
+              <StandardTh compact>ชื่อวัตถุดิบ (CMS)</StandardTh>
+              <StandardTh compact>ยี่ห้อ</StandardTh>
+              <StandardTh compact>ขนาด/หน่วย</StandardTh>
+              <StandardTh compact>Sourcing (แหล่งราคา)</StandardTh>
+              <StandardTh compact align="center">Yield %</StandardTh>
+              <StandardTh compact align="right">ต้นทุน/หน่วย</StandardTh>
+              {!isReadOnly && <StandardTh compact align="right">จัดการ</StandardTh>}
+            </StandardHeaderRow>
+          </StandardThead>
+          <StandardTbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={isReadOnly ? 7 : 8} className="py-10 text-center text-[#6B8F8E]">
+                  <div className="flex flex-col items-center gap-2">
+                    <RefreshCw size={20} className="animate-spin text-[#5A8A88]" />
+                    <span className="text-[11px]">กำลังโหลดข้อมูลวัตถุดิบ...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredItems.length === 0 ? (
+              <StandardTableEmpty
+                colSpan={isReadOnly ? 7 : 8}
+                icon={<Package size={22} />}
+                title="ไม่พบรายการวัตถุดิบ"
+                description={!isReadOnly ? 'กดปุ่ม "Sync จาก CMS" เพื่อดึงข้อมูลจากระบบหลัก' : undefined}
+              />
+            ) : (
+              filteredItems.map((item, index) => {
+                const defaultSource = item.sourcing.find(s => s.is_default) || item.sourcing[0];
+                const hasPrice = item.effective_cost_per_unit > 0;
+                const isExpanded = expandedId === item.id;
+                const rowBg = index % 2 === 0 ? 'bg-white' : 'bg-[#F8FCFC]';
 
-                  return (
-                    <React.Fragment key={item.id}>
-                      <StandardTr className={rowBg}>
-                        {/* Image */}
-                        <StandardTd align="center">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.ingredient_name}
-                              className="w-7 h-7 rounded-lg object-cover mx-auto border border-[#D4E4E3]"
-                            />
-                          ) : (
-                            <div className="w-7 h-7 rounded-lg bg-[#E8F3F2] border border-[#D4E4E3]/60 flex items-center justify-center mx-auto text-[#5A8A88]">
-                              <FlaskConical size={13} />
-                            </div>
-                          )}
-                        </StandardTd>
+                return (
+                  <React.Fragment key={item.id}>
+                    <StandardTr className={rowBg}>
+                      {/* Image */}
+                      <StandardTd compact align="center">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.ingredient_name}
+                            className="w-7 h-7 rounded-lg object-cover mx-auto border border-[#D4E4E3]"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-lg bg-[#E8F3F2] border border-[#D4E4E3]/60 flex items-center justify-center mx-auto text-[#5A8A88]">
+                            <FlaskConical size={13} />
+                          </div>
+                        )}
+                      </StandardTd>
 
-                        {/* Name */}
-                        <StandardTd>
-                          <div className="font-semibold text-[#2D4A49] text-[11px] sm:text-[12px]">{item.ingredient_name}</div>
-                          {item.category && (
-                            <span className="text-[9.5px] text-[#6B8F8E] bg-[#F0F5F4] px-1.5 py-0.5 rounded border border-[#D4E4E3] inline-block mt-0.5">
-                              {item.category}
-                            </span>
-                          )}
-                        </StandardTd>
+                      {/* Name */}
+                      <StandardTd compact>
+                        <div className="font-semibold text-[#2D4A49] text-[11.5px] sm:text-[12px] leading-[1.35] break-words">
+                          {item.ingredient_name}
+                        </div>
+                        {item.category && (
+                          <span className="inline-block mt-0.5 text-[10px] font-medium text-[#6B8F8E] bg-[#F0F5F4] px-1.5 py-0.5 rounded-[5px] border border-[#D4E4E3] whitespace-nowrap">
+                            {item.category}
+                          </span>
+                        )}
+                      </StandardTd>
 
-                        {/* Brand */}
-                        <StandardTd className="text-[#6B8F8E] text-[11px]">
-                          {item.ingredient_brand || '-'}
-                        </StandardTd>
+                      {/* Brand */}
+                      <StandardTd compact className="text-[#6B8F8E] text-[11px] break-words">
+                        {item.ingredient_brand || '-'}
+                      </StandardTd>
 
-                        {/* Size Per Unit */}
-                        <StandardTd numeric className="text-[#2D4A49] font-medium text-[11px]">
-                          {item.size_per_unit || item.ingredient_unit}
-                        </StandardTd>
+                      {/* Size Per Unit */}
+                      <StandardTd compact numeric className="text-[#2D4A49] font-medium text-[11px] leading-[1.35] break-words">
+                        {item.size_per_unit || item.ingredient_unit}
+                      </StandardTd>
 
-                        {/* Sourcing */}
-                        <StandardTd>
-                          <div className="flex items-center justify-between gap-2">
-                            {defaultSource && defaultSource.price > 0 ? (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-semibold text-[#2D4A49] text-[11px]">{defaultSource.source_name}:</span>
-                                <span className="font-bold text-[#2D4A49] tabular-nums text-[11.5px]">฿{defaultSource.price.toLocaleString()}</span>
-                                <span className="text-[10px] text-[#6B8F8E] tabular-nums">/{defaultSource.qty} {defaultSource.unit}</span>
+                      {/* Sourcing */}
+                      <StandardTd compact>
+                        <div className="flex items-center justify-between gap-1.5">
+                          {defaultSource && defaultSource.price > 0 ? (
+                            <div className="min-w-0 leading-tight">
+                              <div className="text-[10.5px] font-semibold text-[#2D4A49] truncate">
+                                {defaultSource.source_name}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5 whitespace-nowrap">
+                                <span className="font-mono font-bold text-[#2D4A49] tabular-nums text-[11px]">
+                                  ฿{defaultSource.price.toLocaleString()}
+                                </span>
+                                <span className="text-[10px] text-[#6B8F8E] tabular-nums">
+                                  /{defaultSource.qty} {defaultSource.unit}
+                                </span>
                                 {item.sourcing.length > 1 && (
-                                  <span className="text-[9.5px] bg-[#E8F3F2] text-[#5A8A88] border border-[#D4E4E3] px-1.5 py-0.5 rounded-full font-bold tabular-nums">
+                                  <span className="text-[9.5px] bg-[#E8F3F2] text-[#5A8A88] border border-[#D4E4E3] px-1 py-0.2 rounded-[5px] font-bold tabular-nums shrink-0">
                                     +{item.sourcing.length - 1}
                                   </span>
                                 )}
                               </div>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <AlertTriangle size={9} />
-                                ยังไม่ตั้งราคา
-                              </span>
-                            )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[6px] text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap shrink-0">
+                              <AlertTriangle size={10} className="shrink-0" />
+                              ยังไม่ตั้งราคา
+                            </span>
+                          )}
 
+                          <button
+                            type="button"
+                            onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                            className="h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] bg-white text-[10.5px] font-semibold text-[#2D4A49] hover:bg-[#E8F3F2] hover:border-[#5A8A88] transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <span>{isExpanded ? 'ซ่อน' : (isReadOnly ? 'ดูแหล่ง' : 'จัดการแหล่ง')}</span>
+                            {isExpanded ? <ChevronUp size={11} className="text-[#5A8A88]" /> : <ChevronDown size={11} className="text-[#5A8A88]" />}
+                          </button>
+                        </div>
+                      </StandardTd>
+
+                      {/* Yield % */}
+                      <StandardTd compact align="center" nowrap>
+                        <div className="inline-flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            disabled={isReadOnly}
+                            min="1"
+                            max="100"
+                            value={item.yield_pct}
+                            onChange={(e) => {
+                              if (isReadOnly) return;
+                              const val = Math.min(100, Math.max(1, Number(e.target.value) || 100));
+                              handleUpdateItem({ ...item, yield_pct: val });
+                            }}
+                            className={`w-11 h-[28px] text-center rounded-[6px] border border-[#D4E4E3] text-[11px] font-mono font-bold tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed ${
+                              item.yield_pct === 100 ? 'text-emerald-600' : item.yield_pct >= 70 ? 'text-[#2D4A49]' : 'text-amber-600'
+                            }`}
+                          />
+                          <span className="text-[10px] text-[#6B8F8E] font-semibold">%</span>
+                        </div>
+                      </StandardTd>
+
+                      {/* Effective Cost Per Unit */}
+                      <StandardTd compact align="right" numeric nowrap>
+                        {hasPrice ? (
+                          <div className="inline-flex flex-col items-end">
+                            <span className="px-2 py-0.5 rounded-[6px] bg-[#E8F3F2] border border-[#D4E4E3] font-mono font-bold text-[11.5px] text-[#2D4A49] tabular-nums whitespace-nowrap">
+                              ฿{item.effective_cost_per_unit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-[#6B8F8E] mt-0.5 whitespace-nowrap">
+                              ต่อ {defaultSource?.unit || item.ingredient_unit}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[#A8BCBB] font-mono tabular-nums text-[11px]">—</span>
+                        )}
+                      </StandardTd>
+
+                      {/* Actions */}
+                      {!isReadOnly && (
+                        <StandardTd compact align="right" nowrap>
+                          <div className="inline-flex items-center justify-end gap-1">
                             <button
                               type="button"
-                              onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                              className="h-[28px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-white text-[10.5px] font-medium text-[#2D4A49] hover:bg-[#E8F3F2] hover:border-[#5A8A88] hover:text-[#2D4A49] transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                              onClick={() => setEditingItem(item)}
+                              title="แก้ไขราคาและแหล่งซื้อ"
+                              className="w-[28px] h-[28px] inline-flex items-center justify-center rounded-[6px] border border-transparent text-[#5A8A88] hover:bg-[#E8F3F2] hover:border-[#D4E4E3] transition-colors cursor-pointer shrink-0"
                             >
-                              <span>{isExpanded ? 'ซ่อน' : (isReadOnly ? 'ดูแหล่งราคา' : 'จัดการแหล่ง')}</span>
-                              {isExpanded ? <ChevronUp size={11} className="text-[#5A8A88]" /> : <ChevronDown size={11} className="text-[#5A8A88]" />}
+                              <Edit3 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResetPricing(item)}
+                              title="ล้างข้อมูลราคาใน ProdCalc"
+                              className="w-[28px] h-[28px] inline-flex items-center justify-center rounded-[6px] border border-transparent text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors cursor-pointer shrink-0"
+                            >
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </StandardTd>
-
-                        {/* Yield % */}
-                        <StandardTd align="center">
-                          <div className="inline-flex items-center justify-center gap-1">
-                            <input
-                              type="number"
-                              disabled={isReadOnly}
-                              min="1"
-                              max="100"
-                              value={item.yield_pct}
-                              onChange={(e) => {
-                                if (isReadOnly) return;
-                                const val = Math.min(100, Math.max(1, Number(e.target.value) || 100));
-                                handleUpdateItem({ ...item, yield_pct: val });
-                              }}
-                              className={`w-12 h-[28px] text-center rounded-[6px] border border-[#D4E4E3] text-[11px] font-bold tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed ${
-                                item.yield_pct === 100 ? 'text-emerald-600' : item.yield_pct >= 70 ? 'text-[#2D4A49]' : 'text-amber-600'
-                              }`}
-                            />
-                            <span className="text-[10px] text-[#6B8F8E] font-semibold">%</span>
-                          </div>
-                        </StandardTd>
-
-                        {/* Effective Cost Per Unit */}
-                        <StandardTd align="right">
-                          {hasPrice ? (
-                            <div className="inline-block px-2.5 py-1 rounded-[8px] text-right bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49]">
-                              <div className="font-black text-[12px] tabular-nums">
-                                ฿ {item.effective_cost_per_unit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                              <div className="text-[9.5px] text-[#6B8F8E]">
-                                ต่อ {defaultSource?.unit || item.ingredient_unit}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-[#A8BCBB] tabular-nums text-[11px]">-</span>
-                          )}
-                        </StandardTd>
-
-                        {/* Actions */}
-                        {!isReadOnly && (
-                          <StandardTd align="center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setEditingItem(item)}
-                                title="แก้ไขราคาและแหล่งซื้อ"
-                                className="w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-[#5A8A88] hover:bg-[#E8F3F2] transition-colors cursor-pointer"
-                              >
-                                <Edit3 size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleResetPricing(item)}
-                                title="ล้างข้อมูลราคาใน ProdCalc"
-                                className="w-[28px] h-[28px] flex items-center justify-center rounded-[8px] text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </StandardTd>
-                        )}
-                      </StandardTr>
+                      )}
+                    </StandardTr>
 
                       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                       {/* EXPANDED SOURCING PANEL */}
@@ -738,16 +757,16 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                               </div>
 
                               <StandardTableCard>
-                                <StandardTable>
+                                <StandardTable minWidthClassName="min-w-[620px]">
                                   <StandardThead sticky={false}>
                                     <StandardHeaderRow level="secondary">
-                                      <StandardTh align="center" className="w-16">ราคาหลัก</StandardTh>
-                                      <StandardTh>ชื่อแหล่งซื้อ (Vendor/Store)</StandardTh>
-                                      <StandardTh className="w-28">ราคา (บาท)</StandardTh>
-                                      <StandardTh className="w-24">ปริมาณ</StandardTh>
-                                      <StandardTh className="w-24">หน่วย</StandardTh>
-                                      <StandardTh align="right">ต้นทุน/หน่วยดิบ</StandardTh>
-                                      <StandardTh align="center" className="w-9"></StandardTh>
+                                      <StandardTh compact align="center" className="w-16">ราคาหลัก</StandardTh>
+                                      <StandardTh compact>ชื่อแหล่งซื้อ (Vendor/Store)</StandardTh>
+                                      <StandardTh compact className="w-28">ราคา (บาท)</StandardTh>
+                                      <StandardTh compact className="w-24">ปริมาณ</StandardTh>
+                                      <StandardTh compact className="w-24">หน่วย</StandardTh>
+                                      <StandardTh compact align="right">ต้นทุน/หน่วยดิบ</StandardTh>
+                                      <StandardTh compact align="center" className="w-9"></StandardTh>
                                     </StandardHeaderRow>
                                   </StandardThead>
                                   <StandardTbody>
@@ -756,7 +775,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                       return (
                                         <StandardTr key={source.id} className={source.is_default ? 'bg-[#E8F3F2]/50' : ''}>
                                           {/* Default Radio */}
-                                          <StandardTd align="center">
+                                          <StandardTd compact align="center">
                                             <button
                                               type="button"
                                               disabled={isReadOnly}
@@ -779,7 +798,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                           </StandardTd>
 
                                           {/* Source Name */}
-                                          <StandardTd>
+                                          <StandardTd compact>
                                             <input
                                               type="text"
                                               disabled={isReadOnly}
@@ -796,7 +815,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                           </StandardTd>
 
                                           {/* Price */}
-                                          <StandardTd>
+                                          <StandardTd compact>
                                             <div className="relative">
                                               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#6B8F8E] text-[10px]">฿</span>
                                               <input
@@ -812,13 +831,13 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                   updatedSourcing[sIdx].price = Number(e.target.value) || 0;
                                                   handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                                 }}
-                                                className="w-full h-[28px] pl-5 pr-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums font-bold outline-none focus:border-[#5A8A88] bg-white text-right disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                                className="w-full h-[28px] pl-5 pr-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums font-bold outline-none focus:border-[#5A8A88] bg-white text-right disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                               />
                                             </div>
                                           </StandardTd>
 
                                           {/* Qty */}
-                                          <StandardTd>
+                                          <StandardTd compact>
                                             <input
                                               type="number"
                                               disabled={isReadOnly}
@@ -831,12 +850,12 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                 updatedSourcing[sIdx].qty = Number(e.target.value) || 1;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
-                                              className="w-full h-[28px] px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white text-center disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                              className="w-full h-[28px] px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white text-center disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                             />
                                           </StandardTd>
 
                                           {/* Unit */}
-                                          <StandardTd>
+                                          <StandardTd compact>
                                             <input
                                               type="text"
                                               disabled={isReadOnly}
@@ -852,12 +871,12 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                           </StandardTd>
 
                                           {/* Raw Cost */}
-                                          <StandardTd align="right" numeric className="font-semibold text-[#2D4A49]">
+                                          <StandardTd compact align="right" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
                                             ฿{rawCost.toFixed(2)}
                                           </StandardTd>
 
                                           {/* Delete Source */}
-                                          <StandardTd align="center">
+                                          <StandardTd compact align="center">
                                             {!isReadOnly && item.sourcing.length > 1 && (
                                               <button
                                                 type="button"
@@ -890,7 +909,6 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
               )}
             </StandardTbody>
           </StandardTable>
-        </div>
       </StandardTableCard>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
