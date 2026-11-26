@@ -385,7 +385,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
         {showStaffOtBreakdown && employeeOtBreakdown.length > 0 && (
           <div className="pt-2 border-t border-[#E8F3F2]">
             <StandardTableCard>
-              <StandardTable>
+              <StandardTable minWidthClassName="min-w-[700px]">
                 <StandardThead>
                   <StandardHeaderRow>
                     <StandardTh>พนักงาน</StandardTh>
@@ -450,7 +450,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
       </section>
 
       <StandardTableCard>
-        <StandardTable>
+        <StandardTable minWidthClassName="min-w-[960px]">
           <StandardThead>
             <StandardHeaderRow>
               <StandardTh>วันที่</StandardTh>
@@ -512,9 +512,9 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                     <StandardTd className="font-mono tabular-nums text-[10.5px] text-[#6B8F8E]">
                       {rec.latitude.toFixed(5)}, {rec.longitude.toFixed(5)}
                     </StandardTd>
-                    <StandardTd>
+                    <StandardTd nowrap>
                       <span
-                        className={`inline-flex items-center gap-1 font-semibold ${
+                        className={`inline-flex items-center gap-1 font-semibold whitespace-nowrap ${
                           rec.status === 'on_time' || rec.status === 'completed'
                             ? 'text-emerald-700'
                             : 'text-amber-700'
@@ -528,22 +528,22 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                         {getStatusLabelTH(rec.status)}
                       </span>
                     </StandardTd>
-                    <StandardTd align="right">
+                    <StandardTd align="right" nowrap>
                       {hasOt && otMult ? (
                         <div className="flex flex-col items-end gap-0.5">
                           <div className="flex items-center justify-end gap-1.5">
                             <span
-                              className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-bold ${getOtBadgeClass(
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10.5px] font-bold whitespace-nowrap shrink-0 ${getOtBadgeClass(
                                 otMult
                               )}`}
                             >
                               {getOtTypeLabel(otMult)}
                             </span>
-                            <span className="font-mono tabular-nums font-bold text-emerald-700">
+                            <span className="font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
                               +{formatOtHours(rec.otMinutes)}
                             </span>
                           </div>
-                          <span className="text-[10px] text-[#6B8F8E] tabular-nums">
+                          <span className="text-[10.5px] text-[#6B8F8E] tabular-nums whitespace-nowrap">
                             {formatOtDuration(rec.otMinutes)}
                           </span>
                         </div>
