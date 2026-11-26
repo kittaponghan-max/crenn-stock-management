@@ -947,16 +947,16 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
           </div>
 
           <StandardTableCard>
-            <StandardTable>
+            <StandardTable minWidthClassName="min-w-[820px]">
               <StandardThead>
                 <StandardHeaderRow>
-                  <StandardTh>ชื่อตารางเวลา (กะงาน)</StandardTh>
-                  <StandardTh className="text-center">เช็คอิน</StandardTh>
-                  <StandardTh className="text-center">เช็คเอาท์</StandardTh>
-                  <StandardTh align="right">เวลาทำงาน (นาที)</StandardTh>
-                  <StandardTh align="right">ช่วงเวลาพัก (นาที)</StandardTh>
-                  <StandardTh className="text-center">เกณฑ์ล่วงเวลา / ชนิด OT</StandardTh>
-                  <StandardTh className="text-center">พนักงานที่ใช้</StandardTh>
+                  <StandardTh className="min-w-[210px]">ชื่อตารางเวลา (กะงาน)</StandardTh>
+                  <StandardTh align="center">เช็คอิน</StandardTh>
+                  <StandardTh align="center">เช็คเอาท์</StandardTh>
+                  <StandardTh align="right">เวลาทำงาน</StandardTh>
+                  <StandardTh align="right">เวลาพัก</StandardTh>
+                  <StandardTh align="center">เกณฑ์ & ชนิด OT</StandardTh>
+                  <StandardTh align="center">ผู้ใช้งาน</StandardTh>
                   <StandardTh align="right">จัดการ</StandardTh>
                 </StandardHeaderRow>
               </StandardThead>
@@ -975,24 +975,26 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                     return (
                       <StandardTr key={tpl.id}>
                         <StandardTd>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-2.5">
                             <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
                               style={{ backgroundColor: tpl.color || '#5A8A88' }}
                             />
-                            <div>
-                              <div className="font-bold text-[#2D4A49]">{tpl.name}</div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-[#2D4A49] leading-snug">
+                                {tpl.name}
+                              </div>
                               <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                 {tpl.isOvertimeSchedule || tpl.scheduleType === 'overtime' ? (
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                  <span className="inline-flex items-center whitespace-nowrap shrink-0 text-[10.5px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
                                     ตารางเวลาล่วงเวลา
                                   </span>
                                 ) : tpl.scheduleType === 'flexible' ? (
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                                  <span className="inline-flex items-center whitespace-nowrap shrink-0 text-[10.5px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
                                     ยืดหยุ่น
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-medium text-[#6B8F8E]">
+                                  <span className="text-[10.5px] font-medium text-[#6B8F8E] whitespace-nowrap">
                                     กะปกติ · อนุโลมสาย {tpl.graceMinutes} น.
                                   </span>
                                 )}
@@ -1000,25 +1002,27 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             </div>
                           </div>
                         </StandardTd>
-                        <StandardTd className="text-center font-mono tabular-nums font-semibold text-[#2D4A49]">
+                        <StandardTd align="center" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
                           {tpl.checkInTime}
                         </StandardTd>
-                        <StandardTd className="text-center font-mono tabular-nums font-semibold text-[#2D4A49]">
+                        <StandardTd align="center" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
                           {tpl.checkOutTime}
                         </StandardTd>
-                        <StandardTd align="right" className="font-mono tabular-nums">
-                          <span className="font-semibold text-[#2D4A49]">{tpl.workMinutes}</span>
-                          <span className="text-[10px] text-[#6B8F8E] ml-1">
+                        <StandardTd align="right" numeric nowrap>
+                          <span className="font-semibold text-[#2D4A49] font-mono">
+                            {tpl.workMinutes} น.
+                          </span>
+                          <span className="text-[10.5px] text-[#6B8F8E] ml-1">
                             ({(tpl.workMinutes / 60).toFixed(1)} ชม.)
                           </span>
                         </StandardTd>
-                        <StandardTd align="right" className="font-mono tabular-nums text-[#6B8F8E]">
-                          {tpl.breakMinutes}
+                        <StandardTd align="right" numeric nowrap className="font-mono text-[#6B8F8E]">
+                          {tpl.breakMinutes} น.
                         </StandardTd>
-                        <StandardTd className="text-center">
+                        <StandardTd align="center" nowrap>
                           <div className="inline-flex flex-col items-center gap-0.5">
                             <span
-                              className={`text-[10.5px] font-bold px-2 py-0.5 rounded border ${
+                              className={`inline-flex items-center whitespace-nowrap shrink-0 text-[10.5px] font-bold px-2 py-0.5 rounded-[6px] border ${
                                 tpl.otMultiplier === 3
                                   ? 'bg-rose-50 text-rose-700 border-rose-200'
                                   : tpl.otMultiplier === 2
@@ -1028,7 +1032,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             >
                               {otTypeLabel}
                             </span>
-                            <span className="text-[10px] text-[#6B8F8E]">
+                            <span className="text-[10.5px] text-[#6B8F8E] whitespace-nowrap">
                               {tpl.otCalculationMode === 'actual'
                                 ? `ขั้นต่ำ ${tpl.lateOutMinOtMinutes} น. (ตามจริง)`
                                 : tpl.otStepMinutes > 0
@@ -1037,20 +1041,20 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             </span>
                           </div>
                         </StandardTd>
-                        <StandardTd className="text-center tabular-nums">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#F0F5F4] text-[#2D4A49] text-[11px] font-semibold">
+                        <StandardTd align="center" numeric nowrap>
+                          <span className="inline-flex items-center whitespace-nowrap shrink-0 px-2 py-0.5 rounded-[6px] bg-[#F0F5F4] text-[#2D4A49] text-[10.5px] font-semibold">
                             {empCount} คน
                           </span>
                         </StandardTd>
-                        <StandardTd align="right">
-                          <div className="inline-flex items-center justify-end gap-1">
+                        <StandardTd align="right" nowrap>
+                          <div className="inline-flex items-center justify-end gap-1.5">
                             <button
                               type="button"
                               onClick={() => openEditTemplate(tpl)}
-                              className="h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#2D4A49] text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                              className="h-[28px] px-2.5 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#2D4A49] text-[10.5px] font-semibold inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
                               title="แก้ไขตารางเวลาและตั้งค่าโอที"
                             >
-                              <Pencil size={11} className="text-[#5A8A88]" />
+                              <Pencil size={11} className="text-[#5A8A88] shrink-0" />
                               <span>{canEdit ? 'ตั้งค่า' : 'ดู'}</span>
                             </button>
                             {canEdit && (
@@ -1058,7 +1062,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleDuplicateTemplate(tpl)}
-                                  className="h-[28px] w-[28px] rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#5A8A88] inline-flex items-center justify-center cursor-pointer"
+                                  className="h-[28px] w-[28px] shrink-0 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#5A8A88] inline-flex items-center justify-center cursor-pointer"
                                   title="คัดลอกตารางเวลา"
                                 >
                                   <Copy size={11} />
@@ -1067,7 +1071,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                   type="button"
                                   onClick={() => handleDeleteTemplate(tpl)}
                                   disabled={templates.length <= 1}
-                                  className="h-[28px] w-[28px] rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                                  className="h-[28px] w-[28px] shrink-0 rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                                   title="ลบตารางเวลา"
                                 >
                                   <Trash2 size={11} />
@@ -1212,15 +1216,15 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
           )}
 
           <StandardTableCard>
-            <StandardTable>
+            <StandardTable minWidthClassName="min-w-[900px]">
               <StandardThead>
                 <StandardHeaderRow>
-                  <StandardTh className="w-10 text-center">#</StandardTh>
-                  <StandardTh>พนักงาน / ตำแหน่ง</StandardTh>
-                  <StandardTh>รูปแบบการผูกกะงาน</StandardTh>
-                  <StandardTh>รายละเอียดกะงาน / ตารางเวลา</StandardTh>
-                  <StandardTh>ชนิด OT ประจำตัว</StandardTh>
-                  {canEdit && <StandardTh align="right">จัดการ</StandardTh>}
+                  <StandardTh align="center" className="w-10">#</StandardTh>
+                  <StandardTh className="min-w-[130px]">พนักงาน / ตำแหน่ง</StandardTh>
+                  <StandardTh className="w-[172px]">รูปแบบกะงาน</StandardTh>
+                  <StandardTh className="min-w-[235px]">รายละเอียดกะ / เวลา</StandardTh>
+                  <StandardTh className="w-[132px]">ชนิด OT</StandardTh>
+                  {canEdit && <StandardTh align="right" className="w-[140px]">จัดการ</StandardTh>}
                 </StandardHeaderRow>
               </StandardThead>
               <StandardTbody>
@@ -1250,11 +1254,11 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                         key={`${emp.name}-${idx}`}
                         className={isIgnored ? 'bg-slate-50/75 opacity-80' : undefined}
                       >
-                        <StandardTd className="text-center text-[#6B8F8E] tabular-nums">
+                        <StandardTd align="center" numeric nowrap className="text-[#6B8F8E]">
                           {idx + 1}
                         </StandardTd>
-                        <StandardTd>
-                          <div className="flex flex-wrap items-center gap-1.5">
+                        <StandardTd nowrap>
+                          <div className="flex items-center gap-1.5">
                             <span
                               className={`font-semibold ${
                                 isIgnored ? 'text-slate-500 line-through' : 'text-[#2D4A49]'
@@ -1263,12 +1267,14 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               {emp.name}
                             </span>
                             {isIgnored && (
-                              <span className="text-[9.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                              <span className="inline-flex items-center whitespace-nowrap shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                                 Ignore
                               </span>
                             )}
                           </div>
-                          <div className="text-[10.5px] text-[#6B8F8E]">{emp.role}</div>
+                          <div className="text-[10.5px] text-[#6B8F8E] leading-tight mt-0.5">
+                            {emp.role}
+                          </div>
                         </StandardTd>
 
                         <StandardTd>
@@ -1281,7 +1287,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                 e.target.value as EmployeeShiftAssignmentMode
                               )
                             }
-                            className={`${STANDARD_NATIVE_SELECT_CLASS} h-[30px] text-[11px] min-w-[155px]`}
+                            className={`${STANDARD_NATIVE_SELECT_CLASS} h-[30px] text-[11px] w-[156px]`}
                           >
                             <option value="branch_default">ค่าเริ่มต้นสาขา</option>
                             <option value="template">เลือกตารางเวลา (1 กะ)</option>
@@ -1292,8 +1298,12 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
 
                         <StandardTd>
                           {mode === 'branch_default' && (
-                            <div className="text-[11px] text-[#6B8F8E] font-mono tabular-nums">
-                              ใช้ค่าสาขา: <strong className="text-[#2D4A49]">{draft.shiftStartTime}–{draft.shiftEndTime}</strong> · สาย {draft.graceMinutes} น.
+                            <div className="text-[11px] text-[#6B8F8E] tabular-nums whitespace-nowrap">
+                              ใช้ค่าสาขา:{' '}
+                              <strong className="text-[#2D4A49] font-mono">
+                                {draft.shiftStartTime}–{draft.shiftEndTime}
+                              </strong>{' '}
+                              · สาย {draft.graceMinutes} น.
                             </div>
                           )}
 
@@ -1302,7 +1312,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               disabled={!canEdit || isIgnored}
                               value={matchedTpl?.id || ''}
                               onChange={(e) => handleAssignEmployeeTemplate(emp, e.target.value)}
-                              className={`${STANDARD_NATIVE_SELECT_CLASS} h-[30px] text-[11px] min-w-[210px]`}
+                              className={`${STANDARD_NATIVE_SELECT_CLASS} h-[30px] text-[11px] w-full max-w-[230px]`}
                             >
                               {templates.map((t) => (
                                 <option key={t.id} value={t.id}>
@@ -1313,87 +1323,96 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                           )}
 
                           {mode === 'weekly' && (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[11px] text-[#2D4A49] max-w-[230px] truncate" title={summarizeWeeklySchedule(entry)}>
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className="text-[11px] text-[#2D4A49] max-w-[165px] truncate"
+                                title={summarizeWeeklySchedule(entry)}
+                              >
                                 {summarizeWeeklySchedule(entry)}
                               </span>
                               <button
                                 type="button"
                                 disabled={isIgnored}
                                 onClick={() => setWeeklyModalEmp(emp)}
-                                className="h-[26px] px-2 rounded-[6px] bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#5A8A88] text-[#2D4A49] text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer disabled:opacity-45 whitespace-nowrap"
+                                className="h-[28px] px-2 rounded-[6px] bg-[#E8F3F2] hover:bg-[#D8EAE8] border border-[#5A8A88] text-[#2D4A49] text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer disabled:opacity-45 whitespace-nowrap shrink-0"
                               >
-                                <CalendarDays size={11} className="text-[#5A8A88]" />
+                                <CalendarDays size={11} className="text-[#5A8A88] shrink-0" />
                                 <span>จัดตาราง จ.-อา.</span>
                               </button>
                             </div>
                           )}
 
                           {mode === 'custom' && (
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <input
-                                type="time"
-                                disabled={!canEdit || isIgnored}
-                                value={entry.shiftStartTime}
-                                onChange={(e) =>
-                                  mutateEmployeeShift(emp, (cur) => ({
-                                    ...cur,
-                                    assignmentMode: 'custom',
-                                    shiftStartTime: e.target.value,
-                                  }))
-                                }
-                                className="h-[28px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums"
-                              />
-                              <span className="text-[#6B8F8E]">–</span>
-                              <input
-                                type="time"
-                                disabled={!canEdit || isIgnored}
-                                value={entry.shiftEndTime}
-                                onChange={(e) =>
-                                  mutateEmployeeShift(emp, (cur) => ({
-                                    ...cur,
-                                    assignmentMode: 'custom',
-                                    shiftEndTime: e.target.value,
-                                  }))
-                                }
-                                className="h-[28px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums"
-                              />
-                              <div className="inline-flex items-center gap-1 text-[10px] text-[#6B8F8E]">
-                                <span>สาย</span>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1 whitespace-nowrap">
                                 <input
-                                  type="number"
-                                  min={0}
-                                  max={120}
+                                  type="time"
                                   disabled={!canEdit || isIgnored}
-                                  value={entry.graceMinutes}
+                                  value={entry.shiftStartTime}
                                   onChange={(e) =>
                                     mutateEmployeeShift(emp, (cur) => ({
                                       ...cur,
                                       assignmentMode: 'custom',
-                                      graceMinutes: Math.max(0, parseInt(e.target.value, 10) || 0),
+                                      shiftStartTime: e.target.value,
                                     }))
                                   }
-                                  className="h-[28px] w-[44px] px-1 text-center rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums text-[#2D4A49]"
+                                  className="h-[26px] w-[92px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums text-[#2D4A49]"
+                                />
+                                <span className="text-[#6B8F8E] text-[11px]">–</span>
+                                <input
+                                  type="time"
+                                  disabled={!canEdit || isIgnored}
+                                  value={entry.shiftEndTime}
+                                  onChange={(e) =>
+                                    mutateEmployeeShift(emp, (cur) => ({
+                                      ...cur,
+                                      assignmentMode: 'custom',
+                                      shiftEndTime: e.target.value,
+                                    }))
+                                  }
+                                  className="h-[26px] w-[92px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums text-[#2D4A49]"
                                 />
                               </div>
-                              <div className="inline-flex items-center gap-1 text-[10px] text-[#6B8F8E]">
-                                <span>OT</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={240}
-                                  step={5}
-                                  disabled={!canEdit || isIgnored}
-                                  value={entry.otStepMinutes}
-                                  onChange={(e) =>
-                                    mutateEmployeeShift(emp, (cur) => ({
-                                      ...cur,
-                                      assignmentMode: 'custom',
-                                      otStepMinutes: Math.max(0, parseInt(e.target.value, 10) || 0),
-                                    }))
-                                  }
-                                  className="h-[28px] w-[44px] px-1 text-center rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums text-[#2D4A49]"
-                                />
+                              <div className="flex items-center gap-2 text-[10.5px] text-[#6B8F8E] whitespace-nowrap">
+                                <label className="inline-flex items-center gap-1">
+                                  <span>สาย</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={120}
+                                    disabled={!canEdit || isIgnored}
+                                    value={entry.graceMinutes}
+                                    onChange={(e) =>
+                                      mutateEmployeeShift(emp, (cur) => ({
+                                        ...cur,
+                                        assignmentMode: 'custom',
+                                        graceMinutes: Math.max(0, parseInt(e.target.value, 10) || 0),
+                                      }))
+                                    }
+                                    className="h-[24px] w-[42px] px-1 text-center rounded-[5px] bg-[#F8FCFC] border border-[#D4E4E3] text-[10.5px] font-mono tabular-nums text-[#2D4A49]"
+                                  />
+                                  <span>น.</span>
+                                </label>
+                                <label className="inline-flex items-center gap-1">
+                                  <span>OT ทุก</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={240}
+                                    step={5}
+                                    disabled={!canEdit || isIgnored}
+                                    value={entry.otStepMinutes}
+                                    onChange={(e) =>
+                                      mutateEmployeeShift(emp, (cur) => ({
+                                        ...cur,
+                                        assignmentMode: 'custom',
+                                        otStepMinutes: Math.max(0, parseInt(e.target.value, 10) || 0),
+                                      }))
+                                    }
+                                    className="h-[24px] w-[42px] px-1 text-center rounded-[5px] bg-[#F8FCFC] border border-[#D4E4E3] text-[10.5px] font-mono tabular-nums text-[#2D4A49]"
+                                  />
+                                  <span>น.</span>
+                                </label>
                               </div>
                             </div>
                           )}
@@ -1411,7 +1430,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                   val === 'INHERIT' ? undefined : normalizeOtMultiplier(val),
                               }));
                             }}
-                            className={`${STANDARD_NATIVE_SELECT_CLASS} h-[30px] text-[11px] min-w-[125px]`}
+                            className={`${STANDARD_NATIVE_SELECT_CLASS} h-[30px] text-[11px] w-[116px]`}
                           >
                             <option value="INHERIT">ตามกะ / วัน</option>
                             <option value="1.5">OT 1.5 เท่า</option>
@@ -1421,7 +1440,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                         </StandardTd>
 
                         {canEdit && (
-                          <StandardTd align="right">
+                          <StandardTd align="right" nowrap>
                             <div className="inline-flex items-center justify-end gap-1">
                               <button
                                 type="button"
@@ -1431,29 +1450,29 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                     ignored: !cur.ignored,
                                   }))
                                 }
-                                className={`h-[26px] px-1.5 rounded-[6px] border text-[10px] font-semibold inline-flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                                className={`h-[28px] px-2 rounded-[6px] border text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 ${
                                   isIgnored
                                     ? 'border-amber-300 bg-amber-50 text-amber-800'
                                     : 'border-[#D4E4E3] bg-white text-[#6B8F8E] hover:bg-[#F0F5F4] hover:text-[#2D4A49]'
                                 }`}
                               >
-                                <EyeOff size={11} />
+                                <EyeOff size={11} className="shrink-0" />
                                 <span>{isIgnored ? 'Ignored' : 'Ignore'}</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => resetSingleEmployee(emp)}
-                                className="h-[26px] px-1.5 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#2D4A49] text-[10px] font-medium inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                className="h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] bg-white hover:bg-[#F0F5F4] text-[#2D4A49] text-[10.5px] font-medium inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                                 title="รีเซ็ตกลับเป็นค่าสาขา"
                               >
-                                <RotateCcw size={10} />
+                                <RotateCcw size={10} className="shrink-0" />
                                 <span>รีเซ็ต</span>
                               </button>
                               {emp.isManual && (
                                 <button
                                   type="button"
                                   onClick={() => removeManualEmployee(emp)}
-                                  className="h-[26px] w-[26px] rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center cursor-pointer"
+                                  className="h-[28px] w-[28px] shrink-0 rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center cursor-pointer"
                                   title="ลบรายชื่อที่เพิ่มเอง"
                                 >
                                   <Trash2 size={11} />
@@ -1653,12 +1672,12 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
             )}
 
             <StandardTableCard>
-              <StandardTable>
+              <StandardTable minWidthClassName="min-w-[540px]">
                 <StandardThead>
                   <StandardHeaderRow>
                     <StandardTh>วันที่</StandardTh>
                     <StandardTh>ชื่อวันหยุด / รายละเอียด</StandardTh>
-                    <StandardTh className="text-center">ชนิด OT</StandardTh>
+                    <StandardTh align="center">ชนิด OT</StandardTh>
                     {canEdit && <StandardTh align="right">ลบ</StandardTh>}
                   </StandardHeaderRow>
                 </StandardThead>
@@ -1673,13 +1692,13 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                   ) : (
                     (draft.holidayOverrides || []).map((hol) => (
                       <StandardTr key={hol.id}>
-                        <StandardTd className="font-mono tabular-nums font-semibold">
+                        <StandardTd numeric nowrap className="font-mono font-semibold">
                           {formatThaiNumericDate(hol.date)}
                         </StandardTd>
                         <StandardTd className="font-medium text-[#2D4A49]">{hol.label}</StandardTd>
-                        <StandardTd className="text-center">
+                        <StandardTd align="center" nowrap>
                           <span
-                            className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded border ${
+                            className={`inline-flex items-center whitespace-nowrap shrink-0 text-[10.5px] font-bold px-2.5 py-0.5 rounded-[6px] border ${
                               hol.otMultiplier === 3
                                 ? 'bg-rose-50 text-rose-700 border-rose-200'
                                 : hol.otMultiplier === 2
@@ -1691,11 +1710,11 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                           </span>
                         </StandardTd>
                         {canEdit && (
-                          <StandardTd align="right">
+                          <StandardTd align="right" nowrap>
                             <button
                               type="button"
                               onClick={() => handleRemoveHoliday(hol.id)}
-                              className="h-[26px] w-[26px] rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center cursor-pointer"
+                              className="h-[28px] w-[28px] shrink-0 rounded-[6px] border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center cursor-pointer"
                             >
                               <Trash2 size={11} />
                             </button>
