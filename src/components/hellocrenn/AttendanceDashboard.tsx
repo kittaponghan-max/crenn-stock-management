@@ -511,7 +511,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
         </div>
 
         <StandardTableCard>
-          <StandardTable>
+          <StandardTable minWidthClassName="min-w-[860px]">
             <StandardThead>
               <StandardHeaderRow>
                 <StandardTh>พนักงาน / กะงาน</StandardTh>
@@ -555,7 +555,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                             ({shift.shiftStartTime}–{shift.shiftEndTime})
                           </span>
                           {(shift.isOvertimeSchedule || shift.isDayOff) && (
-                            <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[9.5px] font-semibold">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold whitespace-nowrap shrink-0">
                               OT เต็มเวลา
                             </span>
                           )}
@@ -660,14 +660,14 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                           <div className="flex flex-col items-end gap-0.5">
                             <div className="flex items-center justify-end gap-1.5">
                               <span
-                                className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-bold ${getOtBadgeClass(
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10.5px] font-bold whitespace-nowrap shrink-0 ${getOtBadgeClass(
                                   otMultiplier
                                 )}`}
                               >
                                 {getOtTypeLabel(otMultiplier)}
                               </span>
                               <span
-                                className={`font-mono tabular-nums font-bold ${
+                                className={`font-mono tabular-nums font-bold whitespace-nowrap ${
                                   otMinutes > 0 ? 'text-emerald-700' : 'text-[#6B8F8E]'
                                 }`}
                               >
