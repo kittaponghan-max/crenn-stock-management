@@ -3,6 +3,7 @@ import {
   MapPin,
   History,
   Settings2,
+  CalendarClock,
   Coffee,
   ChevronDown,
   ChevronUp,
@@ -23,7 +24,9 @@ import {
   evaluateAttendanceStatus,
   formatDistanceMeters,
   formatOtDuration,
+  formatOtHours,
   getDefaultGeofenceConfig,
+  getOtTypeLabel,
   getStatusLabelTH,
   normalizeGeofenceConfig,
 } from '../../utils/gpsUtils';
@@ -32,6 +35,7 @@ import { AttendanceDashboard } from './AttendanceDashboard';
 import { AttendanceScanner } from './AttendanceScanner';
 import { AttendanceHistory } from './AttendanceHistory';
 import { GeofenceSettings } from './GeofenceSettings';
+import { ShiftSettings } from './ShiftSettings';
 
 interface HelloCrennAppProps {
   currentUser: {
@@ -80,7 +84,7 @@ export function HelloCrennApp({
     settings: tabPermissions?.settings ?? (canEditGeofence ? 'edit' : 'read'),
   };
 
-  type HelloCrennTab = 'dashboard' | 'scan' | 'history' | 'settings';
+  type HelloCrennTab = 'dashboard' | 'scan' | 'history' | 'settings' | 'shifts';
 
   const [currentTab, setCurrentTab] = useState<HelloCrennTab>(() => {
     if (effectivePerms.dashboard !== 'hidden') return 'dashboard';
@@ -114,7 +118,10 @@ export function HelloCrennApp({
             ? 'scan'
             : 'settings'
       );
-    } else if (currentTab === 'settings' && effectivePerms.settings === 'hidden') {
+    } else if (
+      (currentTab === 'settings' || currentTab === 'shifts') &&
+      effectivePerms.settings === 'hidden'
+    ) {
       setCurrentTab(
         effectivePerms.dashboard !== 'hidden'
           ? 'dashboard'
@@ -231,7 +238,11 @@ export function HelloCrennApp({
             .from('app_settings')
             .select('setting_key, setting_value')
             .eq('branch', currentUser.branch)
-            .in('setting_key', ['hellocrenn_geofence_config', 'hellocrenn_attendance_logs']),
+            .in('setting_key', [
+              'hellocrenn_geofence_config',
+              'hellocrenn_attendance_logs',
+              'hellocrenn_shift_config',
+            ]),
         ]);
 
         if (!isMounted) return;
@@ -244,9 +255,51 @@ export function HelloCrennApp({
         }
         setDbStatus('connected');
 
-        // 1. Resolve Geofence Config (authoritative table first, fallback app_settings)
+        const settingsList = (!settingsRes.error && Array.isArray(settingsRes.data))
+          ? settingsRes.data
+          : [];
+        const shiftSettingsRow = settingsList.find(
+          (r: any) => r.setting_key === 'hellocrenn_shift_config'
+        );
+        const geoSettingsRow = settingsList.find(
+          (r: any) => r.setting_key === 'hellocrenn_geofence_config'
+        );
+        const logsSettingsRow = settingsList.find(
+          (r: any) => r.setting_key === 'hellocrenn_attendance_logs'
+        );
+
+        const shiftExtras = (shiftSettingsRow?.setting_value ||
+          geoSettingsRow?.setting_value ||
+          null) as Record<string, any> | null;
+
+        // 1. Resolve Geofence + Shift Config (branch_geofences merged with app_settings shift extensions)
         if (!geoTableRes.error && geoTableRes.data) {
           const r = geoTableRes.data as any;
+          const mergedEmployeeShifts = (() => {
+            const baseShifts =
+              r.employee_shifts && typeof r.employee_shifts === 'object'
+                ? r.employee_shifts
+                : {};
+            const extraShifts =
+              shiftExtras?.employeeShifts && typeof shiftExtras.employeeShifts === 'object'
+                ? shiftExtras.employeeShifts
+                : null;
+            if (!extraShifts) return baseShifts;
+            const shiftUpdatedAt = shiftExtras?.updatedAt ? new Date(shiftExtras.updatedAt).getTime() : 0;
+            const tableUpdatedAt = r.updated_at ? new Date(r.updated_at).getTime() : 0;
+            if (shiftUpdatedAt >= tableUpdatedAt) {
+              return extraShifts;
+            }
+            const merged: Record<string, any> = { ...baseShifts };
+            Object.entries(baseShifts).forEach(([k, v]: [string, any]) => {
+              const ext = extraShifts[k];
+              if (ext && typeof ext === 'object') {
+                merged[k] = { ...ext, ...v };
+              }
+            });
+            return merged;
+          })();
+
           const normalized = normalizeGeofenceConfig(
             {
               branch: r.branch,
@@ -255,11 +308,14 @@ export function HelloCrennApp({
               longitude: r.longitude,
               radiusMeters: r.radius_meters,
               maxAccuracyMeters: r.max_accuracy_meters,
-              shiftStartTime: r.shift_start_time,
-              shiftEndTime: r.shift_end_time,
-              graceMinutes: r.grace_minutes,
-              otStepMinutes: r.ot_step_minutes,
-              employeeShifts: r.employee_shifts,
+              shiftStartTime: shiftExtras?.shiftStartTime || r.shift_start_time,
+              shiftEndTime: shiftExtras?.shiftEndTime || r.shift_end_time,
+              graceMinutes: shiftExtras?.graceMinutes ?? r.grace_minutes,
+              otStepMinutes: shiftExtras?.otStepMinutes ?? r.ot_step_minutes,
+              defaultOtMultiplier: shiftExtras?.defaultOtMultiplier,
+              shiftTemplates: shiftExtras?.shiftTemplates,
+              holidayOverrides: shiftExtras?.holidayOverrides,
+              employeeShifts: mergedEmployeeShifts,
               autoCheckinEnabled: r.auto_checkin_enabled,
               autoCheckoutEnabled: r.auto_checkout_enabled,
               isConfigured: r.is_configured,
@@ -272,54 +328,73 @@ export function HelloCrennApp({
           try {
             localStorage.setItem(getGeofenceStorageKey(currentUser.branch), JSON.stringify(normalized));
           } catch {}
-        } else if (!settingsRes.error && settingsRes.data) {
-          const geoRow = settingsRes.data.find((r: any) => r.setting_key === 'hellocrenn_geofence_config');
-          if (geoRow?.setting_value) {
-            const normalized = normalizeGeofenceConfig(geoRow.setting_value, currentUser.branch);
-            setGeofenceConfig(normalized);
-            try {
-              localStorage.setItem(getGeofenceStorageKey(currentUser.branch), JSON.stringify(normalized));
-            } catch {}
-          } else {
-            setGeofenceConfig(getDefaultGeofenceConfig(currentUser.branch));
-          }
+        } else if (geoSettingsRow?.setting_value || shiftSettingsRow?.setting_value) {
+          const combined = {
+            ...(geoSettingsRow?.setting_value || {}),
+            ...(shiftSettingsRow?.setting_value || {}),
+          };
+          const normalized = normalizeGeofenceConfig(combined, currentUser.branch);
+          setGeofenceConfig(normalized);
+          try {
+            localStorage.setItem(getGeofenceStorageKey(currentUser.branch), JSON.stringify(normalized));
+          } catch {}
+        } else if (!settingsRes.error) {
+          setGeofenceConfig(getDefaultGeofenceConfig(currentUser.branch));
         }
 
-        // 2. Resolve Attendance Records (authoritative attendance_logs table first, fallback app_settings)
+        // 2. Resolve Attendance Records (authoritative attendance_logs table enriched with otMultiplier & shiftName from app_settings)
         if (!logsTableRes.error && Array.isArray(logsTableRes.data)) {
-          const mapped: AttendanceRecord[] = logsTableRes.data.map((r: any) => ({
-            id: r.id,
-            branch: r.branch,
-            date: typeof r.date === 'string' ? r.date.slice(0, 10) : String(r.date),
-            userName: r.user_name,
-            userRole: r.user_role || '',
-            type: r.type,
-            recordedAt: r.recorded_at,
-            timeDisplay: r.time_display,
-            latitude: Number(r.latitude),
-            longitude: Number(r.longitude),
-            distanceMeters: Number(r.distance_meters || 0),
-            accuracyMeters: Number(r.accuracy_meters || 0),
-            status: r.status,
-            mode: r.mode,
-            otMinutes: Number(r.ot_minutes || 0),
-            note: r.note || undefined,
-          }));
+          const metaById = new Map<string, any>();
+          const metaByComposite = new Map<string, any>();
+          const backupList = Array.isArray(logsSettingsRow?.setting_value)
+            ? (logsSettingsRow.setting_value as AttendanceRecord[])
+            : [];
+          backupList.forEach((b) => {
+            if (!b) return;
+            if (b.id) metaById.set(b.id, b);
+            metaByComposite.set(
+              `${b.date}|${String(b.userName || '').trim().toLowerCase()}|${b.type}`,
+              b
+            );
+          });
+
+          const mapped: AttendanceRecord[] = logsTableRes.data.map((r: any) => {
+            const dateStr = typeof r.date === 'string' ? r.date.slice(0, 10) : String(r.date);
+            const compKey = `${dateStr}|${String(r.user_name || '').trim().toLowerCase()}|${r.type}`;
+            const meta = metaById.get(r.id) || metaByComposite.get(compKey);
+            return {
+              id: r.id,
+              branch: r.branch,
+              date: dateStr,
+              userName: r.user_name,
+              userRole: r.user_role || '',
+              type: r.type,
+              recordedAt: r.recorded_at,
+              timeDisplay: r.time_display,
+              latitude: Number(r.latitude),
+              longitude: Number(r.longitude),
+              distanceMeters: Number(r.distance_meters || 0),
+              accuracyMeters: Number(r.accuracy_meters || 0),
+              status: r.status,
+              mode: r.mode,
+              otMinutes: Number(r.ot_minutes || 0),
+              otMultiplier: meta?.otMultiplier,
+              shiftName: meta?.shiftName,
+              note: r.note || undefined,
+            };
+          });
           setAttendanceRecords(mapped);
           try {
             localStorage.setItem(getAttendanceStorageKey(currentUser.branch), JSON.stringify(mapped));
           } catch {}
-        } else if (!settingsRes.error && settingsRes.data) {
-          const logsRow = settingsRes.data.find((r: any) => r.setting_key === 'hellocrenn_attendance_logs');
-          if (logsRow?.setting_value && Array.isArray(logsRow.setting_value)) {
-            setAttendanceRecords(logsRow.setting_value as AttendanceRecord[]);
-            try {
-              localStorage.setItem(
-                getAttendanceStorageKey(currentUser.branch),
-                JSON.stringify(logsRow.setting_value)
-              );
-            } catch {}
-          }
+        } else if (logsSettingsRow?.setting_value && Array.isArray(logsSettingsRow.setting_value)) {
+          setAttendanceRecords(logsSettingsRow.setting_value as AttendanceRecord[]);
+          try {
+            localStorage.setItem(
+              getAttendanceStorageKey(currentUser.branch),
+              JSON.stringify(logsSettingsRow.setting_value)
+            );
+          } catch {}
         }
       } catch {
         if (isMounted) setDbStatus('offline');
@@ -361,11 +436,23 @@ export function HelloCrennApp({
       );
       if (alreadyRecorded) return null;
 
+      const todayCheckInRec = attendanceRecords.find(
+        (r) =>
+          r.date === dateStr &&
+          r.branch === currentUser.branch &&
+          r.userName.toLowerCase() === currentUser.name.toLowerCase() &&
+          r.type === 'check_in'
+      );
+      const checkInDateObj = todayCheckInRec ? new Date(todayCheckInRec.recordedAt) : null;
+      const validCheckInDate =
+        checkInDateObj && !Number.isNaN(checkInDateObj.getTime()) ? checkInDateObj : null;
+
       const evalResult = evaluateAttendanceStatus(
         payload.type,
         now,
         geofenceConfig,
-        currentUser.name
+        currentUser.name,
+        validCheckInDate
       );
 
       const newRecord: AttendanceRecord = {
@@ -384,6 +471,8 @@ export function HelloCrennApp({
         status: evalResult.status,
         mode: payload.mode,
         otMinutes: evalResult.otMinutes,
+        otMultiplier: evalResult.otMultiplier,
+        shiftName: evalResult.shiftName,
         note: payload.note,
       };
 
@@ -398,7 +487,7 @@ export function HelloCrennApp({
       } catch {}
 
       if (supabase) {
-        // Save to dedicated attendance_logs table + app_settings backup
+        // Save to dedicated attendance_logs table (existing columns only) + app_settings backup
         try {
           await supabase.from('attendance_logs').upsert(
             {
@@ -444,11 +533,11 @@ export function HelloCrennApp({
       const modeLabel = payload.mode === 'auto' ? 'Auto GPS' : 'Manual GPS';
       const otLine =
         payload.type === 'check_out' && evalResult.otMinutes > 0
-          ? `\n⏱️ โอที (OT): ${formatOtDuration(evalResult.otMinutes)}`
+          ? `\n⏱️ ${getOtTypeLabel(evalResult.otMultiplier)}: ${formatOtHours(evalResult.otMinutes)} (${formatOtDuration(evalResult.otMinutes)})`
           : '';
       sendDiscordNotification(
         `📍 **[Hello, Crenn — ลงเวลา${typeLabel} · สาขา ${currentUser.branch}]**\n` +
-          `👤 พนักงาน: ${currentUser.name} (${currentUser.role})\n` +
+          `👤 พนักงาน: ${currentUser.name} (${currentUser.role}) · กะ: ${evalResult.shiftName}\n` +
           `🗓️ วันที่: ${formatThaiNumericDate(dateStr)} เวลา ${timeDisplay}\n` +
           `📡 รูปแบบ: ${modeLabel} | ระยะห่างร้าน: ${formatDistanceMeters(payload.distanceMeters)} (±${payload.accuracyMeters} ม.)\n` +
           `✅ สถานะ: ${getStatusLabelTH(evalResult.status)}` +
@@ -504,28 +593,48 @@ export function HelloCrennApp({
       }
 
       await supabase.from('app_settings').upsert(
-        {
-          branch: currentUser.branch,
-          setting_key: 'hellocrenn_geofence_config',
-          setting_value: enriched,
-        },
+        [
+          {
+            branch: currentUser.branch,
+            setting_key: 'hellocrenn_geofence_config',
+            setting_value: enriched,
+          },
+          {
+            branch: currentUser.branch,
+            setting_key: 'hellocrenn_shift_config',
+            setting_value: {
+              defaultOtMultiplier: enriched.defaultOtMultiplier ?? 1.5,
+              shiftTemplates: enriched.shiftTemplates || [],
+              holidayOverrides: enriched.holidayOverrides || [],
+              shiftStartTime: enriched.shiftStartTime,
+              shiftEndTime: enriched.shiftEndTime,
+              graceMinutes: enriched.graceMinutes,
+              otStepMinutes: enriched.otStepMinutes ?? 30,
+              employeeShifts: enriched.employeeShifts || {},
+              updatedAt: enriched.updatedAt,
+              updatedBy: enriched.updatedBy,
+            },
+          },
+        ],
         { onConflict: 'branch,setting_key' }
       );
     }
 
     const customStaffCount = Object.keys(enriched.employeeShifts || {}).length;
+    const templateCount = (enriched.shiftTemplates || []).length;
+    const defaultOtLabel = getOtTypeLabel(enriched.defaultOtMultiplier ?? 1.5);
     const otRuleLabel =
       enriched.otStepMinutes && enriched.otStepMinutes > 0
-        ? `คิดโอทีทุก ${enriched.otStepMinutes} นาที`
-        : 'ไม่คิดโอทีอัตโนมัติ';
+        ? `คิดโอทีทุก ${enriched.otStepMinutes} นาที (${defaultOtLabel})`
+        : `ไม่คิดโอทีอัตโนมัติ (${defaultOtLabel})`;
 
     // Non-blocking Discord Notification synced 1:1 with User Security Setting
     sendDiscordNotification(
       `🛰️ **[Hello, Crenn — อัปเดตพิกัดสาขาและกะงาน · สาขา ${currentUser.branch}]**\n` +
         `👤 ผู้ตั้งค่า: ${currentUser.name}\n` +
         `📌 พิกัดร้าน: ${enriched.latitude.toFixed(6)}, ${enriched.longitude.toFixed(6)} (รัศมี ${enriched.radiusMeters} ม.)\n` +
-        `⏰ กะงานมาตรฐาน: ${enriched.shiftStartTime} – ${enriched.shiftEndTime} น. (อนุโลมสาย ${enriched.graceMinutes} นาที | ${otRuleLabel})\n` +
-        `👥 กะงานเฉพาะรายบุคคล: ${customStaffCount} คน\n` +
+        `⏰ กะมาตรฐาน: ${enriched.shiftStartTime} – ${enriched.shiftEndTime} น. (อนุโลมสาย ${enriched.graceMinutes} นาที | ${otRuleLabel})\n` +
+        `📅 ตารางเวลากะงาน: ${templateCount} รูปแบบ | ผูกกะพนักงาน: ${customStaffCount} คน\n` +
         `🤖 Auto Check-in: ${enriched.autoCheckinEnabled ? 'เปิด' : 'ปิด'} | Auto Check-out: ${enriched.autoCheckoutEnabled ? 'เปิด' : 'ปิด'}`,
       'notifyOnHelloCrennGeofence'
     );
@@ -571,7 +680,7 @@ export function HelloCrennApp({
   const isScanGroupActive = currentTab === 'dashboard' || currentTab === 'scan';
 
   const singleNavItems: Array<{
-    id: 'history' | 'settings';
+    id: 'history' | 'shifts' | 'settings';
     label: string;
     icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   }> = [
@@ -579,7 +688,10 @@ export function HelloCrennApp({
       ? [{ id: 'history' as const, label: 'ประวัติเข้า-ออก', icon: History }]
       : []),
     ...(effectivePerms.settings !== 'hidden'
-      ? [{ id: 'settings' as const, label: 'ตั้งค่าพิกัดสาขา', icon: Settings2 }]
+      ? [
+          { id: 'shifts' as const, label: 'กะงาน & โอที', icon: CalendarClock },
+          { id: 'settings' as const, label: 'พิกัดสาขา', icon: Settings2 },
+        ]
       : []),
   ];
 
@@ -960,6 +1072,9 @@ export function HelloCrennApp({
             onOpenGeofenceSettings={
               effectivePerms.settings !== 'hidden' ? () => setCurrentTab('settings') : undefined
             }
+            onOpenShiftSettings={
+              effectivePerms.settings !== 'hidden' ? () => setCurrentTab('shifts') : undefined
+            }
           />
         )}
 
@@ -978,7 +1093,20 @@ export function HelloCrennApp({
         )}
 
         {currentTab === 'history' && effectivePerms.history !== 'hidden' && (
-          <AttendanceHistory records={attendanceRecords} currentBranch={currentUser.branch} />
+          <AttendanceHistory
+            records={attendanceRecords}
+            currentBranch={currentUser.branch}
+            geofenceConfig={geofenceConfig}
+          />
+        )}
+
+        {currentTab === 'shifts' && effectivePerms.settings !== 'hidden' && (
+          <ShiftSettings
+            config={geofenceConfig}
+            canEdit={canModifyGeofence}
+            onSaveConfig={handleSaveGeofenceConfig}
+            onOpenGeofenceSettings={() => setCurrentTab('settings')}
+          />
         )}
 
         {currentTab === 'settings' && effectivePerms.settings !== 'hidden' && (
@@ -986,6 +1114,7 @@ export function HelloCrennApp({
             config={geofenceConfig}
             canEdit={canModifyGeofence}
             onSaveConfig={handleSaveGeofenceConfig}
+            onOpenShiftSettings={() => setCurrentTab('shifts')}
           />
         )}
       </main>
