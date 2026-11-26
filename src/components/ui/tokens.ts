@@ -55,21 +55,31 @@ export const STANDARD_CLASSES = {
   headerDivider:
     'h-[1px] bg-[#F0F5F4] my-3 w-full',
 
-  // 3. Tables
+  // 3. Tables (CRENN Table Standard v1.1)
   tableCard:
     'bg-white rounded-xl border border-[#D4E4E3] overflow-hidden shadow-[0_2px_8px_rgba(90,138,136,0.08)]',
   tableHeadPrimaryRow:
-    'bg-[#2D4A49] text-white text-[10px] sm:text-[11px] font-semibold tracking-wide border-b border-[#1E3A39]',
+    'bg-[#2D4A49] text-white text-[10.5px] sm:text-[11px] font-semibold tracking-wide border-b border-[#1E3A39]',
   tableHeadSubRow:
-    'bg-[#3D6B69] text-white text-[9.5px] sm:text-[10px] font-semibold border-b border-[#2D4A49]',
+    'bg-[#3D6B69] text-white text-[10px] font-semibold border-b border-[#2D4A49]',
   tableHeadCell:
-    'py-2 px-2.5 border-r border-[#3D6B69] last:border-r-0',
+    'py-2.5 px-3 border-r border-[#3D6B69]/70 last:border-r-0 align-middle whitespace-nowrap',
+  tableHeadCellCompact:
+    'py-2 px-2 border-r border-[#3D6B69]/70 last:border-r-0 align-middle whitespace-nowrap',
   tableBody:
-    'divide-y divide-[#D4E4E3] text-[11px] sm:text-[12px] text-[#2D4A49]',
+    'divide-y divide-[#E4EFEF] text-[11.5px] sm:text-[12px] text-[#2D4A49]',
   tableRow:
     'hover:bg-[#F4F9F8] transition-colors',
   tableCell:
-    'py-2 px-2.5 sm:px-3',
+    'py-2.5 px-3 align-middle',
+  tableCellCompact:
+    'py-2 px-2 align-middle text-[11px] sm:text-[11.5px]',
+  tableBadge:
+    'inline-flex items-center whitespace-nowrap shrink-0 text-[10.5px] font-semibold px-2 py-0.5 rounded-[6px] border',
+  tableActionBtn:
+    'h-[28px] px-2.5 rounded-[6px] border text-[10.5px] font-semibold inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer transition-colors',
+  tableInput:
+    'h-[30px] px-2 rounded-[7px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] text-[#2D4A49] outline-none focus:border-[#5A8A88]',
 
   // 4. Dropdown List
   dropdownTrigger:
