@@ -500,26 +500,26 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   </div>
                 ) : (
                   <StandardTableCard>
-                    <StandardTable>
+                    <StandardTable minWidthClassName="min-w-[500px]">
                       <StandardThead sticky={false}>
                         <StandardHeaderRow>
-                          <StandardTh>ชื่อวัตถุดิบ</StandardTh>
-                          <StandardTh align="center" className="w-20">จำนวน</StandardTh>
-                          <StandardTh align="center" className="w-16">หน่วย</StandardTh>
-                          <StandardTh align="right" className="w-24">ต้นทุน/หน่วย</StandardTh>
-                          <StandardTh align="right" className="w-24">รวม (บาท)</StandardTh>
-                          {!isReadOnly && <StandardTh align="center" className="w-8"></StandardTh>}
+                          <StandardTh compact>ชื่อวัตถุดิบ</StandardTh>
+                          <StandardTh compact align="center" className="w-[72px]">จำนวน</StandardTh>
+                          <StandardTh compact align="center" className="w-[62px]">หน่วย</StandardTh>
+                          <StandardTh compact align="right" className="w-[82px]">ต้นทุน/หน่วย</StandardTh>
+                          <StandardTh compact align="right" className="w-[82px]">รวม (บาท)</StandardTh>
+                          {!isReadOnly && <StandardTh compact align="center" className="w-8"></StandardTh>}
                         </StandardHeaderRow>
                       </StandardThead>
                       <StandardTbody>
                         {ingredients.map((item, idx) => (
                           <StandardTr key={item.id}>
-                            <StandardTd>
+                            <StandardTd compact>
                               <select
                                 disabled={isReadOnly}
                                 value={item.ingredient_price_id}
                                 onChange={(e) => handleSelectIngredientOption(idx, e.target.value)}
-                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] outline-none bg-white focus:border-[#5A8A88] cursor-pointer disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] outline-none bg-white focus:border-[#5A8A88] cursor-pointer disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               >
                                 <option value="" disabled>-- เลือกวัตถุดิบ --</option>
                                 {availableIngredients.map(ing => (
@@ -530,7 +530,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                               </select>
                             </StandardTd>
 
-                            <StandardTd align="center">
+                            <StandardTd compact align="center">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -538,24 +538,24 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0.0001"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateIngredient(idx, { qty: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
 
-                            <StandardTd align="center" className="text-[#6B8F8E] text-[10.5px]">
+                            <StandardTd compact align="center" nowrap className="text-[#6B8F8E] text-[10.5px]">
                               {item.unit}
                             </StandardTd>
 
-                            <StandardTd align="right" numeric className="text-[#6B8F8E] text-[10.5px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-mono text-[#6B8F8E] text-[11px]">
                               ฿{item.unit_cost.toFixed(2)}
                             </StandardTd>
 
-                            <StandardTd align="right" numeric className="font-bold text-[#2D4A49] text-[11px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49] text-[11.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </StandardTd>
 
                             {!isReadOnly && (
-                              <StandardTd align="center">
+                              <StandardTd compact align="center">
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteIngredient(idx)}
@@ -568,8 +568,8 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           </StandardTr>
                         ))}
                         <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
-                          <td colSpan={4} className="py-2 px-3 text-right">รวมต้นทุนวัตถุดิบ:</td>
-                          <td className="py-2 px-3 text-right tabular-nums">฿{calculations.ingredientsCost.toFixed(2)}</td>
+                          <td colSpan={4} className="py-2 px-2 text-right">รวมต้นทุนวัตถุดิบ:</td>
+                          <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap">฿{calculations.ingredientsCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
                       </StandardTbody>
@@ -604,30 +604,30 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   </div>
                 ) : (
                   <StandardTableCard>
-                    <StandardTable>
+                    <StandardTable minWidthClassName="min-w-[460px]">
                       <StandardThead sticky={false}>
                         <StandardHeaderRow>
-                          <StandardTh>รายละเอียดค่าแรง</StandardTh>
-                          <StandardTh align="center" className="w-20">ชั่วโมง</StandardTh>
-                          <StandardTh align="right" className="w-24">ค่าแรง/ชม. (฿)</StandardTh>
-                          <StandardTh align="right" className="w-24">รวม (บาท)</StandardTh>
-                          {!isReadOnly && <StandardTh align="center" className="w-8"></StandardTh>}
+                          <StandardTh compact>รายละเอียดค่าแรง</StandardTh>
+                          <StandardTh compact align="center" className="w-[72px]">ชั่วโมง</StandardTh>
+                          <StandardTh compact align="right" className="w-[88px]">ค่าแรง/ชม.</StandardTh>
+                          <StandardTh compact align="right" className="w-[84px]">รวม (บาท)</StandardTh>
+                          {!isReadOnly && <StandardTh compact align="center" className="w-8"></StandardTh>}
                         </StandardHeaderRow>
                       </StandardThead>
                       <StandardTbody>
                         {labor.map((item, idx) => (
                           <StandardTr key={item.id}>
-                            <StandardTd>
+                            <StandardTd compact>
                               <input
                                 type="text"
                                 disabled={isReadOnly}
                                 placeholder="เช่น ผสมแป้ง, อบขนม, แต่งหน้าเค้ก"
                                 value={item.description}
                                 onChange={(e) => handleUpdateLabor(idx, { description: e.target.value })}
-                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd align="center">
+                            <StandardTd compact align="center">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -635,10 +635,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.hours || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { hours: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd align="right">
+                            <StandardTd compact align="right">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -646,14 +646,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.rate_per_hour || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { rate_per_hour: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd align="right" numeric className="font-bold text-[#2D4A49] text-[11px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49] text-[11.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </StandardTd>
                             {!isReadOnly && (
-                              <StandardTd align="center">
+                              <StandardTd compact align="center">
                                 <button
                                   type="button"
                                   onClick={() => setLabor(labor.filter((_, i) => i !== idx))}
@@ -666,8 +666,8 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           </StandardTr>
                         ))}
                         <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
-                          <td colSpan={3} className="py-2 px-3 text-right">รวมค่าแรง:</td>
-                          <td className="py-2 px-3 text-right tabular-nums">฿{calculations.laborCost.toFixed(2)}</td>
+                          <td colSpan={3} className="py-2 px-2 text-right">รวมค่าแรง:</td>
+                          <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap">฿{calculations.laborCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
                       </StandardTbody>
@@ -702,30 +702,30 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   </div>
                 ) : (
                   <StandardTableCard>
-                    <StandardTable>
+                    <StandardTable minWidthClassName="min-w-[460px]">
                       <StandardThead sticky={false}>
                         <StandardHeaderRow>
-                          <StandardTh>รายละเอียด</StandardTh>
-                          <StandardTh align="center" className="w-20">จำนวน</StandardTh>
-                          <StandardTh align="right" className="w-24">ต้นทุน/หน่วย (฿)</StandardTh>
-                          <StandardTh align="right" className="w-24">รวม (บาท)</StandardTh>
-                          {!isReadOnly && <StandardTh align="center" className="w-8"></StandardTh>}
+                          <StandardTh compact>รายละเอียด</StandardTh>
+                          <StandardTh compact align="center" className="w-[72px]">จำนวน</StandardTh>
+                          <StandardTh compact align="right" className="w-[88px]">ต้นทุน/หน่วย</StandardTh>
+                          <StandardTh compact align="right" className="w-[84px]">รวม (บาท)</StandardTh>
+                          {!isReadOnly && <StandardTh compact align="center" className="w-8"></StandardTh>}
                         </StandardHeaderRow>
                       </StandardThead>
                       <StandardTbody>
                         {other.map((item, idx) => (
                           <StandardTr key={item.id}>
-                            <StandardTd>
+                            <StandardTd compact>
                               <input
                                 type="text"
                                 disabled={isReadOnly}
                                 placeholder="เช่น กล่องเบเกอรี่, แก๊ส, ค่าสติกเกอร์"
                                 value={item.description}
                                 onChange={(e) => handleUpdateOther(idx, { description: e.target.value })}
-                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] px-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd align="center">
+                            <StandardTd compact align="center">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -733,10 +733,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateOther(idx, { qty: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd align="right">
+                            <StandardTd compact align="right">
                               <input
                                 type="number"
                                 disabled={isReadOnly}
@@ -744,14 +744,14 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.unit_cost || ''}
                                 onChange={(e) => handleUpdateOther(idx, { unit_cost: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[10.5px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd align="right" numeric className="font-bold text-[#2D4A49] text-[11px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49] text-[11.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </StandardTd>
                             {!isReadOnly && (
-                              <StandardTd align="center">
+                              <StandardTd compact align="center">
                                 <button
                                   type="button"
                                   onClick={() => setOther(other.filter((_, i) => i !== idx))}
@@ -764,8 +764,8 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                           </StandardTr>
                         ))}
                         <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
-                          <td colSpan={3} className="py-2 px-3 text-right">รวมค่าใช้จ่ายอื่นๆ:</td>
-                          <td className="py-2 px-3 text-right tabular-nums">฿{calculations.otherCost.toFixed(2)}</td>
+                          <td colSpan={3} className="py-2 px-2 text-right">รวมค่าใช้จ่ายอื่นๆ:</td>
+                          <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap">฿{calculations.otherCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
                       </StandardTbody>
