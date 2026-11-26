@@ -23,10 +23,12 @@ export const StandardTableCard: React.FC<StandardTableCardProps> = ({
 
 export interface StandardTableProps extends React.TableHTMLAttributes<HTMLTableElement> {
   fixedLayout?: boolean;
+  minWidthClassName?: string;
 }
 
 export const StandardTable: React.FC<StandardTableProps> = ({
   fixedLayout = false,
+  minWidthClassName,
   className,
   children,
   ...rest
@@ -35,6 +37,7 @@ export const StandardTable: React.FC<StandardTableProps> = ({
     className={cn(
       'w-full text-left border-collapse',
       fixedLayout && 'table-fixed',
+      minWidthClassName,
       className
     )}
     {...rest}
@@ -89,17 +92,22 @@ export const StandardHeaderRow: React.FC<StandardHeaderRowProps> = ({
 
 export interface StandardThProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
   align?: 'left' | 'center' | 'right';
+  wrap?: boolean;
+  compact?: boolean;
 }
 
 export const StandardTh: React.FC<StandardThProps> = ({
   align = 'left',
+  wrap = false,
+  compact = false,
   className,
   children,
   ...rest
 }) => (
   <th
     className={cn(
-      STANDARD_CLASSES.tableHeadCell,
+      compact ? STANDARD_CLASSES.tableHeadCellCompact : STANDARD_CLASSES.tableHeadCell,
+      wrap && 'whitespace-normal leading-tight',
       align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left',
       className
     )}
@@ -132,20 +140,25 @@ export const StandardTr: React.FC<React.HTMLAttributes<HTMLTableRowElement>> = (
 export interface StandardTdProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
   align?: 'left' | 'center' | 'right';
   numeric?: boolean;
+  nowrap?: boolean;
+  compact?: boolean;
 }
 
 export const StandardTd: React.FC<StandardTdProps> = ({
   align = 'left',
   numeric = false,
+  nowrap = false,
+  compact = false,
   className,
   children,
   ...rest
 }) => (
   <td
     className={cn(
-      STANDARD_CLASSES.tableCell,
+      compact ? STANDARD_CLASSES.tableCellCompact : STANDARD_CLASSES.tableCell,
       align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left',
       numeric && 'tabular-nums',
+      nowrap && 'whitespace-nowrap',
       className
     )}
     {...rest}
