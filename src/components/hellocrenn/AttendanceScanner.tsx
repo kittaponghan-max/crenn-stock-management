@@ -17,13 +17,16 @@ import {
   AttendanceType,
   BranchGeofenceConfig,
   GpsPositionState,
+  OtMultiplier,
 } from '../../types/hellocrenn';
 import {
   calculateHaversineDistanceMeters,
-  calculateOtMinutes,
+  calculateShiftOtMinutes,
   formatDistanceMeters,
   formatMinutesDuration,
   formatOtDuration,
+  formatOtHours,
+  getOtTypeLabel,
   getStatusLabelTH,
   resolveEmployeeShift,
 } from '../../utils/gpsUtils';
@@ -120,26 +123,36 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
   const todayCheckIn = myTodayRecords.find((r) => r.type === 'check_in') || null;
   const todayCheckOut = myTodayRecords.find((r) => r.type === 'check_out') || null;
 
-  const employeeShift = resolveEmployeeShift(geofenceConfig, currentUser.name);
+  const employeeShift = resolveEmployeeShift(geofenceConfig, currentUser.name, now);
 
-  // Dynamically calculate OT aligned with this employee's configured shiftEndTime & otStepMinutes
-  const isOtEnabled = employeeShift.otStepMinutes > 0;
+  // Dynamically calculate OT aligned with this employee's configured shift, OT rules & multiplier
+  const isOtEnabled =
+    employeeShift.otCalculationMode === 'actual' ||
+    employeeShift.otStepMinutes > 0 ||
+    employeeShift.isOvertimeSchedule ||
+    employeeShift.isDayOff;
   const otReferenceDate = todayCheckOut
     ? new Date(todayCheckOut.recordedAt)
     : todayCheckIn
       ? now
       : null;
+  const checkInDateObj = todayCheckIn ? new Date(todayCheckIn.recordedAt) : null;
+  const validCheckInDate =
+    checkInDateObj && !Number.isNaN(checkInDateObj.getTime()) ? checkInDateObj : null;
+
   const computedOtMinutes =
     todayCheckIn &&
     isOtEnabled &&
     otReferenceDate &&
     !Number.isNaN(otReferenceDate.getTime())
-      ? calculateOtMinutes(
-          otReferenceDate,
-          employeeShift.shiftEndTime,
-          employeeShift.otStepMinutes
-        )
+      ? calculateShiftOtMinutes({
+          checkOutDate: otReferenceDate,
+          checkInDate: validCheckInDate,
+          shift: employeeShift,
+        })
       : 0;
+  const activeOtMultiplier: OtMultiplier =
+    todayCheckOut?.otMultiplier ?? employeeShift.otMultiplier;
   const isLiveOtAccruing = Boolean(todayCheckIn && !todayCheckOut && isOtEnabled);
   const workDurationText = todayCheckIn
     ? formatMinutesDuration(
@@ -424,9 +437,13 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
         icon={<Navigation size={18} />}
         title="สแกนเวลาตนเอง (GPS Auto Check-in)"
         branchLabel={geofenceConfig.branchLabel}
-        subtitle={`กะ${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'มาตรฐาน'} ${employeeShift.shiftStartTime} – ${employeeShift.shiftEndTime} น. · อนุโลมสาย ${employeeShift.graceMinutes} นาที · ${
-          employeeShift.otStepMinutes > 0
-            ? `คิด OT ทุก ${employeeShift.otStepMinutes} นาที`
+        subtitle={`กะ: ${employeeShift.shiftName} (${employeeShift.shiftStartTime} – ${employeeShift.shiftEndTime} น.) · อนุโลมสาย ${employeeShift.graceMinutes} นาที · ${
+          isOtEnabled
+            ? `${getOtTypeLabel(employeeShift.otMultiplier)} (${
+                employeeShift.otCalculationMode === 'actual'
+                  ? 'นับนาทีจริง'
+                  : `ทุก ${employeeShift.otStepMinutes} นาที`
+              })`
             : 'ไม่คิด OT'
         } · รัศมี ${geofenceConfig.radiusMeters} ม.`}
         actions={
@@ -789,11 +806,21 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
 
               <div className="flex items-center justify-between pt-1">
                 <div>
-                  <span className="text-xs font-semibold text-[#5A8A88] block">โอที (OT)</span>
+                  <span className="text-xs font-semibold text-[#5A8A88] block">
+                    โอที (OT) · {getOtTypeLabel(activeOtMultiplier)}
+                  </span>
                   <span className="text-[10.5px] text-[#6B8F8E]">
                     {isOtEnabled
-                      ? `เกณฑ์${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'สาขา'} · เลิก ${employeeShift.shiftEndTime} น. · คิดทุก ${employeeShift.otStepMinutes} นาที`
-                      : `เกณฑ์${employeeShift.isCustom ? 'เฉพาะของคุณ' : 'สาขา'} · ไม่คิดโอที`}
+                      ? `${employeeShift.shiftName} · ${
+                          employeeShift.isOvertimeSchedule || employeeShift.isDayOff
+                            ? 'คิดเวลาทำงานเป็น OT'
+                            : `เลิก ${employeeShift.shiftEndTime} น.`
+                        } · ${
+                          employeeShift.otCalculationMode === 'actual'
+                            ? 'นับตามเวลาจริง'
+                            : `คิดทุก ${employeeShift.otStepMinutes} นาที`
+                        }`
+                      : `${employeeShift.shiftName} · ไม่คิดโอที`}
                   </span>
                 </div>
                 <div className="text-right">
@@ -804,20 +831,23 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                   ) : computedOtMinutes > 0 ? (
                     <>
                       <span className="text-sm font-bold text-emerald-700 tabular-nums font-mono block">
-                        +{formatOtDuration(computedOtMinutes)}
+                        +{formatOtHours(computedOtMinutes)}
                       </span>
-                      <span className="text-[10px] text-[#6B8F8E]">
-                        {isLiveOtAccruing ? 'สะสมขณะปฏิบัติงาน' : 'คำนวณตามเกณฑ์ของพนักงาน'}
+                      <span className="text-[10px] text-[#6B8F8E] tabular-nums">
+                        {formatOtDuration(computedOtMinutes)} ·{' '}
+                        {isLiveOtAccruing ? 'สะสมขณะปฏิบัติงาน' : getOtTypeLabel(activeOtMultiplier)}
                       </span>
                     </>
                   ) : (
                     <>
                       <span className="text-sm font-bold text-[#6B8F8E] tabular-nums font-mono block">
-                        0 นาที
+                        0.00 ชม.
                       </span>
                       <span className="text-[10px] text-[#6B8F8E]">
                         {isLiveOtAccruing
-                          ? `เริ่มนับหลัง ${employeeShift.shiftEndTime} น.`
+                          ? employeeShift.isOvertimeSchedule || employeeShift.isDayOff
+                            ? 'กำลังสะสม OT'
+                            : `เริ่มนับหลัง ${employeeShift.shiftEndTime} น.`
                           : 'ไม่เข้าเกณฑ์โอที'}
                       </span>
                     </>
@@ -869,12 +899,13 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                   const recDate = new Date(rec.recordedAt);
                   const recOtMinutes =
                     rec.type === 'check_out' && isOtEnabled && !Number.isNaN(recDate.getTime())
-                      ? calculateOtMinutes(
-                          recDate,
-                          employeeShift.shiftEndTime,
-                          employeeShift.otStepMinutes
-                        )
+                      ? calculateShiftOtMinutes({
+                          checkOutDate: recDate,
+                          checkInDate: validCheckInDate,
+                          shift: employeeShift,
+                        })
                       : 0;
+                  const recOtMult = rec.otMultiplier ?? employeeShift.otMultiplier;
                   return (
                     <StandardTr key={rec.id}>
                       <StandardTd className="font-mono tabular-nums font-semibold">
@@ -912,10 +943,10 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                             <span className="text-slate-400">ไม่คิดโอที</span>
                           ) : recOtMinutes > 0 ? (
                             <span className="font-bold text-emerald-700">
-                              +{formatOtDuration(recOtMinutes)}
+                              {getOtTypeLabel(recOtMult)} · +{formatOtHours(recOtMinutes)}
                             </span>
                           ) : (
-                            <span className="text-[#6B8F8E]">0 นาที</span>
+                            <span className="text-[#6B8F8E]">0.00 ชม.</span>
                           )
                         ) : (
                           <span className="text-slate-400">—</span>
