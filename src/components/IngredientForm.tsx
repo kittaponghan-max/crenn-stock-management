@@ -632,7 +632,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                   <label className="text-[10.5px] font-medium text-[#4A6B6A]">
                     ขนาดบรรจุ (Size/Unit) <span className="text-[9.5px] text-[#6B8F8E] font-normal">(จำนวน, หน่วย / จำนวน, หน่วย)</span>
                   </label>
-                  <span className="text-[9.5px] font-mono text-[#5A8A88] bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
+                  <span className="text-[9.5px] tabular-nums text-[#5A8A88] bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
                     ตัวอย่าง: 1 kg / 1 ถุง
                   </span>
                 </div>
@@ -644,7 +644,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       type="number"
                       step="any"
                       min="0"
-                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-center font-mono text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none"
+                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-center tabular-nums text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none"
                       placeholder="จำนวน (1)"
                       value={packQty1}
                       onChange={(e) => setPackQty1(e.target.value)}
@@ -681,7 +681,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       type="number"
                       step="any"
                       min="0"
-                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-center font-mono text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none"
+                      className="w-full border border-[#D4E4E3] rounded-md px-2 py-1 text-center tabular-nums text-[11px] text-[#2D4A49] bg-white h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none"
                       placeholder="1"
                       value={packQty2}
                       onChange={(e) => setPackQty2(e.target.value)}
@@ -722,7 +722,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                 <div className="flex items-center justify-between text-[10px] text-[#6B8F8E] pt-0.5 px-0.5">
                   <span>
                     ข้อมูลที่จะบันทึก:{' '}
-                    <strong className="text-[#2D4A49] font-mono font-bold bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
+                    <strong className="text-[#2D4A49] tabular-nums font-bold bg-[#E8F3F2] px-1.5 py-0.5 rounded border border-[#D4E4E3]">
                       {packQty1 || '1'} {packUnit1 || 'kg'} / {packQty2 || '1'} {packUnit2 || 'ถุง'}
                     </strong>
                   </span>
@@ -870,7 +870,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                         min="0.01"
                         required
                         disabled={purchaseMode === 'retail'}
-                        className={`w-full border border-[#D4E4E3] rounded-md px-2.5 py-1.5 font-mono text-[11px] text-[#2D4A49] h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none ${
+                        className={`w-full border border-[#D4E4E3] rounded-md px-2.5 py-1.5 tabular-nums text-[11px] text-[#2D4A49] h-[32px] focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none ${
                           purchaseMode === 'retail' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
                         }`}
                         placeholder="เช่น 12"
@@ -901,7 +901,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       <div className="text-[9.5px] text-[#6B8F8E]">
                         จำนวนหน่วยย่อย / 1 {purchaseUnit || 'หน่วยซื้อ'}
                       </div>
-                      <div className="text-[12px] font-bold text-[#2D4A49] font-mono">
+                      <div className="text-[12px] font-bold text-[#2D4A49] tabular-nums">
                         {formatCleanNumber(effectiveBulkPackCount)} {innerPackUnitLabel}
                       </div>
                     </div>
@@ -910,7 +910,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       <div className="text-[9.5px] text-[#6B8F8E]">
                         รวมทั้งหมดในหน่วยบรรจุ
                       </div>
-                      <div className="text-[12px] font-bold text-emerald-700 font-mono">
+                      <div className="text-[12px] font-bold text-emerald-700 tabular-nums">
                         {formatCleanNumber(calculatedTotalPackQty)} {packContentUnitLabel}
                       </div>
                     </div>
@@ -924,7 +924,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       </strong>
                     </span>
                     {baseUnitEquivalent && (
-                      <span className="text-[9.5px] font-mono font-bold text-[#5A8A88]">
+                      <span className="text-[9.5px] tabular-nums font-bold text-[#5A8A88]">
                         (≈ {formatCleanNumber(baseUnitEquivalent.qty)} {baseUnitEquivalent.unit})
                       </span>
                     )}
@@ -948,7 +948,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       type="number"
                       step="any"
                       min="0"
-                      className="flex-1 min-w-0 border border-[#D4E4E3] rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all font-mono text-[11px] text-[#2D4A49] bg-white h-[32px]"
+                      className="flex-1 min-w-0 border border-[#D4E4E3] rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all tabular-nums text-[11px] text-[#2D4A49] bg-white h-[32px]"
                       value={formData.minStock}
                       onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
                     />
@@ -981,7 +981,7 @@ export function IngredientForm({ initialData, defaultDepartment = 'Bar', onSubmi
                       type="number"
                       step="any"
                       min="0"
-                      className="flex-1 min-w-0 border border-[#D4E4E3] rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all font-mono text-[11px] text-[#2D4A49] bg-white h-[32px]"
+                      className="flex-1 min-w-0 border border-[#D4E4E3] rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-[#2D4A49] focus:border-[#2D4A49] outline-none transition-all tabular-nums text-[11px] text-[#2D4A49] bg-white h-[32px]"
                       value={formData.minOrder}
                       onChange={(e) => setFormData({ ...formData, minOrder: Number(e.target.value) })}
                     />
