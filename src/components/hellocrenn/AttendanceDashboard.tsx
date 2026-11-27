@@ -365,7 +365,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
               <Clock size={13} className="text-[#5A8A88]" />
               <span>{formatThaiNumericDate(todayStr)}</span>
               <span className="text-[#5A8A88]">·</span>
-              <span className="font-mono">{timeString}</span>
+              <span className="tabular-nums">{timeString}</span>
             </div>
             {canScanSelf && onOpenSelfScan && (
               <button
@@ -425,7 +425,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             <span>เช็คอินแล้ววันนี้</span>
             <CheckCircle2 size={14} className="text-[#5A8A88]" />
           </div>
-          <p className="text-xl font-bold text-[#2D4A49] tabular-nums font-mono mt-1">
+          <p className="text-xl font-bold text-[#2D4A49] tabular-nums mt-1">
             {summary.checkedInCount} <span className="text-xs font-normal text-[#6B8F8E]">/ {summary.totalStaff} คน</span>
           </p>
           <p className="text-[10.5px] text-[#6B8F8E] mt-1 tabular-nums">
@@ -439,7 +439,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             <span>ตรงเวลา / มาสาย</span>
             <AlertTriangle size={14} className={summary.lateCount > 0 ? 'text-amber-600' : 'text-emerald-600'} />
           </div>
-          <p className="text-xl font-bold text-emerald-700 tabular-nums font-mono mt-1">
+          <p className="text-xl font-bold text-emerald-700 tabular-nums mt-1">
             {summary.onTimeCount}{' '}
             <span className="text-xs font-bold text-amber-700">· สาย {summary.lateCount}</span>
           </p>
@@ -451,7 +451,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             <span>กำลังปฏิบัติงาน / ออกงานแล้ว</span>
             <LogOut size={14} className="text-[#5A8A88]" />
           </div>
-          <p className="text-xl font-bold text-[#2D4A49] tabular-nums font-mono mt-1">
+          <p className="text-xl font-bold text-[#2D4A49] tabular-nums mt-1">
             {summary.workingCount}{' '}
             <span className="text-xs font-normal text-[#6B8F8E]">/ ออกแล้ว {summary.checkedOutCount}</span>
           </p>
@@ -463,7 +463,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             <span>โอที (OT) สะสมวันนี้</span>
             <Timer size={14} className="text-[#5A8A88]" />
           </div>
-          <p className="text-xl font-bold text-[#5A8A88] tabular-nums font-mono mt-1">
+          <p className="text-xl font-bold text-[#5A8A88] tabular-nums mt-1">
             {summary.totalOtMinutes > 0 ? formatOtHours(summary.totalOtMinutes) : '0.00 ชม.'}
           </p>
           <p className="text-[10.5px] text-[#6B8F8E] mt-1 tabular-nums">
@@ -488,7 +488,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
               )}`}
             >
               <span className="font-bold">{bucket.label}:</span>
-              <span className="font-mono font-bold">{formatOtHours(bucket.minutes)}</span>
+              <span className="tabular-nums font-bold">{formatOtHours(bucket.minutes)}</span>
               {bucket.count > 0 && (
                 <span className="text-[10px] opacity-80">({bucket.count} คน)</span>
               )}
@@ -551,7 +551,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                           <span>{emp.role}</span>
                           <span>·</span>
                           <span className="font-semibold text-[#5A8A88]">{shift.shiftName}</span>
-                          <span className="font-mono tabular-nums">
+                          <span className="tabular-nums">
                             ({shift.shiftStartTime}–{shift.shiftEndTime})
                           </span>
                           {(shift.isOvertimeSchedule || shift.isDayOff) && (
@@ -589,7 +589,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                       <StandardTd>
                         {checkIn ? (
                           <div>
-                            <div className="font-mono tabular-nums font-bold text-[#2D4A49]">
+                            <div className="tabular-nums font-bold text-[#2D4A49]">
                               {checkIn.timeDisplay}
                             </div>
                             <div className="text-[10.5px] mt-0.5">
@@ -614,7 +614,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                       <StandardTd>
                         {checkOut ? (
                           <div>
-                            <div className="font-mono tabular-nums font-bold text-[#2D4A49]">
+                            <div className="tabular-nums font-bold text-[#2D4A49]">
                               {checkOut.timeDisplay}
                             </div>
                             <div className="text-[10.5px] mt-0.5">
@@ -641,7 +641,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                       </StandardTd>
 
                       <StandardTd>
-                        <div className="font-mono tabular-nums font-semibold text-[#2D4A49]">
+                        <div className="tabular-nums font-semibold text-[#2D4A49]">
                           {workDurationDisplay}
                         </div>
                         {statusGroup === 'working' && (
@@ -667,7 +667,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                                 {getOtTypeLabel(otMultiplier)}
                               </span>
                               <span
-                                className={`font-mono tabular-nums font-bold whitespace-nowrap ${
+                                className={`tabular-nums font-bold whitespace-nowrap ${
                                   otMinutes > 0 ? 'text-emerald-700' : 'text-[#6B8F8E]'
                                 }`}
                               >
