@@ -867,7 +867,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
 
             <div className="text-[11px] text-[#6B8F8E] flex items-center gap-2">
               <span>ค่าเริ่มต้นสาขา:</span>
-              <span className="font-mono font-bold text-[#2D4A49]">
+              <span className="tabular-nums font-bold text-[#2D4A49]">
                 {draft.shiftStartTime}–{draft.shiftEndTime} น.
               </span>
               <span className="px-1.5 py-0.5 rounded bg-[#E8F3F2] text-[#2D4A49] font-semibold text-[10px]">
@@ -1002,21 +1002,21 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             </div>
                           </div>
                         </StandardTd>
-                        <StandardTd align="center" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
+                        <StandardTd align="center" numeric nowrap className="font-semibold text-[#2D4A49]">
                           {tpl.checkInTime}
                         </StandardTd>
-                        <StandardTd align="center" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
+                        <StandardTd align="center" numeric nowrap className="font-semibold text-[#2D4A49]">
                           {tpl.checkOutTime}
                         </StandardTd>
                         <StandardTd align="right" numeric nowrap>
-                          <span className="font-semibold text-[#2D4A49] font-mono">
+                          <span className="font-semibold text-[#2D4A49] tabular-nums">
                             {tpl.workMinutes} น.
                           </span>
                           <span className="text-[10.5px] text-[#6B8F8E] ml-1">
                             ({(tpl.workMinutes / 60).toFixed(1)} ชม.)
                           </span>
                         </StandardTd>
-                        <StandardTd align="right" numeric nowrap className="font-mono text-[#6B8F8E]">
+                        <StandardTd align="right" numeric nowrap className="text-[#6B8F8E]">
                           {tpl.breakMinutes} น.
                         </StandardTd>
                         <StandardTd align="center" nowrap>
@@ -1300,7 +1300,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                           {mode === 'branch_default' && (
                             <div className="text-[11px] text-[#6B8F8E] tabular-nums whitespace-nowrap">
                               ใช้ค่าสาขา:{' '}
-                              <strong className="text-[#2D4A49] font-mono">
+                              <strong className="text-[#2D4A49] tabular-nums">
                                 {draft.shiftStartTime}–{draft.shiftEndTime}
                               </strong>{' '}
                               · สาย {draft.graceMinutes} น.
@@ -1356,7 +1356,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                       shiftStartTime: e.target.value,
                                     }))
                                   }
-                                  className="h-[26px] w-[92px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums text-[#2D4A49]"
+                                  className="h-[26px] w-[92px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] tabular-nums text-[#2D4A49]"
                                 />
                                 <span className="text-[#6B8F8E] text-[11px]">–</span>
                                 <input
@@ -1370,7 +1370,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                       shiftEndTime: e.target.value,
                                     }))
                                   }
-                                  className="h-[26px] w-[92px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] font-mono tabular-nums text-[#2D4A49]"
+                                  className="h-[26px] w-[92px] px-1.5 rounded-[6px] bg-[#F8FCFC] border border-[#D4E4E3] text-[11px] tabular-nums text-[#2D4A49]"
                                 />
                               </div>
                               <div className="flex items-center gap-2 text-[10.5px] text-[#6B8F8E] whitespace-nowrap">
@@ -1389,7 +1389,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                         graceMinutes: Math.max(0, parseInt(e.target.value, 10) || 0),
                                       }))
                                     }
-                                    className="h-[24px] w-[42px] px-1 text-center rounded-[5px] bg-[#F8FCFC] border border-[#D4E4E3] text-[10.5px] font-mono tabular-nums text-[#2D4A49]"
+                                    className="h-[24px] w-[42px] px-1 text-center rounded-[5px] bg-[#F8FCFC] border border-[#D4E4E3] text-[10.5px] tabular-nums text-[#2D4A49]"
                                   />
                                   <span>น.</span>
                                 </label>
@@ -1409,7 +1409,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                         otStepMinutes: Math.max(0, parseInt(e.target.value, 10) || 0),
                                       }))
                                     }
-                                    className="h-[24px] w-[42px] px-1 text-center rounded-[5px] bg-[#F8FCFC] border border-[#D4E4E3] text-[10.5px] font-mono tabular-nums text-[#2D4A49]"
+                                    className="h-[24px] w-[42px] px-1 text-center rounded-[5px] bg-[#F8FCFC] border border-[#D4E4E3] text-[10.5px] tabular-nums text-[#2D4A49]"
                                   />
                                   <span>น.</span>
                                 </label>
@@ -1519,7 +1519,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                   disabled={!canEdit}
                   value={draft.shiftStartTime}
                   onChange={(e) => updateBranchField('shiftStartTime', e.target.value)}
-                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
                 />
               </div>
               <div>
@@ -1531,7 +1531,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                   disabled={!canEdit}
                   value={draft.shiftEndTime}
                   onChange={(e) => updateBranchField('shiftEndTime', e.target.value)}
-                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
                 />
               </div>
               <div>
@@ -1547,7 +1547,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                   onChange={(e) =>
                     updateBranchField('graceMinutes', Math.max(0, parseInt(e.target.value, 10) || 0))
                   }
-                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
                 />
               </div>
               <div>
@@ -1564,7 +1564,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                   onChange={(e) =>
                     updateBranchField('otStepMinutes', Math.max(0, parseInt(e.target.value, 10) || 0))
                   }
-                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+                  className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
                 />
               </div>
               <div>
@@ -1692,7 +1692,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                   ) : (
                     (draft.holidayOverrides || []).map((hol) => (
                       <StandardTr key={hol.id}>
-                        <StandardTd numeric nowrap className="font-mono font-semibold">
+                        <StandardTd numeric nowrap className="font-semibold">
                           {formatThaiNumericDate(hol.date)}
                         </StandardTd>
                         <StandardTd className="font-medium text-[#2D4A49]">{hol.label}</StandardTd>
@@ -1856,7 +1856,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             };
                           })
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                     <div>
@@ -1881,7 +1881,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             };
                           })
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                     <div>
@@ -1908,7 +1908,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                             };
                           })
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                     <div>
@@ -1936,7 +1936,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49] disabled:bg-[#F0F5F4]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49] disabled:bg-[#F0F5F4]"
                       />
                     </div>
                   </div>
@@ -1963,7 +1963,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                     <div>
@@ -1986,7 +1986,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                     <div>
@@ -2009,7 +2009,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                     <div>
@@ -2032,7 +2032,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                     </div>
                   </div>
@@ -2149,7 +2149,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                 : prev
                             )
                           }
-                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs font-mono tabular-nums disabled:opacity-45"
+                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs tabular-nums disabled:opacity-45"
                         />
                       </div>
                       <div>
@@ -2172,7 +2172,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                 : prev
                             )
                           }
-                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs font-mono tabular-nums disabled:opacity-45"
+                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs tabular-nums disabled:opacity-45"
                         />
                       </div>
                     </div>
@@ -2219,7 +2219,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                 : prev
                             )
                           }
-                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs font-mono tabular-nums disabled:opacity-45"
+                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs tabular-nums disabled:opacity-45"
                         />
                       </div>
                       <div>
@@ -2242,7 +2242,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                                 : prev
                             )
                           }
-                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs font-mono tabular-nums disabled:opacity-45"
+                          className="w-full h-[34px] px-2.5 rounded-[8px] bg-white border border-[#D4E4E3] text-xs tabular-nums disabled:opacity-45"
                         />
                       </div>
                     </div>
@@ -2291,7 +2291,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums"
                       />
                     </div>
                   </div>
@@ -2344,7 +2344,7 @@ export const ShiftSettings: React.FC<ShiftSettingsProps> = ({
                               : prev
                           )
                         }
-                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs font-mono tabular-nums text-[#2D4A49]"
+                        className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-xs tabular-nums text-[#2D4A49]"
                       />
                       <p className="text-[10px] text-[#6B8F8E] mt-1">
                         หากสแกนเข้างานเกินเวลาเช็คอิน + นาทีอนุโลมสาย ระบบจะบันทึกสถานะเป็น &quot;มาสาย&quot;
