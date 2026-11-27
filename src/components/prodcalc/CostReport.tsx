@@ -336,36 +336,36 @@ export function CostReport({ recipes, currentBranch }: CostReportProps) {
                   const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-[#F8FCFC]';
                   return (
                     <StandardTr key={r.id} className={rowBg}>
-                      <StandardTd compact align="center" numeric className="font-mono font-bold text-[#6B8F8E]">
+                      <StandardTd compact align="center" numeric className="font-bold text-[#6B8F8E]">
                         {idx + 1}
                       </StandardTd>
                       <StandardTd compact>
                         <div className="font-semibold text-[#2D4A49] text-[11.5px] sm:text-[12px] leading-[1.35] break-words">
                           {r.name}
                         </div>
-                        <span className="block text-[10px] text-[#6B8F8E] font-mono mt-0.5">{r.code}</span>
+                        <span className="block text-[10px] text-[#6B8F8E] tabular-nums mt-0.5">{r.code}</span>
                       </StandardTd>
                       <StandardTd compact className="text-[#6B8F8E] text-[10.5px] leading-[1.35] break-words">
                         {r.category}
                       </StandardTd>
-                      <StandardTd compact align="center" numeric nowrap className="font-mono font-medium text-[#2D4A49]">
+                      <StandardTd compact align="center" numeric nowrap className="font-medium text-[#2D4A49]">
                         {r.yield_qty}
                       </StandardTd>
-                      <StandardTd compact align="right" numeric nowrap className="font-mono text-[#6B8F8E]">
+                      <StandardTd compact align="right" numeric nowrap className="text-[#6B8F8E]">
                         ฿{r.total_batch_cost.toFixed(2)}
                       </StandardTd>
-                      <StandardTd compact align="right" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
+                      <StandardTd compact align="right" numeric nowrap className="font-semibold text-[#2D4A49]">
                         ฿{r.cost_per_piece.toFixed(2)}
                       </StandardTd>
-                      <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49]">
+                      <StandardTd compact align="right" numeric nowrap className="font-bold text-[#2D4A49]">
                         ฿{r.selling_price.toFixed(2)}
                       </StandardTd>
-                      <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-emerald-600">
+                      <StandardTd compact align="right" numeric nowrap className="font-bold text-emerald-600">
                         +฿{r.profit_per_piece.toFixed(2)}
                       </StandardTd>
                       <StandardTd compact align="center" nowrap>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-[6px] font-mono font-bold text-[10.5px] tabular-nums whitespace-nowrap shrink-0 border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-[6px] font-bold text-[10.5px] tabular-nums whitespace-nowrap shrink-0 border ${
                             r.profit_pct >= 50
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : r.profit_pct >= 30
