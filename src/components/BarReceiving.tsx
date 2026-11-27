@@ -573,7 +573,7 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full h-[32px] pl-7 pr-2 py-1 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] font-mono tabular-nums focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 shadow-xs transition-all"
+                className="w-full h-[32px] pl-7 pr-2 py-1 bg-white border border-[#D4E4E3] rounded-[8px] text-[11px] text-[#2D4A49] tabular-nums focus:outline-none focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/15 shadow-xs transition-all"
               />
             </div>
           </div>
@@ -829,7 +829,7 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                   const ing = ingredients.find(i => i.id === record.ingredientId);
                   return (
                     <tr key={record.id} className="hover:bg-[#F4F9F8] transition-colors">
-                      <td className="py-2 px-2 font-mono text-[11px] text-[#6B8F8E] truncate tabular-nums">
+                      <td className="py-2 px-2 text-[11px] text-[#6B8F8E] truncate tabular-nums">
                         {format(new Date(record.date), 'dd/MM/yyyy')}
                       </td>
                       <td className="py-2 px-2.5 font-semibold text-[#2D4A49] truncate">
@@ -840,7 +840,7 @@ export function BarReceiving({ ingredients, receivingRecords, onAddRecord, onDel
                       <td className="py-2 px-2 text-center font-bold text-[#5A8A88] truncate tabular-nums">
                         {record.quantity} {ing?.unit || ''}
                       </td>
-                      <td className="py-2 px-2 text-center text-[11px] text-[#6B8F8E] font-mono truncate tabular-nums">
+                      <td className="py-2 px-2 text-center text-[11px] text-[#6B8F8E] truncate tabular-nums">
                         {record.expiryDate ? format(new Date(record.expiryDate), 'dd-MMM-yyyy') : '-'}
                       </td>
                       {!isReadOnly && (
