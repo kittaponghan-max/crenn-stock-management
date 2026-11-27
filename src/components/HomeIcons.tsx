@@ -68,7 +68,7 @@ export const MaterialRequestIcon: React.FC<{ className?: string }> = ({ classNam
       fill="#FFFFFF" 
       fontSize="12" 
       fontWeight="900" 
-      fontFamily="system-ui, -apple-system, sans-serif"
+      fontFamily="'Plus Jakarta Sans', 'Prompt', system-ui, -apple-system, sans-serif"
     >?</text>
   </svg>
 );
@@ -254,7 +254,7 @@ export const ProcurementTrackerIcon: React.FC<{ className?: string }> = ({ class
         fill="#92400E" 
         fontSize="10" 
         fontWeight="bold" 
-        fontFamily="system-ui, -apple-system, sans-serif"
+        fontFamily="'Plus Jakarta Sans', 'Prompt', system-ui, -apple-system, sans-serif"
       >$</text>
     </g>
   </svg>
