@@ -592,7 +592,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                 {defaultSource.source_name}
                               </div>
                               <div className="flex items-center gap-1 mt-0.5 whitespace-nowrap">
-                                <span className="font-mono font-bold text-[#2D4A49] tabular-nums text-[11px]">
+                                <span className="font-bold text-[#2D4A49] tabular-nums text-[11px]">
                                   ฿{defaultSource.price.toLocaleString()}
                                 </span>
                                 <span className="text-[10px] text-[#6B8F8E] tabular-nums">
@@ -637,7 +637,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                               const val = Math.min(100, Math.max(1, Number(e.target.value) || 100));
                               handleUpdateItem({ ...item, yield_pct: val });
                             }}
-                            className={`w-11 h-[28px] text-center rounded-[6px] border border-[#D4E4E3] text-[11px] font-mono font-bold tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed ${
+                            className={`w-11 h-[28px] text-center rounded-[6px] border border-[#D4E4E3] text-[11px] font-bold tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed ${
                               item.yield_pct === 100 ? 'text-emerald-600' : item.yield_pct >= 70 ? 'text-[#2D4A49]' : 'text-amber-600'
                             }`}
                           />
@@ -649,7 +649,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                       <StandardTd compact align="right" numeric nowrap>
                         {hasPrice ? (
                           <div className="inline-flex flex-col items-end">
-                            <span className="px-2 py-0.5 rounded-[6px] bg-[#E8F3F2] border border-[#D4E4E3] font-mono font-bold text-[11.5px] text-[#2D4A49] tabular-nums whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded-[6px] bg-[#E8F3F2] border border-[#D4E4E3] font-bold text-[11.5px] text-[#2D4A49] tabular-nums whitespace-nowrap">
                               ฿{item.effective_cost_per_unit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <span className="text-[10px] text-[#6B8F8E] mt-0.5 whitespace-nowrap">
@@ -657,7 +657,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                             </span>
                           </div>
                         ) : (
-                          <span className="text-[#A8BCBB] font-mono tabular-nums text-[11px]">—</span>
+                          <span className="text-[#A8BCBB] tabular-nums text-[11px]">—</span>
                         )}
                       </StandardTd>
 
@@ -831,7 +831,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                   updatedSourcing[sIdx].price = Number(e.target.value) || 0;
                                                   handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                                 }}
-                                                className="w-full h-[28px] pl-5 pr-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums font-bold outline-none focus:border-[#5A8A88] bg-white text-right disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                                className="w-full h-[28px] pl-5 pr-2 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums font-bold outline-none focus:border-[#5A8A88] bg-white text-right disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                               />
                                             </div>
                                           </StandardTd>
@@ -850,7 +850,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                                 updatedSourcing[sIdx].qty = Number(e.target.value) || 1;
                                                 handleUpdateItem({ ...item, sourcing: updatedSourcing });
                                               }}
-                                              className="w-full h-[28px] px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white text-center disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                              className="w-full h-[28px] px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white text-center disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                                             />
                                           </StandardTd>
 
@@ -871,7 +871,7 @@ export function IngredientPricing({ currentBranch, isReadOnly = false }: Ingredi
                                           </StandardTd>
 
                                           {/* Raw Cost */}
-                                          <StandardTd compact align="right" numeric nowrap className="font-mono font-semibold text-[#2D4A49]">
+                                          <StandardTd compact align="right" numeric nowrap className="font-semibold text-[#2D4A49]">
                                             ฿{rawCost.toFixed(2)}
                                           </StandardTd>
 
