@@ -371,7 +371,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                   placeholder="REC-001"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[11px] font-mono font-bold text-[#2D4A49] outline-none focus:border-[#5A8A88] disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full h-[32px] px-2.5 rounded-[8px] border border-[#D4E4E3] bg-[#F8FCFC] text-[11px] tabular-nums font-bold text-[#2D4A49] outline-none focus:border-[#5A8A88] disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -538,7 +538,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0.0001"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateIngredient(idx, { qty: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
 
@@ -546,11 +546,11 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                               {item.unit}
                             </StandardTd>
 
-                            <StandardTd compact align="right" numeric nowrap className="font-mono text-[#6B8F8E] text-[11px]">
+                            <StandardTd compact align="right" numeric nowrap className="text-[#6B8F8E] text-[11px]">
                               ฿{item.unit_cost.toFixed(2)}
                             </StandardTd>
 
-                            <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49] text-[11.5px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-bold text-[#2D4A49] text-[11.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </StandardTd>
 
@@ -569,7 +569,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                         ))}
                         <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
                           <td colSpan={4} className="py-2 px-2 text-right">รวมต้นทุนวัตถุดิบ:</td>
-                          <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap">฿{calculations.ingredientsCost.toFixed(2)}</td>
+                          <td className="py-2 px-2 text-right tabular-nums whitespace-nowrap">฿{calculations.ingredientsCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
                       </StandardTbody>
@@ -635,7 +635,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.hours || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { hours: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
                             <StandardTd compact align="right">
@@ -646,10 +646,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.rate_per_hour || ''}
                                 onChange={(e) => handleUpdateLabor(idx, { rate_per_hour: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49] text-[11.5px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-bold text-[#2D4A49] text-[11.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </StandardTd>
                             {!isReadOnly && (
@@ -667,7 +667,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                         ))}
                         <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
                           <td colSpan={3} className="py-2 px-2 text-right">รวมค่าแรง:</td>
-                          <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap">฿{calculations.laborCost.toFixed(2)}</td>
+                          <td className="py-2 px-2 text-right tabular-nums whitespace-nowrap">฿{calculations.laborCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
                       </StandardTbody>
@@ -733,7 +733,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.qty || ''}
                                 onChange={(e) => handleUpdateOther(idx, { qty: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-center px-1 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
                             <StandardTd compact align="right">
@@ -744,10 +744,10 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                                 min="0"
                                 value={item.unit_cost || ''}
                                 onChange={(e) => handleUpdateOther(idx, { unit_cost: Number(e.target.value) || 0 })}
-                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] font-mono tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                                className="w-full h-[28px] text-right px-1.5 rounded-[6px] border border-[#D4E4E3] text-[11px] text-[#2D4A49] tabular-nums outline-none focus:border-[#5A8A88] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                               />
                             </StandardTd>
-                            <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49] text-[11.5px]">
+                            <StandardTd compact align="right" numeric nowrap className="font-bold text-[#2D4A49] text-[11.5px]">
                               ฿{item.total_cost.toFixed(2)}
                             </StandardTd>
                             {!isReadOnly && (
@@ -765,7 +765,7 @@ export function RecipeEditor({ initialRecipe, availableIngredients, onSave, onCa
                         ))}
                         <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49] text-[11px]">
                           <td colSpan={3} className="py-2 px-2 text-right">รวมค่าใช้จ่ายอื่นๆ:</td>
-                          <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap">฿{calculations.otherCost.toFixed(2)}</td>
+                          <td className="py-2 px-2 text-right tabular-nums whitespace-nowrap">฿{calculations.otherCost.toFixed(2)}</td>
                           {!isReadOnly && <td></td>}
                         </tr>
                       </StandardTbody>
