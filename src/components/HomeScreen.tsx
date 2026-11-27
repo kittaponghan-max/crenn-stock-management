@@ -2367,7 +2367,7 @@ export function HomeScreen({
                           </span>
 
                           {item.equipmentCode && (
-                            <span className="text-[9px] font-mono font-medium text-slate-500 bg-slate-50 px-1 py-0.5 rounded border border-slate-200">
+                            <span className="text-[9px] tabular-nums font-medium text-slate-500 bg-slate-50 px-1 py-0.5 rounded border border-slate-200">
                               {item.equipmentCode}
                             </span>
                           )}
@@ -2450,7 +2450,7 @@ export function HomeScreen({
                             <span className="text-[9px] text-[#6B8F8E]">เบอร์ติดต่อ:</span>
                             <a 
                               href={`tel:${item.contactNumber}`}
-                              className="font-mono text-[9px] text-blue-600 hover:underline flex items-center gap-0.5"
+                              className="tabular-nums text-[9px] text-blue-600 hover:underline flex items-center gap-0.5"
                             >
                               <Phone size={9} />
                               <span>{item.contactNumber}</span>
