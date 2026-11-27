@@ -169,7 +169,7 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-[10px] font-mono font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3]">
+                      <span className="text-[10px] tabular-nums font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3]">
                         {recipe.code || 'RECIPE'}
                       </span>
                       <span
@@ -267,7 +267,7 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
           <div className="bg-white border border-[#D4E4E3] rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-2.5 border-b border-[#D4E4E3]">
               <div>
-                <span className="text-[10px] font-mono font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3]">
+                <span className="text-[10px] tabular-nums font-[600] text-[#5A8A88] bg-[#E8F3F2] px-[7px] py-[2px] rounded-[5px] border border-[#D4E4E3]">
                   {viewingRecipe.code}
                 </span>
                 <h3 className="font-bold text-[#2D4A49] text-[13px] mt-1">
@@ -325,14 +325,14 @@ export function RecipeList({ recipes, onNewRecipe, onEditRecipe, onDeleteRecipe,
                     {viewingRecipe.ingredients.map(ing => (
                       <StandardTr key={ing.id}>
                         <StandardTd compact className="font-medium text-[#2D4A49]">{ing.ingredient_name}</StandardTd>
-                        <StandardTd compact align="center" numeric nowrap className="font-mono text-[#6B8F8E]">{ing.qty} {ing.unit}</StandardTd>
-                        <StandardTd compact align="right" numeric nowrap className="font-mono text-[#6B8F8E]">฿{ing.unit_cost.toFixed(2)}</StandardTd>
-                        <StandardTd compact align="right" numeric nowrap className="font-mono font-bold text-[#2D4A49]">฿{ing.total_cost.toFixed(2)}</StandardTd>
+                        <StandardTd compact align="center" numeric nowrap className="text-[#6B8F8E]">{ing.qty} {ing.unit}</StandardTd>
+                        <StandardTd compact align="right" numeric nowrap className="text-[#6B8F8E]">฿{ing.unit_cost.toFixed(2)}</StandardTd>
+                        <StandardTd compact align="right" numeric nowrap className="font-bold text-[#2D4A49]">฿{ing.total_cost.toFixed(2)}</StandardTd>
                       </StandardTr>
                     ))}
                     <tr className="bg-[#E8F3F2] font-bold text-[#2D4A49]">
                       <td colSpan={3} className="py-2 px-2 text-right text-[11px]">รวมต้นทุนวัตถุดิบ:</td>
-                      <td className="py-2 px-2 text-right font-mono tabular-nums whitespace-nowrap text-[11.5px]">฿{viewingRecipe.ingredients_cost.toFixed(2)}</td>
+                      <td className="py-2 px-2 text-right tabular-nums whitespace-nowrap text-[11.5px]">฿{viewingRecipe.ingredients_cost.toFixed(2)}</td>
                     </tr>
                   </StandardTbody>
                 </StandardTable>
