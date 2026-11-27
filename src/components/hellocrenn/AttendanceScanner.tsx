@@ -452,7 +452,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
               <Clock size={13} className="text-[#5A8A88]" />
               <span>{formatThaiNumericDate(todayStr)}</span>
               <span className="text-[#5A8A88]">·</span>
-              <span className="font-mono">{timeString}</span>
+              <span className="tabular-nums">{timeString}</span>
             </div>
             <button
               type="button"
@@ -639,7 +639,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                 <div>
                   <span className="text-[10.5px] text-[#6B8F8E] block">ระยะห่างจากสาขา</span>
                   <span
-                    className={`font-bold text-base tabular-nums font-mono ${
+                    className={`font-bold text-base tabular-nums ${
                       gps.distanceMeters === null
                         ? 'text-slate-400'
                         : gps.withinGeofence
@@ -652,13 +652,13 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                 </div>
                 <div>
                   <span className="text-[10.5px] text-[#6B8F8E] block">ความคลาดเคลื่อน GPS</span>
-                  <span className="font-bold text-base text-[#2D4A49] tabular-nums font-mono">
+                  <span className="font-bold text-base text-[#2D4A49] tabular-nums">
                     {gps.accuracyMeters !== null ? `±${gps.accuracyMeters} ม.` : '—'}
                   </span>
                 </div>
                 <div>
                   <span className="text-[10.5px] text-[#6B8F8E] block">พิกัดของคุณ</span>
-                  <span className="text-[11px] font-medium text-[#2D4A49] tabular-nums font-mono">
+                  <span className="text-[11px] font-medium text-[#2D4A49] tabular-nums">
                     {gps.latitude !== null && gps.longitude !== null
                       ? `${gps.latitude.toFixed(5)}, ${gps.longitude.toFixed(5)}`
                       : '—'}
@@ -666,7 +666,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                 </div>
                 <div>
                   <span className="text-[10.5px] text-[#6B8F8E] block">อัปเดตล่าสุด</span>
-                  <span className="text-[11px] font-medium text-[#2D4A49] tabular-nums font-mono">
+                  <span className="text-[11px] font-medium text-[#2D4A49] tabular-nums">
                     {gps.lastUpdatedAt || '—'}
                   </span>
                 </div>
@@ -739,7 +739,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
               <div className="flex items-center justify-between py-2 border-b border-[#F0F5F4]">
                 <div>
                   <p className="text-[11px] text-[#6B8F8E]">เวลาเข้างาน (Check-in)</p>
-                  <p className="text-lg font-bold text-[#2D4A49] tabular-nums font-mono mt-0.5">
+                  <p className="text-lg font-bold text-[#2D4A49] tabular-nums mt-0.5">
                     {todayCheckIn ? todayCheckIn.timeDisplay : '— : — : —'}
                   </p>
                 </div>
@@ -766,7 +766,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
               <div className="flex items-center justify-between py-2 border-b border-[#F0F5F4]">
                 <div>
                   <p className="text-[11px] text-[#6B8F8E]">เวลาออกงาน (Check-out)</p>
-                  <p className="text-lg font-bold text-[#2D4A49] tabular-nums font-mono mt-0.5">
+                  <p className="text-lg font-bold text-[#2D4A49] tabular-nums mt-0.5">
                     {todayCheckOut ? todayCheckOut.timeDisplay : '— : — : —'}
                   </p>
                 </div>
@@ -799,7 +799,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                     <span className="text-[10px] text-[#6B8F8E]">กำลังนับเวลาทำงานแบบ Real-time</span>
                   )}
                 </div>
-                <span className="text-sm font-bold text-[#2D4A49] tabular-nums font-mono">
+                <span className="text-sm font-bold text-[#2D4A49] tabular-nums">
                   {workDurationText}
                 </span>
               </div>
@@ -825,12 +825,12 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                 </div>
                 <div className="text-right">
                   {!todayCheckIn ? (
-                    <span className="text-sm font-bold text-slate-400 tabular-nums font-mono">—</span>
+                    <span className="text-sm font-bold text-slate-400 tabular-nums">—</span>
                   ) : !isOtEnabled ? (
                     <span className="text-xs font-medium text-slate-400">ไม่คิดโอที</span>
                   ) : computedOtMinutes > 0 ? (
                     <>
-                      <span className="text-sm font-bold text-emerald-700 tabular-nums font-mono block">
+                      <span className="text-sm font-bold text-emerald-700 tabular-nums block">
                         +{formatOtHours(computedOtMinutes)}
                       </span>
                       <span className="text-[10px] text-[#6B8F8E] tabular-nums">
@@ -840,7 +840,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                     </>
                   ) : (
                     <>
-                      <span className="text-sm font-bold text-[#6B8F8E] tabular-nums font-mono block">
+                      <span className="text-sm font-bold text-[#6B8F8E] tabular-nums block">
                         0.00 ชม.
                       </span>
                       <span className="text-[10px] text-[#6B8F8E]">
@@ -908,7 +908,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                   const recOtMult = rec.otMultiplier ?? employeeShift.otMultiplier;
                   return (
                     <StandardTr key={rec.id}>
-                      <StandardTd nowrap className="font-mono tabular-nums font-semibold">
+                      <StandardTd nowrap className="tabular-nums font-semibold">
                         {rec.timeDisplay}
                       </StandardTd>
                       <StandardTd nowrap>
@@ -923,7 +923,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                       <StandardTd nowrap className="text-[#6B8F8E]">
                         {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
                       </StandardTd>
-                      <StandardTd align="right" nowrap className="font-mono tabular-nums">
+                      <StandardTd align="right" nowrap className="tabular-nums">
                         {formatDistanceMeters(rec.distanceMeters)}
                       </StandardTd>
                       <StandardTd nowrap>
@@ -937,7 +937,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                           {getStatusLabelTH(rec.status)}
                         </span>
                       </StandardTd>
-                      <StandardTd align="right" nowrap className="font-mono tabular-nums">
+                      <StandardTd align="right" nowrap className="tabular-nums">
                         {rec.type === 'check_out' ? (
                           !isOtEnabled ? (
                             <span className="text-slate-400">ไม่คิดโอที</span>
