@@ -303,25 +303,25 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-[#D4E4E3] p-3.5">
           <span className="text-[11px] text-[#6B8F8E] block">รายการในช่วงที่เลือก</span>
-          <span className="text-xl font-bold text-[#2D4A49] tabular-nums font-mono mt-1 block">
+          <span className="text-xl font-bold text-[#2D4A49] tabular-nums mt-1 block">
             {summary.total}
           </span>
         </div>
         <div className="bg-white rounded-xl border border-[#D4E4E3] p-3.5">
           <span className="text-[11px] text-[#6B8F8E] block">เข้างานตรงเวลา</span>
-          <span className="text-xl font-bold text-emerald-700 tabular-nums font-mono mt-1 block">
+          <span className="text-xl font-bold text-emerald-700 tabular-nums mt-1 block">
             {summary.onTime}
           </span>
         </div>
         <div className="bg-white rounded-xl border border-[#D4E4E3] p-3.5">
           <span className="text-[11px] text-[#6B8F8E] block">มาสาย</span>
-          <span className="text-xl font-bold text-amber-700 tabular-nums font-mono mt-1 block">
+          <span className="text-xl font-bold text-amber-700 tabular-nums mt-1 block">
             {summary.late}
           </span>
         </div>
         <div className="bg-white rounded-xl border border-[#D4E4E3] p-3.5">
           <span className="text-[11px] text-[#6B8F8E] block">สแกนแบบ Auto GPS</span>
-          <span className="text-xl font-bold text-[#5A8A88] tabular-nums font-mono mt-1 block">
+          <span className="text-xl font-bold text-[#5A8A88] tabular-nums mt-1 block">
             {summary.autoCount}
           </span>
         </div>
@@ -337,7 +337,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
             </h3>
             <span className="text-[11px] text-[#6B8F8E] tabular-nums">
               · รวมทั้งหมด{' '}
-              <strong className="text-[#2D4A49] font-mono">
+              <strong className="text-[#2D4A49] tabular-nums">
                 {formatOtHours(otSummary.totalMinutes)}
               </strong>{' '}
               ({otRecords.length} ครั้ง)
@@ -374,7 +374,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-base font-bold font-mono tabular-nums">
+                <span className="text-base font-bold tabular-nums">
                   {formatOtHours(bucket.minutes)}
                 </span>
               </div>
@@ -407,7 +407,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                           </span>
                         )}
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums">
+                      <StandardTd align="right" className="tabular-nums">
                         {item.minutes15 > 0 ? (
                           <span className="font-semibold text-[#2D4A49]">
                             {formatOtHours(item.minutes15)}
@@ -416,7 +416,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                           <span className="text-[#A8BCBB]">—</span>
                         )}
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums">
+                      <StandardTd align="right" className="tabular-nums">
                         {item.minutes2 > 0 ? (
                           <span className="font-semibold text-amber-800">
                             {formatOtHours(item.minutes2)}
@@ -425,7 +425,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                           <span className="text-[#A8BCBB]">—</span>
                         )}
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums">
+                      <StandardTd align="right" className="tabular-nums">
                         {item.minutes3 > 0 ? (
                           <span className="font-semibold text-rose-700">
                             {formatOtHours(item.minutes3)}
@@ -434,10 +434,10 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                           <span className="text-[#A8BCBB]">—</span>
                         )}
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums font-bold text-emerald-700">
+                      <StandardTd align="right" className="tabular-nums font-bold text-emerald-700">
                         {formatOtHours(item.totalMinutes)}
                       </StandardTd>
-                      <StandardTd align="right" className="font-mono tabular-nums text-[#6B8F8E]">
+                      <StandardTd align="right" className="tabular-nums text-[#6B8F8E]">
                         {item.otDays} ครั้ง
                       </StandardTd>
                     </StandardTr>
@@ -482,7 +482,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                     <StandardTd className="tabular-nums font-medium">
                       {formatThaiNumericDate(rec.date)}
                     </StandardTd>
-                    <StandardTd className="font-mono tabular-nums font-semibold">
+                    <StandardTd className="tabular-nums font-semibold">
                       {rec.timeDisplay}
                     </StandardTd>
                     <StandardTd>
@@ -506,10 +506,10 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                     <StandardTd className="text-[#6B8F8E]">
                       {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
                     </StandardTd>
-                    <StandardTd align="right" className="font-mono tabular-nums">
+                    <StandardTd align="right" className="tabular-nums">
                       {formatDistanceMeters(rec.distanceMeters)}
                     </StandardTd>
-                    <StandardTd className="font-mono tabular-nums text-[10.5px] text-[#6B8F8E]">
+                    <StandardTd className="tabular-nums text-[10.5px] text-[#6B8F8E]">
                       {rec.latitude.toFixed(5)}, {rec.longitude.toFixed(5)}
                     </StandardTd>
                     <StandardTd nowrap>
@@ -539,7 +539,7 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                             >
                               {getOtTypeLabel(otMult)}
                             </span>
-                            <span className="font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
+                            <span className="tabular-nums font-bold text-emerald-700 whitespace-nowrap">
                               +{formatOtHours(rec.otMinutes)}
                             </span>
                           </div>
