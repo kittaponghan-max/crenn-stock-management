@@ -2399,7 +2399,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                     id="user-avatar-input"
                     type="url"
                     placeholder="https://example.com/avatar.png (ใส่ URL รูปภาพโปรไฟล์)"
-                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-mono"
+                    className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all"
                     value={formData.avatar}
                     onChange={(e) => {
                       setIsUserFormDirty(true);
@@ -2449,7 +2449,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                     <input
                       type="text"
                       required
-                      className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all font-mono"
+                      className="w-full px-3 py-2 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white transition-all"
                       value={formData.password}
                       onChange={(e) => {
                         setIsUserFormDirty(true);
@@ -3073,7 +3073,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                       <div className="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-[#E8F3F2] border border-[#D4E4E3] text-[#2D4A49] animate-in fade-in duration-150">
                         <div className="min-w-0 flex-1 text-left">
                           <span className="block text-[9px] text-[#5A8A88] font-medium leading-none mb-0.5">รหัสผ่านปัจจุบัน</span>
-                          <span className="block font-mono text-[11px] font-bold truncate select-all" title={user.password || ''}>
+                          <span className="block text-[11px] font-bold truncate select-all" title={user.password || ''}>
                             {user.password ? user.password : <span className="text-[#6B8F8E] font-normal italic">ไม่มีข้อมูล</span>}
                           </span>
                         </div>
@@ -3109,7 +3109,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                           placeholder="รหัสผ่านใหม่"
                           required
                           autoFocus
-                          className="w-full px-2 py-1 border border-[#D4E4E3] rounded-md focus:ring-2 focus:ring-[#5A8A88] outline-none text-[10px] text-[#2D4A49] bg-white font-mono text-center"
+                          className="w-full px-2 py-1 border border-[#D4E4E3] rounded-md focus:ring-2 focus:ring-[#5A8A88] outline-none text-[10px] text-[#2D4A49] bg-white text-center"
                           value={passwordForm.password}
                           onChange={(e) => setPasswordForm({ password: e.target.value })}
                         />
@@ -3226,7 +3226,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                   type="password"
                   disabled={effectiveReadOnly}
                   placeholder="กรอก Discord Webhook URL (https://discord.com/api/webhooks/...)"
-                  className="w-full px-3 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none font-mono text-[11px] text-[#2D4A49] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
+                  className="w-full px-3 py-1.5 border border-[#D4E4E3] rounded-lg focus:ring-2 focus:ring-[#5A8A88] focus:border-[#5A8A88] outline-none text-[11px] text-[#2D4A49] bg-white disabled:bg-[#F0F5F4] disabled:cursor-not-allowed"
                   value={discordSettings.webhookUrl}
                   onChange={(e) => setDiscordSettings({ ...discordSettings, webhookUrl: e.target.value })}
                 />
