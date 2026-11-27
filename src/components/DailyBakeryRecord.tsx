@@ -1365,7 +1365,7 @@ export function DailyBakeryRecord({
           <div className="flex-1">
             <p className="font-bold">{tableExistsWarning}</p>
             <p className="text-[11px] text-amber-700 mt-0.5">
-              คอลัมน์ใน Supabase (`daily_bakery_records`): <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px]">date (text), branch (text), item_name (text), total_qty (numeric), line_qty (numeric), store_qty (numeric), sold_qty (numeric), remaining_qty (numeric), note (text), recorded_by (text), created_at (timestamptz)</code>
+              คอลัมน์ใน Supabase (`daily_bakery_records`): <code className="bg-amber-100 px-1 py-0.5 rounded text-[10px]">date (text), branch (text), item_name (text), total_qty (numeric), line_qty (numeric), store_qty (numeric), sold_qty (numeric), remaining_qty (numeric), note (text), recorded_by (text), created_at (timestamptz)</code>
             </p>
           </div>
         </div>
@@ -1826,7 +1826,7 @@ export function DailyBakeryRecord({
                                 value={rec.totalQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'totalQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full min-w-[42px] bg-white border border-[#D4E4E3] rounded text-[11px] font-mono tabular-nums text-center px-1 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                                className="w-full min-w-[42px] bg-white border border-[#D4E4E3] rounded text-[11px] tabular-nums text-center px-1 py-1 text-[#2D4A49] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                               />
                             </td>
 
@@ -1838,7 +1838,7 @@ export function DailyBakeryRecord({
                                 value={rec.lineQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'lineQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
+                                className={`w-full min-w-[42px] border rounded text-[11px] tabular-nums text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
                                   isActualUnderPlan
                                     ? 'bg-rose-50 border-rose-300 text-rose-700 font-semibold focus:border-rose-500'
                                     : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
@@ -1855,7 +1855,7 @@ export function DailyBakeryRecord({
                                 value={rec.storeQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'storeQty', e.target.value)}
                                 placeholder="0"
-                                className="w-full min-w-[42px] bg-white border border-[#B8D4D2] rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                                className="w-full min-w-[42px] bg-white border border-[#B8D4D2] rounded text-[11px] tabular-nums font-semibold text-center px-1 py-1 text-[#5A8A88] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                                 title="เบิก (คำนวณจาก ยอดวางแผน - ยอดจริง หรือกรอกแก้ไขเองได้)"
                               />
                             </td>
@@ -1868,7 +1868,7 @@ export function DailyBakeryRecord({
                                 value={rec.soldQty}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'soldQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums font-bold text-center px-1 py-1 focus:outline-none disabled:opacity-80 disabled:cursor-not-allowed ${
+                                className={`w-full min-w-[42px] border rounded text-[11px] tabular-nums font-bold text-center px-1 py-1 focus:outline-none disabled:opacity-80 disabled:cursor-not-allowed ${
                                   isUnderTarget
                                     ? 'bg-[#FEF3C7] border-amber-400 text-amber-900 focus:border-amber-600'
                                     : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:border-[#5A8A88] focus:bg-[#E8F3F2]'
@@ -1885,7 +1885,7 @@ export function DailyBakeryRecord({
                                 value={remainValue}
                                 onChange={(e) => handleChange(item.name, day.dateStr, 'remainingQty', e.target.value)}
                                 placeholder="0"
-                                className={`w-full min-w-[42px] border rounded text-[11px] font-mono tabular-nums font-semibold text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
+                                className={`w-full min-w-[42px] border rounded text-[11px] tabular-nums font-semibold text-center px-1 py-1 focus:outline-none disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed ${
                                   isPositiveRemain
                                     ? 'bg-rose-50 border-rose-300 text-rose-700 font-bold focus:border-rose-500'
                                     : isNegativeRemain
@@ -2072,19 +2072,19 @@ export function DailyBakeryRecord({
                   const t = dayTotals[day.dateStr] || { totalQty: 0, lineQty: 0, storeQty: 0, soldQty: 0, remainQty: 0 };
                   return (
                     <React.Fragment key={`tot-${day.dateStr}`}>
-                      <td className="py-2.5 px-1.5 text-center font-mono tabular-nums text-[#5A8A88]">
+                      <td className="py-2.5 px-1.5 text-center tabular-nums text-[#5A8A88]">
                         {t.totalQty}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center font-mono tabular-nums text-[#5A8A88]">
+                      <td className="py-2.5 px-1.5 text-center tabular-nums text-[#5A8A88]">
                         {t.lineQty}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center font-mono tabular-nums text-[#5A8A88] font-bold">
+                      <td className="py-2.5 px-1.5 text-center tabular-nums text-[#5A8A88] font-bold">
                         {t.storeQty}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center font-mono tabular-nums text-[#2D4A49] font-black">
+                      <td className="py-2.5 px-1.5 text-center tabular-nums text-[#2D4A49] font-black">
                         {t.soldQty}
                       </td>
-                      <td className={`py-2.5 px-1.5 text-center font-mono tabular-nums font-bold ${
+                      <td className={`py-2.5 px-1.5 text-center tabular-nums font-bold ${
                         t.remainQty < 0 ? 'text-rose-700' : 'text-[#2D4A49]'
                       }`}>
                         {t.remainQty}
