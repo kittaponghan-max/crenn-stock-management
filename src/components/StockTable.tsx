@@ -351,7 +351,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
             <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
             <div>
               <div className="font-bold text-amber-900 mb-1">แจ้งเตือนโครงสร้างฐานข้อมูล (Supabase)</div>
-              <pre className="text-[11px] font-mono whitespace-pre-line text-amber-800 bg-amber-100/60 p-2 rounded border border-amber-200 my-1">
+              <pre className="text-[11px] whitespace-pre-line text-amber-800 bg-amber-100/60 p-2 rounded border border-amber-200 my-1">
                 {schemaWarning}
               </pre>
               <p className="text-[11px] text-amber-700">
@@ -674,7 +674,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                             type="number"
                             min="0"
                             className={cn(
-                              "w-full text-center focus:outline-none font-mono tabular-nums text-[10px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-0.5 focus:bg-white focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed",
+                              "w-full text-center focus:outline-none tabular-nums text-[10px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-0.5 focus:bg-white focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed",
                               isSingleDay ? "h-6" : "h-7"
                             )}
                             placeholder="0"
@@ -689,7 +689,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                             type="number"
                             min="0"
                             className={cn(
-                              "w-full text-center focus:outline-none font-mono tabular-nums text-[10px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-0.5 focus:bg-white focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed",
+                              "w-full text-center focus:outline-none tabular-nums text-[10px] font-medium rounded-md border border-[#D4E4E3] bg-white text-[#2D4A49] p-0.5 focus:bg-white focus:border-[#5A8A88] focus:ring-1 focus:ring-[#5A8A88]/20 disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed",
                               isSingleDay ? "h-6" : "h-7"
                             )}
                             placeholder="0"
@@ -705,7 +705,7 @@ export function StockTable({ ingredients, stockRecord, dateRange, onUpdateStock,
                               type="number"
                               min="0"
                               className={cn(
-                                "w-full text-center focus:outline-none font-mono tabular-nums text-[10px] font-medium rounded-md border p-0.5 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
+                                "w-full text-center focus:outline-none tabular-nums text-[10px] font-medium rounded-md border p-0.5 transition-all shadow-xs disabled:opacity-75 disabled:cursor-not-allowed",
                                 isSingleDay ? "h-6" : "h-7",
                                 isLowStock 
                                   ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-semibold focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]/20" 
