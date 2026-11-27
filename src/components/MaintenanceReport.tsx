@@ -2231,7 +2231,7 @@ WITH CHECK (true);`;
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#6B8F8E] flex-wrap">
                             {rec.equipmentCode && (
-                              <span className="font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded text-[9px]">
+                              <span className="tabular-nums bg-slate-100 text-slate-700 px-1 py-0.2 rounded text-[9px]">
                                 {rec.equipmentCode}
                               </span>
                             )}
@@ -3099,7 +3099,7 @@ WITH CHECK (true);`;
                       {viewingRecord.equipmentName}
                     </h2>
                     {viewingRecord.equipmentCode && (
-                      <p className="text-[11px] text-slate-500 font-mono">
+                      <p className="text-[11px] text-slate-500 tabular-nums">
                         รหัสเครื่อง: {viewingRecord.equipmentCode}
                       </p>
                     )}
@@ -3321,7 +3321,7 @@ WITH CHECK (true);`;
               </div>
 
               <div className="relative">
-                <pre className="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-[10px] leading-relaxed overflow-x-auto max-h-56">
+                <pre className="bg-slate-900 text-slate-100 p-3.5 rounded-xl text-[10px] leading-relaxed overflow-x-auto max-h-56">
                   {sqlSchemaScript}
                 </pre>
                 <button
