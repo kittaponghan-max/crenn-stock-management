@@ -387,7 +387,7 @@ export function Dashboard({ ingredients, stockRecord, allowedDepartments = ['Bar
                           {record.stock} {item.unit}
                         </span>
                       </td>
-                      <td className="px-2 py-2 text-center text-[11px] text-[#6B8F8E] font-mono tabular-nums">
+                      <td className="px-2 py-2 text-center text-[11px] text-[#6B8F8E] tabular-nums">
                         {item.minStock}
                       </td>
                       <td className="px-3 py-2 text-[11px] text-[#6B8F8E] text-right whitespace-nowrap tabular-nums">
