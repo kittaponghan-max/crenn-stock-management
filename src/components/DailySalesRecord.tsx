@@ -910,7 +910,7 @@ export function DailySalesRecord({
           <div className="flex-1">
             <p className="font-bold">{tableExistsWarning}</p>
             <p className="text-[10px] text-amber-700 mt-0.5">
-              คอลัมน์ในตาราง daily_sales_records: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[9px]">date, branch, opening_cash, transfer, cash, credit_card, total_revenue, closing_cash, note, recorded_by, created_at</code>
+              คอลัมน์ในตาราง daily_sales_records: <code className="bg-amber-100 px-1 py-0.5 rounded text-[9px]">date, branch, opening_cash, transfer, cash, credit_card, total_revenue, closing_cash, note, recorded_by, created_at</code>
             </p>
           </div>
         </div>
@@ -1226,7 +1226,7 @@ export function DailySalesRecord({
                       onChange={(e) => handleChange(index, 'openingCash', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] tabular-nums text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1241,7 +1241,7 @@ export function DailySalesRecord({
                       onChange={(e) => handleChange(index, 'transfer', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] tabular-nums text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1256,7 +1256,7 @@ export function DailySalesRecord({
                       onChange={(e) => handleChange(index, 'cash', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] tabular-nums text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1271,7 +1271,7 @@ export function DailySalesRecord({
                       onChange={(e) => handleChange(index, 'creditCard', e.target.value)}
                       placeholder="0.00"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] tabular-nums text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1286,7 +1286,7 @@ export function DailySalesRecord({
                       onChange={(e) => handleChange(index, 'totalRevenue', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className={`w-full border rounded-[4px] font-[400] font-mono text-right placeholder-[#A8BCBB] transition-colors focus:outline-none focus:border-[#5A8A88] disabled:opacity-80 disabled:cursor-not-allowed ${
+                      className={`w-full border rounded-[4px] font-[400] tabular-nums text-right placeholder-[#A8BCBB] transition-colors focus:outline-none focus:border-[#5A8A88] disabled:opacity-80 disabled:cursor-not-allowed ${
                         row.isAutoCalculated && row.totalRevenue !== ''
                           ? 'bg-[#E8F3F2] border-[#5A8A88] text-[#5A8A88] font-[600]'
                           : 'bg-white border-[#D4E4E3] text-[#2D4A49] focus:bg-[#E8F3F2]'
@@ -1306,7 +1306,7 @@ export function DailySalesRecord({
                       onChange={(e) => handleChange(index, 'closingCash', e.target.value)}
                       placeholder="0"
                       style={{ padding: '3px 5px', height: '28px', fontSize: '9px' }}
-                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] font-mono text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
+                      className="w-full bg-white border border-[#D4E4E3] rounded-[4px] font-[400] tabular-nums text-right text-[#2D4A49] placeholder-[#A8BCBB] focus:outline-none focus:border-[#5A8A88] focus:bg-[#E8F3F2] transition-colors disabled:bg-[#F8FAFA] disabled:opacity-80 disabled:cursor-not-allowed"
                     />
                   </td>
 
@@ -1496,34 +1496,34 @@ export function DailySalesRecord({
               </td>
 
               {/* 2. เงินในลิ้นชักตั้งต้น */}
-              <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
+              <td className="py-2 px-1 text-right tabular-nums text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.opening > 0 ? Math.round(totals.opening).toLocaleString('th-TH') : '0'}
               </td>
 
               {/* 3. เงินโอน */}
-              <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
+              <td className="py-2 px-1 text-right tabular-nums text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.transfer > 0 ? Math.round(totals.transfer).toLocaleString('th-TH') : '0'}
               </td>
 
               {/* 4. เงินสด */}
-              <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
+              <td className="py-2 px-1 text-right tabular-nums text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.cash > 0 ? Math.round(totals.cash).toLocaleString('th-TH') : '0'}
               </td>
 
               {/* 5. บัตรเครดิต */}
-              <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
+              <td className="py-2 px-1 text-right tabular-nums text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.credit > 0 
                   ? totals.credit.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
                   : '0.00'}
               </td>
 
               {/* 6. รายรับรวม */}
-              <td className="py-2 px-1 text-right font-mono text-[#2D4A49] font-[800] sticky bottom-0 bg-[#E8F3F2]">
+              <td className="py-2 px-1 text-right tabular-nums text-[#2D4A49] font-[800] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.revenue > 0 ? Math.round(totals.revenue).toLocaleString('th-TH') : '0'}
               </td>
 
               {/* 7. เงินในลิ้นชักตอนปิดร้าน */}
-              <td className="py-2 px-1 text-right font-mono text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
+              <td className="py-2 px-1 text-right tabular-nums text-[#5A8A88] sticky bottom-0 bg-[#E8F3F2]">
                 {totals.closing > 0 ? Math.round(totals.closing).toLocaleString('th-TH') : '0'}
               </td>
 
