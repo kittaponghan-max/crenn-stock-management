@@ -178,7 +178,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
               disabled={!canEdit}
               value={draft.latitude}
               onChange={(e) => updateField('latitude', parseFloat(e.target.value) || 0)}
-              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
             />
           </div>
 
@@ -192,7 +192,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
               disabled={!canEdit}
               value={draft.longitude}
               onChange={(e) => updateField('longitude', parseFloat(e.target.value) || 0)}
-              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
             />
           </div>
 
@@ -208,7 +208,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
               disabled={!canEdit}
               value={draft.radiusMeters}
               onChange={(e) => updateField('radiusMeters', Math.max(10, parseInt(e.target.value, 10) || 100))}
-              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
             />
             <p className="text-[10px] text-[#6B8F8E] mt-1">แนะนำ 50 – 150 เมตรสำหรับคาเฟ่ในเมือง</p>
           </div>
@@ -225,7 +225,7 @@ export const GeofenceSettings: React.FC<GeofenceSettingsProps> = ({
               disabled={!canEdit}
               value={draft.maxAccuracyMeters}
               onChange={(e) => updateField('maxAccuracyMeters', Math.max(20, parseInt(e.target.value, 10) || 200))}
-              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs font-mono tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
+              className="w-full h-[36px] px-3 rounded-[8px] bg-[#F8FCFC] border border-[#D4E4E3] text-[#2D4A49] text-xs tabular-nums outline-none focus:border-[#5A8A88] disabled:opacity-60"
             />
             <p className="text-[10px] text-[#6B8F8E] mt-1">ป้องกันการสแกนเมื่อสัญญาณ GPS ยังไม่นิ่ง</p>
           </div>
