@@ -3519,10 +3519,10 @@ export default function App() {
                         <td className="p-3 font-medium">
                           {ing.unit}
                         </td>
-                        <td className="p-3 text-right font-mono font-medium tabular-nums">
+                        <td className="p-3 text-right font-medium tabular-nums">
                           {ing.minStock}
                         </td>
-                        <td className="p-3 text-right font-mono font-medium tabular-nums">
+                        <td className="p-3 text-right font-medium tabular-nums">
                           {ing.minOrder}
                         </td>
                         <td className="p-3 text-slate-600 truncate max-w-[180px]" title={ing.supplier || ''}>
