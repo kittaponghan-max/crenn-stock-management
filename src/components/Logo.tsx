@@ -10,13 +10,12 @@ export function Logo({ className = '', textClassName = '', showSubtitle = true }
   return (
     <div className={`flex flex-col items-center justify-center bg-[#c5d0ce] ${className}`}>
       <span 
-        className={`font-serif tracking-[0.1em] text-[#1a1a1a] leading-none ${textClassName}`} 
-        style={{ fontFamily: '"Playfair Display", "Didot", "Bodoni MT", "Times New Roman", serif' }}
+        className={`font-sans tracking-[0.1em] text-[#1a1a1a] leading-none ${textClassName}`}
       >
         CRENN
       </span>
       {showSubtitle && (
-        <span className="text-[#1a1a1a] text-[10px] tracking-widest uppercase mt-2 opacity-80" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <span className="font-sans text-[#1a1a1a] text-[10px] tracking-widest uppercase mt-2 opacity-80">
           Artisan Bakery &amp; Cafe
         </span>
       )}
