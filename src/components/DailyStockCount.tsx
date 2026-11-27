@@ -85,7 +85,7 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
               type="date" 
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 h-[32px] focus:outline-none focus:border-[#5A8A88] w-full sm:w-auto font-mono text-[11px] text-[#2D4A49] tabular-nums"
+              className="bg-white border border-[#D4E4E3] rounded-[8px] px-2.5 py-1 h-[32px] focus:outline-none focus:border-[#5A8A88] w-full sm:w-auto text-[11px] text-[#2D4A49] tabular-nums"
             />
           </div>
           {lastSubmittedDate && (
@@ -188,10 +188,10 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                           {item.brand || '-'}
                         </div>
                       </td>
-                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] font-mono bg-inherit truncate" title={item.sizePerUnit || '-'}>
+                      <td className="hidden md:table-cell px-2 py-2 w-[100px] min-w-[100px] max-w-[100px] border-r border-[#D4E4E3] text-[11px] text-[#6B8F8E] tabular-nums bg-inherit truncate" title={item.sizePerUnit || '-'}>
                         {item.sizePerUnit || '-'}
                       </td>
-                      <td className="px-2 py-2 w-[85px] min-w-[85px] max-w-[85px] border-r border-[#D4E4E3] font-mono text-[11px] text-center bg-inherit">
+                      <td className="px-2 py-2 w-[85px] min-w-[85px] max-w-[85px] border-r border-[#D4E4E3] tabular-nums text-[11px] text-center bg-inherit">
                         <span className="bg-[#E8F3F2] text-[#5A8A88] px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[#B8D4D2] tabular-nums">
                           {item.minStock} {item.unit}
                         </span>
@@ -202,7 +202,7 @@ export function DailyStockCount({ ingredients, stockRecord, onSubmit, isReadOnly
                             type="number"
                             min="0"
                             className={cn(
-                              "w-full h-10 text-center focus:outline-none font-mono text-[11px] font-medium rounded-lg border-2 bg-white transition-all disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed tabular-nums",
+                              "w-full h-10 text-center focus:outline-none text-[11px] font-medium rounded-lg border-2 bg-white transition-all disabled:opacity-50 disabled:bg-[#F0F5F4] disabled:cursor-not-allowed tabular-nums",
                               isLowStock
                                 ? "border-[#FECACA] bg-[#FEE2E2] text-[#EF4444] font-bold shadow-xs focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/20"
                                 : "border-[#D4E4E3] text-[#2D4A49] font-medium focus:border-[#5A8A88] focus:ring-2 focus:ring-[#5A8A88]/20 shadow-xs"
