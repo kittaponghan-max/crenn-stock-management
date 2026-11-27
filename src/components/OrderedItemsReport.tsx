@@ -1237,23 +1237,23 @@ const deduplicateOrders = (orders: OrderRecord[]): OrderRecord[] => {
                                   {/* Min Stock (คงเหลือขั้นต่ำ) */}
                                   <td className="px-1 py-1.5 border-r border-[#F0F5F4] text-center w-[74px] max-w-[74px]" style={{ width: '74px', maxWidth: '74px' }}>
                                     {isLow ? (
-                                      <span className="inline-block px-1 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[9.5px] font-mono leading-tight whitespace-nowrap">
+                                      <span className="inline-block px-1 py-0.5 rounded bg-[#FEE2E2] text-[#EF4444] font-semibold text-[9.5px] tabular-nums leading-tight whitespace-nowrap">
                                         {item.minStock} {item.unit}
                                       </span>
                                     ) : (
-                                      <span className="text-[#2D4A49] font-mono text-[9.5px] font-normal leading-tight whitespace-nowrap">
+                                      <span className="text-[#2D4A49] tabular-nums text-[9.5px] font-normal leading-tight whitespace-nowrap">
                                         {item.minStock} {item.unit}
                                       </span>
                                     )}
                                   </td>
 
                                   {/* Current Stock (ยอดตรวจนับ) */}
-                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] font-mono text-[9.5px] font-normal text-center text-[#6B8F8E] w-[66px] max-w-[66px] whitespace-nowrap" style={{ width: '66px', maxWidth: '66px' }}>
+                                  <td className="px-1 py-1.5 border-r border-[#F0F5F4] tabular-nums text-[9.5px] font-normal text-center text-[#6B8F8E] w-[66px] max-w-[66px] whitespace-nowrap" style={{ width: '66px', maxWidth: '66px' }}>
                                     {item.currentStock} {item.unit}
                                   </td>
 
                                   {/* Suggested Order (ยอดสั่งแนะนำ) */}
-                                  <td className="px-1 py-1.5 font-mono text-[9.5px] text-center w-[70px] max-w-[70px] border-r border-[#F0F5F4]" style={{ width: '70px', maxWidth: '70px' }}>
+                                  <td className="px-1 py-1.5 tabular-nums text-[9.5px] text-center w-[70px] max-w-[70px] border-r border-[#F0F5F4]" style={{ width: '70px', maxWidth: '70px' }}>
                                     <span className="inline-block px-1.5 py-0.5 rounded-[3px] text-[9.5px] leading-tight whitespace-nowrap bg-white text-[#5A8A88] font-[700] border border-[#5A8A88]/30 shadow-2xs">
                                       {item.suggestedOrder} {item.unit}
                                     </span>
