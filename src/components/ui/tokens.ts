@@ -1,11 +1,10 @@
 /**
- * CRENN Cafe Management - Design Standard Tokens (v1.0)
+ * CRENN Cafe Management - Design Standard Tokens (v1.2)
  * Central source of truth for typography, colors, and component presets.
  */
 
 export const CRENN_FONTS = {
   sans: "'Plus Jakarta Sans', 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  mono: "'JetBrains Mono', monospace",
 } as const;
 
 export const CRENN_COLORS = {
