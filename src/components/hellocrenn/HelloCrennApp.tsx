@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { sendDiscordNotification } from '../../lib/discordNotify';
-import { generateUUID } from '../../lib/utils';
 import { PagePermission } from '../../utils/permissions';
 import {
   AttendanceMode,
@@ -21,16 +20,18 @@ import {
   BranchGeofenceConfig,
 } from '../../types/hellocrenn';
 import {
-  evaluateAttendanceStatus,
-  formatDistanceMeters,
-  formatOtDuration,
-  formatOtHours,
   getDefaultGeofenceConfig,
   getOtTypeLabel,
-  getStatusLabelTH,
   normalizeGeofenceConfig,
 } from '../../utils/gpsUtils';
-import { toLocalDateStr, formatThaiNumericDate } from '../ui';
+import {
+  fetchBranchAttendanceState,
+  getAttendanceStorageKey,
+  getGeofenceStorageKey,
+  recordBranchAttendance,
+  runMissingAttendanceAlertCheck,
+  syncServerTime,
+} from '../../utils/attendanceSecurity';
 import { AttendanceDashboard } from './AttendanceDashboard';
 import { AttendanceScanner } from './AttendanceScanner';
 import { AttendanceHistory } from './AttendanceHistory';
@@ -56,9 +57,6 @@ interface HelloCrennAppProps {
     settings: PagePermission;
   };
 }
-
-const getGeofenceStorageKey = (branch: string) => `hellocrenn-geofence-${branch}`;
-const getAttendanceStorageKey = (branch: string) => `hellocrenn-attendance-${branch}`;
 
 export function HelloCrennApp({
   currentUser,
@@ -210,200 +208,35 @@ export function HelloCrennApp({
     };
   }, [userMenuOpen, scanMenuOpen, mobileScanMenuOpen]);
 
-  // Load geofence config and attendance logs from dedicated Supabase tables (with app_settings fallback)
+  // Load geofence config and attendance logs + sync server time + run missing check-in/out alert check
   useEffect(() => {
-    if (!supabase) {
-      setDbStatus('offline');
-      return;
-    }
-
     let isMounted = true;
-    setDbStatus('checking');
+    setDbStatus(supabase ? 'checking' : 'offline');
 
     const loadFromSupabase = async () => {
-      try {
-        const [geoTableRes, logsTableRes, settingsRes] = await Promise.all([
-          supabase
-            .from('branch_geofences')
-            .select('*')
-            .eq('branch', currentUser.branch)
-            .maybeSingle(),
-          supabase
-            .from('attendance_logs')
-            .select('*')
-            .eq('branch', currentUser.branch)
-            .order('recorded_at', { ascending: false })
-            .limit(1000),
-          supabase
-            .from('app_settings')
-            .select('setting_key, setting_value')
-            .eq('branch', currentUser.branch)
-            .in('setting_key', [
-              'hellocrenn_geofence_config',
-              'hellocrenn_attendance_logs',
-              'hellocrenn_shift_config',
-            ]),
-        ]);
+      await syncServerTime(false);
+      const state = await fetchBranchAttendanceState(currentUser.branch);
+      if (!isMounted) return;
 
-        if (!isMounted) return;
+      setGeofenceConfig(state.geofenceConfig);
+      setAttendanceRecords(state.attendanceRecords);
+      setDbStatus(state.dbConnected ? 'connected' : 'offline');
 
-        const hasTableConnection = !geoTableRes.error || !logsTableRes.error;
-        const hasSettingsConnection = !settingsRes.error;
-        if (!hasTableConnection && !hasSettingsConnection) {
-          setDbStatus('offline');
-          return;
-        }
-        setDbStatus('connected');
-
-        const settingsList = (!settingsRes.error && Array.isArray(settingsRes.data))
-          ? settingsRes.data
-          : [];
-        const shiftSettingsRow = settingsList.find(
-          (r: any) => r.setting_key === 'hellocrenn_shift_config'
-        );
-        const geoSettingsRow = settingsList.find(
-          (r: any) => r.setting_key === 'hellocrenn_geofence_config'
-        );
-        const logsSettingsRow = settingsList.find(
-          (r: any) => r.setting_key === 'hellocrenn_attendance_logs'
-        );
-
-        const shiftExtras = (shiftSettingsRow?.setting_value ||
-          geoSettingsRow?.setting_value ||
-          null) as Record<string, any> | null;
-
-        // 1. Resolve Geofence + Shift Config (branch_geofences merged with app_settings shift extensions)
-        if (!geoTableRes.error && geoTableRes.data) {
-          const r = geoTableRes.data as any;
-          const mergedEmployeeShifts = (() => {
-            const baseShifts =
-              r.employee_shifts && typeof r.employee_shifts === 'object'
-                ? r.employee_shifts
-                : {};
-            const extraShifts =
-              shiftExtras?.employeeShifts && typeof shiftExtras.employeeShifts === 'object'
-                ? shiftExtras.employeeShifts
-                : null;
-            if (!extraShifts) return baseShifts;
-            const shiftUpdatedAt = shiftExtras?.updatedAt ? new Date(shiftExtras.updatedAt).getTime() : 0;
-            const tableUpdatedAt = r.updated_at ? new Date(r.updated_at).getTime() : 0;
-            if (shiftUpdatedAt >= tableUpdatedAt) {
-              return extraShifts;
-            }
-            const merged: Record<string, any> = { ...baseShifts };
-            Object.entries(baseShifts).forEach(([k, v]: [string, any]) => {
-              const ext = extraShifts[k];
-              if (ext && typeof ext === 'object') {
-                merged[k] = { ...ext, ...v };
-              }
-            });
-            return merged;
-          })();
-
-          const normalized = normalizeGeofenceConfig(
-            {
-              branch: r.branch,
-              branchLabel: r.branch_label,
-              latitude: r.latitude,
-              longitude: r.longitude,
-              radiusMeters: r.radius_meters,
-              maxAccuracyMeters: r.max_accuracy_meters,
-              shiftStartTime: shiftExtras?.shiftStartTime || r.shift_start_time,
-              shiftEndTime: shiftExtras?.shiftEndTime || r.shift_end_time,
-              graceMinutes: shiftExtras?.graceMinutes ?? r.grace_minutes,
-              otStepMinutes: shiftExtras?.otStepMinutes ?? r.ot_step_minutes,
-              defaultOtMultiplier: shiftExtras?.defaultOtMultiplier,
-              shiftTemplates: shiftExtras?.shiftTemplates,
-              holidayOverrides: shiftExtras?.holidayOverrides,
-              employeeShifts: mergedEmployeeShifts,
-              autoCheckinEnabled: r.auto_checkin_enabled,
-              autoCheckoutEnabled: r.auto_checkout_enabled,
-              isConfigured: r.is_configured,
-              updatedBy: r.updated_by,
-              updatedAt: r.updated_at,
-            },
-            currentUser.branch
-          );
-          setGeofenceConfig(normalized);
-          try {
-            localStorage.setItem(getGeofenceStorageKey(currentUser.branch), JSON.stringify(normalized));
-          } catch {}
-        } else if (geoSettingsRow?.setting_value || shiftSettingsRow?.setting_value) {
-          const combined = {
-            ...(geoSettingsRow?.setting_value || {}),
-            ...(shiftSettingsRow?.setting_value || {}),
-          };
-          const normalized = normalizeGeofenceConfig(combined, currentUser.branch);
-          setGeofenceConfig(normalized);
-          try {
-            localStorage.setItem(getGeofenceStorageKey(currentUser.branch), JSON.stringify(normalized));
-          } catch {}
-        } else if (!settingsRes.error) {
-          setGeofenceConfig(getDefaultGeofenceConfig(currentUser.branch));
-        }
-
-        // 2. Resolve Attendance Records (authoritative attendance_logs table enriched with otMultiplier & shiftName from app_settings)
-        if (!logsTableRes.error && Array.isArray(logsTableRes.data)) {
-          const metaById = new Map<string, any>();
-          const metaByComposite = new Map<string, any>();
-          const backupList = Array.isArray(logsSettingsRow?.setting_value)
-            ? (logsSettingsRow.setting_value as AttendanceRecord[])
-            : [];
-          backupList.forEach((b) => {
-            if (!b) return;
-            if (b.id) metaById.set(b.id, b);
-            metaByComposite.set(
-              `${b.date}|${String(b.userName || '').trim().toLowerCase()}|${b.type}`,
-              b
-            );
-          });
-
-          const mapped: AttendanceRecord[] = logsTableRes.data.map((r: any) => {
-            const dateStr = typeof r.date === 'string' ? r.date.slice(0, 10) : String(r.date);
-            const compKey = `${dateStr}|${String(r.user_name || '').trim().toLowerCase()}|${r.type}`;
-            const meta = metaById.get(r.id) || metaByComposite.get(compKey);
-            return {
-              id: r.id,
-              branch: r.branch,
-              date: dateStr,
-              userName: r.user_name,
-              userRole: r.user_role || '',
-              type: r.type,
-              recordedAt: r.recorded_at,
-              timeDisplay: r.time_display,
-              latitude: Number(r.latitude),
-              longitude: Number(r.longitude),
-              distanceMeters: Number(r.distance_meters || 0),
-              accuracyMeters: Number(r.accuracy_meters || 0),
-              status: r.status,
-              mode: r.mode,
-              otMinutes: Number(r.ot_minutes || 0),
-              otMultiplier: meta?.otMultiplier,
-              shiftName: meta?.shiftName,
-              note: r.note || undefined,
-            };
-          });
-          setAttendanceRecords(mapped);
-          try {
-            localStorage.setItem(getAttendanceStorageKey(currentUser.branch), JSON.stringify(mapped));
-          } catch {}
-        } else if (logsSettingsRow?.setting_value && Array.isArray(logsSettingsRow.setting_value)) {
-          setAttendanceRecords(logsSettingsRow.setting_value as AttendanceRecord[]);
-          try {
-            localStorage.setItem(
-              getAttendanceStorageKey(currentUser.branch),
-              JSON.stringify(logsSettingsRow.setting_value)
-            );
-          } catch {}
-        }
-      } catch {
-        if (isMounted) setDbStatus('offline');
-      }
+      await runMissingAttendanceAlertCheck({
+        branch: currentUser.branch,
+        geofenceConfig: state.geofenceConfig,
+        attendanceRecords: state.attendanceRecords,
+      });
     };
 
     loadFromSupabase();
+    const interval = setInterval(() => {
+      loadFromSupabase();
+    }, 5 * 60 * 1000);
+
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, [currentUser.branch]);
 
@@ -419,136 +252,23 @@ export function HelloCrennApp({
     }): Promise<AttendanceRecord | null> => {
       if (isReadOnly || effectivePerms.scan !== 'edit') return null;
 
-      const now = new Date();
-      const dateStr = toLocalDateStr(now);
-      const timeDisplay = now.toLocaleTimeString('th-TH', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-
-      const alreadyRecorded = attendanceRecords.some(
-        (r) =>
-          r.date === dateStr &&
-          r.branch === currentUser.branch &&
-          r.userName.toLowerCase() === currentUser.name.toLowerCase() &&
-          r.type === payload.type
-      );
-      if (alreadyRecorded) return null;
-
-      const todayCheckInRec = attendanceRecords.find(
-        (r) =>
-          r.date === dateStr &&
-          r.branch === currentUser.branch &&
-          r.userName.toLowerCase() === currentUser.name.toLowerCase() &&
-          r.type === 'check_in'
-      );
-      const checkInDateObj = todayCheckInRec ? new Date(todayCheckInRec.recordedAt) : null;
-      const validCheckInDate =
-        checkInDateObj && !Number.isNaN(checkInDateObj.getTime()) ? checkInDateObj : null;
-
-      const evalResult = evaluateAttendanceStatus(
-        payload.type,
-        now,
+      const result = await recordBranchAttendance({
+        currentUser,
         geofenceConfig,
-        currentUser.name,
-        validCheckInDate
-      );
-
-      const newRecord: AttendanceRecord = {
-        id: generateUUID(),
-        branch: currentUser.branch,
-        date: dateStr,
-        userName: currentUser.name,
-        userRole: currentUser.role,
+        existingRecords: attendanceRecords,
         type: payload.type,
-        recordedAt: now.toISOString(),
-        timeDisplay,
+        mode: payload.mode,
         latitude: payload.latitude,
         longitude: payload.longitude,
         distanceMeters: payload.distanceMeters,
         accuracyMeters: payload.accuracyMeters,
-        status: evalResult.status,
-        mode: payload.mode,
-        otMinutes: evalResult.otMinutes,
-        otMultiplier: evalResult.otMultiplier,
-        shiftName: evalResult.shiftName,
         note: payload.note,
-      };
+      });
 
-      const nextRecords = [newRecord, ...attendanceRecords].slice(0, 1500);
-      setAttendanceRecords(nextRecords);
-
-      try {
-        localStorage.setItem(
-          getAttendanceStorageKey(currentUser.branch),
-          JSON.stringify(nextRecords)
-        );
-      } catch {}
-
-      if (supabase) {
-        // Save to dedicated attendance_logs table (existing columns only) + app_settings backup
-        try {
-          await supabase.from('attendance_logs').upsert(
-            {
-              id: newRecord.id,
-              branch: newRecord.branch,
-              date: newRecord.date,
-              user_name: newRecord.userName,
-              user_role: newRecord.userRole,
-              type: newRecord.type,
-              recorded_at: newRecord.recordedAt,
-              time_display: newRecord.timeDisplay,
-              latitude: newRecord.latitude,
-              longitude: newRecord.longitude,
-              distance_meters: newRecord.distanceMeters,
-              accuracy_meters: newRecord.accuracyMeters,
-              status: newRecord.status,
-              mode: newRecord.mode,
-              ot_minutes: newRecord.otMinutes ?? 0,
-              note: newRecord.note || null,
-            },
-            { onConflict: 'branch,date,user_name,type' }
-          );
-        } catch (err) {
-          console.warn('Supabase attendance_logs table save note:', err);
-        }
-
-        try {
-          await supabase.from('app_settings').upsert(
-            {
-              branch: currentUser.branch,
-              setting_key: 'hellocrenn_attendance_logs',
-              setting_value: nextRecords,
-            },
-            { onConflict: 'branch,setting_key' }
-          );
-        } catch (err) {
-          console.warn('Supabase attendance app_settings note:', err);
-        }
-      }
-
-      // Non-blocking Discord Notification synced 1:1 with User Security Setting
-      const typeLabel = payload.type === 'check_in' ? 'เข้างาน (Check-in)' : 'ออกงาน (Check-out)';
-      const modeLabel = payload.mode === 'auto' ? 'Auto GPS' : 'Manual GPS';
-      const otLine =
-        payload.type === 'check_out' && evalResult.otMinutes > 0
-          ? `\n⏱️ ${getOtTypeLabel(evalResult.otMultiplier)}: ${formatOtHours(evalResult.otMinutes)} (${formatOtDuration(evalResult.otMinutes)})`
-          : '';
-      sendDiscordNotification(
-        `📍 **[Hello, Crenn — ลงเวลา${typeLabel} · สาขา ${currentUser.branch}]**\n` +
-          `👤 พนักงาน: ${currentUser.name} (${currentUser.role}) · กะ: ${evalResult.shiftName}\n` +
-          `🗓️ วันที่: ${formatThaiNumericDate(dateStr)} เวลา ${timeDisplay}\n` +
-          `📡 รูปแบบ: ${modeLabel} | ระยะห่างร้าน: ${formatDistanceMeters(payload.distanceMeters)} (±${payload.accuracyMeters} ม.)\n` +
-          `✅ สถานะ: ${getStatusLabelTH(evalResult.status)}` +
-          otLine +
-          (payload.note ? `\n📝 หมายเหตุ: ${payload.note}` : ''),
-        'notifyOnHelloCrennCheckin'
-      );
-
-      return newRecord;
+      setAttendanceRecords(result.nextRecords);
+      return result.record;
     },
-    [attendanceRecords, currentUser.branch, currentUser.name, currentUser.role, effectivePerms.scan, geofenceConfig, isReadOnly]
+    [attendanceRecords, currentUser, effectivePerms.scan, geofenceConfig, isReadOnly]
   );
 
   const handleSaveGeofenceConfig = async (nextConfig: BranchGeofenceConfig) => {
