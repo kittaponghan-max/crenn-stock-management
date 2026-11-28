@@ -3346,6 +3346,7 @@ function UserSettingsContent({ currentUser, onCurrentUserUpdated, onRoleTemplate
                 items: [
                   { id: 'notifyOnHelloCrennCheckin', title: '📍 สแกนเวลาเข้า-ออกงาน (Auto/Manual GPS Check-in)', desc: 'Hello, Crenn → แจ้งเตือนเมื่อพนักงานสแกนเข้างานหรือออกงานด้วยพิกัด GPS' },
                   { id: 'notifyOnHelloCrennGeofence', title: '🛰️ ตั้งค่าพิกัดสาขาและกะงาน (Branch Geofence)', desc: 'Hello, Crenn → แจ้งเตือนเมื่อผู้ดูแลอัปเดตพิกัด GPS ร้าน รัศมี หรือเวลากะงาน' },
+                  { id: 'notifyOnHelloCrennMissingAlert', title: '⏰ แจ้งเตือนลืมสแกนเวลา & ความปลอดภัยอุปกรณ์', desc: 'Hello, Crenn → แจ้งเตือนอัตโนมัติเมื่อเลยเวลาเข้า-ออกงานแล้วยังไม่สแกน หรือพบการใช้เครื่องเดียวกันสแกนแทนกัน' },
                 ],
               },
               {
