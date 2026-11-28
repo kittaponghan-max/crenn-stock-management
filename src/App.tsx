@@ -53,6 +53,7 @@ import { TopNav } from './components/TopNav';
 import { SupabaseStatusBar } from './components/SupabaseStatusBar';
 import { ProdCalcApp } from './components/prodcalc/ProdCalcApp';
 import { HelloCrennApp } from './components/hellocrenn/HelloCrennApp';
+import { GlobalAttendanceReminder } from './components/hellocrenn/GlobalAttendanceReminder';
 import { LeavePortalApp } from './components/leaveportal/LeavePortalApp';
 import { LeaveRequestModal } from './components/LeaveRequestModal';
 import { exportElementToPng } from './components/ui';
@@ -2745,6 +2746,21 @@ export default function App() {
             onSwitchToLeavePortal={canAccessLeavePortal(user, roleTemplates) ? () => setCurrentApp('leaveportal') : undefined}
           />
         </>
+      )}
+
+      {canAccessHelloCrenn(user, roleTemplates) && (
+        <GlobalAttendanceReminder
+          currentUser={{
+            name: user.name,
+            role: user.role,
+            branch: user.branch || 'Rayong',
+          }}
+          canScanSelf={
+            !isReadOnlyPage(user, 'hellocrenn', roleTemplates) &&
+            getPermissionLevel(user, 'hellocrenn_scan', roleTemplates) === 'edit'
+          }
+          onOpenHelloCrenn={() => setCurrentApp('hellocrenn')}
+        />
       )}
 
       {/* Main Content */}
