@@ -13,39 +13,17 @@ async function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // API Route for LINE Notify proxy
-  app.post("/api/line-notify", async (req: express.Request, res: express.Response) => {
-    try {
-      const { message, token } = req.body;
-      const lineToken = token || process.env.LINE_NOTIFY_TOKEN;
-
-      if (!lineToken) {
-        return res.status(400).json({ error: "Missing LINE Notify Token" });
-      }
-      if (!message) {
-        return res.status(400).json({ error: "Missing message" });
-      }
-
-      const response = await fetch("https://notify-api.line.me/api/notify", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${lineToken}`,
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams({ message })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ error: errorText });
-      }
-
-      const data = await response.json();
-      return res.json({ success: true, data });
-    } catch (error: any) {
-      console.error("LINE Notify Proxy error:", error);
-      return res.status(500).json({ error: error.message || "Failed to send notification" });
-    }
+  // Authoritative server clock endpoint for Hello, Crenn attendance time synchronization
+  app.get('/api/time', (_req: express.Request, res: express.Response) => {
+    const now = Date.now();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.json({
+      epochMs: now,
+      nowIso: new Date(now).toISOString(),
+      source: 'server',
+    });
   });
 
   // Vite middleware for development
