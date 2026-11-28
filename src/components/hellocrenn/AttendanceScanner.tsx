@@ -31,6 +31,11 @@ import {
   resolveEmployeeShift,
 } from '../../utils/gpsUtils';
 import {
+  getOrCreateDeviceIdentity,
+  getSyncedNow,
+  syncServerTime,
+} from '../../utils/attendanceSecurity';
+import {
   PageHeaderBanner,
   StandardTableCard,
   StandardTable,
@@ -76,7 +81,19 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
   canEditGeofence = false,
   isReadOnly = false,
 }) => {
-  const [now, setNow] = useState<Date>(() => new Date());
+  const [now, setNow] = useState<Date>(() => getSyncedNow().date);
+  const [timeSyncMeta, setTimeSyncMeta] = useState<{
+    timeSource: 'server' | 'supabase' | 'client';
+    clockOffsetSec: number;
+    hasClockDrift: boolean;
+  }>(() => {
+    const s = getSyncedNow();
+    return {
+      timeSource: s.timeSource,
+      clockOffsetSec: s.clockOffsetSec,
+      hasClockDrift: s.hasClockDrift,
+    };
+  });
   const [autoModeActive, setAutoModeActive] = useState<boolean>(geofenceConfig.autoCheckinEnabled);
   const [noteInput, setNoteInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -103,10 +120,22 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
     setAutoModeActive(geofenceConfig.autoCheckinEnabled);
   }, [geofenceConfig.autoCheckinEnabled]);
 
-  // Live clock (1s)
+  // Sync authoritative server clock & run live clock (1s)
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
+    let mounted = true;
+    syncServerTime(false).then((meta) => {
+      if (!mounted) return;
+      setTimeSyncMeta(meta);
+      setNow(getSyncedNow().date);
+    });
+    const timer = setInterval(() => {
+      const synced = getSyncedNow();
+      setNow(synced.date);
+    }, 1000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const todayStr = toLocalDateStr(now);
@@ -180,7 +209,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
       distanceMeters,
       withinGeofence,
       accuracyAcceptable,
-      lastUpdatedAt: new Date().toLocaleTimeString('th-TH', {
+      lastUpdatedAt: getSyncedNow().date.toLocaleTimeString('th-TH', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
@@ -453,6 +482,14 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
               <span>{formatThaiNumericDate(todayStr)}</span>
               <span className="text-[#5A8A88]">·</span>
               <span className="tabular-nums">{timeString}</span>
+              {timeSyncMeta.timeSource === 'server' && (
+                <span
+                  className="ml-0.5 px-1.5 py-0.5 rounded bg-white text-[#5A8A88] border border-[#D4E4E3] text-[9.5px] font-semibold"
+                  title="ซิงค์เวลากับเซิร์ฟเวอร์แล้ว"
+                >
+                  Server
+                </span>
+              )}
             </div>
             <button
               type="button"
@@ -467,7 +504,7 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
         }
         toolbar={
           <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-            <div className="flex items-center gap-2 text-[11px] text-[#2D4A49]">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#2D4A49]">
               <Radio size={14} className={autoModeActive ? 'text-emerald-600' : 'text-[#6B8F8E]'} />
               <span className="font-semibold">โหมด Auto Check-in เมื่อเข้าพื้นที่ร้าน:</span>
               <button
@@ -482,6 +519,9 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
               >
                 {autoModeActive ? 'เปิดใช้งานอยู่' : 'ปิดไว้ (สแกนด้วยตนเอง)'}
               </button>
+              <span className="text-[10.5px] text-[#6B8F8E] tabular-nums">
+                · อุปกรณ์: <strong className="text-[#2D4A49]">{getOrCreateDeviceIdentity().deviceShortId}</strong> ({getOrCreateDeviceIdentity().deviceLabel})
+              </span>
             </div>
 
             {employeeShift.ignored && (
@@ -509,6 +549,16 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
           </div>
         }
       />
+
+      {timeSyncMeta.hasClockDrift && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
+          <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+          <span className="tabular-nums">
+            ตรวจพบเวลาในเครื่องของคุณคลาดเคลื่อนจากเซิร์ฟเวอร์ประมาณ{' '}
+            <strong>{Math.round(Math.abs(timeSyncMeta.clockOffsetSec) / 60)} นาที</strong> — ระบบใช้เวลาเซิร์ฟเวอร์จริงในการบันทึกและประเมินสถานะเข้า-ออกงาน
+          </span>
+        </div>
+      )}
 
       {feedbackBanner && (
         <div
@@ -921,7 +971,12 @@ export const AttendanceScanner: React.FC<AttendanceScannerProps> = ({
                         </span>
                       </StandardTd>
                       <StandardTd nowrap className="text-[#6B8F8E]">
-                        {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
+                        <div>{rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}</div>
+                        {rec.deviceShortId && (
+                          <div className="text-[10px] text-[#6B8F8E] tabular-nums">
+                            {rec.deviceShortId}
+                          </div>
+                        )}
                       </StandardTd>
                       <StandardTd align="right" nowrap className="tabular-nums">
                         {formatDistanceMeters(rec.distanceMeters)}
