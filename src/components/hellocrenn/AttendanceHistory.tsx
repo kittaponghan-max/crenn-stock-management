@@ -23,6 +23,10 @@ import {
   summarizeOtByMultiplier,
 } from '../../utils/gpsUtils';
 import {
+  analyzeDeviceSharing,
+  getDeviceShortId,
+} from '../../utils/attendanceSecurity';
+import {
   PageHeaderBanner,
   DateRangeFilter,
   StandardDropdown,
@@ -131,6 +135,8 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
       .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
   }, [records, currentBranch, startDate, endDate, typeFilter, searchTerm]);
 
+  const deviceAnalysis = useMemo(() => analyzeDeviceSharing(records), [records]);
+
   const summary = useMemo(() => {
     const checkIns = filteredRecords.filter((r) => r.type === 'check_in');
     const onTime = checkIns.filter((r) => r.status === 'on_time').length;
@@ -212,6 +218,10 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
     const rows = filteredRecords.map((r) => {
       const hasOt = r.type === 'check_out' && (r.otMinutes ?? 0) > 0;
       const otMult = hasOt ? resolveRecordOtMultiplier(r) : null;
+      const sharedInfo = deviceAnalysis.sharedByRecordId.get(r.id);
+      const flags: string[] = [];
+      if (sharedInfo) flags.push(`เครื่องซ้ำกับ: ${sharedInfo.otherUsers.join(', ')}`);
+      if (r.suspiciousFlags?.includes('clock_drift')) flags.push('นาฬิกาอุปกรณ์คลาดเคลื่อน');
       return {
         วันที่: formatThaiNumericDate(r.date),
         เวลา: r.timeDisplay,
@@ -228,6 +238,10 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
         'ระยะห่าง (ม.)': r.distanceMeters,
         'ความคลาดเคลื่อน GPS (ม.)': r.accuracyMeters,
         พิกัด: `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
+        'รหัสอุปกรณ์': r.deviceId ? (r.deviceShortId || getDeviceShortId(r.deviceId)) : '-',
+        อุปกรณ์: r.deviceLabel || '-',
+        'แหล่งเวลา': r.timeSource === 'server' ? 'Server Time' : r.timeSource || '-',
+        'ตรวจสอบความปลอดภัย': flags.length > 0 ? flags.join(' | ') : 'ปกติ',
         หมายเหตุ: r.note || '',
       };
     });
@@ -504,7 +518,34 @@ export const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                       </span>
                     </StandardTd>
                     <StandardTd className="text-[#6B8F8E]">
-                      {rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}
+                      <div>{rec.mode === 'auto' ? 'Auto GPS' : 'Manual'}</div>
+                      {(rec.deviceId || rec.suspiciousFlags?.includes('clock_drift')) && (
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] tabular-nums">
+                          {rec.deviceId && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded border font-semibold whitespace-nowrap ${
+                                deviceAnalysis.sharedByRecordId.has(rec.id)
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-[#F0F5F4] text-[#6B8F8E] border-[#D4E4E3]'
+                              }`}
+                              title={
+                                deviceAnalysis.sharedByRecordId.has(rec.id)
+                                  ? `เครื่องซ้ำกับ: ${deviceAnalysis.sharedByRecordId.get(rec.id)?.otherUsers.join(', ')}`
+                                  : rec.deviceLabel || undefined
+                              }
+                            >
+                              {deviceAnalysis.sharedByRecordId.has(rec.id)
+                                ? `เครื่องซ้ำ · ${rec.deviceShortId || getDeviceShortId(rec.deviceId)}`
+                                : rec.deviceShortId || getDeviceShortId(rec.deviceId)}
+                            </span>
+                          )}
+                          {rec.suspiciousFlags?.includes('clock_drift') && (
+                            <span className="px-1.5 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-200 font-semibold whitespace-nowrap">
+                              เวลาเครื่องคลาดเคลื่อน
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </StandardTd>
                     <StandardTd align="right" className="tabular-nums">
                       {formatDistanceMeters(rec.distanceMeters)}
