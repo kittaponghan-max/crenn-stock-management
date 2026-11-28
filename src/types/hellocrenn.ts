@@ -109,6 +109,13 @@ export interface AttendanceRecord {
   otMultiplier?: OtMultiplier; // ชนิด OT (1.5 | 2 | 3 เท่า)
   shiftName?: string;   // ชื่อกะงานที่ใช้ประเมินในวันนั้น
   note?: string;
+  // Phase 1 anti-cheat & audit metadata (backward-compatible)
+  deviceId?: string;
+  deviceShortId?: string;
+  deviceLabel?: string;
+  timeSource?: 'server' | 'supabase' | 'client';
+  clockOffsetSec?: number;
+  suspiciousFlags?: string[];
 }
 
 export interface GpsPositionState {
