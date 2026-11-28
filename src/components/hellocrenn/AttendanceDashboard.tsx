@@ -29,6 +29,12 @@ import {
   summarizeOtByMultiplier,
 } from '../../utils/gpsUtils';
 import {
+  analyzeDeviceSharing,
+  getDeviceShortId,
+  getSyncedNow,
+  syncServerTime,
+} from '../../utils/attendanceSecurity';
+import {
   PageHeaderBanner,
   StandardDropdown,
   StandardTableCard,
@@ -79,16 +85,23 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
   onOpenGeofenceSettings,
   onOpenShiftSettings,
 }) => {
-  const [now, setNow] = useState<Date>(() => new Date());
+  const [now, setNow] = useState<Date>(() => getSyncedNow().date);
   const [staffMembers, setStaffMembers] = useState<BranchStaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
-  // Live clock (1s) for real-time work duration & accrued OT display
+  // Sync server clock & live clock (1s) for real-time work duration & accrued OT display
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
+    let mounted = true;
+    syncServerTime(false).then(() => {
+      if (mounted) setNow(getSyncedNow().date);
+    });
+    const timer = setInterval(() => setNow(getSyncedNow().date), 1000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
   }, []);
 
   // Load branch staff from Supabase app_users + LocalStorage fallback
@@ -168,6 +181,11 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
       (r) => r.date === todayStr && r.branch === currentBranch
     );
   }, [attendanceRecords, todayStr, currentBranch]);
+
+  const deviceAnalysis = useMemo(
+    () => analyzeDeviceSharing(todayBranchRecords),
+    [todayBranchRecords]
+  );
 
   // Build unified employee overview rows
   const employeeRows = useMemo(() => {
@@ -497,6 +515,25 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
         </div>
       </div>
 
+      {/* Duplicate-Device Security Alert Strip (shown only if shared device detected today) */}
+      {deviceAnalysis.alerts.length > 0 && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3 text-rose-900 space-y-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-rose-800">
+            <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+            <span>แจ้งเตือนความปลอดภัย: พบการใช้อุปกรณ์เดียวกันสแกนเวลาให้พนักงานหลายคนวันนี้</span>
+          </div>
+          <div className="space-y-1 pl-6">
+            {deviceAnalysis.alerts.map((al) => (
+              <p key={al.deviceId} className="text-[11px] text-rose-800 tabular-nums">
+                • อุปกรณ์ <strong className="font-bold">{al.deviceShortId}</strong>
+                {al.deviceLabel ? ` (${al.deviceLabel})` : ''} ถูกใช้ลงเวลาซ้ำโดย:{' '}
+                <strong className="font-bold">{al.users.join(', ')}</strong>
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Staff Attendance Overview Table */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
@@ -605,6 +642,33 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                                 {formatDistanceMeters(checkIn.distanceMeters)}
                               </span>
                             </div>
+                            {(checkIn.deviceId || checkIn.suspiciousFlags?.includes('clock_drift')) && (
+                              <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] tabular-nums">
+                                {checkIn.deviceId && (
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded border font-semibold whitespace-nowrap ${
+                                      deviceAnalysis.sharedByRecordId.has(checkIn.id)
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                        : 'bg-[#F0F5F4] text-[#6B8F8E] border-[#D4E4E3]'
+                                    }`}
+                                    title={
+                                      deviceAnalysis.sharedByRecordId.has(checkIn.id)
+                                        ? `เครื่องนี้ถูกใช้สแกนให้ ${deviceAnalysis.sharedByRecordId.get(checkIn.id)?.otherUsers.join(', ')} ด้วย`
+                                        : checkIn.deviceLabel || undefined
+                                    }
+                                  >
+                                    {deviceAnalysis.sharedByRecordId.has(checkIn.id)
+                                      ? `เครื่องซ้ำ (${checkIn.deviceShortId || getDeviceShortId(checkIn.deviceId)})`
+                                      : checkIn.deviceShortId || getDeviceShortId(checkIn.deviceId)}
+                                  </span>
+                                )}
+                                {checkIn.suspiciousFlags?.includes('clock_drift') && (
+                                  <span className="px-1.5 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-200 font-semibold whitespace-nowrap">
+                                    นาฬิกาเครื่องคลาดเคลื่อน
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
@@ -632,6 +696,33 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
                                 {formatDistanceMeters(checkOut.distanceMeters)}
                               </span>
                             </div>
+                            {(checkOut.deviceId || checkOut.suspiciousFlags?.includes('clock_drift')) && (
+                              <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] tabular-nums">
+                                {checkOut.deviceId && (
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded border font-semibold whitespace-nowrap ${
+                                      deviceAnalysis.sharedByRecordId.has(checkOut.id)
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                        : 'bg-[#F0F5F4] text-[#6B8F8E] border-[#D4E4E3]'
+                                    }`}
+                                    title={
+                                      deviceAnalysis.sharedByRecordId.has(checkOut.id)
+                                        ? `เครื่องนี้ถูกใช้สแกนให้ ${deviceAnalysis.sharedByRecordId.get(checkOut.id)?.otherUsers.join(', ')} ด้วย`
+                                        : checkOut.deviceLabel || undefined
+                                    }
+                                  >
+                                    {deviceAnalysis.sharedByRecordId.has(checkOut.id)
+                                      ? `เครื่องซ้ำ (${checkOut.deviceShortId || getDeviceShortId(checkOut.deviceId)})`
+                                      : checkOut.deviceShortId || getDeviceShortId(checkOut.deviceId)}
+                                  </span>
+                                )}
+                                {checkOut.suspiciousFlags?.includes('clock_drift') && (
+                                  <span className="px-1.5 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-200 font-semibold whitespace-nowrap">
+                                    นาฬิกาเครื่องคลาดเคลื่อน
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-slate-400">
